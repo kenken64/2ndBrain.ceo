@@ -1,0 +1,36 @@
+import { NextResponse } from "next/server";
+import { hasSupabaseEnv } from "@/lib/env";
+import { createClient } from "@/lib/supabase/server";
+import { getRequestOrigin, safeNextPath } from "@/lib/url";
+
+export async function GET(request: Request) {
+  const requestUrl = new URL(request.url);
+  const next = safeNextPath(requestUrl.searchParams.get("next"));
+
+  if (!hasSupabaseEnv()) {
+    return NextResponse.redirect(
+      new URL(`/login?error=supabase_config&next=${encodeURIComponent(next)}`, request.url)
+    );
+  }
+
+  const origin = getRequestOrigin(request);
+  const supabase = await createClient();
+  const { data, error } = await supabase.auth.signInWithOAuth({
+    provider: "google",
+    options: {
+      redirectTo: `${origin}/auth/callback?next=${encodeURIComponent(next)}`,
+      queryParams: {
+        access_type: "offline",
+        prompt: "consent"
+      }
+    }
+  });
+
+  if (error || !data.url) {
+    return NextResponse.redirect(
+      new URL(`/login?error=${encodeURIComponent(error?.message ?? "oauth_url")}`, request.url)
+    );
+  }
+
+  return NextResponse.redirect(data.url);
+}
