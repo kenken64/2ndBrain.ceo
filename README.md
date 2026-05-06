@@ -1,7 +1,7 @@
 # 2ndBrain.ceo
 
 Next.js full-stack app initialized from `design.md` with Supabase SSR auth, Google OAuth,
-Railway standalone deployment settings, and a warm Lovable-inspired frontend system.
+Railway standalone deployment settings, and a robotic-brain frontend system.
 
 ## Stack
 
@@ -21,14 +21,14 @@ npm run dev
 
 Open `http://localhost:3000`.
 
-Fill `.env.local` with your Supabase project URL and publishable key before using login.
+Fill `.env.local` with your Supabase project URL and publishable or anon key before using login.
 Do not commit real `.env` files; `.gitignore` and `.dockerignore` exclude them.
 Google OAuth client secrets should stay in the Supabase Auth provider settings, not in
 the Next.js app or Docker image.
 
 ## Supabase setup
 
-Run the schema in `supabase/migrations/0001_app_schema.sql` from the Supabase SQL Editor.
+Run the SQL files in `supabase/migrations` in order from the Supabase SQL Editor.
 Then enable Google in Supabase Auth providers and add these redirect URLs:
 
 ```txt
@@ -54,6 +54,7 @@ No Supabase keys or OAuth secrets are baked into the Dockerfile.
 - `/` marketing homepage
 - `/login` Google OAuth login
 - `/dashboard` protected product dashboard
-- `/onboarding` design-system onboarding surface
+- `/onboarding` first-login avatar and Telegram setup
 - `/api/health` backend health check
 - `/api/projects` authenticated project API
+- `/api/onboarding` authenticated profile setup API

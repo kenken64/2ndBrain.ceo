@@ -13,11 +13,13 @@ import {
 import { BrandHeart } from "@/components/brand-heart";
 
 type DashboardSidebarProps = {
+  avatarName?: string | null;
   email?: string | null;
 };
 
-export function DashboardSidebar({ email }: DashboardSidebarProps) {
-  const workspaceName = email ? `${email.split("@")[0]}'s workspace` : "Personal workspace";
+export function DashboardSidebar({ avatarName, email }: DashboardSidebarProps) {
+  const workspaceOwner = avatarName?.trim() || email?.split("@")[0] || "Personal";
+  const workspaceName = `${workspaceOwner}'s workspace`;
 
   return (
     <aside className="sidebar">

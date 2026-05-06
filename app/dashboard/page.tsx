@@ -6,6 +6,13 @@ import { DashboardSidebar } from "@/components/dashboard-sidebar";
 import { SetupCallout } from "@/components/setup-callout";
 import { TemplatesPanel } from "@/components/templates-panel";
 import { hasSupabaseEnv } from "@/lib/env";
+import {
+  getUserIdFromClaims,
+  isOnboardingComplete,
+  onboardingPath,
+  onboardingProfileSelect,
+  type OnboardingProfile
+} from "@/lib/onboarding";
 import { createClient } from "@/lib/supabase/server";
 
 export const dynamic = "force-dynamic";
@@ -44,8 +51,22 @@ export default async function DashboardPage() {
     redirect("/login?next=/dashboard");
   }
 
+  const userId = getUserIdFromClaims(claimsData.claims);
+  const { data: profile } = userId
+    ? await supabase
+        .from("profiles")
+        .select(onboardingProfileSelect)
+        .eq("id", userId)
+        .maybeSingle()
+    : { data: null };
+
+  if (!isOnboardingComplete(profile as OnboardingProfile | null)) {
+    redirect(onboardingPath("/dashboard"));
+  }
+
   const email = typeof claimsData.claims.email === "string" ? claimsData.claims.email : null;
-  const firstName = email?.split("@")[0] ?? "there";
+  const avatarName = (profile as OnboardingProfile | null)?.avatar_name?.trim();
+  const firstName = avatarName ?? email?.split("@")[0] ?? "there";
   const { data: projects, error: projectsError } = await supabase
     .from("projects")
     .select("id,title,prompt,created_at")
@@ -56,10 +77,10 @@ export default async function DashboardPage() {
     <>
       <Atmosphere />
       <div className="dashboard-layout">
-        <DashboardSidebar email={email} />
+        <DashboardSidebar avatarName={avatarName} email={email} />
         <main className="dashboard-main">
           <div className="dashboard-topbar">
-            <AnnouncementPill>2ndBrain is ready on Railway</AnnouncementPill>
+            <AnnouncementPill>Telegram bot connected</AnnouncementPill>
             <a className="btn-primary" href="/auth/logout">
               Sign out
             </a>
