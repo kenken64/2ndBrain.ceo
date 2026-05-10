@@ -2,21 +2,32 @@ import { ArrowUp, ChevronDown, Mic, Plus } from "lucide-react";
 
 type ChatInputProps = {
   placeholder: string;
+  action?: string;
   className?: string;
+  defaultPrompt?: string;
+  method?: "get" | "post";
   returnTo?: string;
 };
 
-export function ChatInput({ placeholder, className, returnTo = "/dashboard" }: ChatInputProps) {
+export function ChatInput({
+  action = "/api/projects",
+  placeholder,
+  className,
+  defaultPrompt,
+  method = "post",
+  returnTo = "/dashboard"
+}: ChatInputProps) {
   return (
-    <form action="/api/projects" className={`chat-input ${className ?? ""}`} method="post">
+    <form action={action} className={`chat-input ${className ?? ""}`} method={method}>
       <textarea
         aria-label="Project prompt"
         className="chat-input__textarea"
+        defaultValue={defaultPrompt}
         name="prompt"
         placeholder={placeholder}
         rows={3}
       />
-      <input name="returnTo" type="hidden" value={returnTo} />
+      {method === "post" ? <input name="returnTo" type="hidden" value={returnTo} /> : null}
       <div className="chat-input__bar">
         <div className="chat-input__group">
           <button aria-label="Attach context" className="btn-icon" type="button">

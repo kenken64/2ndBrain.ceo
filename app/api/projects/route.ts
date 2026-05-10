@@ -1,6 +1,14 @@
 import { NextResponse } from "next/server";
 import { hasSupabaseEnv } from "@/lib/env";
+import {
+  getUserIdFromClaims,
+  isOnboardingComplete,
+  onboardingPath,
+  onboardingProfileSelect,
+  type OnboardingProfile
+} from "@/lib/onboarding";
 import { createClient } from "@/lib/supabase/server";
+import { safeNextPath } from "@/lib/url";
 
 function titleFromPrompt(prompt: string) {
   const cleaned = prompt.trim().replace(/\s+/g, " ");
@@ -22,7 +30,9 @@ async function requireUser() {
   const supabase = await createClient();
   const { data, error } = await supabase.auth.getClaims();
 
-  if (error || !data?.claims?.sub) {
+  const userId = getUserIdFromClaims(data?.claims);
+
+  if (error || !userId) {
     return {
       supabase: null,
       response: NextResponse.json({ error: "Authentication required" }, { status: 401 })
@@ -31,7 +41,7 @@ async function requireUser() {
 
   return {
     supabase,
-    userId: data.claims.sub,
+    userId,
     response: null
   };
 }
@@ -78,15 +88,36 @@ export async function POST(request: Request) {
     payload instanceof FormData
       ? String(payload.get("prompt") ?? "")
       : String(payload.prompt ?? "");
+  const returnTo =
+    payload instanceof FormData
+      ? safeNextPath(String(payload.get("returnTo") ?? "/dashboard"))
+      : "/dashboard";
 
   if (!prompt.trim()) {
     if (isFormPost) {
-      return NextResponse.redirect(new URL("/dashboard?error=empty_prompt", request.url), {
+      return NextResponse.redirect(new URL(`${returnTo}?error=empty_prompt`, request.url), {
         status: 303
       });
     }
 
     return NextResponse.json({ error: "Prompt is required" }, { status: 400 });
+  }
+
+  const { data: profile } = await auth.supabase
+    .from("profiles")
+    .select(onboardingProfileSelect)
+    .eq("id", auth.userId)
+    .maybeSingle();
+
+  if (!isOnboardingComplete(profile as OnboardingProfile | null)) {
+    if (isFormPost) {
+      return NextResponse.redirect(
+        new URL(onboardingPath(`/intent?prompt=${encodeURIComponent(prompt.trim())}`), request.url),
+        { status: 303 }
+      );
+    }
+
+    return NextResponse.json({ error: "Onboarding required" }, { status: 403 });
   }
 
   const { data, error } = await auth.supabase
@@ -102,7 +133,7 @@ export async function POST(request: Request) {
 
   if (error) {
     if (isFormPost) {
-      return NextResponse.redirect(new URL("/dashboard?error=project_insert", request.url), {
+      return NextResponse.redirect(new URL(`${returnTo}?error=project_insert`, request.url), {
         status: 303
       });
     }
@@ -111,7 +142,7 @@ export async function POST(request: Request) {
   }
 
   if (isFormPost) {
-    return NextResponse.redirect(new URL("/dashboard?created=1", request.url), {
+    return NextResponse.redirect(new URL(`${returnTo}?created=1`, request.url), {
       status: 303
     });
   }

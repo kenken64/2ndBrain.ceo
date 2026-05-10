@@ -3,6 +3,7 @@ import { ChatInput } from "@/components/chat-input";
 import { Footer } from "@/components/footer";
 import { MarketingNav } from "@/components/marketing-nav";
 import { TemplatesPanel } from "@/components/templates-panel";
+import { hasSupabaseEnv } from "@/lib/env";
 
 const steps = [
   {
@@ -33,7 +34,7 @@ export default function Home() {
       </a>
       <Atmosphere />
       <div className="page-shell">
-        <MarketingNav />
+        <MarketingNav supabaseConfigured={hasSupabaseEnv()} />
         <main id="main-content">
           <section className="hero">
             <div className="container hero__inner">
@@ -46,7 +47,9 @@ export default function Home() {
                 builder that understands founder context.
               </p>
               <ChatInput
+                action="/intent"
                 className="hero__chat"
+                method="get"
                 placeholder="Ask 2ndBrain to turn my notes into a weekly operating dashboard..."
               />
               <div className="trust-strip">
