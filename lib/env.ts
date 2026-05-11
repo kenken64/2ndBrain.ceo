@@ -3,12 +3,20 @@ function cleanEnvValue(value: string | undefined) {
   return cleaned || null;
 }
 
-function firstEnvValue(names: string[]) {
+const SUPABASE_URL_ENV_NAMES = ["NEXT_PUBLIC_SUPABASE_URL", "SUPABASE_URL"] as const;
+const SUPABASE_KEY_ENV_NAMES = [
+  "NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY",
+  "NEXT_PUBLIC_SUPABASE_ANON_KEY",
+  "SUPABASE_PUBLISHABLE_KEY",
+  "SUPABASE_ANON_KEY"
+] as const;
+
+function firstEnvMatch(names: readonly string[]) {
   for (const name of names) {
     const value = cleanEnvValue(process.env[name]);
 
     if (value) {
-      return value;
+      return { name, value };
     }
   }
 
@@ -16,16 +24,24 @@ function firstEnvValue(names: string[]) {
 }
 
 function getSupabaseUrl() {
-  return firstEnvValue(["NEXT_PUBLIC_SUPABASE_URL", "SUPABASE_URL"]);
+  return firstEnvMatch(SUPABASE_URL_ENV_NAMES)?.value ?? null;
 }
 
 function getSupabasePublishableKey() {
-  return firstEnvValue([
-    "NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY",
-    "NEXT_PUBLIC_SUPABASE_ANON_KEY",
-    "SUPABASE_PUBLISHABLE_KEY",
-    "SUPABASE_ANON_KEY"
-  ]);
+  return firstEnvMatch(SUPABASE_KEY_ENV_NAMES)?.value ?? null;
+}
+
+export function getSupabaseEnvStatus() {
+  const url = firstEnvMatch(SUPABASE_URL_ENV_NAMES);
+  const key = firstEnvMatch(SUPABASE_KEY_ENV_NAMES);
+
+  return {
+    keyConfigured: Boolean(key),
+    keySource: key?.name ?? null,
+    siteUrlConfigured: Boolean(getConfiguredSiteUrl()),
+    urlConfigured: Boolean(url),
+    urlSource: url?.name ?? null
+  };
 }
 
 export function hasSupabaseEnv() {

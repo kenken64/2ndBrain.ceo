@@ -1,13 +1,16 @@
 import { NextResponse } from "next/server";
-import { hasSupabaseEnv } from "@/lib/env";
+import { getSupabaseEnvStatus, hasSupabaseEnv } from "@/lib/env";
 import { createClient } from "@/lib/supabase/server";
 
 export async function GET() {
+  const env = getSupabaseEnvStatus();
+
   if (!hasSupabaseEnv()) {
     return NextResponse.json({
       ok: true,
       supabase: "not_configured",
-      authenticated: false
+      authenticated: false,
+      env
     });
   }
 
@@ -18,6 +21,7 @@ export async function GET() {
     ok: true,
     supabase: "configured",
     authenticated: Boolean(data?.claims && !error),
+    env,
     subject: data?.claims?.sub ?? null
   });
 }
