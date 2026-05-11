@@ -7,7 +7,7 @@ import {
   onboardingProfileSelect
 } from "@/lib/onboarding";
 import { createClient } from "@/lib/supabase/server";
-import { safeNextPath } from "@/lib/url";
+import { appUrl, safeNextPath } from "@/lib/url";
 
 export async function GET(request: Request) {
   const requestUrl = new URL(request.url);
@@ -16,7 +16,7 @@ export async function GET(request: Request) {
 
   if (!hasSupabaseEnv()) {
     return NextResponse.redirect(
-      new URL(`/login?error=supabase_config&next=${encodeURIComponent(next)}`, request.url)
+      appUrl(`/login?error=supabase_config&next=${encodeURIComponent(next)}`, request)
     );
   }
 
@@ -46,13 +46,13 @@ export async function GET(request: Request) {
           .maybeSingle();
 
         if (!isOnboardingComplete(profile)) {
-          return NextResponse.redirect(new URL(onboardingPath(next), request.url));
+          return NextResponse.redirect(appUrl(onboardingPath(next), request));
         }
       }
 
-      return NextResponse.redirect(new URL(next, request.url));
+      return NextResponse.redirect(appUrl(next, request));
     }
   }
 
-  return NextResponse.redirect(new URL("/login?error=auth_callback", request.url));
+  return NextResponse.redirect(appUrl("/login?error=auth_callback", request));
 }

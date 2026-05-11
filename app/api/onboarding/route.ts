@@ -3,15 +3,15 @@ import { downloadAvaturnGlb, storeUploadedAvaturnGlb } from "@/lib/avaturn";
 import { hasSupabaseEnv } from "@/lib/env";
 import { getUserIdFromClaims, onboardingPath, parseOnboardingStep } from "@/lib/onboarding";
 import { createClient } from "@/lib/supabase/server";
-import { safeNextPath } from "@/lib/url";
+import { appUrl, safeNextPath } from "@/lib/url";
 
 export const runtime = "nodejs";
 
 function onboardingRedirect(request: Request, error: string, next: string, step = "enrolment") {
   return NextResponse.redirect(
-    new URL(
+    appUrl(
       `/onboarding?step=${encodeURIComponent(step)}&error=${error}&next=${encodeURIComponent(next)}`,
-      request.url
+      request
     ),
     { status: 303 }
   );
@@ -45,7 +45,7 @@ function isUploadedFile(value: FormDataEntryValue | null): value is File {
 export async function POST(request: Request) {
   if (!hasSupabaseEnv()) {
     return NextResponse.redirect(
-      new URL("/login?error=supabase_config&next=/onboarding", request.url),
+      appUrl("/login?error=supabase_config&next=/onboarding", request),
       { status: 303 }
     );
   }
@@ -61,7 +61,7 @@ export async function POST(request: Request) {
 
   if (claimsError || !userId) {
     return NextResponse.redirect(
-      new URL(`/login?next=${encodeURIComponent(onboardingPath(next, step))}`, request.url),
+      appUrl(`/login?next=${encodeURIComponent(onboardingPath(next, step))}`, request),
       { status: 303 }
     );
   }
@@ -103,7 +103,7 @@ export async function POST(request: Request) {
       return onboardingRedirect(request, "save_failed", next, "enrolment");
     }
 
-    return NextResponse.redirect(new URL(onboardingPath(next, "avatar"), request.url), {
+    return NextResponse.redirect(appUrl(onboardingPath(next, "avatar"), request), {
       status: 303
     });
   }
@@ -156,7 +156,7 @@ export async function POST(request: Request) {
     return onboardingRedirect(request, "save_failed", next, "avatar");
   }
 
-  return NextResponse.redirect(new URL(onboardingPath(next, "provision"), request.url), {
+  return NextResponse.redirect(appUrl(onboardingPath(next, "provision"), request), {
     status: 303
   });
 }

@@ -34,11 +34,17 @@ function getSupabasePublishableKey() {
 export function getSupabaseEnvStatus() {
   const url = firstEnvMatch(SUPABASE_URL_ENV_NAMES);
   const key = firstEnvMatch(SUPABASE_KEY_ENV_NAMES);
+  const siteUrl = cleanEnvValue(process.env.NEXT_PUBLIC_SITE_URL)
+    ? { name: "NEXT_PUBLIC_SITE_URL" }
+    : cleanEnvValue(process.env.RAILWAY_PUBLIC_DOMAIN)
+      ? { name: "RAILWAY_PUBLIC_DOMAIN" }
+      : null;
 
   return {
     keyConfigured: Boolean(key),
     keySource: key?.name ?? null,
-    siteUrlConfigured: Boolean(getConfiguredSiteUrl()),
+    siteUrlConfigured: Boolean(siteUrl && getConfiguredSiteUrl()),
+    siteUrlSource: siteUrl?.name ?? null,
     urlConfigured: Boolean(url),
     urlSource: url?.name ?? null
   };
@@ -75,13 +81,15 @@ export function getConfiguredSiteUrl() {
     ?.split(",")
     .map((value) => value.trim())
     .find(Boolean);
+  const railwayDomain = cleanEnvValue(process.env.RAILWAY_PUBLIC_DOMAIN);
+  const candidate = configured ?? railwayDomain;
 
-  if (!configured) {
+  if (!candidate) {
     return null;
   }
 
   try {
-    const url = new URL(configured);
+    const url = new URL(candidate.startsWith("http") ? candidate : `https://${candidate}`);
 
     if (url.protocol !== "http:" && url.protocol !== "https:") {
       return null;

@@ -69,6 +69,8 @@ For Railway production, use the Railway public URL, for example:
 NEXT_PUBLIC_SITE_URL=https://your-app.up.railway.app
 ```
 
+If `NEXT_PUBLIC_SITE_URL` is not set on Railway, the app falls back to `RAILWAY_PUBLIC_DOMAIN` when Railway provides it. Setting `NEXT_PUBLIC_SITE_URL` explicitly is still preferred because it keeps OAuth redirects independent from proxy/internal host headers.
+
 Do not put Supabase service role keys or Google OAuth client secrets in this app. Google OAuth credentials belong in Supabase Auth provider settings.
 
 ## Supabase
@@ -197,7 +199,7 @@ Commit and redeploy after upgrading so Railway rebuilds the Docker image with th
 
 If login shows `Supabase credentials are required before login can run`, the running server cannot see a Supabase URL and anon/publishable key. Check Railway Variables for `NEXT_PUBLIC_SUPABASE_URL` plus `NEXT_PUBLIC_SUPABASE_ANON_KEY`, or `SUPABASE_URL` plus `SUPABASE_ANON_KEY`.
 
-If Google OAuth redirects to `0.0.0.0`, set `NEXT_PUBLIC_SITE_URL` to the real local or Railway URL and make sure that URL is allowed in Supabase Auth redirect URLs.
+If Google OAuth redirects to `0.0.0.0`, the app is using Railway's internal request host for a browser redirect. Set `NEXT_PUBLIC_SITE_URL` to the real Railway public URL, redeploy, and make sure that URL is allowed in Supabase Auth redirect URLs. `/api/health` reports `env.siteUrlConfigured` and `env.siteUrlSource` to confirm which public-origin setting is active.
 
 If PDF startup logs mention `@napi-rs/canvas`, rebuild with the current Dockerfile. The runtime image must copy `node_modules/@napi-rs`.
 

@@ -5,6 +5,8 @@ import { MarketingNav } from "@/components/marketing-nav";
 import { TemplatesPanel } from "@/components/templates-panel";
 import { hasSupabaseEnv } from "@/lib/env";
 
+export const dynamic = "force-dynamic";
+
 const steps = [
   {
     title: "Describe the system",

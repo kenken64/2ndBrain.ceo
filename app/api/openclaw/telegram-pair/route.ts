@@ -8,13 +8,13 @@ import {
 } from "@/lib/onboarding";
 import { pairOpenClawTelegram, setupOpenClawAvatar, setupOpenClawIdentity } from "@/lib/openclaw";
 import { createClient } from "@/lib/supabase/server";
-import { safeNextPath } from "@/lib/url";
+import { appUrl, safeNextPath } from "@/lib/url";
 
 export const runtime = "nodejs";
 
 function redirectToApproval(request: Request, next: string, error?: string) {
   const path = onboardingPath(next, "approval");
-  const url = new URL(path, request.url);
+  const url = appUrl(path, request);
 
   if (error) {
     url.searchParams.set("error", error);
@@ -63,7 +63,7 @@ function logPair(event: string, details: Record<string, string | null | undefine
 export async function POST(request: Request) {
   if (!hasSupabaseEnv()) {
     return NextResponse.redirect(
-      new URL("/login?error=supabase_config&next=/onboarding", request.url),
+      appUrl("/login?error=supabase_config&next=/onboarding", request),
       { status: 303 }
     );
   }
@@ -82,7 +82,7 @@ export async function POST(request: Request) {
 
   if (claimsError || !userId) {
     return NextResponse.redirect(
-      new URL(`/login?next=${encodeURIComponent(onboardingPath(next, "approval"))}`, request.url),
+      appUrl(`/login?next=${encodeURIComponent(onboardingPath(next, "approval"))}`, request),
       { status: 303 }
     );
   }
@@ -231,7 +231,7 @@ export async function POST(request: Request) {
       })();
     }
 
-    return NextResponse.redirect(new URL(nextAfterApproval(next), request.url), { status: 303 });
+    return NextResponse.redirect(appUrl(nextAfterApproval(next), request), { status: 303 });
   } catch (error) {
     const message = error instanceof Error ? error.message : "openclaw_telegram_pair_failed";
 

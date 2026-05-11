@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { hasSupabaseEnv } from "@/lib/env";
 import { createClient } from "@/lib/supabase/server";
-import { getRequestOrigin, safeNextPath } from "@/lib/url";
+import { appUrl, getRequestOrigin, safeNextPath } from "@/lib/url";
 
 export async function GET(request: Request) {
   const requestUrl = new URL(request.url);
@@ -9,7 +9,7 @@ export async function GET(request: Request) {
 
   if (!hasSupabaseEnv()) {
     return NextResponse.redirect(
-      new URL(`/login?error=supabase_config&next=${encodeURIComponent(next)}`, request.url)
+      appUrl(`/login?error=supabase_config&next=${encodeURIComponent(next)}`, request)
     );
   }
 
@@ -28,7 +28,7 @@ export async function GET(request: Request) {
 
   if (error || !data.url) {
     return NextResponse.redirect(
-      new URL(`/login?error=${encodeURIComponent(error?.message ?? "oauth_url")}`, request.url)
+      appUrl(`/login?error=${encodeURIComponent(error?.message ?? "oauth_url")}`, request)
     );
   }
 

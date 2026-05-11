@@ -9,7 +9,7 @@ import {
 } from "@/lib/onboarding";
 import { generateOpenClawWikiProject } from "@/lib/openclaw";
 import { createClient } from "@/lib/supabase/server";
-import { safeNextPath } from "@/lib/url";
+import { appUrl, safeNextPath } from "@/lib/url";
 import { convertWikiAttachments } from "@/lib/wiki-attachments";
 
 export const runtime = "nodejs";
@@ -40,7 +40,7 @@ function projectGenerationErrorCode(error: unknown) {
 }
 
 function redirectWithParams(request: Request, path: string, params: Record<string, string>) {
-  const url = new URL(path, request.url);
+  const url = appUrl(path, request);
 
   for (const [key, value] of Object.entries(params)) {
     url.searchParams.set(key, value);
@@ -105,7 +105,7 @@ export async function POST(request: Request) {
 
   if (auth.response) {
     if (isFormPost) {
-      return NextResponse.redirect(new URL("/login?next=/dashboard", request.url), {
+      return NextResponse.redirect(appUrl("/login?next=/dashboard", request), {
         status: 303
       });
     }
@@ -141,7 +141,7 @@ export async function POST(request: Request) {
   if (!isOnboardingComplete(onboardingProfile)) {
     if (isFormPost) {
       return NextResponse.redirect(
-        new URL(onboardingPath(`/intent?prompt=${encodeURIComponent(prompt.trim())}`), request.url),
+        appUrl(onboardingPath(`/intent?prompt=${encodeURIComponent(prompt.trim())}`), request),
         { status: 303 }
       );
     }

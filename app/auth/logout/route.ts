@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { hasSupabaseEnv } from "@/lib/env";
 import { createClient } from "@/lib/supabase/server";
+import { appUrl } from "@/lib/url";
 
 export async function GET(request: Request) {
   if (hasSupabaseEnv()) {
@@ -8,5 +9,5 @@ export async function GET(request: Request) {
     await supabase.auth.signOut();
   }
 
-  return NextResponse.redirect(new URL("/", request.url));
+  return NextResponse.redirect(appUrl("/", request));
 }

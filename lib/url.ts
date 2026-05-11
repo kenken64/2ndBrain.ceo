@@ -31,6 +31,14 @@ export function getRequestOrigin(request: Request | NextRequest) {
   return getSiteUrl();
 }
 
+export function appUrl(path: string, request: Request | NextRequest) {
+  if (path.startsWith("http://") || path.startsWith("https://")) {
+    return new URL(path);
+  }
+
+  return new URL(path, getRequestOrigin(request));
+}
+
 function isUsableHost(host: string | null) {
   if (!host) {
     return false;

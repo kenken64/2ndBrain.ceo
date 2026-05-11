@@ -8,13 +8,13 @@ import {
 } from "@/lib/onboarding";
 import { provisionOpenClaw } from "@/lib/openclaw";
 import { createClient } from "@/lib/supabase/server";
-import { safeNextPath } from "@/lib/url";
+import { appUrl, safeNextPath } from "@/lib/url";
 
 export const runtime = "nodejs";
 
 function redirectToProvision(request: Request, next: string, error?: string) {
   const path = onboardingPath(next, "provision");
-  const url = new URL(path, request.url);
+  const url = appUrl(path, request);
 
   if (error) {
     url.searchParams.set("error", error);
@@ -75,7 +75,7 @@ function nextAfterProvision(next: string) {
 export async function POST(request: Request) {
   if (!hasSupabaseEnv()) {
     return NextResponse.redirect(
-      new URL("/login?error=supabase_config&next=/onboarding", request.url),
+      appUrl("/login?error=supabase_config&next=/onboarding", request),
       { status: 303 }
     );
   }
@@ -89,7 +89,7 @@ export async function POST(request: Request) {
 
   if (claimsError || !userId) {
     return NextResponse.redirect(
-      new URL(`/login?next=${encodeURIComponent(onboardingPath(next, "provision"))}`, request.url),
+      appUrl(`/login?next=${encodeURIComponent(onboardingPath(next, "provision"))}`, request),
       { status: 303 }
     );
   }
@@ -122,7 +122,7 @@ export async function POST(request: Request) {
     existingInstance &&
     onboardingProfile.openclaw_provision_completed_at
   ) {
-    return NextResponse.redirect(new URL(nextAfterProvision(next), request.url), { status: 303 });
+    return NextResponse.redirect(appUrl(nextAfterProvision(next), request), { status: 303 });
   }
 
   if (onboardingProfile?.openclaw_provision_status === "running") {
@@ -223,7 +223,7 @@ export async function POST(request: Request) {
       userId
     });
 
-    return NextResponse.redirect(new URL(nextAfterProvision(next), request.url), { status: 303 });
+    return NextResponse.redirect(appUrl(nextAfterProvision(next), request), { status: 303 });
   } catch (error) {
     const message = error instanceof Error ? error.message : "openclaw_provision_failed";
     const code = provisionErrorCode(error);
