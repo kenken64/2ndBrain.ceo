@@ -107,6 +107,7 @@ The Docker image:
 
 - Builds with `npm ci` and `npm run build`.
 - Runs the Next.js standalone output.
+- Uses Debian slim instead of Alpine so the `@clawmacdo/linux-x64` glibc binary can execute on Railway.
 - Installs runtime tools needed by provisioning: `aws-cli`, `bash`, and `openssh-client`.
 - Copies `@clawmacdo` into the runtime image for the OpenClaw CLI binary.
 - Copies `@napi-rs` into the runtime image for PDF parsing canvas polyfills.
@@ -202,5 +203,7 @@ If login shows `Supabase credentials are required before login can run`, the run
 If Google OAuth redirects to `0.0.0.0`, the app is using Railway's internal request host for a browser redirect. Set `NEXT_PUBLIC_SITE_URL` to the real Railway public URL, redeploy, and make sure that URL is allowed in Supabase Auth redirect URLs. `/api/health` reports `env.siteUrlConfigured` and `env.siteUrlSource` to confirm which public-origin setting is active.
 
 If PDF startup logs mention `@napi-rs/canvas`, rebuild with the current Dockerfile. The runtime image must copy `node_modules/@napi-rs`.
+
+If provisioning logs show `spawn /app/node_modules/@clawmacdo/linux-x64/bin/clawmacdo ENOENT`, the container is likely missing glibc support or the platform binary. Rebuild with the current Debian slim Dockerfile; it validates the Linux x64 clawmacdo binary during image build.
 
 If provisioning fails, check Railway logs for sanitized `[clawmacdo]` events, AWS variables, snapshot name, region, and whether the `clawmacdo` version in Railway matches `package-lock.json`.

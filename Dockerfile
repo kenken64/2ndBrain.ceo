@@ -1,6 +1,6 @@
 # syntax=docker/dockerfile:1
 
-FROM node:22-alpine AS base
+FROM node:22-bookworm-slim AS base
 WORKDIR /app
 ENV NEXT_TELEMETRY_DISABLED=1
 
@@ -29,7 +29,7 @@ COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 RUN npm run build
 
-FROM node:22-alpine AS runner
+FROM node:22-bookworm-slim AS runner
 WORKDIR /app
 
 ARG NEXT_PUBLIC_SUPABASE_URL
@@ -54,9 +54,11 @@ ENV SUPABASE_ANON_KEY=$SUPABASE_ANON_KEY
 ENV NEXT_PUBLIC_SITE_URL=$NEXT_PUBLIC_SITE_URL
 ENV NEXT_PUBLIC_AVATURN_URL=$NEXT_PUBLIC_AVATURN_URL
 
-RUN apk add --no-cache aws-cli bash openssh-client \
-  && addgroup -S nodejs \
-  && adduser -S nextjs -G nodejs \
+RUN apt-get update \
+  && apt-get install -y --no-install-recommends awscli bash ca-certificates openssh-client \
+  && rm -rf /var/lib/apt/lists/* \
+  && groupadd --system --gid 1001 nodejs \
+  && useradd --system --uid 1001 --gid nodejs --home-dir /app --shell /usr/sbin/nologin nextjs \
   && mkdir -p /app/storage/avatars \
   && chown -R nextjs:nodejs /app/storage
 
@@ -64,6 +66,7 @@ COPY --from=builder --chown=nextjs:nodejs /app/public ./public
 COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
 COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
 COPY --from=deps --chown=nextjs:nodejs /app/node_modules/@clawmacdo ./node_modules/@clawmacdo
+RUN if [ "$(uname -m)" = "x86_64" ]; then test -x ./node_modules/@clawmacdo/linux-x64/bin/clawmacdo; fi
 COPY --from=deps --chown=nextjs:nodejs /app/node_modules/@napi-rs ./node_modules/@napi-rs
 
 USER nextjs
