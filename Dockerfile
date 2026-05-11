@@ -53,23 +53,28 @@ ENV SUPABASE_PUBLISHABLE_KEY=$SUPABASE_PUBLISHABLE_KEY
 ENV SUPABASE_ANON_KEY=$SUPABASE_ANON_KEY
 ENV NEXT_PUBLIC_SITE_URL=$NEXT_PUBLIC_SITE_URL
 ENV NEXT_PUBLIC_AVATURN_URL=$NEXT_PUBLIC_AVATURN_URL
+ENV HOME=/app
+ENV XDG_CACHE_HOME=/app/.cache
+ENV XDG_CONFIG_HOME=/app/.config
 
 RUN apt-get update \
   && apt-get install -y --no-install-recommends awscli bash ca-certificates openssh-client \
   && rm -rf /var/lib/apt/lists/* \
   && groupadd --system --gid 1001 nodejs \
   && useradd --system --uid 1001 --gid nodejs --home-dir /app --shell /usr/sbin/nologin nextjs \
-  && mkdir -p /app/storage/avatars \
-  && chown -R nextjs:nodejs /app/storage
+  && mkdir -p /app/.cache /app/.config /app/.openclaw /app/storage/avatars
 
 COPY --from=builder --chown=nextjs:nodejs /app/public ./public
 COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
 COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
 COPY --from=deps --chown=nextjs:nodejs /app/node_modules/@clawmacdo ./node_modules/@clawmacdo
-RUN if [ "$(uname -m)" = "x86_64" ]; then ./node_modules/@clawmacdo/linux-x64/bin/clawmacdo --version; fi
 COPY --from=deps --chown=nextjs:nodejs /app/node_modules/@napi-rs ./node_modules/@napi-rs
 
+RUN chown -R nextjs:nodejs /app
+
 USER nextjs
+
+RUN if [ "$(uname -m)" = "x86_64" ]; then ./node_modules/@clawmacdo/linux-x64/bin/clawmacdo --version; fi
 
 EXPOSE 3000
 
