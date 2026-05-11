@@ -1,6 +1,6 @@
 # syntax=docker/dockerfile:1
 
-FROM node:22-bookworm-slim AS base
+FROM node:22-trixie-slim AS base
 WORKDIR /app
 ENV NEXT_TELEMETRY_DISABLED=1
 
@@ -29,7 +29,7 @@ COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 RUN npm run build
 
-FROM node:22-bookworm-slim AS runner
+FROM node:22-trixie-slim AS runner
 WORKDIR /app
 
 ARG NEXT_PUBLIC_SUPABASE_URL
@@ -66,7 +66,7 @@ COPY --from=builder --chown=nextjs:nodejs /app/public ./public
 COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
 COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
 COPY --from=deps --chown=nextjs:nodejs /app/node_modules/@clawmacdo ./node_modules/@clawmacdo
-RUN if [ "$(uname -m)" = "x86_64" ]; then test -x ./node_modules/@clawmacdo/linux-x64/bin/clawmacdo; fi
+RUN if [ "$(uname -m)" = "x86_64" ]; then ./node_modules/@clawmacdo/linux-x64/bin/clawmacdo --version; fi
 COPY --from=deps --chown=nextjs:nodejs /app/node_modules/@napi-rs ./node_modules/@napi-rs
 
 USER nextjs
