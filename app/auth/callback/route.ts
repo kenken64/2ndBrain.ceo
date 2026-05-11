@@ -29,6 +29,16 @@ export async function GET(request: Request) {
       const userId = getUserIdFromClaims(claimsData?.claims);
 
       if (userId) {
+        const email = typeof claimsData?.claims?.email === "string" ? claimsData.claims.email : null;
+
+        await supabase.from("profiles").upsert(
+          {
+            id: userId,
+            email
+          },
+          { onConflict: "id" }
+        );
+
         const { data: profile } = await supabase
           .from("profiles")
           .select(onboardingProfileSelect)

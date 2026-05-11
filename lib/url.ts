@@ -1,5 +1,5 @@
 import type { NextRequest } from "next/server";
-import { getSiteUrl } from "@/lib/env";
+import { getConfiguredSiteUrl, getSiteUrl } from "@/lib/env";
 
 export function safeNextPath(value: string | null) {
   if (!value || !value.startsWith("/") || value.startsWith("//")) {
@@ -10,18 +10,38 @@ export function safeNextPath(value: string | null) {
 }
 
 export function getRequestOrigin(request: Request | NextRequest) {
-  const configured = getSiteUrl();
+  const configured = getConfiguredSiteUrl();
   const requestUrl = new URL(request.url);
   const forwardedHost = request.headers.get("x-forwarded-host");
-  const forwardedProto = request.headers.get("x-forwarded-proto") ?? "https";
+  const forwardedProto =
+    request.headers.get("x-forwarded-proto") ?? requestUrl.protocol.replace(":", "") ?? "http";
 
-  if (configured && configured !== "http://localhost:3000") {
+  if (configured) {
     return configured;
   }
 
-  if (forwardedHost) {
+  if (forwardedHost && isUsableHost(forwardedHost)) {
     return `${forwardedProto}://${forwardedHost}`;
   }
 
-  return requestUrl.origin;
+  if (isUsableHost(requestUrl.host)) {
+    return requestUrl.origin;
+  }
+
+  return getSiteUrl();
+}
+
+function isUsableHost(host: string | null) {
+  if (!host) {
+    return false;
+  }
+
+  const normalized = host.trim().toLowerCase();
+
+  return (
+    Boolean(normalized) &&
+    !normalized.startsWith("0.0.0.0") &&
+    !normalized.startsWith("[::]") &&
+    !normalized.startsWith("::")
+  );
 }

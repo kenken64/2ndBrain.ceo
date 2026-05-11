@@ -1,25 +1,27 @@
 import {
   ChevronDown,
-  Compass,
-  Home,
-  Inbox,
+  Clapperboard,
+  GitBranch,
   LayoutGrid,
   Plug,
-  Search,
-  Star,
-  UserRound,
-  UsersRound
+  Power,
+  ScrollText
 } from "lucide-react";
 import { BrandHeart } from "@/components/brand-heart";
+import { ChangeTelegramBotTokenButton } from "@/components/change-telegram-bot-token-button";
+import { DestroyWorkspaceButton } from "@/components/destroy-workspace-button";
 
 type DashboardSidebarProps = {
+  activeItem?: "gateway" | "remotion" | "wiki" | "graph";
   avatarName?: string | null;
   email?: string | null;
+  ownerName?: string | null;
 };
 
-export function DashboardSidebar({ avatarName, email }: DashboardSidebarProps) {
-  const workspaceOwner = avatarName?.trim() || email?.split("@")[0] || "Personal";
+export function DashboardSidebar({ activeItem = "gateway", avatarName, email, ownerName }: DashboardSidebarProps) {
+  const workspaceOwner = ownerName?.trim() || email?.split("@")[0] || "Personal";
   const workspaceName = `${workspaceOwner}'s workspace`;
+  const navigatorName = avatarName?.trim() || "2ndBrain";
 
   return (
     <aside className="sidebar">
@@ -37,53 +39,41 @@ export function DashboardSidebar({ avatarName, email }: DashboardSidebarProps) {
         <ChevronDown size={15} strokeWidth={1.8} />
       </button>
       <nav aria-label="Dashboard navigation" className="sidebar-nav">
-        <a className="sidebar-item is-active" href="/dashboard">
-          <Home size={18} strokeWidth={1.7} />
-          Home
-        </a>
-        <a className="sidebar-item" href="/dashboard">
-          <Search size={18} strokeWidth={1.7} />
-          Search
-        </a>
-        <a className="sidebar-item" href="/dashboard">
-          <Compass size={18} strokeWidth={1.7} />
-          Resources
-        </a>
-        <a className="sidebar-item" href="/dashboard">
+        <span className="sidebar-section-label">WORKSPACE</span>
+        <a className={`sidebar-item${activeItem === "gateway" ? " is-active" : ""}`} href="/dashboard/openclaw">
           <Plug size={18} strokeWidth={1.7} />
-          Connectors
+          OpenClaw Gateway UI
         </a>
-        <span className="sidebar-section-label">PROJECTS</span>
-        <a className="sidebar-item" href="/dashboard">
-          <LayoutGrid size={18} strokeWidth={1.7} />
-          All projects
+        <a className={`sidebar-item${activeItem === "remotion" ? " is-active" : ""}`} href="/dashboard#remotion-avatar">
+          <Clapperboard size={18} strokeWidth={1.7} />
+          Remotion Avatar
         </a>
-        <a className="sidebar-item" href="/dashboard">
-          <Star size={18} strokeWidth={1.7} />
-          Starred
+        <a className={`sidebar-item${activeItem === "wiki" ? " is-active" : ""}`} href="/dashboard/wiki">
+          <ScrollText size={18} strokeWidth={1.7} />
+          LLM Wiki
         </a>
-        <a className="sidebar-item" href="/dashboard">
-          <UserRound size={18} strokeWidth={1.7} />
-          Created by me
-        </a>
-        <a className="sidebar-item" href="/dashboard">
-          <UsersRound size={18} strokeWidth={1.7} />
-          Shared with me
+        <a className={`sidebar-item${activeItem === "graph" ? " is-active" : ""}`} href="/dashboard/graph">
+          <GitBranch size={18} strokeWidth={1.7} />
+          Knowledge Graph
         </a>
       </nav>
       <div className="sidebar-spacer" />
       <div className="sidebar-card">
-        <strong>Share 2ndBrain</strong>
-        <span>Invite collaborators into your workspace.</span>
+        <strong>{navigatorName} is ready</strong>
+        <span>Your workspace can launch Gateway, review the Remotion avatar, and manage the wiki flow from here.</span>
       </div>
       <div className="sidebar-card">
-        <strong>Upgrade to Pro</strong>
-        <span>More projects, connectors, and automations.</span>
+        <strong>Wiki decision pending</strong>
+        <span>Keep hosted and download paths visible until the LLM wiki product direction is finalized.</span>
       </div>
-      <a className="sidebar-item" href="/auth/logout">
-        <Inbox size={18} strokeWidth={1.7} />
-        Sign out
-      </a>
+      <div className="sidebar-footer">
+        <ChangeTelegramBotTokenButton />
+        <DestroyWorkspaceButton />
+        <a className="sidebar-item sidebar-item--logout" href="/auth/logout">
+          <Power size={18} strokeWidth={1.7} />
+          Log out
+        </a>
+      </div>
     </aside>
   );
 }

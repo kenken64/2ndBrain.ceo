@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { Atmosphere } from "@/components/atmosphere";
 import { BrandHeart } from "@/components/brand-heart";
 import { ChatInput } from "@/components/chat-input";
+import { LoginDialog } from "@/components/login-dialog";
 import { SetupCallout } from "@/components/setup-callout";
 import { hasSupabaseEnv } from "@/lib/env";
 import {
@@ -53,7 +54,16 @@ export default async function IntentPage({ searchParams }: IntentPageProps) {
   const userId = getUserIdFromClaims(claimsData?.claims);
 
   if (claimsError || !userId) {
-    redirect(`/login?next=${encodeURIComponent(next)}`);
+    return (
+      <>
+        <Atmosphere />
+        <main className="auth-page">
+          <div className="auth-stack">
+            <LoginDialog next={next} supabaseConfigured={hasSupabaseEnv()} />
+          </div>
+        </main>
+      </>
+    );
   }
 
   const { data: profile } = await supabase
@@ -72,16 +82,18 @@ export default async function IntentPage({ searchParams }: IntentPageProps) {
       <main className="intent-page">
         <section className="intent-panel">
           <BrandHeart size={96} />
-          <p className="wizard-kicker">Intent captured</p>
-          <h1 className="onboarding-title">Turn this into your first 2ndBrain project</h1>
+          <p className="wizard-kicker">LLM Wiki intent</p>
+          <h1 className="onboarding-title">Describe the wiki you want to build</h1>
           <p className="onboarding-copy">
-            Review the intent from the homepage and create the project when it is ready.
+            This prompt seeds the OpenClaw LLM Wiki project. The generated markdown will appear in the LLM Wiki dashboard after creation.
           </p>
           <ChatInput
             className="intent-chat"
             defaultPrompt={prompt}
-            placeholder="Ask 2ndBrain to turn this intent into a dashboard, SOP, or operating system..."
-            returnTo="/dashboard"
+            pendingCopy="Generating the OpenClaw markdown wiki, project scaffold, and graph-ready page structure."
+            pendingTitle="Generating LLM Wiki"
+            placeholder="Describe the knowledge base, project, or operating system you want the LLM wiki to maintain..."
+            returnTo="/dashboard/wiki"
           />
         </section>
       </main>

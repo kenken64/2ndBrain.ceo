@@ -7,8 +7,12 @@ import {
   onboardingProfileSelect,
   type OnboardingProfile
 } from "@/lib/onboarding";
+import { generateOpenClawWikiProject } from "@/lib/openclaw";
 import { createClient } from "@/lib/supabase/server";
 import { safeNextPath } from "@/lib/url";
+import { convertWikiAttachments } from "@/lib/wiki-attachments";
+
+export const runtime = "nodejs";
 
 function titleFromPrompt(prompt: string) {
   const cleaned = prompt.trim().replace(/\s+/g, " ");
@@ -17,6 +21,32 @@ function titleFromPrompt(prompt: string) {
   }
 
   return cleaned.length > 64 ? `${cleaned.slice(0, 61)}...` : cleaned;
+}
+
+function slugFromProjectId(projectId: string) {
+  const hexId = projectId.replace(/-/g, "");
+  const numericId = BigInt(`0x${hexId}`).toString(10);
+
+  return `wiki-${numericId}`;
+}
+
+function outputSummary(value: string) {
+  return value.slice(-4000);
+}
+
+function projectGenerationErrorCode(error: unknown) {
+  const message = error instanceof Error ? error.message : "";
+  return message.startsWith("missing_") ? message : "project_generation";
+}
+
+function redirectWithParams(request: Request, path: string, params: Record<string, string>) {
+  const url = new URL(path, request.url);
+
+  for (const [key, value] of Object.entries(params)) {
+    url.searchParams.set(key, value);
+  }
+
+  return NextResponse.redirect(url, { status: 303 });
 }
 
 async function requireUser() {
@@ -95,9 +125,7 @@ export async function POST(request: Request) {
 
   if (!prompt.trim()) {
     if (isFormPost) {
-      return NextResponse.redirect(new URL(`${returnTo}?error=empty_prompt`, request.url), {
-        status: 303
-      });
+      return redirectWithParams(request, returnTo, { error: "empty_prompt" });
     }
 
     return NextResponse.json({ error: "Prompt is required" }, { status: 400 });
@@ -108,8 +136,9 @@ export async function POST(request: Request) {
     .select(onboardingProfileSelect)
     .eq("id", auth.userId)
     .maybeSingle();
+  const onboardingProfile = profile as OnboardingProfile | null;
 
-  if (!isOnboardingComplete(profile as OnboardingProfile | null)) {
+  if (!isOnboardingComplete(onboardingProfile)) {
     if (isFormPost) {
       return NextResponse.redirect(
         new URL(onboardingPath(`/intent?prompt=${encodeURIComponent(prompt.trim())}`), request.url),
@@ -120,32 +149,118 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Onboarding required" }, { status: 403 });
   }
 
+  const openclawInstance = onboardingProfile?.openclaw_instance?.trim();
+  const ownerName = onboardingProfile?.owner_name?.trim();
+  const avatarName = onboardingProfile?.avatar_name?.trim();
+
+  if (!openclawInstance || !ownerName || !avatarName) {
+    if (isFormPost) {
+      return redirectWithParams(request, returnTo, { error: "openclaw_profile" });
+    }
+
+    return NextResponse.json({ error: "OpenClaw profile is incomplete" }, { status: 409 });
+  }
+
+  let attachments: Awaited<ReturnType<typeof convertWikiAttachments>> = [];
+
+  try {
+    attachments = payload instanceof FormData ? await convertWikiAttachments(payload.getAll("attachments")) : [];
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "attachment_conversion_failed";
+
+    return NextResponse.json({ error: message }, { status: 400 });
+  }
+
   const { data, error } = await auth.supabase
     .from("projects")
     .insert({
       user_id: auth.userId,
       title: titleFromPrompt(prompt),
       prompt,
-      status: "draft"
+      status: "running"
     })
     .select("id,title,prompt,status,created_at")
     .single();
 
   if (error) {
     if (isFormPost) {
-      return NextResponse.redirect(new URL(`${returnTo}?error=project_insert`, request.url), {
-        status: 303
-      });
+      return redirectWithParams(request, returnTo, { error: "project_insert" });
     }
 
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 
-  if (isFormPost) {
-    return NextResponse.redirect(new URL(`${returnTo}?created=1`, request.url), {
-      status: 303
-    });
-  }
+  const projectSlug = slugFromProjectId(data.id);
 
-  return NextResponse.json({ project: data }, { status: 201 });
+  await auth.supabase
+    .from("projects")
+    .update({
+      openclaw_generation_started_at: new Date().toISOString(),
+      openclaw_instance: openclawInstance,
+      openclaw_project_slug: projectSlug
+    })
+    .eq("id", data.id);
+
+  try {
+    const generated = await generateOpenClawWikiProject({
+      avatarName,
+      attachments,
+      instance: openclawInstance,
+      ownerName,
+      projectId: data.id,
+      projectSlug,
+      prompt: prompt.trim(),
+      userId: auth.userId
+    });
+
+    const { data: updatedProject, error: updateError } = await auth.supabase
+      .from("projects")
+      .update({
+        openclaw_generation_completed_at: new Date().toISOString(),
+        openclaw_generation_error: null,
+        openclaw_generation_mapping: generated.mapping,
+        openclaw_generation_output: outputSummary(
+          [generated.hooksOutput, generated.sendOutput].filter(Boolean).join("\n\n")
+        ),
+        openclaw_generation_prompt: generated.task,
+        status: "ready"
+      })
+      .eq("id", data.id)
+      .select("id,title,prompt,status,created_at")
+      .single();
+
+    if (updateError) {
+      if (isFormPost) {
+        return redirectWithParams(request, returnTo, { error: "project_update" });
+      }
+
+      return NextResponse.json({ error: updateError.message }, { status: 500 });
+    }
+
+    if (isFormPost) {
+      return redirectWithParams(request, returnTo, { created: "1" });
+    }
+
+    return NextResponse.json({ project: updatedProject }, { status: 201 });
+  } catch (generationError) {
+    const message =
+      generationError instanceof Error ? generationError.message : "project_generation";
+
+    await auth.supabase
+      .from("projects")
+      .update({
+        openclaw_generation_completed_at: new Date().toISOString(),
+        openclaw_generation_error: outputSummary(message),
+        status: "failed"
+      })
+      .eq("id", data.id);
+
+    if (isFormPost) {
+      return redirectWithParams(request, returnTo, {
+        error: projectGenerationErrorCode(generationError)
+      });
+    }
+
+    return NextResponse.json({ error: message, project: data }, { status: 500 });
+  }
 }

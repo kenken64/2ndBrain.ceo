@@ -1,10 +1,8 @@
 import { redirect } from "next/navigation";
 import { AnnouncementPill } from "@/components/announcement-pill";
 import { Atmosphere } from "@/components/atmosphere";
-import { ChatInput } from "@/components/chat-input";
 import { DashboardSidebar } from "@/components/dashboard-sidebar";
 import { SetupCallout } from "@/components/setup-callout";
-import { TemplatesPanel } from "@/components/templates-panel";
 import { hasSupabaseEnv } from "@/lib/env";
 import {
   getUserIdFromClaims,
@@ -21,7 +19,9 @@ type Project = {
   id: string;
   title: string;
   prompt: string;
+  status: string;
   created_at: string;
+  openclaw_project_slug?: string | null;
 };
 
 function formatProjectDate(value: string) {
@@ -30,6 +30,16 @@ function formatProjectDate(value: string) {
     day: "numeric",
     year: "numeric"
   }).format(new Date(value));
+}
+
+function buildGatewayUrl(instance: string | null | undefined) {
+  const value = instance?.trim();
+
+  if (!value) {
+    return null;
+  }
+
+  return value.startsWith("http://") || value.startsWith("https://") ? value : `http://${value}`;
 }
 
 export default async function DashboardPage() {
@@ -65,11 +75,16 @@ export default async function DashboardPage() {
   }
 
   const email = typeof claimsData.claims.email === "string" ? claimsData.claims.email : null;
-  const avatarName = (profile as OnboardingProfile | null)?.avatar_name?.trim();
-  const firstName = avatarName ?? email?.split("@")[0] ?? "there";
+  const onboardingProfile = profile as OnboardingProfile | null;
+  const ownerName = onboardingProfile?.owner_name?.trim();
+  const avatarName = onboardingProfile?.avatar_name?.trim();
+  const openclawInstance = onboardingProfile?.openclaw_instance?.trim() ?? null;
+  const remotionUrl = onboardingProfile?.openclaw_remotion_url?.trim() ?? null;
+  const firstName = ownerName ?? email?.split("@")[0] ?? "there";
+  const gatewayUrl = buildGatewayUrl(openclawInstance);
   const { data: projects, error: projectsError } = await supabase
     .from("projects")
-    .select("id,title,prompt,created_at")
+    .select("id,title,prompt,status,created_at,openclaw_project_slug")
     .order("created_at", { ascending: false })
     .limit(6);
 
@@ -77,27 +92,127 @@ export default async function DashboardPage() {
     <>
       <Atmosphere />
       <div className="dashboard-layout">
-        <DashboardSidebar avatarName={avatarName} email={email} />
+        <DashboardSidebar activeItem="gateway" avatarName={avatarName} email={email} ownerName={ownerName} />
         <main className="dashboard-main">
           <div className="dashboard-topbar">
-            <AnnouncementPill>Telegram bot connected</AnnouncementPill>
+            <AnnouncementPill>Workspace is provisioned</AnnouncementPill>
             <a className="btn-primary" href="/auth/logout">
-              Sign out
+              Log out
             </a>
           </div>
           <section className="dashboard-center">
-            <h1 className="dashboard-heading">Ready to build, {firstName}?</h1>
+            <h1 className="dashboard-heading">{firstName}&apos;s 2ndBrain workspace</h1>
             <p className="dashboard-copy">
-              Ask for a project, dashboard, SOP, or operating ritual. The backend stores
-              authenticated prompts in Supabase with row level security.
+              Launch OpenClaw, review the Remotion avatar setup, and decide how the LLM wiki
+              should be delivered from one dashboard shell.
             </p>
-            <ChatInput
-              className="dashboard-chat"
-              placeholder="Ask 2ndBrain to make a document that turns my meeting notes into decisions..."
-            />
+            <div className="workspace-status-grid">
+              <article className="workspace-status-card" id="gateway-ui">
+                <div className="workspace-status-card__header">
+                  <div>
+                    <p className="workspace-status-card__eyebrow">OpenClaw Gateway UI</p>
+                    <h2>Gateway entry point</h2>
+                  </div>
+                  <span className={`project-status project-status--${openclawInstance ? "ready" : "draft"}`}>
+                    {openclawInstance ? "ready" : "pending"}
+                  </span>
+                </div>
+                <p className="workspace-status-card__copy">
+                  Launch the OpenClaw workspace host used for provisioning and downstream wiki operations.
+                </p>
+                <dl className="workspace-status-list">
+                  <div>
+                    <dt>Stored instance</dt>
+                    <dd>{openclawInstance ?? "Not available yet"}</dd>
+                  </div>
+                  <div>
+                    <dt>Launch mode</dt>
+                    <dd>{gatewayUrl ? "Best-effort direct host link" : "Waiting for a provisioned instance"}</dd>
+                  </div>
+                </dl>
+                <div className="workspace-status-actions">
+                  <a className="btn-primary" href="/dashboard/openclaw">
+                    Open OpenClaw section <span className="arrow">-&gt;</span>
+                  </a>
+                  {gatewayUrl ? (
+                    <a className="text-link" href={gatewayUrl} rel="noreferrer" target="_blank">
+                      Direct gateway -&gt;
+                    </a>
+                  ) : (
+                    <span className="text-link is-disabled">Gateway link unavailable</span>
+                  )}
+                </div>
+              </article>
+
+              <article className="workspace-status-card" id="remotion-avatar">
+                <div className="workspace-status-card__header">
+                  <div>
+                    <p className="workspace-status-card__eyebrow">Remotion Avatar</p>
+                    <h2>Avatar runtime output</h2>
+                  </div>
+                  <span className={`project-status project-status--${remotionUrl ? "ready" : "running"}`}>
+                    {remotionUrl ? "ready" : "processing"}
+                  </span>
+                </div>
+                <p className="workspace-status-card__copy">
+                  Review the public avatar URL after setup finishes and use it as the dashboard access point for Remotion output.
+                </p>
+                <dl className="workspace-status-list">
+                  <div>
+                    <dt>Avatar</dt>
+                    <dd>{avatarName ?? "Not named yet"}</dd>
+                  </div>
+                  <div>
+                    <dt>Public URL</dt>
+                    <dd>{remotionUrl ?? "Still waiting for Remotion to publish a URL"}</dd>
+                  </div>
+                </dl>
+                <div className="workspace-status-actions">
+                  {remotionUrl ? (
+                    <a className="btn-primary" href={remotionUrl} rel="noreferrer" target="_blank">
+                      Open Remotion Avatar <span className="arrow">-&gt;</span>
+                    </a>
+                  ) : (
+                    <span className="text-link is-disabled">Public URL not available yet</span>
+                  )}
+                </div>
+              </article>
+
+              <article className="workspace-status-card" id="llm-wiki">
+                <div className="workspace-status-card__header">
+                  <div>
+                    <p className="workspace-status-card__eyebrow">LLM Wiki</p>
+                    <h2>Markdown wiki and graph</h2>
+                  </div>
+                  <span className="project-status project-status--running">foundation ready</span>
+                </div>
+                <p className="workspace-status-card__copy">
+                  Generate and edit project-specific LLM wiki markdown, then index linked pages into the knowledge graph.
+                </p>
+                <div className="wiki-decision-grid">
+                  <div className="wiki-decision-card">
+                    <strong>Hosted wiki</strong>
+                    <span>Best for continuous access from the workspace, direct navigation, and future collaboration.</span>
+                  </div>
+                  <div className="wiki-decision-card">
+                    <strong>Downloadable wiki</strong>
+                    <span>Best for portability, backup, and sharing generated project bundles outside the app.</span>
+                  </div>
+                </div>
+                <div className="workspace-status-actions">
+                  <a className="btn-primary" href="/dashboard/wiki">
+                    Open LLM Wiki <span className="arrow">-&gt;</span>
+                  </a>
+                  <a className="text-link" href="/dashboard/graph">
+                    Knowledge graph -&gt;
+                  </a>
+                </div>
+              </article>
+            </div>
+
             <section className="projects-section" aria-labelledby="projects-title">
               <div className="projects-section__header">
-                <h2 id="projects-title">Recent projects</h2>
+                <h2 id="projects-title">Recent wiki jobs</h2>
                 <a className="text-link" href="/api/projects">
                   API JSON -&gt;
                 </a>
@@ -110,21 +225,24 @@ export default async function DashboardPage() {
                 ) : projects && projects.length > 0 ? (
                   (projects as Project[]).map((project) => (
                     <article className="project-card" key={project.id}>
+                      <span className={`project-status project-status--${project.status}`}>
+                        {project.status}
+                      </span>
                       <h3>{project.title}</h3>
                       <p>{project.prompt}</p>
-                      <time dateTime={project.created_at}>{formatProjectDate(project.created_at)}</time>
+                      <div className="project-card__meta">
+                        <span>{project.openclaw_project_slug ?? "Slug pending"}</span>
+                        <time dateTime={project.created_at}>{formatProjectDate(project.created_at)}</time>
+                      </div>
                     </article>
                   ))
                 ) : (
                   <div className="empty-state">
-                    No projects yet. Start with the prompt box above.
+                    No wiki jobs yet. Your hosted versus download decision can stay open while projects start accumulating here.
                   </div>
                 )}
               </div>
             </section>
-          </section>
-          <section className="section">
-            <TemplatesPanel />
           </section>
         </main>
       </div>

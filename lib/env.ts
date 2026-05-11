@@ -28,24 +28,30 @@ export function getSupabaseEnv() {
 }
 
 export function getSiteUrl() {
+  const configured = getConfiguredSiteUrl();
+
+  return configured ?? "http://localhost:3000";
+}
+
+export function getConfiguredSiteUrl() {
   const configured = process.env.NEXT_PUBLIC_SITE_URL
     ?.split(",")
     .map((value) => value.trim().replace(/^['"]|['"]$/g, ""))
     .find(Boolean);
 
   if (!configured) {
-    return "http://localhost:3000";
+    return null;
   }
 
   try {
     const url = new URL(configured);
 
     if (url.protocol !== "http:" && url.protocol !== "https:") {
-      return "http://localhost:3000";
+      return null;
     }
 
     return url.origin;
   } catch {
-    return "http://localhost:3000";
+    return null;
   }
 }

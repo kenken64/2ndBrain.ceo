@@ -21,11 +21,16 @@ ENV NEXT_TELEMETRY_DISABLED=1
 ENV HOSTNAME=0.0.0.0
 ENV PORT=3000
 
-RUN addgroup -S nodejs && adduser -S nextjs -G nodejs
+RUN apk add --no-cache aws-cli bash openssh-client \
+  && addgroup -S nodejs \
+  && adduser -S nextjs -G nodejs \
+  && mkdir -p /app/storage/avatars \
+  && chown -R nextjs:nodejs /app/storage
 
 COPY --from=builder --chown=nextjs:nodejs /app/public ./public
 COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
 COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
+COPY --from=deps --chown=nextjs:nodejs /app/node_modules/@clawmacdo ./node_modules/@clawmacdo
 
 USER nextjs
 

@@ -1,9 +1,12 @@
 import { redirect } from "next/navigation";
-import { Bot, Sparkles } from "lucide-react";
 import { Atmosphere } from "@/components/atmosphere";
 import { AvaturnStep } from "@/components/avaturn-step";
 import { BrandHeart } from "@/components/brand-heart";
+import { EnrolmentForm } from "@/components/enrolment-form";
+import { LoginDialog } from "@/components/login-dialog";
+import { ProvisionForm } from "@/components/provision-form";
 import { SetupCallout } from "@/components/setup-callout";
+import { TelegramApprovalForm } from "@/components/telegram-approval-form";
 import { hasSupabaseEnv } from "@/lib/env";
 import {
   getRequiredOnboardingStep,
@@ -33,30 +36,52 @@ const errors: Record<string, string> = {
   avatar_download_failed: "Avatar export could not be downloaded. Export it again and retry.",
   avatar_download_not_glb: "The exported avatar did not look like a GLB file. Export a GLB from Avaturn.",
   avatar_download_too_large: "The exported avatar is too large to store locally.",
+  avatar_upload_not_glb: "Upload a valid Avaturn GLB file.",
+  avatar_upload_too_large: "The uploaded avatar is too large to store locally.",
   invalid_avatar_url: "Avaturn did not return a valid secure GLB URL yet.",
+  missing_avatar_storage_root: "Avatar storage is not configured on the server.",
+  invalid_telegram_pair_code: "Enter the 8-character approval code from Telegram.",
   missing_avatar: "Create and export your Avaturn avatar to continue.",
   missing_fields: "Add the required field to continue.",
+  missing_aws_access_key_id: "AWS access key is not configured on the server.",
+  missing_aws_region: "AWS region is not configured on the server.",
+  missing_aws_secret_access_key: "AWS secret access key is not configured on the server.",
+  missing_openclaw_lightsail_snapshot_name: "OpenClaw Lightsail snapshot name is not configured.",
+  missing_openai_api_key: "OpenAI API key is not configured on the server.",
+  openclaw_instance_not_found: "OpenClaw was restored but the instance name could not be detected.",
+  openclaw_provision_failed: "OpenClaw provisioning failed. Check AWS Lightsail and clawmacdo output.",
+  openclaw_provision_running: "OpenClaw provisioning is already running. Please wait for the current request to finish.",
+  openclaw_snapshot_not_found: "The configured Lightsail snapshot could not be restored. Check the snapshot name and AWS region.",
+  openclaw_snapshot_response_failed: "Lightsail snapshot restore returned an unexpected response. Check the clawmacdo output and package version.",
+  openclaw_telegram_pair_failed: "Telegram approval failed. Check the code from Telegram and try again.",
+  openclaw_telegram_pair_required: "Provision OpenClaw before approving the Telegram pairing code.",
   save_failed: "Profile setup could not be saved. Check that the onboarding migrations have run."
 };
 
 const stepMeta: Record<OnboardingStep, { index: number; kicker: string; title: string; copy: string }> = {
-  profile: {
+  enrolment: {
     index: 0,
-    kicker: "Step 1 of 3",
-    title: "Name your 2ndBrain",
-    copy: "This is the name your workspace and assistant will use across the product."
-  },
-  telegram: {
-    index: 1,
-    kicker: "Step 2 of 3",
-    title: "Connect your Telegram bot",
-    copy: "Add the bot token so 2ndBrain can receive and route Telegram context later."
+    kicker: "Step 1 of 4",
+    title: "Set up your 2ndBrain profile",
+    copy: "Provide the owner details, AI avatar identity, and Telegram bot token to prepare your workspace for avatar creation."
   },
   avatar: {
-    index: 2,
-    kicker: "Step 3 of 3",
+    index: 1,
+    kicker: "Step 2 of 4",
     title: "Create your Avaturn avatar",
     copy: "Build your avatar, export the GLB, and we will save it locally for the OpenClaw upload."
+  },
+  provision: {
+    index: 2,
+    kicker: "Step 3 of 4",
+    title: "Provision OpenClaw on AWS",
+    copy: "Restore the Lightsail snapshot, connect Telegram, set identity, configure the Remotion avatar, and enable OpenClaw hooks."
+  },
+  approval: {
+    index: 3,
+    kicker: "Step 4 of 4",
+    title: "Approve Telegram pairing",
+    copy: "Enter the approval code sent by your Telegram bot before generating your first 2ndBrain wiki."
   }
 };
 
@@ -75,72 +100,76 @@ function Stepper({ current }: { current: OnboardingStep }) {
   );
 }
 
-function ProfileStep({
-  avatarName,
-  errorMessage,
-  next
-}: {
-  avatarName: string;
-  errorMessage: string | null;
-  next: string;
-}) {
+function ProgressBar({ current }: { current: OnboardingStep }) {
+  const currentIndex = stepMeta[current].index;
+  const progress = Math.round(((currentIndex + 1) / onboardingSteps.length) * 100);
+
   return (
-    <form action="/api/onboarding" className="onboarding-form" method="post">
-      <input name="step" type="hidden" value="profile" />
-      <input name="next" type="hidden" value={next} />
-      <label className="field-stack">
-        <span>
-          <Sparkles size={18} strokeWidth={1.8} />
-          Your 2ndBrain name
-        </span>
-        <input
-          autoComplete="off"
-          defaultValue={avatarName}
-          maxLength={80}
-          name="avatarName"
-          placeholder="Ari"
-          required
-          type="text"
-        />
-      </label>
-      {errorMessage ? <p className="form-error">{errorMessage}</p> : null}
-      <button className="btn-primary onboarding-submit" type="submit">
-        Continue <span className="arrow">-&gt;</span>
-      </button>
-    </form>
+    <div className="wizard-progress-wrap">
+      <div className="wizard-progress__meta">
+        <span>Setup progress</span>
+        <strong>{progress}% complete</strong>
+      </div>
+      <div
+        aria-label={`Setup progress ${progress}%`}
+        aria-valuemax={100}
+        aria-valuemin={0}
+        aria-valuenow={progress}
+        className="wizard-progress"
+        role="progressbar"
+      >
+        <span style={{ width: `${progress}%` }} />
+      </div>
+    </div>
   );
 }
 
-function TelegramStep({
+function EnrolmentStep({
+  avatarGender,
+  avatarName,
   errorMessage,
-  next
+  next,
+  ownerName
+}: {
+  avatarGender: string;
+  avatarName: string;
+  errorMessage: string | null;
+  next: string;
+  ownerName: string;
+}) {
+  return (
+    <EnrolmentForm
+      avatarGender={avatarGender}
+      avatarName={avatarName}
+      errorMessage={errorMessage}
+      next={next}
+      ownerName={ownerName}
+    />
+  );
+}
+
+function ProvisionStep({
+  errorMessage,
+  next,
+  status
 }: {
   errorMessage: string | null;
   next: string;
+  status?: string | null;
 }) {
-  return (
-    <form action="/api/onboarding" className="onboarding-form" method="post">
-      <input name="step" type="hidden" value="telegram" />
-      <input name="next" type="hidden" value={next} />
-      <label className="field-stack">
-        <span>
-          <Bot size={18} strokeWidth={1.8} />
-          Telegram bot token
-        </span>
-        <input
-          autoComplete="off"
-          name="telegramBotToken"
-          placeholder="123456789:AA..."
-          required
-          type="password"
-        />
-      </label>
-      {errorMessage ? <p className="form-error">{errorMessage}</p> : null}
-      <button className="btn-primary onboarding-submit" type="submit">
-        Continue <span className="arrow">-&gt;</span>
-      </button>
-    </form>
-  );
+  return <ProvisionForm errorMessage={errorMessage} next={next} status={status} />;
+}
+
+function ApprovalStep({
+  errorMessage,
+  next,
+  status
+}: {
+  errorMessage: string | null;
+  next: string;
+  status?: string | null;
+}) {
+  return <TelegramApprovalForm errorMessage={errorMessage} next={next} status={status} />;
 }
 
 export default async function OnboardingPage({ searchParams }: OnboardingPageProps) {
@@ -163,7 +192,16 @@ export default async function OnboardingPage({ searchParams }: OnboardingPagePro
   const userId = getUserIdFromClaims(claimsData?.claims);
 
   if (claimsError || !userId) {
-    redirect(`/login?next=${encodeURIComponent(onboardingPath(next))}`);
+    return (
+      <>
+        <Atmosphere />
+        <main className="auth-page">
+          <div className="auth-stack">
+            <LoginDialog next={onboardingPath(next)} supabaseConfigured={hasSupabaseEnv()} />
+          </div>
+        </main>
+      </>
+    );
   }
 
   const { data: profile } = await supabase
@@ -178,7 +216,7 @@ export default async function OnboardingPage({ searchParams }: OnboardingPagePro
     redirect(next);
   }
 
-  const requiredStep = getRequiredOnboardingStep(onboardingProfile) ?? "profile";
+  const requiredStep = getRequiredOnboardingStep(onboardingProfile) ?? "enrolment";
   const requestedStep = parseOnboardingStep(params.step);
   const currentStep = requestedStep ?? requiredStep;
 
@@ -196,24 +234,39 @@ export default async function OnboardingPage({ searchParams }: OnboardingPagePro
         <section className={`onboarding-card onboarding-card--${currentStep}`}>
           <BrandHeart size={currentStep === "avatar" ? 88 : 120} />
           <Stepper current={currentStep} />
+          <ProgressBar current={currentStep} />
           <p className="wizard-kicker">{meta.kicker}</p>
           <h1 className="onboarding-title">{meta.title}</h1>
           <p className="onboarding-copy">{meta.copy}</p>
 
-          {currentStep === "profile" ? (
-            <ProfileStep
+          {currentStep === "enrolment" ? (
+            <EnrolmentStep
+              avatarGender={onboardingProfile?.avatar_gender ?? ""}
               avatarName={onboardingProfile?.avatar_name ?? ""}
               errorMessage={errorMessage}
               next={next}
+              ownerName={onboardingProfile?.owner_name ?? ""}
             />
-          ) : null}
-
-          {currentStep === "telegram" ? (
-            <TelegramStep errorMessage={errorMessage} next={next} />
           ) : null}
 
           {currentStep === "avatar" ? (
             <AvaturnStep errorMessage={errorMessage} next={next} />
+          ) : null}
+
+          {currentStep === "provision" ? (
+            <ProvisionStep
+              errorMessage={errorMessage}
+              next={next}
+              status={onboardingProfile?.openclaw_provision_status}
+            />
+          ) : null}
+
+          {currentStep === "approval" ? (
+            <ApprovalStep
+              errorMessage={errorMessage}
+              next={next}
+              status={onboardingProfile?.openclaw_telegram_pair_status}
+            />
           ) : null}
         </section>
       </main>
