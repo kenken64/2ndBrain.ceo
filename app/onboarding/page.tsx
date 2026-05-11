@@ -220,7 +220,7 @@ export default async function OnboardingPage({ searchParams }: OnboardingPagePro
   const requestedStep = parseOnboardingStep(params.step);
   const currentStep = requestedStep ?? requiredStep;
 
-  if (stepMeta[currentStep].index > stepMeta[requiredStep].index) {
+  if (currentStep !== requiredStep) {
     redirect(onboardingPath(next, requiredStep));
   }
 

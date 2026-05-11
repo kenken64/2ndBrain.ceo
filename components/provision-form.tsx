@@ -1,6 +1,7 @@
 "use client";
 
-import { FormEvent, useState } from "react";
+import { useRouter } from "next/navigation";
+import { FormEvent, useEffect, useState } from "react";
 
 type ProvisionFormProps = {
   errorMessage: string | null;
@@ -9,10 +10,23 @@ type ProvisionFormProps = {
 };
 
 export function ProvisionForm({ errorMessage, next, status }: ProvisionFormProps) {
+  const router = useRouter();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState("");
   const isRunning = status === "running";
   const isDisabled = isRunning || isSubmitting;
+
+  useEffect(() => {
+    if (!isRunning) {
+      return;
+    }
+
+    const interval = window.setInterval(() => {
+      router.refresh();
+    }, 10_000);
+
+    return () => window.clearInterval(interval);
+  }, [isRunning, router]);
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -47,8 +61,12 @@ export function ProvisionForm({ errorMessage, next, status }: ProvisionFormProps
       </div>
       {errorMessage ? <p className="form-error">{errorMessage}</p> : null}
       {submitError ? <p className="form-error">{submitError}</p> : null}
-      {isRunning ? <p className="form-success">Provisioning is already running.</p> : null}
-      {isSubmitting ? (
+      {isRunning ? (
+        <p className="form-success">
+          Provisioning is running. This page will refresh automatically and move to approval when the instance is ready.
+        </p>
+      ) : null}
+      {isSubmitting || isRunning ? (
         <div aria-live="polite" className="provision-pending">
           <span>Provisioning OpenClaw. Restoring Lightsail and waiting for SSH readiness.</span>
           <div aria-hidden="true" className="provision-pending__bar">
@@ -57,7 +75,7 @@ export function ProvisionForm({ errorMessage, next, status }: ProvisionFormProps
         </div>
       ) : null}
       <button className="btn-primary onboarding-submit" disabled={isDisabled} type="submit">
-        {isSubmitting ? "Provisioning..." : "Provision OpenClaw"}{" "}
+        {isSubmitting || isRunning ? "Provisioning..." : "Provision OpenClaw"}{" "}
         <span className="arrow">-&gt;</span>
       </button>
     </form>

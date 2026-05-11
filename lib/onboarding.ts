@@ -8,6 +8,7 @@ export type OnboardingProfile = {
   avatar_glb_path: string | null;
   avatar_completed_at: string | null;
   openclaw_instance: string | null;
+  openclaw_provision_started_at: string | null;
   openclaw_provision_status: string | null;
   openclaw_provision_completed_at: string | null;
   openclaw_identity_completed_at: string | null;
@@ -27,7 +28,7 @@ export const onboardingSteps = ["enrolment", "avatar", "provision", "approval"] 
 export type OnboardingStep = (typeof onboardingSteps)[number];
 
 export const onboardingProfileSelect =
-  "owner_name,avatar_name,avatar_gender,telegram_bot_token,enrolment_completed_at,avaturn_avatar_url,avatar_glb_path,avatar_completed_at,openclaw_instance,openclaw_provision_status,openclaw_provision_completed_at,openclaw_identity_completed_at,openclaw_remotion_url,openclaw_remotion_completed_at,openclaw_hooks_completed_at,openclaw_telegram_pair_status,openclaw_telegram_pair_completed_at,onboarding_completed_at";
+  "owner_name,avatar_name,avatar_gender,telegram_bot_token,enrolment_completed_at,avaturn_avatar_url,avatar_glb_path,avatar_completed_at,openclaw_instance,openclaw_provision_started_at,openclaw_provision_status,openclaw_provision_completed_at,openclaw_identity_completed_at,openclaw_remotion_url,openclaw_remotion_completed_at,openclaw_hooks_completed_at,openclaw_telegram_pair_status,openclaw_telegram_pair_completed_at,onboarding_completed_at";
 
 export function getUserIdFromClaims(claims: ClaimsWithSubject | null | undefined) {
   return typeof claims?.sub === "string" ? claims.sub : null;

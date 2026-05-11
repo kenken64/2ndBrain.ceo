@@ -12,6 +12,8 @@ import { appUrl, safeNextPath } from "@/lib/url";
 
 export const runtime = "nodejs";
 
+const STALE_PROVISION_MS = 30 * 60 * 1000;
+
 function redirectToProvision(request: Request, next: string, error?: string) {
   const path = onboardingPath(next, "provision");
   const url = appUrl(path, request);
@@ -72,6 +74,18 @@ function nextAfterProvision(next: string) {
   return onboardingPath(next, "approval");
 }
 
+function isStaleProvision(profile: OnboardingProfile | null) {
+  if (profile?.openclaw_provision_status !== "running") {
+    return false;
+  }
+
+  const startedAt = profile.openclaw_provision_started_at
+    ? Date.parse(profile.openclaw_provision_started_at)
+    : Number.NaN;
+
+  return !Number.isFinite(startedAt) || Date.now() - startedAt > STALE_PROVISION_MS;
+}
+
 export async function POST(request: Request) {
   if (!hasSupabaseEnv()) {
     return NextResponse.redirect(
@@ -125,7 +139,21 @@ export async function POST(request: Request) {
     return NextResponse.redirect(appUrl(nextAfterProvision(next), request), { status: 303 });
   }
 
-  if (onboardingProfile?.openclaw_provision_status === "running") {
+  if (isStaleProvision(onboardingProfile)) {
+    logProvision("stale_lock_reset", {
+      startedAt: onboardingProfile?.openclaw_provision_started_at,
+      userId
+    });
+
+    await supabase
+      .from("profiles")
+      .update({
+        openclaw_provision_error: "Provisioning request timed out before completion.",
+        openclaw_provision_status: "failed"
+      })
+      .eq("id", userId)
+      .eq("openclaw_provision_status", "running");
+  } else if (onboardingProfile?.openclaw_provision_status === "running") {
     logProvision("duplicate_rejected", {
       reason: "profile_status_running",
       userId
