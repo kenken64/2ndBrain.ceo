@@ -1,23 +1,44 @@
-export function hasSupabaseEnv() {
-  const supabaseKey =
-    process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY ??
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+function cleanEnvValue(value: string | undefined) {
+  const cleaned = value?.trim().replace(/^['"]|['"]$/g, "");
+  return cleaned || null;
+}
 
-  return Boolean(
-    process.env.NEXT_PUBLIC_SUPABASE_URL &&
-      supabaseKey
-  );
+function firstEnvValue(names: string[]) {
+  for (const name of names) {
+    const value = cleanEnvValue(process.env[name]);
+
+    if (value) {
+      return value;
+    }
+  }
+
+  return null;
+}
+
+function getSupabaseUrl() {
+  return firstEnvValue(["NEXT_PUBLIC_SUPABASE_URL", "SUPABASE_URL"]);
+}
+
+function getSupabasePublishableKey() {
+  return firstEnvValue([
+    "NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY",
+    "NEXT_PUBLIC_SUPABASE_ANON_KEY",
+    "SUPABASE_PUBLISHABLE_KEY",
+    "SUPABASE_ANON_KEY"
+  ]);
+}
+
+export function hasSupabaseEnv() {
+  return Boolean(getSupabaseUrl() && getSupabasePublishableKey());
 }
 
 export function getSupabaseEnv() {
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const supabasePublishableKey =
-    process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY ??
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+  const supabaseUrl = getSupabaseUrl();
+  const supabasePublishableKey = getSupabasePublishableKey();
 
   if (!supabaseUrl || !supabasePublishableKey) {
     throw new Error(
-      "Missing NEXT_PUBLIC_SUPABASE_URL or one of NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY or NEXT_PUBLIC_SUPABASE_ANON_KEY"
+      "Missing Supabase URL or anon/publishable key. Set NEXT_PUBLIC_SUPABASE_URL plus NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY/NEXT_PUBLIC_SUPABASE_ANON_KEY, or Railway aliases SUPABASE_URL plus SUPABASE_PUBLISHABLE_KEY/SUPABASE_ANON_KEY."
     );
   }
 
@@ -34,9 +55,9 @@ export function getSiteUrl() {
 }
 
 export function getConfiguredSiteUrl() {
-  const configured = process.env.NEXT_PUBLIC_SITE_URL
+  const configured = cleanEnvValue(process.env.NEXT_PUBLIC_SITE_URL)
     ?.split(",")
-    .map((value) => value.trim().replace(/^['"]|['"]$/g, ""))
+    .map((value) => value.trim())
     .find(Boolean);
 
   if (!configured) {
