@@ -58,7 +58,7 @@ ENV XDG_CACHE_HOME=/app/.cache
 ENV XDG_CONFIG_HOME=/app/.config
 
 RUN apt-get update \
-  && apt-get install -y --no-install-recommends awscli bash ca-certificates openssh-client \
+  && apt-get install -y --no-install-recommends awscli bash ca-certificates openssh-client unzip \
   && rm -rf /var/lib/apt/lists/* \
   && groupadd --system --gid 1001 nodejs \
   && useradd --system --uid 1001 --gid nodejs --home-dir /app --shell /usr/sbin/nologin nextjs \
