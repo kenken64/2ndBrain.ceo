@@ -3091,6 +3091,7 @@ svg {
 
   .dashboard-topbar,
   .dashboard-topbar .btn-primary,
+  .dashboard-topbar .btn-ghost,
   .wiki-projects-search__controls > *,
   .wiki-pagination .btn-ghost,
   .workspace-status-actions > *,
@@ -3328,7 +3329,7 @@ svg {
   }
 
   .wiki-tree {
-    max-height: 240px;
+    max-height: min(68vh, 560px);
     padding: 12px;
   }
 
@@ -3414,15 +3415,25 @@ svg {
     margin-top: 20px;
   }
 
+  .login-modal,
   .destroy-dialog,
   .settings-dialog {
     padding: 14px;
   }
 
+  .login-dialog,
   .destroy-dialog__panel,
   .settings-dialog__panel {
     max-height: calc(100svh - 28px);
     overflow: auto;
+  }
+
+  .login-dialog {
+    padding: 24px 18px;
+  }
+
+  .destroy-dialog__panel,
+  .settings-dialog__panel {
     padding: 22px;
   }
 
@@ -3467,6 +3478,14 @@ svg {
   .auth-panel,
   .onboarding-card {
     padding: 18px 14px;
+  }
+
+  .login-dialog {
+    padding: 22px 14px;
+  }
+
+  .wiki-upload-form {
+    padding: 10px;
   }
 
   .onboarding-title {
