@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { AnnouncementPill } from "@/components/announcement-pill";
 import { Atmosphere } from "@/components/atmosphere";
 import { DashboardSidebar } from "@/components/dashboard-sidebar";
+import { OpenClawGatewayButton } from "@/components/openclaw-gateway-button";
 import { SetupCallout } from "@/components/setup-callout";
 import { WikiEditor } from "@/components/wiki-editor";
 import { hasSupabaseEnv } from "@/lib/env";
@@ -27,16 +28,6 @@ function firstMarkdownFile(items: WikiTreeItem[]): WikiTreeItem | null {
   }
 
   return null;
-}
-
-function buildGatewayUrl(instance: string | null | undefined) {
-  const value = instance?.trim();
-
-  if (!value) {
-    return null;
-  }
-
-  return value.startsWith("http://") || value.startsWith("https://") ? value : `http://${value}`;
 }
 
 export default async function DashboardOpenClawPage() {
@@ -66,7 +57,7 @@ export default async function DashboardOpenClawPage() {
   let tree: WikiTreeItem[] = [];
   let initialPage: WikiPage | null = null;
   let initialError: string | null = null;
-  const gatewayUrl = buildGatewayUrl(context.instance);
+  const gatewayUrl = context.profile.openclaw_gateway_url?.trim() ?? null;
 
   try {
     tree = await readOpenClawWikiTree({
@@ -100,11 +91,7 @@ export default async function DashboardOpenClawPage() {
         <main className="dashboard-main">
           <div className="dashboard-topbar">
             <AnnouncementPill>OpenClaw workspace</AnnouncementPill>
-            {gatewayUrl ? (
-              <a className="btn-primary" href={gatewayUrl} rel="noreferrer" target="_blank">
-                Open Gateway
-              </a>
-            ) : null}
+            <OpenClawGatewayButton initialGatewayUrl={gatewayUrl} />
           </div>
           <section className="dashboard-workbench">
             <WikiEditor

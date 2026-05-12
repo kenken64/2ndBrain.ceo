@@ -43,6 +43,10 @@ type OpenClawIdentityInput = {
   ownerName: string;
 };
 
+type OpenClawGatewayUrlInput = {
+  instance: string;
+};
+
 type OpenClawGenerationInput = {
   attachments?: ConvertedWikiAttachment[];
   avatarName: string;
@@ -1296,6 +1300,37 @@ export async function setupOpenClawIdentity(input: OpenClawIdentityInput) {
 
   return {
     identityOutput
+  };
+}
+
+export async function getOpenClawGatewayUrl(input: OpenClawGatewayUrlInput) {
+  const awsEnv = getAwsEnv();
+  const output = await runClawmacdo(
+    ["openclaw-gateway-url", "--instance", input.instance, "--json"],
+    awsEnv
+  );
+  let gatewayUrl = extractFirstHttpsUrl(output);
+
+  try {
+    const parsed = parseJsonOutput<Record<string, unknown>>(output);
+    gatewayUrl = findStringValue(parsed, [
+      "gateway_url",
+      "gatewayUrl",
+      "openclaw_gateway_url",
+      "openclawGatewayUrl",
+      "public_url",
+      "publicUrl",
+      "url",
+      "funnel_url",
+      "funnelUrl"
+    ]) ?? gatewayUrl;
+  } catch {
+    // Fall back to URL extraction from text output.
+  }
+
+  return {
+    gatewayOutput: output,
+    gatewayUrl
   };
 }
 

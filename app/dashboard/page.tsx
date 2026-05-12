@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { AnnouncementPill } from "@/components/announcement-pill";
 import { Atmosphere } from "@/components/atmosphere";
 import { DashboardSidebar } from "@/components/dashboard-sidebar";
+import { OpenClawGatewayStatus } from "@/components/openclaw-gateway-status";
 import { SetupCallout } from "@/components/setup-callout";
 import { hasSupabaseEnv } from "@/lib/env";
 import {
@@ -30,16 +31,6 @@ function formatProjectDate(value: string) {
     day: "numeric",
     year: "numeric"
   }).format(new Date(value));
-}
-
-function buildGatewayUrl(instance: string | null | undefined) {
-  const value = instance?.trim();
-
-  if (!value) {
-    return null;
-  }
-
-  return value.startsWith("http://") || value.startsWith("https://") ? value : `http://${value}`;
 }
 
 export default async function DashboardPage() {
@@ -79,9 +70,9 @@ export default async function DashboardPage() {
   const ownerName = onboardingProfile?.owner_name?.trim();
   const avatarName = onboardingProfile?.avatar_name?.trim();
   const openclawInstance = onboardingProfile?.openclaw_instance?.trim() ?? null;
+  const openclawGatewayUrl = onboardingProfile?.openclaw_gateway_url?.trim() ?? null;
   const remotionUrl = onboardingProfile?.openclaw_remotion_url?.trim() ?? null;
   const firstName = ownerName ?? email?.split("@")[0] ?? "there";
-  const gatewayUrl = buildGatewayUrl(openclawInstance);
   const { data: projects, error: projectsError } = await supabase
     .from("projects")
     .select("id,title,prompt,status,created_at,openclaw_project_slug")
@@ -107,42 +98,7 @@ export default async function DashboardPage() {
               should be delivered from one dashboard shell.
             </p>
             <div className="workspace-status-grid">
-              <article className="workspace-status-card" id="gateway-ui">
-                <div className="workspace-status-card__header">
-                  <div>
-                    <p className="workspace-status-card__eyebrow">OpenClaw Gateway UI</p>
-                    <h2>Gateway entry point</h2>
-                  </div>
-                  <span className={`project-status project-status--${openclawInstance ? "ready" : "draft"}`}>
-                    {openclawInstance ? "ready" : "pending"}
-                  </span>
-                </div>
-                <p className="workspace-status-card__copy">
-                  Launch the OpenClaw workspace host used for provisioning and downstream wiki operations.
-                </p>
-                <dl className="workspace-status-list">
-                  <div>
-                    <dt>Stored instance</dt>
-                    <dd>{openclawInstance ?? "Not available yet"}</dd>
-                  </div>
-                  <div>
-                    <dt>Launch mode</dt>
-                    <dd>{gatewayUrl ? "Best-effort direct host link" : "Waiting for a provisioned instance"}</dd>
-                  </div>
-                </dl>
-                <div className="workspace-status-actions">
-                  <a className="btn-primary" href="/dashboard/openclaw">
-                    Open OpenClaw section <span className="arrow">-&gt;</span>
-                  </a>
-                  {gatewayUrl ? (
-                    <a className="text-link" href={gatewayUrl} rel="noreferrer" target="_blank">
-                      Direct gateway -&gt;
-                    </a>
-                  ) : (
-                    <span className="text-link is-disabled">Gateway link unavailable</span>
-                  )}
-                </div>
-              </article>
+              <OpenClawGatewayStatus initialGatewayUrl={openclawGatewayUrl} instance={openclawInstance} />
 
               <article className="workspace-status-card" id="remotion-avatar">
                 <div className="workspace-status-card__header">

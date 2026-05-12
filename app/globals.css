@@ -1542,6 +1542,18 @@ svg {
   color: var(--fg-secondary);
 }
 
+.workspace-status-card__hint {
+  margin: 14px 0 0;
+  border: 1px solid rgba(0, 167, 255, 0.24);
+  border-radius: var(--radius-md);
+  background: rgba(0, 167, 255, 0.08);
+  color: var(--fg-secondary);
+  padding: 10px 12px;
+  font-size: 12px;
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+}
+
 .workspace-status-list {
   display: grid;
   gap: 12px;
