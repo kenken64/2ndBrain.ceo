@@ -4,6 +4,7 @@ import {
   Download,
   Eye,
   FileText,
+  FileUp,
   Folder,
   FolderOpen,
   GitBranch,
@@ -11,7 +12,7 @@ import {
   Save,
   SquarePen
 } from "lucide-react";
-import { useState, useTransition } from "react";
+import { ChangeEvent, FormEvent, useRef, useState, useTransition } from "react";
 import type { WikiPage, WikiTreeItem } from "@/lib/wiki";
 
 type WikiEditorProps = {
@@ -27,6 +28,27 @@ type WikiEditorProps = {
 };
 
 type ViewMode = "edit" | "preview";
+
+const WIKI_UPLOAD_ACCEPT = [
+  "image/*",
+  "application/pdf",
+  "text/csv",
+  "text/plain",
+  "text/markdown",
+  ".csv",
+  ".doc",
+  ".docx",
+  ".md",
+  ".markdown",
+  ".pdf",
+  ".txt",
+  ".xls",
+  ".xlsx",
+  "application/msword",
+  "application/vnd.ms-excel",
+  "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+  "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+].join(",");
 
 function flattenTree(items: WikiTreeItem[]) {
   const files: WikiTreeItem[] = [];
@@ -150,8 +172,13 @@ export function WikiEditor({
   const [error, setError] = useState(initialError ?? "");
   const [status, setStatus] = useState(initialPage ? "Loaded" : "Idle");
   const [mode, setMode] = useState<ViewMode>("edit");
+  const [uploadError, setUploadError] = useState("");
+  const [uploadFiles, setUploadFiles] = useState<File[]>([]);
+  const [uploadPrompt, setUploadPrompt] = useState("");
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
   const [isPending, startTransition] = useTransition();
   const graphUrl = graphHref ?? (projectId ? `/dashboard/graph?projectId=${projectId}` : "/dashboard/graph");
+  const canUploadDocuments = Boolean(projectId);
 
   function wikiUrl(pathname: string, pathValue?: string) {
     const params = new URLSearchParams();
@@ -284,6 +311,63 @@ export function WikiEditor({
     });
   }
 
+  function handleUploadFiles(event: ChangeEvent<HTMLInputElement>) {
+    const filesToAdd = Array.from(event.target.files ?? []);
+
+    setUploadFiles((current) => [...current, ...filesToAdd].slice(0, 8));
+    setUploadError("");
+    event.target.value = "";
+  }
+
+  function removeUploadFile(index: number) {
+    setUploadFiles((current) => current.filter((_, currentIndex) => currentIndex !== index));
+  }
+
+  function ingestDocuments(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+
+    if (!projectId) {
+      setUploadError("Open a generated LLM Wiki before uploading documents.");
+      return;
+    }
+
+    if (uploadFiles.length === 0) {
+      setUploadError("Attach at least one document to upload.");
+      return;
+    }
+
+    setError("");
+    setUploadError("");
+    setStatus(`Uploading ${uploadFiles.length} document${uploadFiles.length === 1 ? "" : "s"}`);
+    startTransition(async () => {
+      const formData = new FormData();
+
+      formData.set("projectId", projectId);
+      formData.set("prompt", uploadPrompt);
+      for (const file of uploadFiles) {
+        formData.append("attachments", file, file.name);
+      }
+
+      const response = await fetch("/api/wiki/ingest", {
+        body: formData,
+        credentials: "same-origin",
+        method: "POST"
+      });
+      const payload = await response.json().catch(() => null);
+
+      if (!response.ok) {
+        setUploadError(payload?.error ?? "Document upload failed");
+        setStatus("Upload failed");
+        return;
+      }
+
+      setStatus(`Uploaded ${payload?.attachments?.length ?? uploadFiles.length} document${uploadFiles.length === 1 ? "" : "s"}`);
+      setUploadFiles([]);
+      setUploadPrompt("");
+      window.location.reload();
+    });
+  }
+
   return (
     <div className="wiki-workspace">
       <aside className="wiki-tree" aria-label="Wiki pages">
@@ -291,6 +375,61 @@ export function WikiEditor({
           <FileText size={17} strokeWidth={1.8} />
           <span>Pages</span>
         </div>
+        {canUploadDocuments ? (
+          <form className="wiki-upload-form" encType="multipart/form-data" noValidate onSubmit={ingestDocuments}>
+            <div className="wiki-upload-form__header">
+              <strong>Upload to this wiki</strong>
+              <span>DOC, DOCX, Excel, CSV, PDF, images, text, and markdown are converted before OpenClaw sees them.</span>
+            </div>
+            <input
+              accept={WIKI_UPLOAD_ACCEPT}
+              className="wiki-upload-form__file"
+              multiple
+              onChange={handleUploadFiles}
+              ref={fileInputRef}
+              type="file"
+            />
+            <button
+              className="btn-ghost wiki-upload-form__pick"
+              disabled={isPending}
+              onClick={() => fileInputRef.current?.click()}
+              type="button"
+            >
+              <FileUp size={15} strokeWidth={1.8} />
+              Attach documents
+            </button>
+            {uploadFiles.length > 0 ? (
+              <div className="wiki-upload-form__files">
+                {uploadFiles.map((file, index) => (
+                  <button
+                    className="wiki-upload-form__file-pill"
+                    disabled={isPending}
+                    key={`${file.name}-${file.size}-${index}`}
+                    onClick={() => removeUploadFile(index)}
+                    title="Remove file"
+                    type="button"
+                  >
+                    {file.name}
+                  </button>
+                ))}
+              </div>
+            ) : null}
+            <label className="wiki-upload-form__prompt">
+              <span>Instruction for AI ingestion</span>
+              <textarea
+                disabled={isPending}
+                onChange={(event) => setUploadPrompt(event.target.value)}
+                placeholder="Ask the AI to decide where these sources belong, update existing pages if useful, and modify the wiki index/log."
+                rows={3}
+                value={uploadPrompt}
+              />
+            </label>
+            {uploadError ? <p className="form-error">{uploadError}</p> : null}
+            <button className="btn-primary btn-primary--compact" disabled={isPending || uploadFiles.length === 0} type="submit">
+              {isPending && status.startsWith("Uploading") ? "Uploading..." : "Upload into wiki"}
+            </button>
+          </form>
+        ) : null}
         <div className="wiki-tree-list">
           {files.length > 0 ? (
             treeItems.map((item) => (

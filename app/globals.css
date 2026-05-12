@@ -1667,6 +1667,90 @@ svg {
   font-weight: 800;
 }
 
+.wiki-upload-form {
+  display: grid;
+  gap: 10px;
+  margin-top: 14px;
+  border: 1px solid rgba(0, 167, 255, 0.18);
+  border-radius: var(--radius-md);
+  background: rgba(0, 167, 255, 0.06);
+  padding: 12px;
+}
+
+.wiki-upload-form__header {
+  display: grid;
+  gap: 3px;
+}
+
+.wiki-upload-form__header strong {
+  font-size: 13px;
+  line-height: 1.25;
+}
+
+.wiki-upload-form__header span,
+.wiki-upload-form__prompt span {
+  color: var(--fg-secondary);
+  font-size: 11px;
+  line-height: 1.4;
+}
+
+.wiki-upload-form__file {
+  display: none;
+}
+
+.wiki-upload-form__pick,
+.wiki-upload-form .btn-primary {
+  width: 100%;
+}
+
+.wiki-upload-form__files {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.wiki-upload-form__file-pill {
+  max-width: 100%;
+  overflow: hidden;
+  border-radius: var(--radius-pill);
+  background: rgba(17, 24, 39, 0.08);
+  color: var(--fg-primary);
+  cursor: pointer;
+  padding: 5px 8px;
+  font-size: 11px;
+  font-weight: 800;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.wiki-upload-form__file-pill:hover {
+  background: rgba(220, 38, 38, 0.1);
+  color: var(--error-text);
+}
+
+.wiki-upload-form__prompt {
+  display: grid;
+  gap: 6px;
+}
+
+.wiki-upload-form__prompt textarea {
+  width: 100%;
+  border: 1px solid var(--border-medium);
+  border-radius: var(--radius-sm);
+  background: rgba(255, 255, 255, 0.82);
+  color: var(--fg-primary);
+  padding: 10px;
+  font-size: 12px;
+  line-height: 1.45;
+  resize: vertical;
+}
+
+.wiki-upload-form__prompt textarea:focus {
+  border-color: var(--action-primary);
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(0, 167, 255, 0.12);
+}
+
 .wiki-tree-list {
   display: grid;
   gap: 2px;

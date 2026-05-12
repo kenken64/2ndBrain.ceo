@@ -58,6 +58,18 @@ type OpenClawGenerationInput = {
   userId: string;
 };
 
+type OpenClawWikiIngestInput = {
+  attachments: ConvertedWikiAttachment[];
+  avatarName: string;
+  instance: string;
+  ownerName: string;
+  projectId: string;
+  projectSlug: string;
+  prompt: string;
+  projectTitle?: string | null;
+  userId: string;
+};
+
 type OpenClawFallbackWikiPage = {
   content: string;
   path: string;
@@ -774,6 +786,36 @@ function buildWikiGenerationPrompt(input: OpenClawGenerationInput) {
   ].filter((line): line is string => line !== null).join("\n");
 }
 
+function buildWikiIngestPrompt(input: OpenClawWikiIngestInput) {
+  const projectRoot = requireEnv("OPENCLAW_PROJECT_ROOT");
+  const projectPath = `${projectRoot.replace(/\/$/, "")}/${input.projectSlug}`;
+  const attachmentContext = buildAttachmentPromptContext(input.attachments);
+
+  return [
+    "Augment an existing 2ndBrain LLM wiki from uploaded source documents.",
+    "",
+    `Owner name: ${input.ownerName}`,
+    `AI avatar name: ${input.avatarName}`,
+    `User id: ${input.userId}`,
+    `Project id: ${input.projectId}`,
+    `Project title: ${input.projectTitle?.trim() || input.projectSlug}`,
+    `Project directory: ${projectPath}`,
+    "",
+    "User instruction:",
+    input.prompt.trim() || "Ingest the uploaded documents into this wiki.",
+    "",
+    attachmentContext,
+    "",
+    "The uploaded files have already been converted to markdown and written inside this exact project directory.",
+    "Decide where each source belongs. Keep raw source files available, then create or update synthesized pages when useful.",
+    "If a document should augment an existing page, modify that existing page instead of creating duplicates.",
+    "If a new entity, concept, source summary, query, or output page is needed, create it in the best directory.",
+    "Update index.md and log.md when meaningful. Add wiki links between related nodes.",
+    "Preserve source facts and separate assumptions from confirmed details.",
+    "Do not ask a follow-up question. Make reasonable assumptions and apply the changes."
+  ].join("\n");
+}
+
 function yamlString(value: string) {
   return `"${value.replace(/\\/g, "\\\\").replace(/"/g, '\\"')}"`;
 }
@@ -1153,7 +1195,11 @@ async function createFallbackWikiScaffold(input: OpenClawGenerationInput, reason
   ].join("\n");
 }
 
-async function writeOpenClawWikiAttachments(input: OpenClawGenerationInput) {
+async function writeOpenClawWikiAttachments(input: {
+  attachments?: ConvertedWikiAttachment[];
+  instance: string;
+  projectSlug: string;
+}) {
   const attachments = input.attachments ?? [];
 
   if (attachments.length === 0) {
@@ -1504,6 +1550,79 @@ export async function generateOpenClawWikiProject(input: OpenClawGenerationInput
       task: prompt
     };
   }
+}
+
+export async function ingestOpenClawWikiAttachments(input: OpenClawWikiIngestInput) {
+  if (input.attachments.length === 0) {
+    throw new Error("missing_wiki_attachments");
+  }
+
+  const awsEnv = getAwsEnv();
+  const prompt = buildWikiIngestPrompt(input);
+  const timeout = optionalEnv("OPENCLAW_LLM_WIKI_TIMEOUT_SECONDS") ?? "600";
+  const agent = optionalEnv("OPENCLAW_AGENT_ID") ?? "main";
+
+  consoleClawmacdo("wiki_ingest_input", {
+    agent,
+    attachmentCount: input.attachments.length,
+    instance: input.instance,
+    projectId: input.projectId,
+    projectSlug: input.projectSlug,
+    prompt: promptSummary(prompt),
+    timeout,
+    userId: input.userId
+  });
+
+  const attachmentOutput = await writeOpenClawWikiAttachments(input);
+  const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "openclaw-wiki-ingest-"));
+  const outputs: string[] = [];
+
+  try {
+    for (const [index, attachment] of input.attachments.entries()) {
+      const sourcePath = path.join(tempDir, `${String(index + 1).padStart(2, "0")}-${path.basename(attachment.path)}`);
+      const sourcePrompt = [
+        prompt,
+        "",
+        `Current converted source file: ${attachment.path}`,
+        `Original upload file: ${attachment.fileName}`,
+        `Source type: ${attachment.sourceType}`,
+        "This source markdown has already been stored in the project. Use it as raw evidence and update the best wiki pages."
+      ].join("\n");
+
+      await fs.writeFile(sourcePath, attachment.markdown, "utf8");
+
+      outputs.push(
+        await runClawmacdo(
+          [
+            "wiki-ingest",
+            "--instance",
+            input.instance,
+            "--agent",
+            agent,
+            "--project",
+            input.projectSlug,
+            "--source",
+            sourcePath,
+            "--prompt",
+            sourcePrompt,
+            "--timeout",
+            timeout,
+            "--json"
+          ],
+          awsEnv
+        )
+      );
+    }
+  } finally {
+    await fs.rm(tempDir, { force: true, recursive: true }).catch(() => undefined);
+  }
+
+  return {
+    attachmentsOutput: attachmentOutput,
+    mapping: "wiki-ingest",
+    output: outputs.join("\n\n"),
+    task: prompt
+  };
 }
 
 export async function pairOpenClawTelegram(input: OpenClawTelegramPairInput) {
