@@ -108,6 +108,31 @@ export async function POST(request: Request) {
     });
   }
 
+  if (step === "agent") {
+    const provisionTarget = String(formData.get("provisionTarget") ?? "").trim();
+
+    if (provisionTarget !== "openclaw") {
+      return onboardingRedirect(request, "invalid_provision_target", next, "agent");
+    }
+
+    const { error } = await supabase.from("profiles").upsert(
+      {
+        id: userId,
+        email,
+        provision_target: provisionTarget
+      },
+      { onConflict: "id" }
+    );
+
+    if (error) {
+      return onboardingRedirect(request, "save_failed", next, "agent");
+    }
+
+    return NextResponse.redirect(appUrl(onboardingPath(next, "provision"), request), {
+      status: 303
+    });
+  }
+
   const avatarSource = String(formData.get("avatarSource") ?? "").trim();
   const avatarUpload = formData.get("avatarGlb");
   const avaturnAvatarUrl = String(formData.get("avaturnAvatarUrl") ?? "").trim();

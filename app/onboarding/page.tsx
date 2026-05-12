@@ -1,4 +1,5 @@
 import { redirect } from "next/navigation";
+import { AgentSelectionForm } from "@/components/agent-selection-form";
 import { Atmosphere } from "@/components/atmosphere";
 import { AvaturnStep } from "@/components/avaturn-step";
 import { BrandHeart } from "@/components/brand-heart";
@@ -40,6 +41,7 @@ const errors: Record<string, string> = {
   avatar_upload_too_large: "The uploaded avatar is too large to store locally.",
   invalid_avatar_url: "Avaturn did not return a valid secure GLB URL yet.",
   missing_avatar_storage_root: "Avatar storage is not configured on the server.",
+  invalid_provision_target: "Select OpenClaw to continue. HermesAgent is coming soon.",
   invalid_telegram_pair_code: "Enter the 8-character approval code from Telegram.",
   missing_avatar: "Create and export your Avaturn avatar to continue.",
   missing_fields: "Add the required field to continue.",
@@ -71,15 +73,21 @@ const stepMeta: Record<OnboardingStep, { index: number; kicker: string; title: s
     title: "Create your Avaturn avatar",
     copy: "Build your avatar, export the GLB, and we will save it locally for the OpenClaw upload."
   },
-  provision: {
+  agent: {
     index: 2,
-    kicker: "Step 3 of 4",
+    kicker: "Step 3 of 5",
+    title: "Choose your agent",
+    copy: "Pick the workspace agent you want to provision. OpenClaw is available now; HermesAgent is queued for a later rollout."
+  },
+  provision: {
+    index: 3,
+    kicker: "Step 4 of 5",
     title: "Provision OpenClaw on AWS",
     copy: "Fast-restore the Lightsail snapshot and prepare Telegram, OpenClaw identity, and Remotion environment settings."
   },
   approval: {
-    index: 3,
-    kicker: "Step 4 of 4",
+    index: 4,
+    kicker: "Step 5 of 5",
     title: "Approve Telegram pairing",
     copy: "Enter the approval code sent by your Telegram bot before generating your first 2ndBrain wiki."
   }
@@ -158,6 +166,16 @@ function ProvisionStep({
   status?: string | null;
 }) {
   return <ProvisionForm errorMessage={errorMessage} next={next} status={status} />;
+}
+
+function AgentStep({
+  errorMessage,
+  next
+}: {
+  errorMessage: string | null;
+  next: string;
+}) {
+  return <AgentSelectionForm errorMessage={errorMessage} next={next} />;
 }
 
 function ApprovalStep({
@@ -251,6 +269,10 @@ export default async function OnboardingPage({ searchParams }: OnboardingPagePro
 
           {currentStep === "avatar" ? (
             <AvaturnStep errorMessage={errorMessage} next={next} />
+          ) : null}
+
+          {currentStep === "agent" ? (
+            <AgentStep errorMessage={errorMessage} next={next} />
           ) : null}
 
           {currentStep === "provision" ? (

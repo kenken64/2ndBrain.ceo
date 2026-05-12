@@ -56,6 +56,7 @@ function resetProfilePatch(destroyOutput: string | null) {
     openclaw_telegram_pair_started_at: null,
     openclaw_telegram_pair_status: null,
     owner_name: null,
+    provision_target: null,
     telegram_bot_token: null
   };
 }
