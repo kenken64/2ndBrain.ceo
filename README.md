@@ -135,8 +135,8 @@ Only public/browser-safe values are passed this way. Keep AWS keys, OpenAI keys,
 1. User logs in with Google through Supabase OAuth.
 2. Onboarding collects owner name, avatar name, avatar gender, and Telegram bot token.
 3. Avaturn avatar setup downloads/stores the GLB staging data.
-4. OpenClaw provisioning restores the Lightsail instance from the configured snapshot.
-5. Telegram setup/pairing waits for approval and shows progress.
+4. OpenClaw provisioning runs `clawmacdo ls-restore-fast` to restore the Lightsail snapshot and prepare Telegram, identity, and Remotion environment settings in one CLI call.
+5. Telegram pairing waits for user approval and shows progress.
 6. After approval, the app routes to the dashboard.
 7. Dashboard side menu exposes OpenClaw Gateway UI, Remotion Avatar, LLM Wiki, Knowledge Graph, Telegram token change, destroy workspace, and logout.
 8. LLM Wiki supports generating multiple wiki projects, each stored with a Supabase UUID and OpenClaw project folder.
@@ -166,7 +166,7 @@ The UI uses `@xyflow/react` with draggable nodes, reset layout controls, and edg
 
 The app depends on `clawmacdo` for:
 
-- Lightsail restore/destroy.
+- Fast Lightsail restore/destroy.
 - Telegram setup and pairing.
 - Remotion avatar setup.
 - OpenClaw identity setup.

@@ -200,6 +200,7 @@ export async function POST(request: Request) {
     });
 
     const provisioned = await provisionOpenClaw({
+      avatarGender,
       avatarName,
       existingInstance,
       onInstanceRestored: async (details) => {
@@ -216,15 +217,16 @@ export async function POST(request: Request) {
       ownerName,
       telegramBotToken
     });
+    const completedAt = new Date().toISOString();
 
     const { error } = await supabase
       .from("profiles")
       .update({
-        openclaw_identity_completed_at: null,
+        openclaw_identity_completed_at: completedAt,
         openclaw_identity_error: null,
-        openclaw_identity_output: null,
+        openclaw_identity_output: outputSummary(provisioned.restoreOutput),
         openclaw_instance: provisioned.instance,
-        openclaw_provision_completed_at: new Date().toISOString(),
+        openclaw_provision_completed_at: completedAt,
         openclaw_provision_error: null,
         openclaw_provision_output: outputSummary(provisioned.restoreOutput),
         openclaw_provision_status: "ready",
@@ -232,7 +234,7 @@ export async function POST(request: Request) {
         openclaw_snapshot_name: provisioned.snapshotName,
         openclaw_telegram_pair_error: null,
         openclaw_telegram_pair_status: "pending",
-        openclaw_telegram_output: outputSummary(provisioned.telegramOutput),
+        openclaw_telegram_output: outputSummary(provisioned.restoreOutput),
         onboarding_completed_at: null
       })
       .eq("id", userId);

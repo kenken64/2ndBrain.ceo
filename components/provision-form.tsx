@@ -56,8 +56,8 @@ export function ProvisionForm({ errorMessage, next, status }: ProvisionFormProps
     <form className="onboarding-form" method="post" noValidate onSubmit={handleSubmit}>
       <input name="next" type="hidden" value={next} />
       <div className="provision-summary">
-        <strong>AWS Lightsail snapshot restore</strong>
-        <span>AWS, OpenAI, snapshot, Remotion, hooks, and prompt settings are read from server environment variables.</span>
+        <strong>Fast AWS Lightsail snapshot restore</strong>
+        <span>Runs the single clawmacdo ls-restore-fast command with Telegram, identity, and Remotion environment settings.</span>
       </div>
       {errorMessage ? <p className="form-error">{errorMessage}</p> : null}
       {submitError ? <p className="form-error">{submitError}</p> : null}
@@ -68,14 +68,14 @@ export function ProvisionForm({ errorMessage, next, status }: ProvisionFormProps
       ) : null}
       {isSubmitting || isRunning ? (
         <div aria-live="polite" className="provision-pending">
-          <span>Provisioning OpenClaw. Restoring Lightsail and waiting for SSH readiness.</span>
+          <span>Fast provisioning OpenClaw. Restoring Lightsail and preparing the gateway.</span>
           <div aria-hidden="true" className="provision-pending__bar">
             <span />
           </div>
         </div>
       ) : null}
       <button className="btn-primary onboarding-submit" disabled={isDisabled} type="submit">
-        {isSubmitting || isRunning ? "Provisioning..." : "Provision OpenClaw"}{" "}
+        {isSubmitting || isRunning ? "Provisioning..." : "Fast Provision OpenClaw"}{" "}
         <span className="arrow">-&gt;</span>
       </button>
     </form>

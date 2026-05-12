@@ -24,6 +24,7 @@ type OpenClawProvisionInput = {
     restoreOutput: string;
     snapshotName: string;
   }) => Promise<void> | void;
+  avatarGender: string;
   avatarName: string;
   ownerName: string;
   telegramBotToken: string;
@@ -116,7 +117,9 @@ const SENSITIVE_ARG_NAMES = new Set([
   "--bot-token",
   "--code",
   "--open-api-key",
-  "--openai-api-key"
+  "--openai-api-key",
+  "--telegram-bot-token",
+  "--telegram-pair-code"
 ]);
 
 function sanitizeLogText(value: string) {
@@ -264,31 +267,71 @@ function getClawmacdoBinaryPath() {
   );
 }
 
+function findStringValue(value: unknown, keys: string[]): string | null {
+  if (!value || typeof value !== "object") {
+    return null;
+  }
+
+  const record = value as Record<string, unknown>;
+
+  for (const key of keys) {
+    const match = record[key];
+
+    if (typeof match === "string" && match.trim()) {
+      return match.trim();
+    }
+  }
+
+  for (const nested of Object.values(record)) {
+    const match = findStringValue(nested, keys);
+
+    if (match) {
+      return match;
+    }
+  }
+
+  return null;
+}
+
 function extractInstanceId(output: string) {
   const restoreJson = output.match(/RESTORE_COMPLETE_JSON:(\{.*\})/);
+  const keys = [
+    "instance",
+    "instance_name",
+    "instanceName",
+    "hostname",
+    "host",
+    "deploy_id",
+    "deployId",
+    "name",
+    "ip",
+    "public_ip",
+    "publicIp",
+    "publicIpAddress"
+  ];
 
   if (restoreJson) {
     try {
       const parsed = JSON.parse(restoreJson[1]) as Record<string, unknown>;
-      const values = [
-        parsed.instance,
-        parsed.instance_name,
-        parsed.instanceName,
-        parsed.deploy_id,
-        parsed.deployId,
-        parsed.name,
-        parsed.ip,
-        parsed.public_ip,
-        parsed.publicIp
-      ];
-      const match = values.find((value) => typeof value === "string" && value.trim());
+      const match = findStringValue(parsed, keys);
 
-      if (typeof match === "string") {
-        return match.trim();
+      if (match) {
+        return match;
       }
     } catch {
       // Fall through to text parsing.
     }
+  }
+
+  try {
+    const parsed = parseJsonOutput<Record<string, unknown>>(output);
+    const match = findStringValue(parsed, keys);
+
+    if (match) {
+      return match;
+    }
+  } catch {
+    // Fall through to text parsing.
   }
 
   const patterns = [
@@ -1125,16 +1168,21 @@ export async function provisionOpenClaw(input: OpenClawProvisionInput) {
   const region = requireEnv("AWS_REGION");
   const snapshotName = requireEnv("OPENCLAW_LIGHTSAIL_SNAPSHOT_NAME");
   const awsEnv = getAwsEnv();
+  const agent = openClawAgentId();
+  const remotionAppDir = optionalEnv("OPENCLAW_REMOTION_APP_DIR");
+  const remotionPort = optionalEnv("OPENCLAW_REMOTION_PORT");
+  const chatModel = optionalEnv("OPENCLAW_CHAT_MODEL");
 
   consoleClawmacdo("provision_input", {
+    agent,
+    avatarGender: input.avatarGender,
     avatarName: input.avatarName,
+    chatModel,
     existingInstance: input.existingInstance ?? null,
     ownerName: input.ownerName,
-    postSshReadyDelayMs: optionalPositiveNumber(
-      "OPENCLAW_POST_SSH_READY_DELAY_MS",
-      DEFAULT_POST_SSH_READY_DELAY_MS
-    ),
     region,
+    remotionAppDir,
+    remotionPort,
     snapshotName,
     telegramBotToken: maskSecret(input.telegramBotToken)
   });
@@ -1158,10 +1206,40 @@ export async function provisionOpenClaw(input: OpenClawProvisionInput) {
   }
 
   if (!instance) {
-    restoreOutput = await runClawmacdo(
-      ["ls-restore", "--snapshot-name", snapshotName, "--region", region],
-      awsEnv
-    );
+    const fastRestoreArgs = [
+      "ls-restore-fast",
+      "--snapshot-name",
+      snapshotName,
+      "--region",
+      region,
+      "--telegram-bot-token",
+      input.telegramBotToken,
+      "--openclaw-name",
+      input.avatarName,
+      "--owner-name",
+      input.ownerName,
+      "--avatar-name",
+      input.avatarName,
+      "--agent",
+      agent,
+      "--voice-gender",
+      normalizeVoiceGender(input.avatarGender),
+      "--json"
+    ];
+
+    if (remotionAppDir) {
+      fastRestoreArgs.push("--remotion-app-dir", remotionAppDir);
+    }
+
+    if (remotionPort) {
+      fastRestoreArgs.push("--remotion-port", remotionPort);
+    }
+
+    if (chatModel) {
+      fastRestoreArgs.push("--chat-model", chatModel);
+    }
+
+    restoreOutput = await runClawmacdo(fastRestoreArgs, awsEnv);
     instance = extractInstanceId(restoreOutput) ?? "";
   }
 
@@ -1176,19 +1254,11 @@ export async function provisionOpenClaw(input: OpenClawProvisionInput) {
     snapshotName
   });
 
-  await waitForLightsailInstance(instance, region, awsEnv);
-
-  const telegramOutput = await runClawmacdo(
-    ["telegram-setup", "--instance", instance, "--bot-token", input.telegramBotToken, "--reset"],
-    awsEnv
-  );
-
   return {
     instance,
     region,
     restoreOutput,
-    snapshotName,
-    telegramOutput
+    snapshotName
   };
 }
 

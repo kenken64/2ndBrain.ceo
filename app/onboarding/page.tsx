@@ -75,7 +75,7 @@ const stepMeta: Record<OnboardingStep, { index: number; kicker: string; title: s
     index: 2,
     kicker: "Step 3 of 4",
     title: "Provision OpenClaw on AWS",
-    copy: "Restore the Lightsail snapshot, connect Telegram, set identity, configure the Remotion avatar, and enable OpenClaw hooks."
+    copy: "Fast-restore the Lightsail snapshot and prepare Telegram, OpenClaw identity, and Remotion environment settings."
   },
   approval: {
     index: 3,
