@@ -69,6 +69,7 @@ body {
   font-family: var(--font-sans);
   font-size: 16px;
   line-height: 1.55;
+  overflow-x: hidden;
   text-rendering: geometricPrecision;
 }
 
@@ -90,6 +91,7 @@ button {
 img,
 svg {
   display: block;
+  max-width: 100%;
 }
 
 .app-logo {
@@ -2786,6 +2788,10 @@ svg {
 }
 
 @media (max-width: 960px) {
+  :root {
+    --gutter: clamp(16px, 4vw, 32px);
+  }
+
   .nav-links,
   .nav-actions .text-link {
     display: none;
@@ -2808,8 +2814,22 @@ svg {
     grid-template-columns: 1fr;
   }
 
+  .dashboard-main {
+    padding: 24px var(--gutter) 64px;
+  }
+
+  .dashboard-topbar {
+    flex-wrap: wrap;
+  }
+
+  .dashboard-workbench,
+  .graph-workbench {
+    margin-top: 24px;
+  }
+
   .wiki-workspace {
     grid-template-columns: 1fr;
+    min-height: auto;
   }
 
   .wiki-tree {
@@ -2818,15 +2838,78 @@ svg {
   }
 
   .sidebar {
-    position: relative;
+    position: sticky;
+    top: 0;
+    z-index: 40;
     height: auto;
+    overflow: visible;
     border-right: 0;
     border-bottom: 1px solid var(--border-soft);
+    padding: 12px;
+    gap: 10px;
+    backdrop-filter: blur(14px) saturate(1.2);
+  }
+
+  .sidebar-header {
+    min-height: 44px;
+  }
+
+  .sidebar-brand .app-logo {
+    max-height: 42px;
+    width: auto;
+  }
+
+  .workspace-pill {
+    width: 100%;
+  }
+
+  .sidebar-nav,
+  .sidebar-footer {
+    display: flex;
+    gap: 8px;
+    margin-inline: -12px;
+    overflow-x: auto;
+    padding-inline: 12px;
+    scrollbar-width: thin;
+  }
+
+  .sidebar-nav {
+    padding-bottom: 8px;
+  }
+
+  .sidebar-footer {
+    border-top: 0;
+    padding-top: 0;
+    padding-bottom: 4px;
+  }
+
+  .sidebar-item,
+  .destroy-workspace {
+    flex: 0 0 auto;
+  }
+
+  .sidebar-item {
+    white-space: nowrap;
   }
 
   .sidebar-spacer,
-  .sidebar-card {
+  .sidebar-card,
+  .sidebar-section-label {
     display: none;
+  }
+
+  .wiki-markdown-editor,
+  .wiki-preview {
+    min-height: 540px;
+  }
+
+  .knowledge-graph-shell {
+    height: 62vh;
+    min-height: 500px;
+  }
+
+  .graph-controls-panel {
+    max-width: min(100%, 340px);
   }
 
   .option-grid {
@@ -2835,8 +2918,31 @@ svg {
 }
 
 @media (max-width: 640px) {
+  :root {
+    --gutter: 16px;
+  }
+
+  body {
+    font-size: 15px;
+  }
+
+  .container {
+    width: calc(100% - 32px);
+  }
+
   .site-nav__inner {
     min-height: 56px;
+    gap: 12px;
+  }
+
+  .brand-link {
+    min-width: 0;
+  }
+
+  .brand-link span {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
 
   .hero {
@@ -2847,6 +2953,20 @@ svg {
   .hero__headline {
     font-size: 34px;
     white-space: normal;
+  }
+
+  .announcement-pill {
+    min-width: 0;
+    max-width: 100%;
+    overflow: hidden;
+  }
+
+  .btn-primary,
+  .btn-ghost,
+  .btn-icon,
+  .google-button,
+  .login-provider {
+    min-height: 44px;
   }
 
   .chat-input__bar,
@@ -2865,13 +2985,76 @@ svg {
     flex-direction: column;
   }
 
+  .dashboard-topbar,
+  .dashboard-topbar .btn-primary,
+  .wiki-projects-search__controls > *,
+  .wiki-pagination .btn-ghost,
+  .workspace-status-actions > *,
+  .project-card__actions > *,
+  .settings-dialog__actions > *,
+  .destroy-dialog__actions > * {
+    width: 100%;
+  }
+
+  .dashboard-topbar {
+    align-items: stretch;
+  }
+
+  .sidebar {
+    position: relative;
+    max-height: none;
+  }
+
+  .sidebar-header .btn-icon {
+    display: none;
+  }
+
+  .sidebar-item {
+    min-height: 42px;
+    padding: 8px 10px;
+    font-size: 13px;
+  }
+
+  .sidebar-nav,
+  .sidebar-footer {
+    padding-bottom: 8px;
+  }
+
+  .destroy-workspace {
+    gap: 0;
+  }
+
   .chat-input__bar {
     gap: 12px;
+  }
+
+  .chat-input {
+    border-radius: 24px;
+    padding: 14px;
+  }
+
+  .chat-input__textarea {
+    min-height: 120px;
+    font-size: 15px;
+  }
+
+  .chat-input__group {
+    width: 100%;
+    flex-wrap: wrap;
+    justify-content: space-between;
+  }
+
+  .chat-input__group:first-of-type {
+    justify-content: flex-start;
   }
 
   .chat-input__group:last-child {
     align-self: stretch;
     justify-content: flex-end;
+  }
+
+  .chat-input__attachment span {
+    max-width: 150px;
   }
 
   .wiki-projects-search,
@@ -2887,6 +3070,7 @@ svg {
 
   .wiki-pagination__pages {
     flex-wrap: wrap;
+    justify-content: center;
   }
 
   .steps-grid,
@@ -2905,22 +3089,83 @@ svg {
     padding: 24px;
   }
 
+  .onboarding-page,
+  .auth-page {
+    place-items: start center;
+    padding: 20px var(--gutter) 40px;
+  }
+
+  .onboarding-card {
+    border-radius: 24px;
+  }
+
+  .onboarding-card > .app-logo {
+    max-height: 76px;
+    width: auto;
+  }
+
+  .onboarding-title {
+    font-size: clamp(28px, 9vw, 38px);
+  }
+
+  .onboarding-copy {
+    font-size: 14px;
+  }
+
+  .onboarding-form,
+  .agent-select-form {
+    margin-top: 24px;
+  }
+
   .wizard-stepper {
     align-items: stretch;
     flex-direction: column;
+    gap: 6px;
   }
 
   .wizard-stepper li {
     justify-content: flex-start;
+    min-height: 30px;
+    padding: 5px 10px 5px 6px;
+    font-size: 11px;
   }
 
   .field-grid {
     grid-template-columns: 1fr;
   }
 
+  .agent-option {
+    min-height: auto;
+    grid-template-rows: auto;
+    border-radius: 24px;
+    padding: 18px;
+  }
+
+  .agent-option__media {
+    min-height: 96px;
+  }
+
+  .agent-option__media img {
+    max-height: 74px;
+  }
+
+  .agent-option__body strong {
+    font-size: 21px;
+  }
+
+  .provision-timer__meta {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 4px;
+  }
+
+  .provision-timer__meta span {
+    text-align: left;
+  }
+
   .avaturn-frame {
-    height: 70vh;
-    min-height: 420px;
+    height: 68vh;
+    min-height: 360px;
   }
 
   .section {
@@ -2928,16 +3173,212 @@ svg {
   }
 
   .dashboard-main {
-    padding-top: 22px;
+    padding: 18px var(--gutter) 56px;
   }
 
   .dashboard-center {
+    width: 100%;
     padding-top: 18px;
+    text-align: left;
+  }
+
+  .dashboard-copy {
+    margin-left: 0;
+  }
+
+  .workspace-status-card {
+    border-radius: 18px;
+    padding: 18px;
+  }
+
+  .workspace-status-card__header h2 {
+    font-size: 20px;
+  }
+
+  .workspace-status-actions .btn-primary,
+  .workspace-status-actions .btn-ghost,
+  .project-card__actions .btn-primary,
+  .project-card__actions .btn-danger {
+    justify-content: center;
+  }
+
+  .dashboard-workbench,
+  .graph-workbench {
+    width: 100%;
+    margin-top: 18px;
+  }
+
+  .wiki-empty-panel {
+    min-height: auto;
+    justify-items: stretch;
+    padding: 24px 0;
+    text-align: left;
+  }
+
+  .wiki-empty-panel h1 {
+    font-size: 24px;
+  }
+
+  .wiki-empty-panel__chat {
+    width: 100%;
+  }
+
+  .wiki-tree {
+    max-height: 240px;
+    padding: 12px;
+  }
+
+  .wiki-toolbar > div:first-child {
+    min-width: 0;
+    width: 100%;
+  }
+
+  .wiki-toolbar h1 {
+    font-size: 21px;
+  }
+
+  .wiki-toolbar span {
+    overflow-wrap: anywhere;
+    white-space: normal;
+  }
+
+  .wiki-toolbar-actions,
+  .segmented-control,
+  .wiki-sync-strip > * {
+    width: 100%;
+  }
+
+  .segmented-control button {
+    flex: 1;
+    justify-content: center;
+  }
+
+  .wiki-graph-action {
+    justify-content: center;
+    min-height: 42px;
+    border: 1px solid var(--border-medium);
+    border-radius: var(--radius-pill);
+    background: var(--bg-elevated);
+  }
+
+  .graph-workbench {
+    padding: 12px;
+  }
+
+  .knowledge-graph-shell {
+    height: 60vh;
+    min-height: 420px;
+  }
+
+  .graph-controls-panel {
+    max-width: calc(100vw - 48px);
+  }
+
+  .projects-section {
+    margin-top: 32px;
+  }
+
+  .project-card {
+    min-height: auto;
   }
 
   .wiki-markdown-editor,
-  .wiki-preview,
-  .knowledge-graph-shell {
-    min-height: 460px;
+  .wiki-preview {
+    min-height: 420px;
+    padding: 16px;
+    font-size: 13px;
+  }
+
+  .option-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .intent-page {
+    place-items: start center;
+    padding: 24px var(--gutter) 40px;
+  }
+
+  .intent-panel {
+    text-align: left;
+  }
+
+  .intent-panel .app-logo {
+    margin: 0;
+  }
+
+  .intent-chat {
+    margin-top: 20px;
+  }
+
+  .destroy-dialog,
+  .settings-dialog {
+    padding: 14px;
+  }
+
+  .destroy-dialog__panel,
+  .settings-dialog__panel {
+    max-height: calc(100svh - 28px);
+    overflow: auto;
+    padding: 22px;
+  }
+
+  .destroy-dialog__actions,
+  .settings-dialog__actions {
+    align-items: stretch;
+    flex-direction: column-reverse;
+  }
+
+  .footer {
+    padding: 52px 0 34px;
+  }
+}
+
+@media (max-width: 420px) {
+  :root {
+    --gutter: 12px;
+  }
+
+  .btn-primary,
+  .btn-ghost {
+    padding-inline: 14px;
+    font-size: 13px;
+  }
+
+  .sidebar {
+    padding: 10px;
+  }
+
+  .sidebar-nav,
+  .sidebar-footer {
+    gap: 6px;
+    margin-inline: -10px;
+    padding-inline: 10px;
+  }
+
+  .chat-input__attachment span {
+    max-width: 110px;
+  }
+
+  .templates-panel,
+  .auth-panel,
+  .onboarding-card {
+    padding: 18px 14px;
+  }
+
+  .onboarding-title {
+    font-size: clamp(26px, 10vw, 34px);
+  }
+
+  .workspace-status-card,
+  .project-card,
+  .wiki-tree,
+  .wiki-editor-panel,
+  .graph-workbench {
+    border-radius: 16px;
+  }
+
+  .wiki-page-link {
+    min-width: 34px;
+    height: 34px;
   }
 }
