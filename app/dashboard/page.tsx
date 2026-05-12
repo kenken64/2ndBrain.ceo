@@ -129,7 +129,9 @@ export default async function DashboardPage() {
                       Open Remotion Avatar <span className="arrow">-&gt;</span>
                     </a>
                   ) : (
-                    <span className="text-link is-disabled">Public URL not available yet</span>
+                    <span aria-disabled="true" className="btn-primary is-disabled" role="link">
+                      Waiting for Remotion URL
+                    </span>
                   )}
                 </div>
               </article>

@@ -738,6 +738,11 @@ function extractFirstHttpsUrl(output: string) {
   return output.match(/https:\/\/[^\s"'<>]+/)?.[0] ?? null;
 }
 
+function isMissingDeployRecord(error: unknown) {
+  const message = error instanceof Error ? error.message : String(error);
+  return message.toLowerCase().includes("no deploy records found");
+}
+
 function getLlmWikiPromptPath() {
   const promptPath = requireEnv("OPENCLAW_LLM_WIKI_PROMPT_PATH");
   return absoluteFromWorkspace(promptPath);
@@ -1305,10 +1310,36 @@ export async function setupOpenClawIdentity(input: OpenClawIdentityInput) {
 
 export async function getOpenClawGatewayUrl(input: OpenClawGatewayUrlInput) {
   const awsEnv = getAwsEnv();
-  const output = await runClawmacdo(
-    ["openclaw-gateway-url", "--instance", input.instance, "--json"],
-    awsEnv
-  );
+  const region = requireEnv("AWS_REGION");
+  let output = "";
+
+  try {
+    output = await runClawmacdo(
+      ["openclaw-gateway-url", "--instance", input.instance, "--json"],
+      awsEnv
+    );
+  } catch (error) {
+    if (isMissingDeployRecord(error) && !isIpAddress(input.instance)) {
+      const lightsailInstance = await getExistingLightsailInstance(input.instance, region, awsEnv);
+      const publicIp = lightsailInstance?.publicIpAddress?.trim();
+
+      if (publicIp) {
+        consoleClawmacdo("gateway_url_retry_ip", {
+          instance: input.instance,
+          publicIp,
+          region
+        });
+        output = await runClawmacdo(
+          ["openclaw-gateway-url", "--instance", publicIp, "--json"],
+          awsEnv
+        );
+      } else {
+        throw error;
+      }
+    } else {
+      throw error;
+    }
+  }
   let gatewayUrl = extractFirstHttpsUrl(output);
 
   try {

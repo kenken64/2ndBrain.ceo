@@ -269,6 +269,14 @@ svg {
   transform: translateX(2px);
 }
 
+.btn-primary.is-disabled {
+  cursor: not-allowed;
+  opacity: 0.46;
+  pointer-events: none;
+  transform: none;
+  box-shadow: none;
+}
+
 .nav-login-button {
   border: 0;
   background: transparent;
