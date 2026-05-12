@@ -6,15 +6,34 @@ import { FormEvent, useEffect, useState } from "react";
 type ProvisionFormProps = {
   errorMessage: string | null;
   next: string;
+  startedAt?: string | null;
   status?: string | null;
 };
 
-export function ProvisionForm({ errorMessage, next, status }: ProvisionFormProps) {
+const TARGET_PROVISION_SECONDS = 3 * 60;
+
+function formatTimer(totalSeconds: number) {
+  const safeSeconds = Math.max(0, Math.floor(totalSeconds));
+  const minutes = Math.floor(safeSeconds / 60);
+  const seconds = String(safeSeconds % 60).padStart(2, "0");
+
+  return `${minutes}:${seconds}`;
+}
+
+export function ProvisionForm({ errorMessage, next, startedAt, status }: ProvisionFormProps) {
   const router = useRouter();
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [localStartedAt, setLocalStartedAt] = useState<number | null>(null);
+  const [now, setNow] = useState(() => Date.now());
   const [submitError, setSubmitError] = useState("");
   const isRunning = status === "running";
   const isDisabled = isRunning || isSubmitting;
+  const parsedStartedAt = startedAt ? Date.parse(startedAt) : NaN;
+  const effectiveStartedAt = Number.isFinite(parsedStartedAt) ? parsedStartedAt : localStartedAt;
+  const elapsedSeconds = effectiveStartedAt ? Math.max(0, Math.floor((now - effectiveStartedAt) / 1000)) : 0;
+  const remainingSeconds = Math.max(0, TARGET_PROVISION_SECONDS - elapsedSeconds);
+  const timerProgress = Math.min(100, Math.round((elapsedSeconds / TARGET_PROVISION_SECONDS) * 100));
+  const showPending = isSubmitting || isRunning;
 
   useEffect(() => {
     if (!isRunning) {
@@ -28,6 +47,20 @@ export function ProvisionForm({ errorMessage, next, status }: ProvisionFormProps
     return () => window.clearInterval(interval);
   }, [isRunning, router]);
 
+  useEffect(() => {
+    if (!showPending) {
+      return;
+    }
+
+    setNow(Date.now());
+
+    const interval = window.setInterval(() => {
+      setNow(Date.now());
+    }, 1000);
+
+    return () => window.clearInterval(interval);
+  }, [showPending]);
+
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
 
@@ -36,6 +69,8 @@ export function ProvisionForm({ errorMessage, next, status }: ProvisionFormProps
     }
 
     setIsSubmitting(true);
+    setLocalStartedAt(Date.now());
+    setNow(Date.now());
     setSubmitError("");
 
     try {
@@ -49,6 +84,7 @@ export function ProvisionForm({ errorMessage, next, status }: ProvisionFormProps
     } catch {
       setSubmitError("Provisioning request could not be started. Check the server and try again.");
       setIsSubmitting(false);
+      setLocalStartedAt(null);
     }
   }
 
@@ -66,9 +102,29 @@ export function ProvisionForm({ errorMessage, next, status }: ProvisionFormProps
           Provisioning is running. This page will refresh automatically and move to approval when the instance is ready.
         </p>
       ) : null}
-      {isSubmitting || isRunning ? (
+      {showPending ? (
         <div aria-live="polite" className="provision-pending">
           <span>Fast provisioning OpenClaw. Restoring Lightsail and preparing the gateway.</span>
+          <div aria-live="off" className="provision-timer">
+            <div className="provision-timer__meta">
+              <strong>{remainingSeconds > 0 ? `${formatTimer(remainingSeconds)} target remaining` : `${formatTimer(elapsedSeconds)} elapsed`}</strong>
+              <span>
+                {remainingSeconds > 0
+                  ? "Expected to finish in under 3 minutes."
+                  : "AWS is taking longer than expected. Keep this page open while SSH becomes ready."}
+              </span>
+            </div>
+            <div
+              aria-label={`Provisioning timer ${timerProgress}%`}
+              aria-valuemax={100}
+              aria-valuemin={0}
+              aria-valuenow={timerProgress}
+              className="provision-timer__track"
+              role="progressbar"
+            >
+              <span className="provision-timer__bar" style={{ width: `${timerProgress}%` }} />
+            </div>
+          </div>
           <div aria-hidden="true" className="provision-pending__bar">
             <span />
           </div>

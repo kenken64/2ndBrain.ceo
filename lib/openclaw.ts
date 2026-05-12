@@ -229,6 +229,10 @@ function optionalPositiveNumber(name: string, fallback: number) {
   return Number.isFinite(configured) && configured > 0 ? configured : fallback;
 }
 
+function millisecondsToSeconds(value: number) {
+  return Math.max(1, Math.ceil(value / 1000));
+}
+
 function getAwsEnv() {
   const region = requireEnv("AWS_REGION");
 
@@ -1172,9 +1176,16 @@ export async function provisionOpenClaw(input: OpenClawProvisionInput) {
   const remotionAppDir = optionalEnv("OPENCLAW_REMOTION_APP_DIR");
   const remotionPort = optionalEnv("OPENCLAW_REMOTION_PORT");
   const chatModel = optionalEnv("OPENCLAW_CHAT_MODEL");
+  const activeTimeoutSecs = millisecondsToSeconds(
+    optionalPositiveNumber("OPENCLAW_INSTANCE_READY_TIMEOUT_MS", DEFAULT_INSTANCE_READY_TIMEOUT_MS)
+  );
+  const sshTimeoutSecs = millisecondsToSeconds(
+    optionalPositiveNumber("OPENCLAW_SSH_READY_TIMEOUT_MS", DEFAULT_SSH_READY_TIMEOUT_MS)
+  );
 
   consoleClawmacdo("provision_input", {
     agent,
+    activeTimeoutSecs,
     avatarGender: input.avatarGender,
     avatarName: input.avatarName,
     chatModel,
@@ -1184,6 +1195,7 @@ export async function provisionOpenClaw(input: OpenClawProvisionInput) {
     remotionAppDir,
     remotionPort,
     snapshotName,
+    sshTimeoutSecs,
     telegramBotToken: maskSecret(input.telegramBotToken)
   });
 
@@ -1224,6 +1236,10 @@ export async function provisionOpenClaw(input: OpenClawProvisionInput) {
       agent,
       "--voice-gender",
       normalizeVoiceGender(input.avatarGender),
+      "--active-timeout-secs",
+      String(activeTimeoutSecs),
+      "--ssh-timeout-secs",
+      String(sshTimeoutSecs),
       "--json"
     ];
 

@@ -159,13 +159,15 @@ function EnrolmentStep({
 function ProvisionStep({
   errorMessage,
   next,
+  startedAt,
   status
 }: {
   errorMessage: string | null;
   next: string;
+  startedAt?: string | null;
   status?: string | null;
 }) {
-  return <ProvisionForm errorMessage={errorMessage} next={next} status={status} />;
+  return <ProvisionForm errorMessage={errorMessage} next={next} startedAt={startedAt} status={status} />;
 }
 
 function AgentStep({
@@ -279,6 +281,7 @@ export default async function OnboardingPage({ searchParams }: OnboardingPagePro
             <ProvisionStep
               errorMessage={errorMessage}
               next={next}
+              startedAt={onboardingProfile?.openclaw_provision_started_at}
               status={onboardingProfile?.openclaw_provision_status}
             />
           ) : null}
