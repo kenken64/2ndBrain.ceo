@@ -13,9 +13,10 @@
   "dependencies": {
     "@supabase/ssr": "latest",
     "@supabase/supabase-js": "latest",
-    "@xyflow/react": "^12.10.2",
     "clawmacdo": "^0.81.0",
     "clsx": "latest",
+    "cytoscape": "^3.33.3",
+    "cytoscape-fcose": "^2.2.0",
     "lucide-react": "latest",
     "mammoth": "^1.12.0",
     "next": "latest",

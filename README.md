@@ -11,7 +11,7 @@ Next.js full-stack app for onboarding a user into an OpenClaw workspace, provisi
 - OpenClaw markdown/wiki commands through `clawmacdo`
 - Remotion avatar setup and public URL storage in Supabase
 - LLM Wiki attachments with PDF, DOCX, text, markdown, and image support
-- Knowledge graph UI with `@xyflow/react`
+- Knowledge graph UI with `cytoscape` and `cytoscape-fcose`
 
 ## Local Development
 
@@ -171,7 +171,7 @@ Wiki project names sent to OpenClaw use a generated numeric slug such as `wiki-1
 
 Knowledge graphs are scoped per LLM Wiki project, not global. The graph sync reads the selected project's markdown tree, extracts page nodes and linked concepts, and stores them in Supabase graph tables.
 
-The UI uses `@xyflow/react` with draggable nodes, reset layout controls, and edge label toggles. For large wikis, graph generation should be run per project/intent to avoid a single slow global graph.
+The UI uses `cytoscape` with the `fcose` layout for draggable knowledge-graph exploration, semantic edge styling, and layout re-runs. For large wikis, graph generation should be run per project/intent to avoid a single slow global graph.
 
 ## OpenClaw And clawmacdo
 

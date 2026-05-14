@@ -1,20 +1,10 @@
 "use client";
 
-import "@xyflow/react/dist/style.css";
-import {
-  Background,
-  Controls,
-  MarkerType,
-  Position,
-  ReactFlow,
-  ReactFlowProvider,
-  useEdgesState,
-  useNodesState,
-  useReactFlow,
-  type Edge,
-  type Node
-} from "@xyflow/react";
-import { useEffect, useMemo, useState } from "react";
+import cytoscape, { type Core, type ElementDefinition, type LayoutOptions } from "cytoscape";
+import fcose from "cytoscape-fcose";
+import { useEffect, useMemo, useRef, useState } from "react";
+
+cytoscape.use(fcose);
 
 type GraphNode = {
   id: string;
@@ -254,144 +244,254 @@ function relationLabel(relation: string, synthetic?: boolean) {
   return relation.replace(/_/g, " ");
 }
 
-function buildNodeStyle(node: GraphNode) {
-  const isRoot = node.id === ROOT_NODE_ID;
-
-  return {
-    background: isRoot ? "linear-gradient(135deg, #111827, #334155)" : "#ffffff",
-    border: `1px solid ${isRoot ? "#111827" : "rgba(148, 163, 184, 0.36)"}`,
-    borderRadius: isRoot ? 20 : 18,
-    boxShadow: isRoot ? "0 18px 34px rgba(15, 23, 42, 0.24)" : "0 14px 28px rgba(15, 23, 42, 0.1)",
-    color: isRoot ? "#f8fafc" : "#0f172a",
-    fontSize: isRoot ? 15 : 13,
-    fontWeight: isRoot ? 900 : 700,
-    maxWidth: isRoot ? 280 : 200,
-    minWidth: isRoot ? 180 : 132,
-    padding: isRoot ? "14px 18px" : "10px 14px"
-  } as const;
+function nodeWidth(label: string, isRoot: boolean) {
+  const base = isRoot ? 190 : 130;
+  return Math.min(isRoot ? 280 : 220, Math.max(base, label.length * (isRoot ? 7 : 6)));
 }
 
-function buildFlowGraph(nodes: GraphNode[], edges: GraphEdge[], rootLabel?: string | null) {
+function buildElements(nodes: GraphNode[], edges: GraphEdge[], rootLabel?: string | null) {
   const graph = buildConnectedGraph(nodes, edges, rootLabel);
-  const rootNode = graph.nodes.find((node) => node.id === ROOT_NODE_ID) ?? null;
-  const otherNodes = rootNode ? graph.nodes.filter((node) => node.id !== ROOT_NODE_ID) : graph.nodes;
-  const components = rootNode ? graph.rawComponents : connectedComponents(otherNodes, validEdges(otherNodes, graph.edges));
-  const positions = new Map<string, { x: number; y: number }>();
+  const degrees = degreeMap(graph.edges);
+  const componentByNodeId = new Map<string, string>();
+  const elements: ElementDefinition[] = [];
 
-  if (rootNode) {
-    positions.set(rootNode.id, { x: 0, y: 0 });
-  }
+  if (rootLabel && graph.rawComponents.length > 1) {
+    graph.rawComponents.forEach((component, index) => {
+      const parentId = `cluster-${index}`;
 
-  if (components.length === 1) {
-    const [component] = components;
-    const ringRadius = Math.max(140, component.length * 28);
-
-    component.forEach((node, index) => {
-      const angle = (Math.PI * 2 * index) / Math.max(component.length, 1) - Math.PI / 2;
-
-      positions.set(node.id, {
-        x: ringRadius * Math.cos(angle),
-        y: 130 + ringRadius * Math.sin(angle)
-      });
-    });
-  } else {
-    const orbitRadius = Math.max(260, components.length * 110);
-
-    components.forEach((component, componentIndex) => {
-      const componentAngle = (Math.PI * 2 * componentIndex) / components.length - Math.PI / 2;
-      const centerX = orbitRadius * Math.cos(componentAngle);
-      const centerY = 80 + orbitRadius * Math.sin(componentAngle);
-      const localRadius = Math.max(110, Math.min(220, component.length * 30));
-
-      component.forEach((node, nodeIndex) => {
-        if (component.length === 1) {
-          positions.set(node.id, { x: centerX, y: centerY });
-          return;
+      elements.push({
+        classes: "cluster-shell",
+        data: {
+          id: parentId,
+          label: `Cluster ${index + 1}`
         }
+      });
 
-        const nodeAngle = (Math.PI * 2 * nodeIndex) / component.length - Math.PI / 2;
-
-        positions.set(node.id, {
-          x: centerX + localRadius * Math.cos(nodeAngle),
-          y: centerY + localRadius * Math.sin(nodeAngle)
-        });
+      component.forEach((node) => {
+        componentByNodeId.set(node.id, parentId);
       });
     });
   }
 
-  const flowNodes: Node[] = graph.nodes.map((node) => ({
-    data: {
-      label: truncateLabel(node.label)
-    },
-    draggable: true,
-    id: node.id,
-    position: positions.get(node.id) ?? { x: 0, y: 0 },
-    sourcePosition: Position.Right,
-    style: buildNodeStyle(node),
-    targetPosition: Position.Left,
-    type: "default"
-  }));
+  for (const node of graph.nodes) {
+    const isRoot = node.id === ROOT_NODE_ID;
+    const degree = degrees.get(node.id) ?? 0;
 
-  const flowEdges: Edge[] = graph.edges.map((edge) => {
-    const directed = edge.relation !== "related_to" && edge.relation !== "intent_scope";
+    elements.push({
+      classes: [node.node_type, isRoot ? "intent-root" : "", node.synthetic ? "synthetic-node" : ""]
+        .filter(Boolean)
+        .join(" "),
+      data: {
+        color: nodeColor(node.node_type),
+        degree,
+        id: node.id,
+        label: truncateLabel(node.label),
+        parent: isRoot ? undefined : componentByNodeId.get(node.id),
+        size: isRoot ? Math.max(86, 66 + degree * 2) : Math.max(44, Math.min(76, 42 + degree * 3)),
+        width: nodeWidth(node.label, isRoot)
+      }
+    });
+  }
+
+  for (const edge of graph.edges) {
     const color = linkColor(edge.relation, edge.synthetic);
+    const directed = edge.relation !== "related_to" && edge.relation !== "intent_scope";
 
-    return {
-      animated: edge.relation === "depends_on" || edge.relation === "decision_from",
-      id: edge.id,
-      label: relationLabel(edge.relation, edge.synthetic),
-      labelBgBorderRadius: 999,
-      labelBgPadding: [8, 4],
-      labelBgStyle: {
-        fill: "rgba(255, 255, 255, 0.92)"
-      },
-      labelStyle: {
-        fill: "#475569",
-        fontSize: 11,
-        fontWeight: 700,
-        textTransform: "capitalize"
-      },
-      markerEnd: directed ? { color, type: MarkerType.ArrowClosed } : undefined,
-      selectable: true,
-      source: edge.from_node_id,
-      style: {
-        stroke: color,
-        strokeDasharray: edge.synthetic ? "8 5" : undefined,
-        strokeWidth: edge.synthetic ? 1.5 : Math.max(1.5, Math.min(4, edge.weight + 0.5))
-      },
-      target: edge.to_node_id,
-      type: "smoothstep"
-    };
-  });
+    elements.push({
+      classes: [
+        edge.synthetic ? "synthetic-edge" : "",
+        directed ? "directed-edge" : "",
+        edge.relation
+      ]
+        .filter(Boolean)
+        .join(" "),
+      data: {
+        color,
+        id: edge.id,
+        label: relationLabel(edge.relation, edge.synthetic),
+        source: edge.from_node_id,
+        target: edge.to_node_id,
+        weight: edge.synthetic ? 1.5 : Math.max(1.4, Math.min(4.2, edge.weight + 0.6))
+      }
+    });
+  }
 
   return {
     componentCount: graph.componentCount,
     directEdgeCount: graph.directEdgeCount,
-    flowEdges,
-    flowNodes
+    elements
   };
 }
 
-function KnowledgeGraphCanvas({ edges, nodes, rootLabel }: KnowledgeGraphProps) {
-  const [layoutTick, setLayoutTick] = useState(0);
-  const { fitView } = useReactFlow();
-  const graph = useMemo(() => buildFlowGraph(nodes, edges, rootLabel), [edges, layoutTick, nodes, rootLabel]);
-  const [flowNodes, setFlowNodes, onNodesChange] = useNodesState(graph.flowNodes);
-  const [flowEdges, setFlowEdges, onEdgesChange] = useEdgesState(graph.flowEdges);
+function graphStylesheet() {
+  return [
+    {
+      selector: "node",
+      style: {
+        "background-color": "data(color)",
+        "border-color": "rgba(255,255,255,0.86)",
+        "border-width": 2,
+        color: "#0f172a",
+        content: "data(label)",
+        "font-family": "inherit",
+        "font-size": 11,
+        "font-weight": 700,
+        height: "data(size)",
+        "label-wrap": "wrap",
+        "padding-bottom": 8,
+        "padding-left": 10,
+        "padding-right": 10,
+        "padding-top": 8,
+        "shadow-blur": 18,
+        "shadow-color": "rgba(15, 23, 42, 0.16)",
+        "shadow-offset-x": 0,
+        "shadow-offset-y": 10,
+        "shadow-opacity": 1,
+        "text-background-color": "rgba(255,255,255,0.94)",
+        "text-background-opacity": 1,
+        "text-background-padding": 4,
+        "text-background-shape": "roundrectangle",
+        "text-halign": "center",
+        "text-max-width": 140,
+        "text-outline-width": 0,
+        "text-valign": "center",
+        width: "data(width)"
+      }
+    },
+    {
+      selector: "node.intent-root",
+      style: {
+        color: "#f8fafc",
+        "font-size": 14,
+        "font-weight": 900,
+        "shape": "round-rectangle",
+        "text-background-color": "rgba(15,23,42,0.88)",
+        "text-background-padding": 7
+      }
+    },
+    {
+      selector: "node.cluster-shell",
+      style: {
+        "background-color": "rgba(255,255,255,0.52)",
+        "border-color": "rgba(148,163,184,0.22)",
+        "border-style": "dashed",
+        "border-width": 1,
+        color: "rgba(71,85,105,0.72)",
+        content: "",
+        padding: 32,
+        "shape": "round-rectangle",
+        "text-opacity": 0
+      }
+    },
+    {
+      selector: "edge",
+      style: {
+        "arrow-scale": 0.9,
+        "curve-style": "bezier",
+        "font-family": "inherit",
+        "font-size": 10,
+        "font-weight": 700,
+        label: "data(label)",
+        "line-color": "data(color)",
+        "target-arrow-color": "data(color)",
+        "target-arrow-shape": "triangle",
+        "text-background-color": "rgba(255,255,255,0.9)",
+        "text-background-opacity": 1,
+        "text-background-padding": 3,
+        "text-background-shape": "roundrectangle",
+        "text-rotation": "autorotate",
+        "text-wrap": "wrap",
+        "text-max-width": 120,
+        width: "data(weight)"
+      }
+    },
+    {
+      selector: "edge.synthetic-edge",
+      style: {
+        "line-style": "dashed",
+        label: ""
+      }
+    },
+    {
+      selector: "edge:not(.directed-edge)",
+      style: {
+        "target-arrow-shape": "none"
+      }
+    }
+  ] as unknown as cytoscape.StylesheetJson;
+}
+
+function graphLayout(runCount: number) {
+  return {
+    animate: false,
+    fit: true,
+    gravity: 0.28,
+    gravityCompound: 0.2,
+    gravityRangeCompound: 1.2,
+    idealEdgeLength(edge: cytoscape.EdgeSingular) {
+      return edge.hasClass("synthetic-edge") ? 220 : 110;
+    },
+    initialEnergyOnIncremental: 0.4,
+    name: "fcose",
+    nestingFactor: 0.95,
+    nodeRepulsion(node: cytoscape.NodeSingular) {
+      return node.hasClass("intent-root") ? 180000 : 95000;
+    },
+    numIter: runCount === 0 ? 2800 : 1800,
+    padding: 36,
+    quality: "default",
+    randomize: runCount === 0,
+    tile: true
+  };
+}
+
+export function KnowledgeGraph({ edges, nodes, rootLabel }: KnowledgeGraphProps) {
+  const containerRef = useRef<HTMLDivElement | null>(null);
+  const cyRef = useRef<Core | null>(null);
+  const [runCount, setRunCount] = useState(0);
+  const graph = useMemo(() => buildElements(nodes, edges, rootLabel), [edges, nodes, rootLabel]);
 
   useEffect(() => {
-    setFlowNodes(graph.flowNodes);
-    setFlowEdges(graph.flowEdges);
+    if (!containerRef.current || nodes.length === 0) {
+      return;
+    }
 
-    const timer = window.setTimeout(() => {
-      fitView({
-        duration: 450,
-        padding: 0.18
+    const instance = cytoscape({
+      container: containerRef.current,
+      elements: graph.elements,
+      layout: graphLayout(runCount) as LayoutOptions,
+      maxZoom: 2.1,
+      minZoom: 0.2,
+      motionBlur: true,
+      selectionType: "single",
+      style: graphStylesheet(),
+      userPanningEnabled: true,
+      userZoomingEnabled: true,
+      wheelSensitivity: 0.22
+    });
+
+    instance.on("tap", "node", (event) => {
+      const tappedNode = event.target;
+
+      instance.animate({
+        center: {
+          eles: tappedNode
+        },
+        duration: 260,
+        fit: {
+          eles: tappedNode.closedNeighborhood(),
+          padding: 90
+        }
       });
-    }, 30);
+    });
 
-    return () => window.clearTimeout(timer);
-  }, [fitView, graph.flowEdges, graph.flowNodes, setFlowEdges, setFlowNodes]);
+    cyRef.current = instance;
+
+    return () => {
+      cyRef.current?.destroy();
+      cyRef.current = null;
+    };
+  }, [graph.elements, nodes.length, runCount]);
 
   if (nodes.length === 0) {
     return (
@@ -402,55 +502,32 @@ function KnowledgeGraphCanvas({ edges, nodes, rootLabel }: KnowledgeGraphProps) 
   }
 
   return (
-    <div className="knowledge-graph-shell knowledge-graph-shell--flow">
-      <div className="graph-controls-panel graph-controls-panel--flow">
+    <div className="knowledge-graph-shell knowledge-graph-shell--cytoscape">
+      <div className="graph-controls-panel graph-controls-panel--cytoscape">
         <strong>{nodes.length} nodes</strong>
         <span>
           {graph.directEdgeCount} semantic links. {graph.componentCount} cluster{graph.componentCount === 1 ? "" : "s"} tied to the wiki intent.
         </span>
         <div>
           <button
-            onClick={() =>
-              fitView({
-                duration: 450,
-                padding: 0.18
-              })
-            }
+            onClick={() => {
+              cyRef.current?.fit(undefined, 48);
+            }}
             type="button"
           >
             Fit view
           </button>
-          <button onClick={() => setLayoutTick((current) => current + 1)} type="button">
-            Reset layout
+          <button
+            onClick={() => {
+              setRunCount((current) => current + 1);
+            }}
+            type="button"
+          >
+            Re-run layout
           </button>
         </div>
       </div>
-
-      <ReactFlow
-        edges={flowEdges}
-        fitView
-        maxZoom={1.6}
-        minZoom={0.2}
-        nodes={flowNodes}
-        nodesDraggable
-        nodesFocusable
-        onEdgesChange={onEdgesChange}
-        onNodesChange={onNodesChange}
-        panOnDrag
-        proOptions={{ hideAttribution: true }}
-        selectionOnDrag
-      >
-        <Background color="rgba(148, 163, 184, 0.22)" gap={28} />
-        <Controls showInteractive={false} />
-      </ReactFlow>
+      <div className="knowledge-graph-cytoscape" ref={containerRef} />
     </div>
-  );
-}
-
-export function KnowledgeGraph(props: KnowledgeGraphProps) {
-  return (
-    <ReactFlowProvider>
-      <KnowledgeGraphCanvas {...props} />
-    </ReactFlowProvider>
   );
 }
