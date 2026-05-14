@@ -173,7 +173,7 @@ export function WikiEditor({
   const [content, setContent] = useState(initialPage?.content ?? "");
   const [error, setError] = useState(initialError ?? "");
   const [status, setStatus] = useState(initialPage ? "Loaded" : "Idle");
-  const [mode, setMode] = useState<ViewMode>("edit");
+  const [mode, setMode] = useState<ViewMode>("preview");
   const [isUploading, setIsUploading] = useState(false);
   const [uploadError, setUploadError] = useState("");
   const [uploadFiles, setUploadFiles] = useState<File[]>([]);

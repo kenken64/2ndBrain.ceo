@@ -281,6 +281,22 @@ function toCosmographData(nodes: GraphNode[], edges: GraphEdge[]) {
   return { links, points };
 }
 
+function hasPreparedRows(value: unknown) {
+  if (!value) {
+    return false;
+  }
+
+  if (Array.isArray(value)) {
+    return value.length > 0;
+  }
+
+  if (typeof value === "object" && "numRows" in value) {
+    return Number((value as { numRows?: unknown }).numRows) > 0;
+  }
+
+  return true;
+}
+
 export function KnowledgeGraph({ edges, nodes, rootLabel }: KnowledgeGraphProps) {
   const cosmographRef = useRef<CosmographRef>(undefined);
   const [config, setConfig] = useState<CosmographConfig | null>(null);
@@ -294,6 +310,11 @@ export function KnowledgeGraph({ edges, nodes, rootLabel }: KnowledgeGraphProps)
 
     async function prepareGraph() {
       setLoadError("");
+
+      if (data.points.length === 0) {
+        setConfig(null);
+        return;
+      }
 
       try {
         const result = await prepareCosmographData(
@@ -319,12 +340,15 @@ export function KnowledgeGraph({ edges, nodes, rootLabel }: KnowledgeGraphProps)
           data.links
         );
 
-        if (!isCancelled && result) {
+        if (!isCancelled && result?.points && hasPreparedRows(result.points)) {
           setConfig({
             ...result.cosmographConfig,
             links: result.links,
             points: result.points
           });
+        } else if (!isCancelled) {
+          setConfig(null);
+          setLoadError("No graph points were prepared. Run Generate knowledge graph for this wiki.");
         }
       } catch (error) {
         if (!isCancelled) {

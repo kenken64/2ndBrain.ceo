@@ -11,7 +11,7 @@ Next.js full-stack app for onboarding a user into an OpenClaw workspace, provisi
 - OpenClaw markdown/wiki commands through `clawmacdo`
 - Remotion avatar setup and public URL storage in Supabase
 - LLM Wiki attachments with PDF, DOCX, text, markdown, and image support
-- Knowledge graph UI with `@xyflow/react`
+- Knowledge graph UI with `@cosmograph/react`
 
 ## Local Development
 
@@ -36,10 +36,21 @@ Useful commands:
 ```sh
 npm run typecheck
 npm run build
+npm run wiki:backfill -- --email bunnyppl@gmail.com --dry-run
 npm run start
 ```
 
 There is no `lint` script currently.
+
+## Wiki Graph Backfill
+
+If an existing LLM Wiki has markdown pages but `/dashboard/graph` shows zero points, backfill the Supabase graph tables from OpenClaw:
+
+```sh
+SUPABASE_SERVICE_ROLE_KEY=your_service_role_key npm run wiki:backfill -- --email bunnyppl@gmail.com --reset
+```
+
+Use `--dry-run` first to verify the project, markdown files, parsed nodes, and parsed edges without writing rows. The script loads `.env.local` and `.env`, reads each ready project with an `openclaw_project_slug`, calls `clawmacdo wiki-tree` and `clawmacdo wiki-read`, then upserts `wiki_pages`, `wiki_nodes`, `wiki_page_nodes`, and `wiki_edges`.
 
 ## Environment
 
@@ -71,7 +82,7 @@ NEXT_PUBLIC_SITE_URL=https://your-app.up.railway.app
 
 If `NEXT_PUBLIC_SITE_URL` is not set on Railway, the app falls back to `RAILWAY_PUBLIC_DOMAIN` when Railway provides it. Setting `NEXT_PUBLIC_SITE_URL` explicitly is still preferred because it keeps OAuth redirects independent from proxy/internal host headers.
 
-Do not put Supabase service role keys or Google OAuth client secrets in this app. Google OAuth credentials belong in Supabase Auth provider settings.
+Do not expose Supabase service role keys to the browser. Only use a service role key in a local shell or controlled maintenance job for admin scripts such as `npm run wiki:backfill`. Google OAuth credentials belong in Supabase Auth provider settings.
 
 ## Supabase
 
