@@ -30,6 +30,7 @@ type CosmoPoint = {
   color: string;
   degree: number;
   id: string;
+  idx: number;
   label: string;
   labelWeight: number;
   type: string;
@@ -40,7 +41,9 @@ type CosmoLink = {
   directed: boolean;
   relation: string;
   source: string;
+  sourceIdx: number;
   target: string;
+  targetIdx: number;
   weight: number;
 };
 
@@ -251,27 +254,43 @@ function buildConnectedGraph(nodes: GraphNode[], edges: GraphEdge[], rootLabel?:
 
 function toCosmographData(nodes: GraphNode[], edges: GraphEdge[]) {
   const degrees = degreeMap(edges);
-  const points: CosmoPoint[] = nodes.map((node) => {
+  const pointIndexById = new Map<string, number>();
+  const points: CosmoPoint[] = nodes.map((node, idx) => {
     const degree = degrees.get(node.id) ?? 0;
     const isRoot = node.id === ROOT_NODE_ID;
+    pointIndexById.set(node.id, idx);
 
     return {
       color: nodeColor(node.node_type),
       degree: isRoot ? Math.max(12, degree) : Math.max(1, degree),
       id: node.id,
+      idx,
       label: truncateLabel(node.label),
       labelWeight: isRoot ? 1 : Math.min(1, 0.28 + degree * 0.08),
       type: node.node_type
     };
   });
-  const links: CosmoLink[] = edges.map((edge) => ({
-    color: linkColor(edge.relation, edge.synthetic),
-    directed: edge.relation !== "related_to" && edge.relation !== "intent_scope",
-    relation: edge.relation,
-    source: edge.from_node_id,
-    target: edge.to_node_id,
-    weight: edge.synthetic ? 1.4 : Math.min(5, Math.max(1, Number(edge.weight) || 1))
-  }));
+  const links: CosmoLink[] = edges
+    .map((edge) => {
+      const sourceIdx = pointIndexById.get(edge.from_node_id);
+      const targetIdx = pointIndexById.get(edge.to_node_id);
+
+      if (sourceIdx === undefined || targetIdx === undefined) {
+        return null;
+      }
+
+      return {
+        color: linkColor(edge.relation, edge.synthetic),
+        directed: edge.relation !== "related_to" && edge.relation !== "intent_scope",
+        relation: edge.relation,
+        source: edge.from_node_id,
+        sourceIdx,
+        target: edge.to_node_id,
+        targetIdx,
+        weight: edge.synthetic ? 1.4 : Math.min(5, Math.max(1, Number(edge.weight) || 1))
+      };
+    })
+    .filter((value): value is CosmoLink => Boolean(value));
 
   return { links, points };
 }
@@ -328,8 +347,10 @@ export function KnowledgeGraph({ edges, nodes, rootLabel }: KnowledgeGraphProps)
         linkDefaultColor="rgba(100, 116, 139, 0.42)"
         linkDefaultWidth={1.2}
         linkSourceBy="source"
+        linkSourceIndexBy="sourceIdx"
         links={data.links}
         linkTargetBy="target"
+        linkTargetIndexBy="targetIdx"
         linkWidthBy="weight"
         linkWidthStrategy="direct"
         pointClusterBy="type"
@@ -338,6 +359,7 @@ export function KnowledgeGraph({ edges, nodes, rootLabel }: KnowledgeGraphProps)
         pointDefaultColor="#00a7ff"
         pointDefaultSize={5}
         pointIdBy="id"
+        pointIndexBy="idx"
         pointLabelBy="label"
         pointLabelColor="#111827"
         pointLabelFontSize={12}
