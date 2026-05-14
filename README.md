@@ -11,7 +11,7 @@ Next.js full-stack app for onboarding a user into an OpenClaw workspace, provisi
 - OpenClaw markdown/wiki commands through `clawmacdo`
 - Remotion avatar setup and public URL storage in Supabase
 - LLM Wiki attachments with PDF, DOCX, text, markdown, and image support
-- Knowledge graph UI with `@cosmograph/react`
+- Knowledge graph UI with `@xyflow/react`
 
 ## Local Development
 

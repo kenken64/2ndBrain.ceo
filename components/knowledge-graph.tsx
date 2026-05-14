@@ -1,7 +1,20 @@
 "use client";
 
-import { Cosmograph, type CosmographRef } from "@cosmograph/react";
-import { useMemo, useRef, useState } from "react";
+import "@xyflow/react/dist/style.css";
+import {
+  Background,
+  Controls,
+  MarkerType,
+  Position,
+  ReactFlow,
+  ReactFlowProvider,
+  useEdgesState,
+  useNodesState,
+  useReactFlow,
+  type Edge,
+  type Node
+} from "@xyflow/react";
+import { useEffect, useMemo, useState } from "react";
 
 type GraphNode = {
   id: string;
@@ -24,27 +37,6 @@ type KnowledgeGraphProps = {
   edges: GraphEdge[];
   nodes: GraphNode[];
   rootLabel?: string | null;
-};
-
-type CosmoPoint = {
-  color: string;
-  degree: number;
-  id: string;
-  idx: number;
-  label: string;
-  labelWeight: number;
-  type: string;
-};
-
-type CosmoLink = {
-  color: string;
-  directed: boolean;
-  relation: string;
-  source: string;
-  sourceIdx: number;
-  target: string;
-  targetIdx: number;
-  weight: number;
 };
 
 const ROOT_NODE_ID = "__wiki-intent-root__";
@@ -207,14 +199,15 @@ function representativeNode(nodes: GraphNode[], edges: GraphEdge[]) {
 
 function buildConnectedGraph(nodes: GraphNode[], edges: GraphEdge[], rootLabel?: string | null) {
   const directEdges = validEdges(nodes, edges);
-  const components = connectedComponents(nodes, directEdges);
+  const baseComponents = connectedComponents(nodes, directEdges);
 
   if (!rootLabel || nodes.length === 0) {
     return {
-      componentCount: components.length,
+      componentCount: baseComponents.length,
       directEdgeCount: directEdges.length,
       edges: directEdges,
       nodes,
+      rawComponents: baseComponents,
       syntheticEdgeCount: 0
     };
   }
@@ -228,7 +221,7 @@ function buildConnectedGraph(nodes: GraphNode[], edges: GraphEdge[], rootLabel?:
   };
   const bridgeEdges: GraphEdge[] = [];
 
-  components.forEach((component, index) => {
+  baseComponents.forEach((component, index) => {
     const node = representativeNode(component, directEdges);
 
     if (node) {
@@ -244,62 +237,161 @@ function buildConnectedGraph(nodes: GraphNode[], edges: GraphEdge[], rootLabel?:
   });
 
   return {
-    componentCount: components.length,
+    componentCount: baseComponents.length,
     directEdgeCount: directEdges.length,
     edges: [...directEdges, ...bridgeEdges],
     nodes: [rootNode, ...nodes],
+    rawComponents: baseComponents,
     syntheticEdgeCount: bridgeEdges.length
   };
 }
 
-function toCosmographData(nodes: GraphNode[], edges: GraphEdge[]) {
-  const degrees = degreeMap(edges);
-  const pointIndexById = new Map<string, number>();
-  const points: CosmoPoint[] = nodes.map((node, idx) => {
-    const degree = degrees.get(node.id) ?? 0;
-    const isRoot = node.id === ROOT_NODE_ID;
-    pointIndexById.set(node.id, idx);
+function relationLabel(relation: string, synthetic?: boolean) {
+  if (synthetic || relation === "links_to" || relation === "tagged") {
+    return "";
+  }
 
-    return {
-      color: nodeColor(node.node_type),
-      degree: isRoot ? Math.max(12, degree) : Math.max(1, degree),
-      id: node.id,
-      idx,
-      label: truncateLabel(node.label),
-      labelWeight: isRoot ? 1 : Math.min(1, 0.28 + degree * 0.08),
-      type: node.node_type
-    };
-  });
-  const links: CosmoLink[] = edges
-    .map((edge) => {
-      const sourceIdx = pointIndexById.get(edge.from_node_id);
-      const targetIdx = pointIndexById.get(edge.to_node_id);
-
-      if (sourceIdx === undefined || targetIdx === undefined) {
-        return null;
-      }
-
-      return {
-        color: linkColor(edge.relation, edge.synthetic),
-        directed: edge.relation !== "related_to" && edge.relation !== "intent_scope",
-        relation: edge.relation,
-        source: edge.from_node_id,
-        sourceIdx,
-        target: edge.to_node_id,
-        targetIdx,
-        weight: edge.synthetic ? 1.4 : Math.min(5, Math.max(1, Number(edge.weight) || 1))
-      };
-    })
-    .filter((value): value is CosmoLink => Boolean(value));
-
-  return { links, points };
+  return relation.replace(/_/g, " ");
 }
 
-export function KnowledgeGraph({ edges, nodes, rootLabel }: KnowledgeGraphProps) {
-  const cosmographRef = useRef<CosmographRef>(undefined);
-  const [isPaused, setIsPaused] = useState(false);
-  const graph = useMemo(() => buildConnectedGraph(nodes, edges, rootLabel), [edges, nodes, rootLabel]);
-  const data = useMemo(() => toCosmographData(graph.nodes, graph.edges), [graph.edges, graph.nodes]);
+function buildNodeStyle(node: GraphNode) {
+  const isRoot = node.id === ROOT_NODE_ID;
+
+  return {
+    background: isRoot ? "linear-gradient(135deg, #111827, #334155)" : "#ffffff",
+    border: `1px solid ${isRoot ? "#111827" : "rgba(148, 163, 184, 0.36)"}`,
+    borderRadius: isRoot ? 20 : 18,
+    boxShadow: isRoot ? "0 18px 34px rgba(15, 23, 42, 0.24)" : "0 14px 28px rgba(15, 23, 42, 0.1)",
+    color: isRoot ? "#f8fafc" : "#0f172a",
+    fontSize: isRoot ? 15 : 13,
+    fontWeight: isRoot ? 900 : 700,
+    maxWidth: isRoot ? 280 : 200,
+    minWidth: isRoot ? 180 : 132,
+    padding: isRoot ? "14px 18px" : "10px 14px"
+  } as const;
+}
+
+function buildFlowGraph(nodes: GraphNode[], edges: GraphEdge[], rootLabel?: string | null) {
+  const graph = buildConnectedGraph(nodes, edges, rootLabel);
+  const rootNode = graph.nodes.find((node) => node.id === ROOT_NODE_ID) ?? null;
+  const otherNodes = rootNode ? graph.nodes.filter((node) => node.id !== ROOT_NODE_ID) : graph.nodes;
+  const components = rootNode ? graph.rawComponents : connectedComponents(otherNodes, validEdges(otherNodes, graph.edges));
+  const positions = new Map<string, { x: number; y: number }>();
+
+  if (rootNode) {
+    positions.set(rootNode.id, { x: 0, y: 0 });
+  }
+
+  if (components.length === 1) {
+    const [component] = components;
+    const ringRadius = Math.max(140, component.length * 28);
+
+    component.forEach((node, index) => {
+      const angle = (Math.PI * 2 * index) / Math.max(component.length, 1) - Math.PI / 2;
+
+      positions.set(node.id, {
+        x: ringRadius * Math.cos(angle),
+        y: 130 + ringRadius * Math.sin(angle)
+      });
+    });
+  } else {
+    const orbitRadius = Math.max(260, components.length * 110);
+
+    components.forEach((component, componentIndex) => {
+      const componentAngle = (Math.PI * 2 * componentIndex) / components.length - Math.PI / 2;
+      const centerX = orbitRadius * Math.cos(componentAngle);
+      const centerY = 80 + orbitRadius * Math.sin(componentAngle);
+      const localRadius = Math.max(110, Math.min(220, component.length * 30));
+
+      component.forEach((node, nodeIndex) => {
+        if (component.length === 1) {
+          positions.set(node.id, { x: centerX, y: centerY });
+          return;
+        }
+
+        const nodeAngle = (Math.PI * 2 * nodeIndex) / component.length - Math.PI / 2;
+
+        positions.set(node.id, {
+          x: centerX + localRadius * Math.cos(nodeAngle),
+          y: centerY + localRadius * Math.sin(nodeAngle)
+        });
+      });
+    });
+  }
+
+  const flowNodes: Node[] = graph.nodes.map((node) => ({
+    data: {
+      label: truncateLabel(node.label)
+    },
+    draggable: true,
+    id: node.id,
+    position: positions.get(node.id) ?? { x: 0, y: 0 },
+    sourcePosition: Position.Right,
+    style: buildNodeStyle(node),
+    targetPosition: Position.Left,
+    type: "default"
+  }));
+
+  const flowEdges: Edge[] = graph.edges.map((edge) => {
+    const directed = edge.relation !== "related_to" && edge.relation !== "intent_scope";
+    const color = linkColor(edge.relation, edge.synthetic);
+
+    return {
+      animated: edge.relation === "depends_on" || edge.relation === "decision_from",
+      id: edge.id,
+      label: relationLabel(edge.relation, edge.synthetic),
+      labelBgBorderRadius: 999,
+      labelBgPadding: [8, 4],
+      labelBgStyle: {
+        fill: "rgba(255, 255, 255, 0.92)"
+      },
+      labelStyle: {
+        fill: "#475569",
+        fontSize: 11,
+        fontWeight: 700,
+        textTransform: "capitalize"
+      },
+      markerEnd: directed ? { color, type: MarkerType.ArrowClosed } : undefined,
+      selectable: true,
+      source: edge.from_node_id,
+      style: {
+        stroke: color,
+        strokeDasharray: edge.synthetic ? "8 5" : undefined,
+        strokeWidth: edge.synthetic ? 1.5 : Math.max(1.5, Math.min(4, edge.weight + 0.5))
+      },
+      target: edge.to_node_id,
+      type: "smoothstep"
+    };
+  });
+
+  return {
+    componentCount: graph.componentCount,
+    directEdgeCount: graph.directEdgeCount,
+    flowEdges,
+    flowNodes
+  };
+}
+
+function KnowledgeGraphCanvas({ edges, nodes, rootLabel }: KnowledgeGraphProps) {
+  const [layoutTick, setLayoutTick] = useState(0);
+  const { fitView } = useReactFlow();
+  const graph = useMemo(() => buildFlowGraph(nodes, edges, rootLabel), [edges, layoutTick, nodes, rootLabel]);
+  const [flowNodes, setFlowNodes, onNodesChange] = useNodesState(graph.flowNodes);
+  const [flowEdges, setFlowEdges, onEdgesChange] = useEdgesState(graph.flowEdges);
+
+  useEffect(() => {
+    setFlowNodes(graph.flowNodes);
+    setFlowEdges(graph.flowEdges);
+
+    const timer = window.setTimeout(() => {
+      fitView({
+        duration: 450,
+        padding: 0.18
+      });
+    }, 30);
+
+    return () => window.clearTimeout(timer);
+  }, [fitView, graph.flowEdges, graph.flowNodes, setFlowEdges, setFlowNodes]);
 
   if (nodes.length === 0) {
     return (
@@ -310,83 +402,55 @@ export function KnowledgeGraph({ edges, nodes, rootLabel }: KnowledgeGraphProps)
   }
 
   return (
-    <div className="knowledge-graph-shell knowledge-graph-shell--cosmograph">
-      <div className="graph-controls-panel graph-controls-panel--cosmograph">
+    <div className="knowledge-graph-shell knowledge-graph-shell--flow">
+      <div className="graph-controls-panel graph-controls-panel--flow">
         <strong>{nodes.length} nodes</strong>
         <span>
           {graph.directEdgeCount} semantic links. {graph.componentCount} cluster{graph.componentCount === 1 ? "" : "s"} tied to the wiki intent.
         </span>
         <div>
-          <button onClick={() => cosmographRef.current?.fitView(450, 80)} type="button">
-            Fit view
-          </button>
           <button
-            onClick={() => {
-              if (isPaused) {
-                cosmographRef.current?.unpause();
-                setIsPaused(false);
-              } else {
-                cosmographRef.current?.pause();
-                setIsPaused(true);
-              }
-            }}
+            onClick={() =>
+              fitView({
+                duration: 450,
+                padding: 0.18
+              })
+            }
             type="button"
           >
-            {isPaused ? "Resume layout" : "Pause layout"}
+            Fit view
+          </button>
+          <button onClick={() => setLayoutTick((current) => current + 1)} type="button">
+            Reset layout
           </button>
         </div>
       </div>
-      <Cosmograph
-        className="knowledge-graph-cosmograph"
-        componentsDisplayStateMode="loading"
-        disableLogging
-        enableSimulation
-        focusPointOnClick
-        linkColorBy="color"
-        linkColorStrategy="direct"
-        linkDefaultColor="rgba(100, 116, 139, 0.42)"
-        linkDefaultWidth={1.2}
-        linkSourceBy="source"
-        linkSourceIndexBy="sourceIdx"
-        links={data.links}
-        linkTargetBy="target"
-        linkTargetIndexBy="targetIdx"
-        linkWidthBy="weight"
-        linkWidthStrategy="direct"
-        pointClusterBy="type"
-        pointColorBy="color"
-        pointColorStrategy="direct"
-        pointDefaultColor="#00a7ff"
-        pointDefaultSize={5}
-        pointIdBy="id"
-        pointIndexBy="idx"
-        pointLabelBy="label"
-        pointLabelColor="#111827"
-        pointLabelFontSize={12}
-        pointLabelWeightBy="labelWeight"
-        points={data.points}
-        pointSizeBy="degree"
-        pointSizeStrategy="direct"
-        preservePointPositionsOnDataUpdate
-        ref={cosmographRef}
-        selectPointOnClick
-        showDynamicLabels
-        showDynamicLabelsLimit={48}
-        showFocusedPointLabel
-        showHoveredPointLabel
-        showLabels
-        showTopLabels
-        showTopLabelsLimit={36}
-        simulationCenter={0.12}
-        simulationDecay={7200}
-        simulationFriction={0.86}
-        simulationGravity={0.18}
-        simulationLinkDistance={78}
-        simulationLinkSpring={1.08}
-        simulationRepulsion={1.35}
-        simulationRepulsionFromMouse={2.6}
-        statusIndicatorMode="text"
-      />
+
+      <ReactFlow
+        edges={flowEdges}
+        fitView
+        maxZoom={1.6}
+        minZoom={0.2}
+        nodes={flowNodes}
+        nodesDraggable
+        nodesFocusable
+        onEdgesChange={onEdgesChange}
+        onNodesChange={onNodesChange}
+        panOnDrag
+        proOptions={{ hideAttribution: true }}
+        selectionOnDrag
+      >
+        <Background color="rgba(148, 163, 184, 0.22)" gap={28} />
+        <Controls showInteractive={false} />
+      </ReactFlow>
     </div>
+  );
+}
+
+export function KnowledgeGraph(props: KnowledgeGraphProps) {
+  return (
+    <ReactFlowProvider>
+      <KnowledgeGraphCanvas {...props} />
+    </ReactFlowProvider>
   );
 }

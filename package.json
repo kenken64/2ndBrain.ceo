@@ -11,9 +11,9 @@
     "wiki:backfill": "node scripts/backfill-wiki-graph.mjs"
   },
   "dependencies": {
-    "@cosmograph/react": "^2.3.0-beta.1",
     "@supabase/ssr": "latest",
     "@supabase/supabase-js": "latest",
+    "@xyflow/react": "^12.10.2",
     "clawmacdo": "^0.81.0",
     "clsx": "latest",
     "lucide-react": "latest",
