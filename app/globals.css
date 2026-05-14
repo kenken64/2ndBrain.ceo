@@ -2331,7 +2331,13 @@ svg {
   align-content: start;
   gap: 10px;
   min-height: 140px;
+  min-width: 0;
+  overflow: hidden;
   padding: 18px;
+}
+
+.project-card > * {
+  min-width: 0;
 }
 
 .project-card time {
@@ -2341,13 +2347,28 @@ svg {
 }
 
 .project-card__meta {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: end;
   gap: 12px;
   margin-top: 18px;
   color: var(--fg-muted);
   font-size: 12px;
+}
+
+.project-card__meta > * {
+  min-width: 0;
+}
+
+.project-card__meta span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.project-card__meta time {
+  text-align: right;
+  overflow-wrap: anywhere;
 }
 
 .project-card__actions {
@@ -2547,7 +2568,12 @@ svg {
   font-family: var(--font-mono);
   font-size: 11px;
   line-height: 1.4;
+  display: -webkit-box;
+  overflow: hidden;
   overflow-wrap: anywhere;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
 }
 
 .onboarding-card {
@@ -3395,13 +3421,21 @@ svg {
   .wiki-toolbar-actions,
   .wiki-sync-strip,
   .graph-workbench__header,
-  .project-card__meta,
   .project-card__actions,
   .wiki-projects-toolbar,
   .templates-panel__header,
   .projects-section__header {
     align-items: flex-start;
     flex-direction: column;
+  }
+
+  .project-card__meta {
+    grid-template-columns: minmax(0, 1fr);
+    align-items: flex-start;
+  }
+
+  .project-card__meta time {
+    text-align: left;
   }
 
   .dashboard-topbar,
