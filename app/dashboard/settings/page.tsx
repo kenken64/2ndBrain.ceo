@@ -4,8 +4,8 @@ import { Atmosphere } from "@/components/atmosphere";
 import { ChangeTelegramBotTokenButton } from "@/components/change-telegram-bot-token-button";
 import { DashboardSidebar } from "@/components/dashboard-sidebar";
 import { DestroyWorkspaceButton } from "@/components/destroy-workspace-button";
-import { GoogleWorkspaceToggle } from "@/components/google-workspace-toggle";
 import { SetupCallout } from "@/components/setup-callout";
+import { SettingsIntegrations } from "@/components/settings-integrations";
 import { hasSupabaseEnv } from "@/lib/env";
 import {
   getUserIdFromClaims,
@@ -75,7 +75,7 @@ export default async function DashboardSettingsPage() {
             </div>
 
             <div className="settings-grid">
-              <GoogleWorkspaceToggle />
+              <SettingsIntegrations />
 
               <article className="settings-action-card">
                 <div>

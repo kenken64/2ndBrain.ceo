@@ -187,7 +187,7 @@ export default async function DashboardPage() {
                         {project.status}
                       </span>
                       <h3>{project.title}</h3>
-                      <p>{project.prompt}</p>
+                      <p className="project-card__preview">{project.prompt}</p>
                       <div className="project-card__meta">
                         <span>{project.openclaw_project_slug ?? "Slug pending"}</span>
                         <time dateTime={project.created_at}>{formatProjectDate(project.created_at)}</time>
