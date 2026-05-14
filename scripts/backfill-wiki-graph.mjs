@@ -27,6 +27,7 @@ const SEMANTIC_RELATION_BY_KEY = new Map(
 
 function parseArgs(argv) {
   const flags = {
+    dbDirect: false,
     dryRun: false,
     email: "",
     includeNonReady: false,
@@ -38,7 +39,9 @@ function parseArgs(argv) {
   for (let index = 0; index < argv.length; index += 1) {
     const arg = argv[index];
 
-    if (arg === "--dry-run") {
+    if (arg === "--db-direct") {
+      flags.dbDirect = true;
+    } else if (arg === "--dry-run") {
       flags.dryRun = true;
     } else if (arg === "--include-non-ready") {
       flags.includeNonReady = true;
@@ -81,6 +84,7 @@ Options:
   --reset                  Delete existing graph rows for selected project(s) first.
   --dry-run                Read and parse markdown without writing Supabase rows.
   --include-non-ready      Include projects not marked ready.
+  --db-direct              Use DATABASE_URL with psql instead of Supabase HTTP APIs.
 `);
 }
 
@@ -108,6 +112,22 @@ async function loadEnvFile(fileName) {
       throw error;
     }
   }
+}
+
+function sqlQuote(value) {
+  if (value === null || value === undefined) {
+    return "null";
+  }
+
+  if (typeof value === "number") {
+    return Number.isFinite(value) ? String(value) : "null";
+  }
+
+  if (typeof value === "boolean") {
+    return value ? "true" : "false";
+  }
+
+  return `'${String(value).replace(/'/g, "''")}'`;
 }
 
 function envValue(...names) {
@@ -517,6 +537,74 @@ async function runClawmacdo(args) {
   return `${stdout ?? ""}${stderr ? `\n${stderr}` : ""}`.trim();
 }
 
+async function runAws(args) {
+  const region = envValue("AWS_REGION", "AWS_DEFAULT_REGION");
+  const { stdout } = await execFileAsync("aws", args, {
+    env: {
+      ...process.env,
+      AWS_ACCESS_KEY_ID: requireEnv("AWS_ACCESS_KEY_ID"),
+      AWS_SECRET_ACCESS_KEY: requireEnv("AWS_SECRET_ACCESS_KEY"),
+      AWS_DEFAULT_REGION: region,
+      AWS_REGION: region
+    },
+    maxBuffer: 1024 * 1024 * 4
+  });
+
+  return JSON.parse(stdout);
+}
+
+function isIpAddress(value) {
+  return /^\d{1,3}(?:\.\d{1,3}){3}$/.test(value);
+}
+
+async function resolveInstanceTarget(instance) {
+  if (!instance || isIpAddress(instance)) {
+    return instance;
+  }
+
+  const region = requireEnv("AWS_REGION", "AWS_DEFAULT_REGION");
+  const result = await runAws([
+    "lightsail",
+    "get-instance",
+    "--instance-name",
+    instance,
+    "--region",
+    region,
+    "--output",
+    "json"
+  ]);
+  const publicIp = result?.instance?.publicIpAddress;
+
+  if (!publicIp) {
+    throw new Error(`No public IP found for Lightsail instance: ${instance}`);
+  }
+
+  return publicIp;
+}
+
+async function runPsql(databaseUrl, sql) {
+  const { stdout, stderr } = await execFileAsync(
+    "psql",
+    [databaseUrl, "-v", "ON_ERROR_STOP=1", "-At", "-c", sql],
+    {
+      env: process.env,
+      maxBuffer: 1024 * 1024 * 16
+    }
+  );
+
+  const output = `${stdout ?? ""}${stderr ? `\n${stderr}` : ""}`.trim();
+  return output;
+}
+
+async function psqlJson(databaseUrl, sql, fallback) {
+  const output = await runPsql(
+    databaseUrl,
+    `select coalesce(json_agg(row_to_json(t))::text, '${Array.isArray(fallback) ? "[]" : "null"}') from (${sql}) as t;`
+  );
+
+  return JSON.parse(output || JSON.stringify(fallback));
+}
+
 function withProjectArgs(args, projectSlug) {
   if (projectSlug?.trim()) {
     args.push("--project", projectSlug.trim());
@@ -566,8 +654,9 @@ function normalizeTreeOutput(parsed) {
 }
 
 async function readWikiTree({ instance, projectSlug }) {
+  const target = await resolveInstanceTarget(instance);
   const output = await runClawmacdo(
-    withProjectArgs(["wiki-tree", "--instance", instance, "--agent", envValue("OPENCLAW_AGENT_ID") || "main", "--json"], projectSlug)
+    withProjectArgs(["wiki-tree", "--instance", target, "--agent", envValue("OPENCLAW_AGENT_ID") || "main", "--json"], projectSlug)
   );
 
   return normalizeTreeOutput(parseJsonOutput(output));
@@ -575,12 +664,13 @@ async function readWikiTree({ instance, projectSlug }) {
 
 async function readWikiPage({ filePath, instance, projectSlug }) {
   const normalizedPath = normalizeWikiPath(filePath);
+  const target = await resolveInstanceTarget(instance);
   const output = await runClawmacdo(
     withProjectArgs(
       [
         "wiki-read",
         "--instance",
-        instance,
+        target,
         "--agent",
         envValue("OPENCLAW_AGENT_ID") || "main",
         "--path",
@@ -620,6 +710,24 @@ async function resolveUserIdByEmail(supabase, email) {
   return data.id;
 }
 
+async function resolveUserIdByEmailDb(databaseUrl, email) {
+  if (!email) {
+    return "";
+  }
+
+  const rows = await psqlJson(
+    databaseUrl,
+    `select id from public.profiles where email = ${sqlQuote(email)} limit 1`,
+    []
+  );
+
+  if (!rows[0]?.id) {
+    throw new Error(`No profile found for email: ${email}`);
+  }
+
+  return rows[0].id;
+}
+
 async function loadProjects(supabase, flags) {
   const userId = flags.userId || (await resolveUserIdByEmail(supabase, flags.email));
   let query = supabase
@@ -649,6 +757,42 @@ async function loadProjects(supabase, flags) {
   return data ?? [];
 }
 
+async function loadProjectsDb(databaseUrl, flags) {
+  const userId = flags.userId || (await resolveUserIdByEmailDb(databaseUrl, flags.email));
+  const conditions = ["openclaw_project_slug is not null"];
+
+  if (!flags.includeNonReady) {
+    conditions.push(`status = 'ready'`);
+  }
+
+  if (flags.projectId) {
+    conditions.push(`id = ${sqlQuote(flags.projectId)}`);
+  }
+
+  if (userId) {
+    conditions.push(`user_id = ${sqlQuote(userId)}`);
+  }
+
+  return await psqlJson(
+    databaseUrl,
+    `
+      select
+        id::text,
+        user_id::text,
+        title,
+        prompt,
+        status,
+        openclaw_instance,
+        openclaw_project_slug,
+        created_at
+      from public.projects
+      where ${conditions.join(" and ")}
+      order by created_at desc
+    `,
+    []
+  );
+}
+
 async function loadProfilesByUserId(supabase, userIds) {
   if (userIds.length === 0) {
     return new Map();
@@ -666,6 +810,27 @@ async function loadProfilesByUserId(supabase, userIds) {
   return new Map((data ?? []).map((profile) => [profile.id, profile]));
 }
 
+async function loadProfilesByUserIdDb(databaseUrl, userIds) {
+  if (userIds.length === 0) {
+    return new Map();
+  }
+
+  const rows = await psqlJson(
+    databaseUrl,
+    `
+      select
+        id::text,
+        email,
+        openclaw_instance
+      from public.profiles
+      where id in (${[...new Set(userIds)].map((value) => sqlQuote(value)).join(", ")})
+    `,
+    []
+  );
+
+  return new Map(rows.map((profile) => [profile.id, profile]));
+}
+
 async function resetProjectGraph(supabase, projectId) {
   for (const table of ["wiki_edges", "wiki_page_nodes", "wiki_nodes", "wiki_pages"]) {
     const { error } = await supabase.from(table).delete().eq("project_id", projectId);
@@ -674,6 +839,18 @@ async function resetProjectGraph(supabase, projectId) {
       throw new Error(`Failed to reset ${table}: ${error.message}`);
     }
   }
+}
+
+async function resetProjectGraphDb(databaseUrl, projectId) {
+  await runPsql(
+    databaseUrl,
+    `
+      delete from public.wiki_edges where project_id = ${sqlQuote(projectId)};
+      delete from public.wiki_page_nodes where project_id = ${sqlQuote(projectId)};
+      delete from public.wiki_nodes where project_id = ${sqlQuote(projectId)};
+      delete from public.wiki_pages where project_id = ${sqlQuote(projectId)};
+    `
+  );
 }
 
 async function syncWikiPageGraph({ dryRun, page, parsed, projectId, supabase, userId }) {
@@ -796,6 +973,167 @@ async function syncWikiPageGraph({ dryRun, page, parsed, projectId, supabase, us
   };
 }
 
+async function syncWikiPageGraphDb({ databaseUrl, dryRun, page, parsed, projectId, userId }) {
+  if (dryRun) {
+    return {
+      edgeCount: parsed.edges.length,
+      nodeCount: parsed.nodes.length,
+      pageId: "dry-run"
+    };
+  }
+
+  const syncedAt = new Date().toISOString();
+  const pageRows = await psqlJson(
+    databaseUrl,
+    `
+      insert into public.wiki_pages (
+        file_path,
+        file_sha,
+        last_synced_at,
+        page_type,
+        project_id,
+        slug,
+        title,
+        user_id
+      )
+      values (
+        ${sqlQuote(page.filePath)},
+        ${sqlQuote(page.sha ?? null)},
+        ${sqlQuote(syncedAt)},
+        ${sqlQuote(parsed.frontmatter.type ?? "page")},
+        ${sqlQuote(projectId)},
+        ${sqlQuote(parsed.slug)},
+        ${sqlQuote(parsed.title)},
+        ${sqlQuote(userId)}
+      )
+      on conflict (project_id, file_path)
+      do update set
+        file_sha = excluded.file_sha,
+        last_synced_at = excluded.last_synced_at,
+        page_type = excluded.page_type,
+        slug = excluded.slug,
+        title = excluded.title,
+        user_id = excluded.user_id,
+        updated_at = now()
+      returning id::text
+    `,
+    []
+  );
+  const storedPageId = pageRows[0]?.id;
+
+  if (!storedPageId) {
+    throw new Error("wiki_page_sync_failed");
+  }
+
+  const values = parsed.nodes
+    .map(
+      (node) =>
+        `(${sqlQuote(node.label)}, ${sqlQuote(node.nodeType)}, ${sqlQuote(projectId)}, ${sqlQuote(node.slug)}, ${sqlQuote(node.role === "page" ? storedPageId : null)}, ${sqlQuote(userId)})`
+    )
+    .join(", ");
+
+  const storedNodes = await psqlJson(
+    databaseUrl,
+    `
+      insert into public.wiki_nodes (
+        label,
+        node_type,
+        project_id,
+        slug,
+        source_page_id,
+        user_id
+      )
+      values ${values}
+      on conflict (project_id, slug)
+      do update set
+        label = excluded.label,
+        node_type = excluded.node_type,
+        source_page_id = coalesce(excluded.source_page_id, public.wiki_nodes.source_page_id),
+        user_id = excluded.user_id,
+        updated_at = now()
+      returning id::text, slug
+    `,
+    []
+  );
+  const nodeIds = new Map(storedNodes.map((node) => [node.slug, node.id]));
+
+  await runPsql(
+    databaseUrl,
+    `delete from public.wiki_page_nodes where page_id = ${sqlQuote(storedPageId)};`
+  );
+
+  const pageNodeRows = parsed.nodes
+    .map((node) => {
+      const nodeId = nodeIds.get(node.slug);
+
+      return nodeId
+        ? `(${sqlQuote(storedPageId)}, ${sqlQuote(nodeId)}, ${sqlQuote(userId)}, ${sqlQuote(projectId)}, ${sqlQuote(node.role)})`
+        : null;
+    })
+    .filter(Boolean);
+
+  if (pageNodeRows.length > 0) {
+    await runPsql(
+      databaseUrl,
+      `
+        insert into public.wiki_page_nodes (
+          page_id,
+          node_id,
+          user_id,
+          project_id,
+          role
+        )
+        values ${pageNodeRows.join(", ")}
+      `
+    );
+  }
+
+  await runPsql(
+    databaseUrl,
+    `delete from public.wiki_edges where evidence_page_id = ${sqlQuote(storedPageId)};`
+  );
+
+  const edgeRows = parsed.edges
+    .map((edge) => {
+      const fromNodeId = nodeIds.get(edge.fromSlug);
+      const toNodeId = nodeIds.get(edge.toSlug);
+
+      return fromNodeId && toNodeId
+        ? `(${sqlQuote(userId)}, ${sqlQuote(projectId)}, ${sqlQuote(fromNodeId)}, ${sqlQuote(toNodeId)}, ${sqlQuote(edge.relation)}, ${sqlQuote(edge.weight)}, ${sqlQuote(storedPageId)})`
+        : null;
+    })
+    .filter(Boolean);
+
+  if (edgeRows.length > 0) {
+    await runPsql(
+      databaseUrl,
+      `
+        insert into public.wiki_edges (
+          user_id,
+          project_id,
+          from_node_id,
+          to_node_id,
+          relation,
+          weight,
+          evidence_page_id
+        )
+        values ${edgeRows.join(", ")}
+        on conflict (project_id, from_node_id, to_node_id, relation, evidence_page_id)
+        do update set
+          weight = excluded.weight,
+          user_id = excluded.user_id,
+          updated_at = now()
+      `
+    );
+  }
+
+  return {
+    edgeCount: edgeRows.length,
+    nodeCount: parsed.nodes.length,
+    pageId: storedPageId
+  };
+}
+
 async function countRows(supabase, table, projectId) {
   const { count, error } = await supabase.from(table).select("id", { count: "exact", head: true }).eq("project_id", projectId);
 
@@ -804,6 +1142,16 @@ async function countRows(supabase, table, projectId) {
   }
 
   return count ?? 0;
+}
+
+async function countRowsDb(databaseUrl, table, projectId) {
+  const rows = await psqlJson(
+    databaseUrl,
+    `select count(*)::int as count from public.${table} where project_id = ${sqlQuote(projectId)}`,
+    []
+  );
+
+  return rows[0]?.count ?? 0;
 }
 
 async function backfillProject({ dryRun, instance, project, reset, supabase }) {
@@ -857,11 +1205,101 @@ async function backfillProject({ dryRun, instance, project, reset, supabase }) {
   };
 }
 
+async function backfillProjectDb({ databaseUrl, dryRun, instance, project, reset }) {
+  if (!instance) {
+    throw new Error(`Project ${project.id} has no OpenClaw instance on project or profile`);
+  }
+
+  if (reset && !dryRun) {
+    console.log(`[backfill] reset project graph: ${project.id}`);
+    await resetProjectGraphDb(databaseUrl, project.id);
+  }
+
+  const treeFiles = await readWikiTree({
+    instance,
+    projectSlug: project.openclaw_project_slug
+  });
+  let edgeCount = 0;
+  let nodeCount = 0;
+  let pageCount = 0;
+
+  console.log(`[backfill] ${project.title} (${project.id}) files=${treeFiles.length}`);
+
+  for (const file of treeFiles) {
+    const page = await readWikiPage({
+      filePath: file.path,
+      instance,
+      projectSlug: project.openclaw_project_slug
+    });
+    const parsed = parseWikiMarkdown(page.content, page.filePath);
+    const sync = await syncWikiPageGraphDb({
+      databaseUrl,
+      dryRun,
+      page,
+      parsed,
+      projectId: project.id,
+      userId: project.user_id
+    });
+
+    edgeCount += sync.edgeCount;
+    nodeCount += sync.nodeCount;
+    pageCount += 1;
+    console.log(`[backfill] indexed ${page.filePath} nodes=${sync.nodeCount} edges=${sync.edgeCount}`);
+  }
+
+  return {
+    edgeCount,
+    nodeCount,
+    pageCount,
+    storedEdges: dryRun ? 0 : await countRowsDb(databaseUrl, "wiki_edges", project.id),
+    storedNodes: dryRun ? 0 : await countRowsDb(databaseUrl, "wiki_nodes", project.id)
+  };
+}
+
 async function main() {
   await loadEnvFile(".env.local");
   await loadEnvFile(".env");
 
   const flags = parseArgs(process.argv.slice(2));
+  const databaseUrl = envValue("DATABASE_URL");
+
+  if (flags.dbDirect) {
+    if (!databaseUrl) {
+      throw new Error("Missing env var: DATABASE_URL");
+    }
+
+    const projects = await loadProjectsDb(databaseUrl, flags);
+    const profilesByUserId = await loadProfilesByUserIdDb(
+      databaseUrl,
+      projects.map((project) => project.user_id)
+    );
+
+    if (projects.length === 0) {
+      console.log("[backfill] no matching projects found");
+      return;
+    }
+
+    console.log(`[backfill] projects=${projects.length} dryRun=${flags.dryRun} reset=${flags.reset} dbDirect=true`);
+
+    for (const project of projects) {
+      const profile = profilesByUserId.get(project.user_id);
+      const instance = project.openclaw_instance || profile?.openclaw_instance || "";
+      const summary = await backfillProjectDb({
+        databaseUrl,
+        dryRun: flags.dryRun,
+        instance,
+        project,
+        reset: flags.reset
+      });
+
+      console.log(
+        `[backfill] done ${project.id} pages=${summary.pageCount} parsedNodes=${summary.nodeCount} parsedEdges=${summary.edgeCount} storedNodes=${summary.storedNodes} storedEdges=${summary.storedEdges}`
+      );
+    }
+
+    return;
+  }
+
   const supabaseUrl = requireEnv("NEXT_PUBLIC_SUPABASE_URL", "SUPABASE_URL");
   const serviceRoleKey = requireEnv("SUPABASE_SERVICE_ROLE_KEY", "SUPABASE_SERVICE_KEY");
   const supabase = createClient(supabaseUrl, serviceRoleKey, {

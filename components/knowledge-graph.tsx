@@ -1,12 +1,7 @@
 "use client";
 
-import {
-  Cosmograph,
-  prepareCosmographData,
-  type CosmographConfig,
-  type CosmographRef
-} from "@cosmograph/react";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { Cosmograph, type CosmographRef } from "@cosmograph/react";
+import { useMemo, useRef, useState } from "react";
 
 type GraphNode = {
   id: string;
@@ -281,88 +276,11 @@ function toCosmographData(nodes: GraphNode[], edges: GraphEdge[]) {
   return { links, points };
 }
 
-function hasPreparedRows(value: unknown) {
-  if (!value) {
-    return false;
-  }
-
-  if (Array.isArray(value)) {
-    return value.length > 0;
-  }
-
-  if (typeof value === "object" && "numRows" in value) {
-    return Number((value as { numRows?: unknown }).numRows) > 0;
-  }
-
-  return true;
-}
-
 export function KnowledgeGraph({ edges, nodes, rootLabel }: KnowledgeGraphProps) {
   const cosmographRef = useRef<CosmographRef>(undefined);
-  const [config, setConfig] = useState<CosmographConfig | null>(null);
-  const [loadError, setLoadError] = useState("");
   const [isPaused, setIsPaused] = useState(false);
   const graph = useMemo(() => buildConnectedGraph(nodes, edges, rootLabel), [edges, nodes, rootLabel]);
   const data = useMemo(() => toCosmographData(graph.nodes, graph.edges), [graph.edges, graph.nodes]);
-
-  useEffect(() => {
-    let isCancelled = false;
-
-    async function prepareGraph() {
-      setLoadError("");
-
-      if (data.points.length === 0) {
-        setConfig(null);
-        return;
-      }
-
-      try {
-        const result = await prepareCosmographData(
-          {
-            links: {
-              linkColorBy: "color",
-              linkIncludeColumns: ["relation", "directed"],
-              linkSourceBy: "source",
-              linkTargetsBy: ["target"],
-              linkWidthBy: "weight"
-            },
-            points: {
-              pointClusterBy: "type",
-              pointColorBy: "color",
-              pointIdBy: "id",
-              pointIncludeColumns: ["label", "type", "degree", "labelWeight"],
-              pointLabelBy: "label",
-              pointLabelWeightBy: "labelWeight",
-              pointSizeBy: "degree"
-            }
-          },
-          data.points,
-          data.links
-        );
-
-        if (!isCancelled && result?.points && hasPreparedRows(result.points)) {
-          setConfig({
-            ...result.cosmographConfig,
-            links: result.links,
-            points: result.points
-          });
-        } else if (!isCancelled) {
-          setConfig(null);
-          setLoadError("No graph points were prepared. Run Generate knowledge graph for this wiki.");
-        }
-      } catch (error) {
-        if (!isCancelled) {
-          setLoadError(error instanceof Error ? error.message : "Graph could not be prepared.");
-        }
-      }
-    }
-
-    prepareGraph();
-
-    return () => {
-      isCancelled = true;
-    };
-  }, [data.links, data.points]);
 
   if (nodes.length === 0) {
     return (
@@ -399,46 +317,54 @@ export function KnowledgeGraph({ edges, nodes, rootLabel }: KnowledgeGraphProps)
           </button>
         </div>
       </div>
-      {loadError ? <p className="form-error graph-load-error">{loadError}</p> : null}
-      {config ? (
-        <Cosmograph
-          {...config}
-          className="knowledge-graph-cosmograph"
-          componentsDisplayStateMode="loading"
-          disableLogging
-          enableSimulation
-          focusPointOnClick
-          linkDefaultColor="rgba(100, 116, 139, 0.42)"
-          linkDefaultWidth={1.2}
-          linkWidthRange={[1, 4]}
-          pointDefaultColor="#00a7ff"
-          pointDefaultSize={5}
-          pointLabelColor="#111827"
-          pointLabelFontSize={12}
-          pointSizeRange={[5, 19]}
-          preservePointPositionsOnDataUpdate
-          ref={cosmographRef}
-          selectPointOnClick
-          showDynamicLabels
-          showDynamicLabelsLimit={48}
-          showFocusedPointLabel
-          showHoveredPointLabel
-          showLabels
-          showTopLabels
-          showTopLabelsLimit={36}
-          simulationCenter={0.12}
-          simulationDecay={7200}
-          simulationFriction={0.86}
-          simulationGravity={0.18}
-          simulationLinkDistance={78}
-          simulationLinkSpring={1.08}
-          simulationRepulsion={1.35}
-          simulationRepulsionFromMouse={2.6}
-          statusIndicatorMode="text"
-        />
-      ) : (
-        <div className="empty-state">Preparing graph layout...</div>
-      )}
+      <Cosmograph
+        className="knowledge-graph-cosmograph"
+        componentsDisplayStateMode="loading"
+        disableLogging
+        enableSimulation
+        focusPointOnClick
+        linkColorBy="color"
+        linkColorStrategy="direct"
+        linkDefaultColor="rgba(100, 116, 139, 0.42)"
+        linkDefaultWidth={1.2}
+        linkSourceBy="source"
+        links={data.links}
+        linkTargetBy="target"
+        linkWidthBy="weight"
+        linkWidthStrategy="direct"
+        pointClusterBy="type"
+        pointColorBy="color"
+        pointColorStrategy="direct"
+        pointDefaultColor="#00a7ff"
+        pointDefaultSize={5}
+        pointIdBy="id"
+        pointLabelBy="label"
+        pointLabelColor="#111827"
+        pointLabelFontSize={12}
+        pointLabelWeightBy="labelWeight"
+        points={data.points}
+        pointSizeBy="degree"
+        pointSizeStrategy="direct"
+        preservePointPositionsOnDataUpdate
+        ref={cosmographRef}
+        selectPointOnClick
+        showDynamicLabels
+        showDynamicLabelsLimit={48}
+        showFocusedPointLabel
+        showHoveredPointLabel
+        showLabels
+        showTopLabels
+        showTopLabelsLimit={36}
+        simulationCenter={0.12}
+        simulationDecay={7200}
+        simulationFriction={0.86}
+        simulationGravity={0.18}
+        simulationLinkDistance={78}
+        simulationLinkSpring={1.08}
+        simulationRepulsion={1.35}
+        simulationRepulsionFromMouse={2.6}
+        statusIndicatorMode="text"
+      />
     </div>
   );
 }
