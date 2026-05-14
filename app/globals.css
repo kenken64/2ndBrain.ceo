@@ -1751,6 +1751,20 @@ svg {
   box-shadow: 0 0 0 3px rgba(0, 167, 255, 0.12);
 }
 
+.wiki-upload-form .form-error,
+.wiki-upload-form .form-success {
+  padding: 10px 12px;
+  font-size: 12px;
+  line-height: 1.4;
+  text-align: left;
+}
+
+.wiki-upload-form__progress {
+  width: 100%;
+  margin: 0;
+  padding: 10px 12px;
+}
+
 .wiki-tree-list {
   display: grid;
   gap: 2px;
@@ -2124,6 +2138,30 @@ svg {
 
 .wiki-project-card {
   min-height: 260px;
+}
+
+.wiki-project-card h3,
+.wiki-project-card > p,
+.wiki-project-card > .form-error {
+  display: -webkit-box;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+}
+
+.wiki-project-card h3 {
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+}
+
+.wiki-project-card > p {
+  line-height: 1.55;
+  -webkit-line-clamp: 5;
+  line-clamp: 5;
+}
+
+.wiki-project-card > .form-error {
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
 }
 
 .wiki-projects-toolbar {
