@@ -19,10 +19,13 @@ export type WikiPage = {
 
 export type WikiFrontmatter = {
   aliases: string[];
+  relations: Partial<Record<SemanticRelation, string[]>>;
   tags: string[];
   title?: string;
   type?: string;
 };
+
+export type SemanticRelation = "depends_on" | "related_to" | "mentions" | "owned_by" | "source_for" | "decision_from";
 
 export type ParsedWikiNode = {
   label: string;
@@ -50,6 +53,21 @@ export type ParsedWikiGraph = {
 };
 
 const WIKI_LINK_PATTERN = /\[\[([^\]|#]+)(?:#[^\]|]+)?(?:\|[^\]]+)?\]\]/g;
+const SEMANTIC_RELATION_LABELS: Record<SemanticRelation, string[]> = {
+  decision_from: ["decision from", "decided from", "decision based on"],
+  depends_on: ["depends on", "depends upon", "requires", "blocked by"],
+  mentions: ["mentions", "mentioned in", "references"],
+  owned_by: ["owned by", "owner", "accountable to"],
+  related_to: ["related to", "relates to", "connected to", "associated with"],
+  source_for: ["source for", "input for", "evidence for"]
+};
+const SEMANTIC_RELATION_BY_KEY = new Map<string, SemanticRelation>(
+  Object.entries(SEMANTIC_RELATION_LABELS).flatMap(([relation, labels]) => [
+    [relation, relation as SemanticRelation],
+    [wikiSlug(relation), relation as SemanticRelation],
+    ...labels.map((label) => [wikiSlug(label), relation as SemanticRelation] as const)
+  ])
+);
 
 export function wikiSlug(value: string) {
   const slug = value
@@ -98,9 +116,32 @@ function parseListLine(value: string) {
     .filter(Boolean);
 }
 
+function normalizeRelationTarget(value: string) {
+  return value
+    .trim()
+    .replace(/^\[\[/, "")
+    .replace(/\]\]$/, "")
+    .replace(/^['"]|['"]$/g, "")
+    .replace(/#.+$/, "")
+    .replace(/\|.+$/, "")
+    .trim();
+}
+
+function parseRelationListLine(value: string) {
+  return parseListLine(value)
+    .flatMap((item) => item.split(/\s*;\s*/g))
+    .map(normalizeRelationTarget)
+    .filter(Boolean);
+}
+
+function semanticRelationFromHeading(value: string) {
+  return SEMANTIC_RELATION_BY_KEY.get(wikiSlug(value.replace(/^#+\s*/, ""))) ?? null;
+}
+
 export function parseFrontmatter(markdown: string): { body: string; frontmatter: WikiFrontmatter } {
   const frontmatter: WikiFrontmatter = {
     aliases: [],
+    relations: {},
     tags: []
   };
 
@@ -117,7 +158,7 @@ export function parseFrontmatter(markdown: string): { body: string; frontmatter:
   const raw = markdown.slice(4, endIndex).trim();
   const body = markdown.slice(endIndex + 4).replace(/^\n/, "");
   const lines = raw.split("\n");
-  let listKey: "aliases" | "tags" | null = null;
+  let listKey: "aliases" | "tags" | SemanticRelation | null = null;
 
   for (const line of lines) {
     const trimmed = line.trim();
@@ -136,6 +177,13 @@ export function parseFrontmatter(markdown: string): { body: string; frontmatter:
       } else if (key === "aliases" || key === "tags") {
         listKey = key;
         frontmatter[key] = value ? parseListLine(value) : [];
+      } else {
+        const relation = SEMANTIC_RELATION_BY_KEY.get(wikiSlug(key));
+
+        if (relation) {
+          listKey = relation;
+          frontmatter.relations[relation] = value ? parseRelationListLine(value) : [];
+        }
       }
 
       continue;
@@ -144,7 +192,14 @@ export function parseFrontmatter(markdown: string): { body: string; frontmatter:
     const listItem = trimmed.match(/^-\s+(.+)$/);
 
     if (listKey && listItem) {
-      frontmatter[listKey].push(listItem[1].replace(/^['"]|['"]$/g, ""));
+      if (listKey === "aliases" || listKey === "tags") {
+        frontmatter[listKey].push(listItem[1].replace(/^['"]|['"]$/g, ""));
+      } else {
+        frontmatter.relations[listKey] = [
+          ...(frontmatter.relations[listKey] ?? []),
+          normalizeRelationTarget(listItem[1])
+        ].filter(Boolean);
+      }
     }
   }
 
@@ -181,6 +236,99 @@ function uniqueEdges(edges: ParsedWikiEdge[]) {
   }
 
   return [...byKey.values()];
+}
+
+function semanticRelationNodeType(relation: SemanticRelation) {
+  if (relation === "owned_by") {
+    return "owner";
+  }
+
+  if (relation === "decision_from") {
+    return "decision";
+  }
+
+  if (relation === "source_for") {
+    return "source";
+  }
+
+  return "concept";
+}
+
+function pushSemanticEdge({
+  edges,
+  label,
+  nodes,
+  pageSlug,
+  relation
+}: {
+  edges: ParsedWikiEdge[];
+  label: string;
+  nodes: ParsedWikiNode[];
+  pageSlug: string;
+  relation: SemanticRelation;
+}) {
+  const normalizedLabel = normalizeRelationTarget(label);
+
+  if (!normalizedLabel) {
+    return;
+  }
+
+  const slug = wikiSlug(normalizedLabel);
+
+  nodes.push({
+    label: normalizedLabel,
+    nodeType: semanticRelationNodeType(relation),
+    role: "mention",
+    slug
+  });
+
+  if (slug !== pageSlug) {
+    edges.push({
+      fromSlug: pageSlug,
+      relation,
+      toSlug: slug,
+      weight: relation === "related_to" || relation === "mentions" ? 1 : 2
+    });
+  }
+}
+
+function extractSemanticBodyRelations(body: string) {
+  const relations: Array<{ label: string; relation: SemanticRelation }> = [];
+  const lines = body.split("\n");
+  let activeRelation: SemanticRelation | null = null;
+
+  for (const line of lines) {
+    const heading = line.match(/^#{2,4}\s+(.+)$/);
+
+    if (heading) {
+      activeRelation = semanticRelationFromHeading(heading[1]);
+      continue;
+    }
+
+    if (activeRelation) {
+      for (const match of line.matchAll(WIKI_LINK_PATTERN)) {
+        relations.push({
+          label: match[1],
+          relation: activeRelation
+        });
+      }
+    }
+
+    for (const [relation, labels] of Object.entries(SEMANTIC_RELATION_LABELS) as Array<[SemanticRelation, string[]]>) {
+      for (const label of labels) {
+        const pattern = new RegExp(`${label.replace(/\s+/g, "\\s+")}\\s+\\[\\[([^\\]|#]+)(?:#[^\\]|]+)?(?:\\|[^\\]]+)?\\]\\]`, "gi");
+
+        for (const match of line.matchAll(pattern)) {
+          relations.push({
+            label: match[1],
+            relation
+          });
+        }
+      }
+    }
+  }
+
+  return relations;
 }
 
 export function parseWikiMarkdown(markdown: string, filePath: string): ParsedWikiGraph {
@@ -238,6 +386,28 @@ export function parseWikiMarkdown(markdown: string, filePath: string): ParsedWik
       relation: "tagged",
       toSlug: slug,
       weight: 1
+    });
+  }
+
+  for (const [relation, labels] of Object.entries(frontmatter.relations) as Array<[SemanticRelation, string[]]>) {
+    for (const label of labels) {
+      pushSemanticEdge({
+        edges,
+        label,
+        nodes,
+        pageSlug,
+        relation
+      });
+    }
+  }
+
+  for (const { label, relation } of extractSemanticBodyRelations(body)) {
+    pushSemanticEdge({
+      edges,
+      label,
+      nodes,
+      pageSlug,
+      relation
     });
   }
 

@@ -1465,6 +1465,192 @@ svg {
   opacity: 0.72;
 }
 
+.settings-workbench {
+  display: grid;
+  gap: 22px;
+}
+
+.settings-workbench__header {
+  width: min(100%, 760px);
+}
+
+.settings-workbench__header h1 {
+  margin: 6px 0 0;
+  color: var(--fg-primary);
+  font-size: clamp(32px, 5vw, 52px);
+  line-height: 1.05;
+}
+
+.settings-workbench__header p:last-child {
+  margin: 12px 0 0;
+  color: var(--fg-secondary);
+  font-size: 15px;
+  line-height: 1.55;
+}
+
+.settings-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 18px;
+}
+
+.settings-toggle-card,
+.settings-action-card {
+  display: grid;
+  gap: 16px;
+  border: 1px solid var(--border-soft);
+  border-radius: var(--radius-lg);
+  background: rgba(255, 255, 255, 0.84);
+  box-shadow: var(--shadow-md);
+  padding: 22px;
+}
+
+.settings-toggle-card {
+  position: relative;
+  grid-column: 1 / -1;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: start;
+}
+
+.settings-toggle-card__icon {
+  display: inline-grid;
+  width: 48px;
+  height: 48px;
+  place-items: center;
+  border-radius: 18px;
+  background: rgba(0, 167, 255, 0.1);
+  color: var(--action-primary);
+}
+
+.settings-toggle-card h2,
+.settings-action-card h2 {
+  margin: 6px 0 0;
+  color: var(--fg-primary);
+  font-size: 24px;
+  line-height: 1.15;
+}
+
+.settings-toggle-card p,
+.settings-action-card p {
+  margin: 10px 0 0;
+  color: var(--fg-secondary);
+  font-size: 14px;
+  line-height: 1.55;
+}
+
+.settings-toggle-card__note {
+  border: 1px solid rgba(0, 167, 255, 0.2);
+  border-radius: var(--radius-md);
+  background: rgba(0, 167, 255, 0.07);
+  padding: 10px 12px;
+}
+
+.settings-toggle-card__status {
+  display: inline-flex;
+  width: fit-content;
+  align-items: center;
+  gap: 6px;
+  grid-column: 2 / -1;
+  border-radius: var(--radius-pill);
+  background: rgba(0, 196, 140, 0.1);
+  color: var(--fg-primary);
+  padding: 7px 10px;
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.settings-switch {
+  display: inline-flex;
+  width: 64px;
+  height: 36px;
+  align-items: center;
+  border: 1px solid var(--border-medium);
+  border-radius: var(--radius-pill);
+  background: rgba(17, 24, 39, 0.12);
+  cursor: pointer;
+  padding: 3px;
+  transition:
+    background 180ms ease,
+    border-color 180ms ease;
+}
+
+.settings-switch span {
+  display: block;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: white;
+  box-shadow: 0 4px 12px rgba(17, 24, 39, 0.2);
+  transition: transform 180ms ease;
+}
+
+.settings-switch.is-enabled {
+  border-color: rgba(0, 196, 140, 0.45);
+  background: var(--brand-green);
+}
+
+.settings-switch.is-enabled span {
+  transform: translateX(28px);
+}
+
+.settings-action-card {
+  align-content: space-between;
+}
+
+.settings-action-card--danger {
+  border-color: rgba(220, 38, 38, 0.22);
+  background:
+    radial-gradient(circle at 92% 0%, rgba(220, 38, 38, 0.11), transparent 34%),
+    rgba(255, 255, 255, 0.86);
+}
+
+.settings-action-button {
+  display: inline-flex;
+  width: fit-content;
+  min-height: 44px;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  border-radius: var(--radius-pill);
+  cursor: pointer;
+  padding: 11px 16px;
+  font-size: 13px;
+  font-weight: 900;
+}
+
+.settings-action-button--telegram {
+  border: 1px solid rgba(0, 167, 255, 0.24);
+  background: rgba(0, 167, 255, 0.1);
+  color: var(--fg-primary);
+}
+
+.settings-action-button--telegram:hover {
+  background: var(--action-primary);
+  color: white;
+  box-shadow: var(--shadow-md);
+}
+
+.settings-action-button--danger {
+  border: 1px solid rgba(220, 38, 38, 0.28);
+  background: rgba(220, 38, 38, 0.08);
+  color: #b91c1c;
+}
+
+.settings-action-button--danger:hover {
+  background: #dc2626;
+  color: white;
+  box-shadow: var(--shadow-md);
+}
+
+.settings-action-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.72;
+}
+
+.destroy-workspace--panel {
+  gap: 8px;
+}
+
 @keyframes icon-spin {
   to {
     transform: rotate(360deg);
@@ -1979,6 +2165,7 @@ svg {
 }
 
 .knowledge-graph-shell {
+  position: relative;
   height: min(72vh, 760px);
   min-height: 560px;
   overflow: hidden;
@@ -1991,6 +2178,21 @@ svg {
   background-size: 28px 28px, 28px 28px, 100% 100%;
 }
 
+.knowledge-graph-shell--cosmograph {
+  background:
+    radial-gradient(circle at 50% 42%, rgba(0, 167, 255, 0.16), transparent 34%),
+    radial-gradient(circle at 78% 18%, rgba(0, 196, 140, 0.13), transparent 26%),
+    linear-gradient(rgba(0, 167, 255, 0.08) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(0, 196, 140, 0.08) 1px, transparent 1px),
+    var(--bg-elevated);
+  background-size: 100% 100%, 100% 100%, 28px 28px, 28px 28px, 100% 100%;
+}
+
+.knowledge-graph-cosmograph {
+  width: 100%;
+  height: 100%;
+}
+
 .graph-controls-panel {
   display: grid;
   gap: 8px;
@@ -2000,6 +2202,13 @@ svg {
   background: rgba(255, 255, 255, 0.9);
   box-shadow: var(--shadow-md);
   padding: 12px;
+}
+
+.graph-controls-panel--cosmograph {
+  position: absolute;
+  top: 14px;
+  left: 14px;
+  z-index: 4;
 }
 
 .graph-controls-panel strong {
@@ -2034,6 +2243,14 @@ svg {
 .graph-controls-panel button:hover {
   border-color: var(--action-primary);
   box-shadow: var(--shadow-sm);
+}
+
+.graph-load-error {
+  position: absolute;
+  right: 14px;
+  bottom: 14px;
+  left: 14px;
+  z-index: 5;
 }
 
 .projects-section {
@@ -3030,6 +3247,10 @@ svg {
     flex: 0 0 auto;
   }
 
+  .destroy-workspace--panel {
+    flex: initial;
+  }
+
   .sidebar-item {
     white-space: nowrap;
   }
@@ -3056,6 +3277,10 @@ svg {
 
   .option-grid {
     grid-template-columns: repeat(2, 1fr);
+  }
+
+  .settings-grid {
+    grid-template-columns: 1fr;
   }
 }
 
@@ -3130,6 +3355,7 @@ svg {
   .dashboard-topbar,
   .dashboard-topbar .btn-primary,
   .dashboard-topbar .btn-ghost,
+  .settings-action-button,
   .wiki-projects-search__controls > *,
   .wiki-pagination .btn-ghost,
   .workspace-status-actions > *,
@@ -3165,6 +3391,22 @@ svg {
 
   .destroy-workspace {
     gap: 0;
+  }
+
+  .destroy-workspace--panel {
+    gap: 8px;
+  }
+
+  .settings-toggle-card {
+    grid-template-columns: 1fr;
+  }
+
+  .settings-toggle-card__status {
+    grid-column: auto;
+  }
+
+  .settings-switch {
+    justify-self: start;
   }
 
   .chat-input__bar {

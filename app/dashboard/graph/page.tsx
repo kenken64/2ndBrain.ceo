@@ -199,7 +199,11 @@ export default async function DashboardGraphPage({ searchParams }: GraphPageProp
                 {(nodes ?? []).length} nodes
               </span>
             </div>
-            <KnowledgeGraph edges={(edges ?? []) as GraphEdge[]} nodes={(nodes ?? []) as GraphNode[]} />
+            <KnowledgeGraph
+              edges={(edges ?? []) as GraphEdge[]}
+              nodes={(nodes ?? []) as GraphNode[]}
+              rootLabel={context.project?.title ?? "Selected wiki intent"}
+            />
           </section>
         </main>
       </div>

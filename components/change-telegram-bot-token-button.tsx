@@ -3,6 +3,10 @@
 import { FormEvent, useId, useState } from "react";
 import { Bot, Eye, EyeOff, LoaderCircle, Send, X } from "lucide-react";
 
+type ChangeTelegramBotTokenButtonProps = {
+  variant?: "sidebar" | "panel";
+};
+
 function validateTelegramBotToken(value: string) {
   if (!value) {
     return "Telegram bot token is required.";
@@ -19,12 +23,14 @@ function validateTelegramBotToken(value: string) {
   return "";
 }
 
-export function ChangeTelegramBotTokenButton() {
+export function ChangeTelegramBotTokenButton({ variant = "sidebar" }: ChangeTelegramBotTokenButtonProps) {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isTokenVisible, setIsTokenVisible] = useState(false);
   const [error, setError] = useState("");
   const tokenErrorId = useId();
+  const buttonClassName =
+    variant === "panel" ? "settings-action-button settings-action-button--telegram" : "sidebar-item sidebar-item--telegram";
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -67,7 +73,7 @@ export function ChangeTelegramBotTokenButton() {
 
   return (
     <>
-      <button className="sidebar-item sidebar-item--telegram" onClick={() => setIsDialogOpen(true)} type="button">
+      <button className={buttonClassName} onClick={() => setIsDialogOpen(true)} type="button">
         <Bot size={18} strokeWidth={1.7} />
         Change Telegram bot
       </button>

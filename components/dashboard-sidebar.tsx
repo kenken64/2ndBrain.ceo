@@ -5,23 +5,21 @@ import {
   LayoutGrid,
   Plug,
   Power,
-  ScrollText
+  ScrollText,
+  Settings
 } from "lucide-react";
 import { BrandHeart } from "@/components/brand-heart";
-import { ChangeTelegramBotTokenButton } from "@/components/change-telegram-bot-token-button";
-import { DestroyWorkspaceButton } from "@/components/destroy-workspace-button";
 
 type DashboardSidebarProps = {
-  activeItem?: "gateway" | "remotion" | "wiki" | "graph";
+  activeItem?: "gateway" | "remotion" | "wiki" | "graph" | "settings";
   avatarName?: string | null;
   email?: string | null;
   ownerName?: string | null;
 };
 
-export function DashboardSidebar({ activeItem = "gateway", avatarName, email, ownerName }: DashboardSidebarProps) {
+export function DashboardSidebar({ activeItem = "gateway", email, ownerName }: DashboardSidebarProps) {
   const workspaceOwner = ownerName?.trim() || email?.split("@")[0] || "Personal";
   const workspaceName = `${workspaceOwner}'s workspace`;
-  const navigatorName = avatarName?.trim() || "2ndBrain";
 
   return (
     <aside className="sidebar">
@@ -58,17 +56,11 @@ export function DashboardSidebar({ activeItem = "gateway", avatarName, email, ow
         </a>
       </nav>
       <div className="sidebar-spacer" />
-      <div className="sidebar-card">
-        <strong>{navigatorName} is ready</strong>
-        <span>Your workspace can launch Gateway, review the Remotion avatar, and manage the wiki flow from here.</span>
-      </div>
-      <div className="sidebar-card">
-        <strong>Wiki decision pending</strong>
-        <span>Keep hosted and download paths visible until the LLM wiki product direction is finalized.</span>
-      </div>
       <div className="sidebar-footer">
-        <ChangeTelegramBotTokenButton />
-        <DestroyWorkspaceButton />
+        <a className={`sidebar-item${activeItem === "settings" ? " is-active" : ""}`} href="/dashboard/settings">
+          <Settings size={18} strokeWidth={1.7} />
+          Settings
+        </a>
         <a className="sidebar-item sidebar-item--logout" href="/auth/logout">
           <Power size={18} strokeWidth={1.7} />
           Log out

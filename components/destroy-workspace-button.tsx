@@ -3,10 +3,17 @@
 import { useState } from "react";
 import { AlertTriangle, LoaderCircle, Trash2, X } from "lucide-react";
 
-export function DestroyWorkspaceButton() {
+type DestroyWorkspaceButtonProps = {
+  variant?: "sidebar" | "panel";
+};
+
+export function DestroyWorkspaceButton({ variant = "sidebar" }: DestroyWorkspaceButtonProps) {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [isDestroying, setIsDestroying] = useState(false);
   const [error, setError] = useState("");
+  const wrapperClassName = variant === "panel" ? "destroy-workspace destroy-workspace--panel" : "destroy-workspace";
+  const buttonClassName =
+    variant === "panel" ? "settings-action-button settings-action-button--danger" : "sidebar-item sidebar-item--destroy";
 
   async function handleDestroy() {
     if (isDestroying) {
@@ -38,9 +45,9 @@ export function DestroyWorkspaceButton() {
   }
 
   return (
-    <div className="destroy-workspace">
+    <div className={wrapperClassName}>
       <button
-        className="sidebar-item sidebar-item--destroy"
+        className={buttonClassName}
         disabled={isDestroying}
         onClick={() => setIsDialogOpen(true)}
         type="button"

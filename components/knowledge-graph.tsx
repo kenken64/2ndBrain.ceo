@@ -1,29 +1,26 @@
 "use client";
 
 import {
-  Background,
-  Controls,
-  MiniMap,
-  Panel,
-  ReactFlow,
-  useEdgesState,
-  useNodesState,
-  type Edge,
-  type Node
-} from "@xyflow/react";
-import { useEffect, useMemo, useState } from "react";
+  Cosmograph,
+  prepareCosmographData,
+  type CosmographConfig,
+  type CosmographRef
+} from "@cosmograph/react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 type GraphNode = {
   id: string;
   label: string;
   node_type: string;
   slug: string;
+  synthetic?: boolean;
 };
 
 type GraphEdge = {
   from_node_id: string;
   id: string;
   relation: string;
+  synthetic?: boolean;
   to_node_id: string;
   weight: number;
 };
@@ -31,9 +28,34 @@ type GraphEdge = {
 type KnowledgeGraphProps = {
   edges: GraphEdge[];
   nodes: GraphNode[];
+  rootLabel?: string | null;
 };
 
+type CosmoPoint = {
+  color: string;
+  degree: number;
+  id: string;
+  label: string;
+  labelWeight: number;
+  type: string;
+};
+
+type CosmoLink = {
+  color: string;
+  directed: boolean;
+  relation: string;
+  source: string;
+  target: string;
+  weight: number;
+};
+
+const ROOT_NODE_ID = "__wiki-intent-root__";
+
 function nodeColor(type: string) {
+  if (type === "intent") {
+    return "#111827";
+  }
+
   if (type === "page") {
     return "#00a7ff";
   }
@@ -42,23 +64,114 @@ function nodeColor(type: string) {
     return "#00c48c";
   }
 
-  return "#ff8a3d";
+  if (type === "owner" || type === "person") {
+    return "#ff8a3d";
+  }
+
+  if (type === "decision") {
+    return "#f43f5e";
+  }
+
+  if (type === "source") {
+    return "#6366f1";
+  }
+
+  return "#8b5cf6";
 }
 
-function nodeTypeRank(type: string) {
-  if (type === "page") {
-    return 0;
+function linkColor(relation: string, synthetic?: boolean) {
+  if (synthetic) {
+    return "rgba(17, 24, 39, 0.62)";
   }
 
-  if (type === "tag") {
-    return 2;
+  if (relation === "depends_on") {
+    return "rgba(244, 63, 94, 0.72)";
   }
 
-  return 1;
+  if (relation === "owned_by") {
+    return "rgba(255, 138, 61, 0.72)";
+  }
+
+  if (relation === "source_for") {
+    return "rgba(99, 102, 241, 0.72)";
+  }
+
+  if (relation === "decision_from") {
+    return "rgba(220, 38, 38, 0.72)";
+  }
+
+  if (relation === "mentions") {
+    return "rgba(0, 167, 255, 0.52)";
+  }
+
+  return "rgba(100, 116, 139, 0.48)";
 }
 
 function truncateLabel(value: string) {
-  return value.length > 34 ? `${value.slice(0, 31)}...` : value;
+  return value.length > 42 ? `${value.slice(0, 39)}...` : value;
+}
+
+function validEdges(nodes: GraphNode[], edges: GraphEdge[]) {
+  const nodeIds = new Set(nodes.map((node) => node.id));
+
+  return edges.filter((edge) => nodeIds.has(edge.from_node_id) && nodeIds.has(edge.to_node_id));
+}
+
+function connectedComponents(nodes: GraphNode[], edges: GraphEdge[]) {
+  const nodeIds = new Set(nodes.map((node) => node.id));
+  const nodesById = new Map(nodes.map((node) => [node.id, node]));
+  const adjacency = new Map<string, Set<string>>();
+
+  for (const node of nodes) {
+    adjacency.set(node.id, new Set());
+  }
+
+  for (const edge of edges) {
+    if (!nodeIds.has(edge.from_node_id) || !nodeIds.has(edge.to_node_id)) {
+      continue;
+    }
+
+    adjacency.get(edge.from_node_id)?.add(edge.to_node_id);
+    adjacency.get(edge.to_node_id)?.add(edge.from_node_id);
+  }
+
+  const components: GraphNode[][] = [];
+  const visited = new Set<string>();
+
+  for (const node of nodes) {
+    if (visited.has(node.id)) {
+      continue;
+    }
+
+    const stack = [node.id];
+    const component: GraphNode[] = [];
+    visited.add(node.id);
+
+    while (stack.length > 0) {
+      const currentId = stack.pop();
+
+      if (!currentId) {
+        continue;
+      }
+
+      const currentNode = nodesById.get(currentId);
+
+      if (currentNode) {
+        component.push(currentNode);
+      }
+
+      for (const neighborId of adjacency.get(currentId) ?? []) {
+        if (!visited.has(neighborId)) {
+          visited.add(neighborId);
+          stack.push(neighborId);
+        }
+      }
+    }
+
+    components.push(component);
+  }
+
+  return components.sort((left, right) => right.length - left.length);
 }
 
 function degreeMap(edges: GraphEdge[]) {
@@ -72,110 +185,160 @@ function degreeMap(edges: GraphEdge[]) {
   return degree;
 }
 
-function sortNodes(nodes: GraphNode[], edges: GraphEdge[]) {
+function representativeNode(nodes: GraphNode[], edges: GraphEdge[]) {
   const degrees = degreeMap(edges);
 
   return [...nodes].sort((left, right) => {
-    const typeDelta = nodeTypeRank(left.node_type) - nodeTypeRank(right.node_type);
+    const degreeDelta = (degrees.get(right.id) ?? 0) - (degrees.get(left.id) ?? 0);
 
-    if (typeDelta !== 0) {
-      return typeDelta;
+    if (degreeDelta !== 0) {
+      return degreeDelta;
     }
 
-    return (degrees.get(right.id) ?? 0) - (degrees.get(left.id) ?? 0) || left.label.localeCompare(right.label);
-  });
+    if (left.node_type === "page" && right.node_type !== "page") {
+      return -1;
+    }
+
+    if (right.node_type === "page" && left.node_type !== "page") {
+      return 1;
+    }
+
+    return left.label.localeCompare(right.label);
+  })[0] ?? nodes[0];
 }
 
-function gridPosition(index: number, columns: number, startX: number, startY: number, gapX: number, gapY: number) {
+function buildConnectedGraph(nodes: GraphNode[], edges: GraphEdge[], rootLabel?: string | null) {
+  const directEdges = validEdges(nodes, edges);
+  const components = connectedComponents(nodes, directEdges);
+
+  if (!rootLabel || nodes.length === 0) {
+    return {
+      componentCount: components.length,
+      directEdgeCount: directEdges.length,
+      edges: directEdges,
+      nodes,
+      syntheticEdgeCount: 0
+    };
+  }
+
+  const rootNode: GraphNode = {
+    id: ROOT_NODE_ID,
+    label: rootLabel,
+    node_type: "intent",
+    slug: "wiki-intent-root",
+    synthetic: true
+  };
+  const bridgeEdges: GraphEdge[] = [];
+
+  components.forEach((component, index) => {
+    const node = representativeNode(component, directEdges);
+
+    if (node) {
+      bridgeEdges.push({
+        from_node_id: ROOT_NODE_ID,
+        id: `${ROOT_NODE_ID}:${node.id}:${index}`,
+        relation: "intent_scope",
+        synthetic: true,
+        to_node_id: node.id,
+        weight: 1
+      });
+    }
+  });
+
   return {
-    x: startX + (index % columns) * gapX,
-    y: startY + Math.floor(index / columns) * gapY
+    componentCount: components.length,
+    directEdgeCount: directEdges.length,
+    edges: [...directEdges, ...bridgeEdges],
+    nodes: [rootNode, ...nodes],
+    syntheticEdgeCount: bridgeEdges.length
   };
 }
 
-function buildFlowNodes(nodes: GraphNode[], edges: GraphEdge[]) {
-  const sorted = sortNodes(nodes, edges);
-  const pages = sorted.filter((node) => node.node_type === "page");
-  const tags = sorted.filter((node) => node.node_type === "tag");
-  const concepts = sorted.filter((node) => node.node_type !== "page" && node.node_type !== "tag");
-  const pageColumns = pages.length > 12 ? 2 : 1;
-  const conceptColumns = concepts.length > 28 ? 4 : concepts.length > 12 ? 3 : 2;
-  const pageRows = Math.ceil(pages.length / pageColumns);
-  const conceptRows = Math.ceil(concepts.length / conceptColumns);
-  const tagStartY = 80 + Math.max(pageRows, conceptRows) * 112 + 80;
-  const positioned = [
-    ...pages.map((node, index) => ({
-      node,
-      position: gridPosition(index, pageColumns, 40, 80, 250, 112)
-    })),
-    ...concepts.map((node, index) => ({
-      node,
-      position: gridPosition(index, conceptColumns, 430, 80, 260, 112)
-    })),
-    ...tags.map((node, index) => ({
-      node,
-      position: gridPosition(index, 4, 430, tagStartY, 220, 90)
-    }))
-  ];
+function toCosmographData(nodes: GraphNode[], edges: GraphEdge[]) {
+  const degrees = degreeMap(edges);
+  const points: CosmoPoint[] = nodes.map((node) => {
+    const degree = degrees.get(node.id) ?? 0;
+    const isRoot = node.id === ROOT_NODE_ID;
 
-  return positioned.map<Node>(({ node, position }) => ({
-    data: {
-      label: truncateLabel(node.label)
-    },
-    draggable: true,
-    id: node.id,
-    position,
-    style: {
-      background: "rgba(255, 255, 255, 0.94)",
-      border: `1px solid ${nodeColor(node.node_type)}`,
-      borderRadius: 12,
-      boxShadow: "0 10px 22px rgba(17, 24, 39, 0.08)",
-      color: "#111827",
-      cursor: "grab",
-      fontSize: 12,
-      fontWeight: 800,
-      maxWidth: 210,
-      padding: "9px 12px",
-      width: node.node_type === "page" ? 220 : 200
-    },
-    type: "default"
-  }));
-}
-
-function buildFlowEdges(edges: GraphEdge[], showLabels: boolean) {
-  return edges.map<Edge>((edge) => ({
-    animated: edge.relation !== "links_to",
-    id: edge.id,
-    label: showLabels ? edge.relation : undefined,
-    labelStyle: {
-      fill: "#64748b",
-      fontSize: 10,
-      fontWeight: 800
-    },
+    return {
+      color: nodeColor(node.node_type),
+      degree: isRoot ? Math.max(12, degree) : Math.max(1, degree),
+      id: node.id,
+      label: truncateLabel(node.label),
+      labelWeight: isRoot ? 1 : Math.min(1, 0.28 + degree * 0.08),
+      type: node.node_type
+    };
+  });
+  const links: CosmoLink[] = edges.map((edge) => ({
+    color: linkColor(edge.relation, edge.synthetic),
+    directed: edge.relation !== "related_to" && edge.relation !== "intent_scope",
+    relation: edge.relation,
     source: edge.from_node_id,
-    style: {
-      opacity: 0.38,
-      strokeWidth: Math.min(3, Math.max(1, Number(edge.weight) || 1))
-    },
     target: edge.to_node_id,
-    type: "smoothstep"
+    weight: edge.synthetic ? 1.4 : Math.min(5, Math.max(1, Number(edge.weight) || 1))
   }));
+
+  return { links, points };
 }
 
-export function KnowledgeGraph({ edges, nodes }: KnowledgeGraphProps) {
-  const [showEdgeLabels, setShowEdgeLabels] = useState(false);
-  const layoutNodes = useMemo(() => buildFlowNodes(nodes, edges), [edges, nodes]);
-  const layoutEdges = useMemo(() => buildFlowEdges(edges, showEdgeLabels), [edges, showEdgeLabels]);
-  const [flowNodes, setFlowNodes, onNodesChange] = useNodesState(layoutNodes);
-  const [flowEdges, setFlowEdges, onEdgesChange] = useEdgesState(layoutEdges);
+export function KnowledgeGraph({ edges, nodes, rootLabel }: KnowledgeGraphProps) {
+  const cosmographRef = useRef<CosmographRef>(undefined);
+  const [config, setConfig] = useState<CosmographConfig | null>(null);
+  const [loadError, setLoadError] = useState("");
+  const [isPaused, setIsPaused] = useState(false);
+  const graph = useMemo(() => buildConnectedGraph(nodes, edges, rootLabel), [edges, nodes, rootLabel]);
+  const data = useMemo(() => toCosmographData(graph.nodes, graph.edges), [graph.edges, graph.nodes]);
 
   useEffect(() => {
-    setFlowNodes(layoutNodes);
-  }, [layoutNodes, setFlowNodes]);
+    let isCancelled = false;
 
-  useEffect(() => {
-    setFlowEdges(layoutEdges);
-  }, [layoutEdges, setFlowEdges]);
+    async function prepareGraph() {
+      setLoadError("");
+
+      try {
+        const result = await prepareCosmographData(
+          {
+            links: {
+              linkColorBy: "color",
+              linkIncludeColumns: ["relation", "directed"],
+              linkSourceBy: "source",
+              linkTargetsBy: ["target"],
+              linkWidthBy: "weight"
+            },
+            points: {
+              pointClusterBy: "type",
+              pointColorBy: "color",
+              pointIdBy: "id",
+              pointIncludeColumns: ["label", "type", "degree", "labelWeight"],
+              pointLabelBy: "label",
+              pointLabelWeightBy: "labelWeight",
+              pointSizeBy: "degree"
+            }
+          },
+          data.points,
+          data.links
+        );
+
+        if (!isCancelled && result) {
+          setConfig({
+            ...result.cosmographConfig,
+            links: result.links,
+            points: result.points
+          });
+        }
+      } catch (error) {
+        if (!isCancelled) {
+          setLoadError(error instanceof Error ? error.message : "Graph could not be prepared.");
+        }
+      }
+    }
+
+    prepareGraph();
+
+    return () => {
+      isCancelled = true;
+    };
+  }, [data.links, data.points]);
 
   if (nodes.length === 0) {
     return (
@@ -186,36 +349,72 @@ export function KnowledgeGraph({ edges, nodes }: KnowledgeGraphProps) {
   }
 
   return (
-    <div className="knowledge-graph-shell">
-      <ReactFlow
-        edges={flowEdges}
-        fitView
-        maxZoom={1.5}
-        minZoom={0.08}
-        nodes={flowNodes}
-        nodesDraggable
-        nodesFocusable
-        onEdgesChange={onEdgesChange}
-        onNodesChange={onNodesChange}
-        panOnDrag
-        panOnScroll
-      >
-        <Panel className="graph-controls-panel" position="top-left">
-          <strong>{nodes.length} nodes</strong>
-          <span>{edges.length} links. Drag nodes to reorganize the map.</span>
-          <div>
-            <button onClick={() => setFlowNodes(layoutNodes)} type="button">
-              Reset layout
-            </button>
-            <button onClick={() => setShowEdgeLabels((current) => !current)} type="button">
-              {showEdgeLabels ? "Hide link labels" : "Show link labels"}
-            </button>
-          </div>
-        </Panel>
-        <Background gap={28} />
-        <MiniMap nodeColor={(node) => String(node.style?.border ?? "#00a7ff").split(" ")[2] ?? "#00a7ff"} />
-        <Controls />
-      </ReactFlow>
+    <div className="knowledge-graph-shell knowledge-graph-shell--cosmograph">
+      <div className="graph-controls-panel graph-controls-panel--cosmograph">
+        <strong>{nodes.length} nodes</strong>
+        <span>
+          {graph.directEdgeCount} semantic links. {graph.componentCount} cluster{graph.componentCount === 1 ? "" : "s"} tied to the wiki intent.
+        </span>
+        <div>
+          <button onClick={() => cosmographRef.current?.fitView(450, 80)} type="button">
+            Fit view
+          </button>
+          <button
+            onClick={() => {
+              if (isPaused) {
+                cosmographRef.current?.unpause();
+                setIsPaused(false);
+              } else {
+                cosmographRef.current?.pause();
+                setIsPaused(true);
+              }
+            }}
+            type="button"
+          >
+            {isPaused ? "Resume layout" : "Pause layout"}
+          </button>
+        </div>
+      </div>
+      {loadError ? <p className="form-error graph-load-error">{loadError}</p> : null}
+      {config ? (
+        <Cosmograph
+          {...config}
+          className="knowledge-graph-cosmograph"
+          componentsDisplayStateMode="loading"
+          disableLogging
+          enableSimulation
+          focusPointOnClick
+          linkDefaultColor="rgba(100, 116, 139, 0.42)"
+          linkDefaultWidth={1.2}
+          linkWidthRange={[1, 4]}
+          pointDefaultColor="#00a7ff"
+          pointDefaultSize={5}
+          pointLabelColor="#111827"
+          pointLabelFontSize={12}
+          pointSizeRange={[5, 19]}
+          preservePointPositionsOnDataUpdate
+          ref={cosmographRef}
+          selectPointOnClick
+          showDynamicLabels
+          showDynamicLabelsLimit={48}
+          showFocusedPointLabel
+          showHoveredPointLabel
+          showLabels
+          showTopLabels
+          showTopLabelsLimit={36}
+          simulationCenter={0.12}
+          simulationDecay={7200}
+          simulationFriction={0.86}
+          simulationGravity={0.18}
+          simulationLinkDistance={78}
+          simulationLinkSpring={1.08}
+          simulationRepulsion={1.35}
+          simulationRepulsionFromMouse={2.6}
+          statusIndicatorMode="text"
+        />
+      ) : (
+        <div className="empty-state">Preparing graph layout...</div>
+      )}
     </div>
   );
 }
