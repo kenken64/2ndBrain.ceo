@@ -94,7 +94,7 @@ export default async function DashboardPage() {
           <section className="dashboard-center">
             <h1 className="dashboard-heading">{firstName}&apos;s 2ndBrain workspace</h1>
             <p className="dashboard-copy">
-              Launch OpenClaw, review the Remotion avatar setup, and decide how the LLM wiki
+              Launch OpenClaw, review the Remotion AI Assistant setup, and decide how the Second Brain
               should be delivered from one dashboard shell.
             </p>
             <div className="workspace-status-grid">
@@ -103,19 +103,19 @@ export default async function DashboardPage() {
               <article className="workspace-status-card" id="remotion-avatar">
                 <div className="workspace-status-card__header">
                   <div>
-                    <p className="workspace-status-card__eyebrow">Remotion Avatar</p>
-                    <h2>Avatar runtime output</h2>
+                    <p className="workspace-status-card__eyebrow">Remotion AI Assistant</p>
+                    <h2>AI Assistant runtime output</h2>
                   </div>
                   <span className={`project-status project-status--${remotionUrl ? "ready" : "running"}`}>
                     {remotionUrl ? "ready" : "processing"}
                   </span>
                 </div>
                 <p className="workspace-status-card__copy">
-                  Review the public avatar URL after setup finishes and use it as the dashboard access point for Remotion output.
+                  Review the public AI Assistant URL after setup finishes and use it as the dashboard access point for Remotion output.
                 </p>
                 <dl className="workspace-status-list">
                   <div>
-                    <dt>Avatar</dt>
+                    <dt>AI Assistant</dt>
                     <dd>{avatarName ?? "Not named yet"}</dd>
                   </div>
                   <div>
@@ -126,7 +126,7 @@ export default async function DashboardPage() {
                 <div className="workspace-status-actions">
                   {remotionUrl ? (
                     <a className="btn-primary" href={remotionUrl} rel="noreferrer" target="_blank">
-                      Open Remotion Avatar <span className="arrow">-&gt;</span>
+                      Open Remotion AI Assistant <span className="arrow">-&gt;</span>
                     </a>
                   ) : (
                     <span aria-disabled="true" className="btn-primary is-disabled" role="link">
@@ -139,27 +139,27 @@ export default async function DashboardPage() {
               <article className="workspace-status-card" id="llm-wiki">
                 <div className="workspace-status-card__header">
                   <div>
-                    <p className="workspace-status-card__eyebrow">LLM Wiki</p>
-                    <h2>Markdown wiki and graph</h2>
+                    <p className="workspace-status-card__eyebrow">Second Brain</p>
+                    <h2>Markdown workspace and graph</h2>
                   </div>
                   <span className="project-status project-status--running">foundation ready</span>
                 </div>
                 <p className="workspace-status-card__copy">
-                  Generate and edit project-specific LLM wiki markdown, then index linked pages into the knowledge graph.
+                  Generate and edit project-specific Second Brain markdown, then index linked pages into the knowledge graph.
                 </p>
                 <div className="wiki-decision-grid">
                   <div className="wiki-decision-card">
-                    <strong>Hosted wiki</strong>
+                    <strong>Hosted Second Brain</strong>
                     <span>Best for continuous access from the workspace, direct navigation, and future collaboration.</span>
                   </div>
                   <div className="wiki-decision-card">
-                    <strong>Downloadable wiki</strong>
+                    <strong>Downloadable Second Brain</strong>
                     <span>Best for portability, backup, and sharing generated project bundles outside the app.</span>
                   </div>
                 </div>
                 <div className="workspace-status-actions">
                   <a className="btn-primary" href="/dashboard/wiki">
-                    Open LLM Wiki <span className="arrow">-&gt;</span>
+                    Open Second Brain <span className="arrow">-&gt;</span>
                   </a>
                   <a className="text-link" href="/dashboard/graph">
                     Knowledge graph -&gt;
@@ -170,7 +170,7 @@ export default async function DashboardPage() {
 
             <section className="projects-section" aria-labelledby="projects-title">
               <div className="projects-section__header">
-                <h2 id="projects-title">Recent wiki jobs</h2>
+                <h2 id="projects-title">Recent Second Brain jobs</h2>
                 <a className="text-link" href="/api/projects">
                   API JSON -&gt;
                 </a>
@@ -196,7 +196,7 @@ export default async function DashboardPage() {
                   ))
                 ) : (
                   <div className="empty-state">
-                    No wiki jobs yet. Your hosted versus download decision can stay open while projects start accumulating here.
+                    No Second Brain jobs yet. Your hosted versus download decision can stay open while projects start accumulating here.
                   </div>
                 )}
               </div>

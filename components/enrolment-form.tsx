@@ -28,13 +28,13 @@ function validateEnrolment(formData: FormData) {
   }
 
   if (!avatarName) {
-    errors.avatarName = "Avatar name is required.";
+    errors.avatarName = "AI Assistant name is required.";
   } else if (avatarName.length > 80) {
-    errors.avatarName = "Avatar name must be 80 characters or fewer.";
+    errors.avatarName = "AI Assistant name must be 80 characters or fewer.";
   }
 
   if (avatarGender !== "female" && avatarGender !== "male") {
-    errors.avatarGender = "Select the avatar gender.";
+    errors.avatarGender = "Select the AI Assistant gender.";
   }
 
   if (!telegramBotToken) {
@@ -127,7 +127,7 @@ export function EnrolmentForm({
         <label className="field-stack">
           <span>
             <Sparkles size={18} strokeWidth={1.8} />
-            AI Avatar name
+            AI Assistant name
           </span>
           <input
             aria-describedby={errors.avatarName ? avatarErrorId : undefined}
@@ -149,7 +149,7 @@ export function EnrolmentForm({
       <label className="field-stack">
         <span>
           <UsersRound size={18} strokeWidth={1.8} />
-          Gender of the AI Avatar
+          Gender of the AI Assistant
         </span>
         <select
           aria-describedby={errors.avatarGender ? genderErrorId : undefined}

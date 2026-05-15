@@ -351,7 +351,7 @@ export function ChatInput({
             <Mic size={18} strokeWidth={1.8} />
           </button>
           <button
-            aria-label={isProgressVisible ? "Generating LLM Wiki" : "Send prompt"}
+            aria-label={isProgressVisible ? "Generating Second Brain" : "Send prompt"}
             className="chat-input__send"
             disabled={isProgressVisible}
             type="submit"

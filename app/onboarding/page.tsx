@@ -34,27 +34,27 @@ type OnboardingPageProps = {
 };
 
 const errors: Record<string, string> = {
-  avatar_download_failed: "Avatar export could not be downloaded. Export it again and retry.",
-  avatar_download_not_glb: "The exported avatar did not look like a GLB file. Export a GLB from Avaturn.",
-  avatar_download_too_large: "The exported avatar is too large to store locally.",
+  avatar_download_failed: "AI Assistant export could not be downloaded. Export it again and retry.",
+  avatar_download_not_glb: "The exported AI Assistant did not look like a GLB file. Export a GLB from Avaturn.",
+  avatar_download_too_large: "The exported AI Assistant is too large to store locally.",
   avatar_upload_not_glb: "Upload a valid Avaturn GLB file.",
-  avatar_upload_too_large: "The uploaded avatar is too large to store locally.",
+  avatar_upload_too_large: "The uploaded AI Assistant is too large to store locally.",
   invalid_avatar_url: "Avaturn did not return a valid secure GLB URL yet.",
-  missing_avatar_storage_root: "Avatar storage is not configured on the server.",
+  missing_avatar_storage_root: "AI Assistant storage is not configured on the server.",
   invalid_provision_target: "Select OpenClaw to continue. HermesAgent is coming soon.",
   invalid_telegram_pair_code: "Enter the 8-character approval code from Telegram.",
-  missing_avatar: "Create and export your Avaturn avatar to continue.",
+  missing_avatar: "Create and export your Avaturn AI Assistant to continue.",
   missing_fields: "Add the required field to continue.",
   missing_aws_access_key_id: "AWS access key is not configured on the server.",
   missing_aws_region: "AWS region is not configured on the server.",
   missing_aws_secret_access_key: "AWS secret access key is not configured on the server.",
-  missing_openclaw_lightsail_snapshot_name: "OpenClaw Lightsail snapshot name is not configured.",
+  missing_openclaw_lightsail_snapshot_name: "OpenClaw provisioning template is not configured.",
   missing_openai_api_key: "OpenAI API key is not configured on the server.",
-  openclaw_instance_not_found: "OpenClaw was restored but the instance name could not be detected.",
+  openclaw_instance_not_found: "OpenClaw provisioning completed but the instance name could not be detected.",
   openclaw_provision_failed: "OpenClaw provisioning failed. Check AWS Lightsail and clawmacdo output.",
   openclaw_provision_running: "OpenClaw provisioning is already running. Please wait for the current request to finish.",
-  openclaw_snapshot_not_found: "The configured Lightsail snapshot could not be restored. Check the snapshot name and AWS region.",
-  openclaw_snapshot_response_failed: "Lightsail snapshot restore returned an unexpected response. Check the clawmacdo output and package version.",
+  openclaw_snapshot_not_found: "The configured OpenClaw provisioning template could not be used. Check the AWS region and server configuration.",
+  openclaw_snapshot_response_failed: "OpenClaw provisioning returned an unexpected response. Check the clawmacdo output and package version.",
   openclaw_telegram_pair_failed: "Telegram approval failed. Check the code from Telegram and try again.",
   openclaw_telegram_pair_required: "Provision OpenClaw before approving the Telegram pairing code.",
   save_failed: "Profile setup could not be saved. Check that the onboarding migrations have run."
@@ -65,13 +65,13 @@ const stepMeta: Record<OnboardingStep, { index: number; kicker: string; title: s
     index: 0,
     kicker: "Step 1 of 4",
     title: "Set up your 2ndBrain profile",
-    copy: "Provide the owner details, AI avatar identity, and Telegram bot token to prepare your workspace for avatar creation."
+    copy: "Provide the owner details, AI Assistant identity, and Telegram bot token to prepare your workspace for assistant creation."
   },
   avatar: {
     index: 1,
     kicker: "Step 2 of 4",
-    title: "Create your Avaturn avatar",
-    copy: "Build your avatar, export the GLB, and we will save it locally for the OpenClaw upload."
+    title: "Create your Avaturn AI Assistant",
+    copy: "Build your AI Assistant, export the GLB, and we will save it locally for the OpenClaw upload."
   },
   agent: {
     index: 2,
@@ -83,13 +83,13 @@ const stepMeta: Record<OnboardingStep, { index: number; kicker: string; title: s
     index: 3,
     kicker: "Step 4 of 5",
     title: "Provision OpenClaw on AWS",
-    copy: "Fast-restore the Lightsail snapshot and prepare Telegram, OpenClaw identity, and Remotion environment settings."
+    copy: "Provision the AWS environment quickly and prepare Telegram, OpenClaw identity, and Remotion environment settings."
   },
   approval: {
     index: 4,
     kicker: "Step 5 of 5",
     title: "Approve Telegram pairing",
-    copy: "Enter the approval code sent by your Telegram bot before generating your first 2ndBrain wiki."
+    copy: "Enter the approval code sent by your Telegram bot before generating your first 2ndBrain."
   }
 };
 

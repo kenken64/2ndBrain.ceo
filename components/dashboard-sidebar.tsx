@@ -44,11 +44,11 @@ export function DashboardSidebar({ activeItem = "gateway", email, ownerName }: D
         </a>
         <a className={`sidebar-item${activeItem === "remotion" ? " is-active" : ""}`} href="/dashboard#remotion-avatar">
           <Clapperboard size={18} strokeWidth={1.7} />
-          Remotion Avatar
+          Remotion AI Assistant
         </a>
         <a className={`sidebar-item${activeItem === "wiki" ? " is-active" : ""}`} href="/dashboard/wiki">
           <ScrollText size={18} strokeWidth={1.7} />
-          LLM Wiki
+          Second Brain
         </a>
         <a className={`sidebar-item${activeItem === "graph" ? " is-active" : ""}`} href="/dashboard/graph">
           <GitBranch size={18} strokeWidth={1.7} />

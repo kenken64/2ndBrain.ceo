@@ -496,7 +496,7 @@ export function KnowledgeGraph({ edges, nodes, rootLabel }: KnowledgeGraphProps)
   if (nodes.length === 0) {
     return (
       <div className="empty-state">
-        No graph nodes indexed yet. Open the LLM Wiki and run Generate knowledge graph.
+        No graph nodes indexed yet. Open the Second Brain and run Generate knowledge graph.
       </div>
     );
   }
@@ -506,7 +506,7 @@ export function KnowledgeGraph({ edges, nodes, rootLabel }: KnowledgeGraphProps)
       <div className="graph-controls-panel graph-controls-panel--cytoscape">
         <strong>{nodes.length} nodes</strong>
         <span>
-          {graph.directEdgeCount} semantic links. {graph.componentCount} cluster{graph.componentCount === 1 ? "" : "s"} tied to the wiki intent.
+          {graph.directEdgeCount} semantic links. {graph.componentCount} cluster{graph.componentCount === 1 ? "" : "s"} tied to the Second Brain intent.
         </span>
         <div>
           <button

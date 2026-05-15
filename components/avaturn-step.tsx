@@ -93,7 +93,7 @@ export function AvaturnStep({ errorMessage, next }: AvaturnStepProps) {
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
     if (!canSubmit) {
       event.preventDefault();
-      setAvaturnMessage("Complete Avaturn and export the avatar as GLB before continuing.");
+      setAvaturnMessage("Complete Avaturn and export the AI Assistant as GLB before continuing.");
       return;
     }
 
@@ -116,7 +116,7 @@ export function AvaturnStep({ errorMessage, next }: AvaturnStepProps) {
       const exportedUrl = getAvatarUrl(payload);
 
       if (!exportedUrl) {
-        setAvaturnMessage("Avaturn is still in progress. Export the avatar as GLB to continue.");
+        setAvaturnMessage("Avaturn is still in progress. Export the AI Assistant as GLB to continue.");
         return;
       }
 
@@ -145,12 +145,12 @@ export function AvaturnStep({ errorMessage, next }: AvaturnStepProps) {
           allowFullScreen
           className="avaturn-frame"
           src={avaturnConfig.iframeUrl}
-          title="Avaturn avatar creator"
+          title="Avaturn AI Assistant creator"
         />
       </div>
       <p className="avaturn-helper">
-        Complete the Avaturn flow and export the avatar as GLB. We will capture the exported
-        avatar automatically and save it for OpenClaw.
+        Complete the Avaturn flow and export the AI Assistant as GLB. We will capture the exported
+        AI Assistant automatically and save it for OpenClaw.
       </p>
       <form
         action="/api/onboarding"
@@ -173,7 +173,7 @@ export function AvaturnStep({ errorMessage, next }: AvaturnStepProps) {
             role="progressbar"
           >
             <div className="submit-progress__meta">
-              <strong>Saving avatar</strong>
+              <strong>Saving AI Assistant</strong>
               <span>Export received. Downloading the GLB and storing it for OpenClaw.</span>
             </div>
             <div className="submit-progress__track">
@@ -181,14 +181,14 @@ export function AvaturnStep({ errorMessage, next }: AvaturnStepProps) {
             </div>
           </div>
         ) : avatarUrl ? (
-          <p className="form-success">Avatar exported. You can finish setup now.</p>
+          <p className="form-success">AI Assistant exported. You can finish setup now.</p>
         ) : avaturnMessage ? (
           <p className="form-error">{avaturnMessage}</p>
         ) : errorMessage ? (
           <p className="form-error">{errorMessage}</p>
         ) : null}
         <button className="btn-primary onboarding-submit" disabled={!canSubmit || isSubmitting} type="submit">
-          {isSubmitting ? "Saving avatar..." : "Finish setup"} <span className="arrow">-&gt;</span>
+          {isSubmitting ? "Saving AI Assistant..." : "Finish setup"} <span className="arrow">-&gt;</span>
         </button>
       </form>
     </>

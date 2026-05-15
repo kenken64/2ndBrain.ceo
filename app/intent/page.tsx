@@ -82,17 +82,17 @@ export default async function IntentPage({ searchParams }: IntentPageProps) {
       <main className="intent-page">
         <section className="intent-panel">
           <BrandHeart size={96} />
-          <p className="wizard-kicker">LLM Wiki intent</p>
-          <h1 className="onboarding-title">Describe the wiki you want to build</h1>
+          <p className="wizard-kicker">Second Brain intent</p>
+          <h1 className="onboarding-title">Describe the Second Brain you want to build</h1>
           <p className="onboarding-copy">
-            This prompt seeds the OpenClaw LLM Wiki project. The generated markdown will appear in the LLM Wiki dashboard after creation.
+            This prompt seeds the OpenClaw Second Brain project. The generated markdown will appear in the Second Brain dashboard after creation.
           </p>
           <ChatInput
             className="intent-chat"
             defaultPrompt={prompt}
-            pendingCopy="Generating the OpenClaw markdown wiki, project scaffold, and graph-ready page structure."
-            pendingTitle="Generating LLM Wiki"
-            placeholder="Describe the knowledge base, project, or operating system you want the LLM wiki to maintain..."
+            pendingCopy="Generating the OpenClaw markdown Second Brain, project scaffold, and graph-ready page structure."
+            pendingTitle="Generating Second Brain"
+            placeholder="Describe the knowledge base, project, or operating system you want the Second Brain to maintain..."
             returnTo="/dashboard/wiki"
           />
         </section>

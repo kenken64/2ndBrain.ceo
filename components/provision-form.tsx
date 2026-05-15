@@ -92,8 +92,8 @@ export function ProvisionForm({ errorMessage, next, startedAt, status }: Provisi
     <form className="onboarding-form" method="post" noValidate onSubmit={handleSubmit}>
       <input name="next" type="hidden" value={next} />
       <div className="provision-summary">
-        <strong>Fast AWS Lightsail snapshot restore</strong>
-        <span>Runs the single clawmacdo ls-restore-fast command with Telegram, identity, and Remotion environment settings.</span>
+        <strong>Fast AWS Lightsail provisioning</strong>
+        <span>Prepares the OpenClaw environment with Telegram, identity, and Remotion settings in one streamlined provisioning flow.</span>
       </div>
       {errorMessage ? <p className="form-error">{errorMessage}</p> : null}
       {submitError ? <p className="form-error">{submitError}</p> : null}
@@ -104,7 +104,7 @@ export function ProvisionForm({ errorMessage, next, startedAt, status }: Provisi
       ) : null}
       {showPending ? (
         <div aria-live="polite" className="provision-pending">
-          <span>Fast provisioning OpenClaw. Restoring Lightsail and preparing the gateway.</span>
+          <span>Fast provisioning OpenClaw. Preparing the Lightsail environment and gateway.</span>
           <div aria-live="off" className="provision-timer">
             <div className="provision-timer__meta">
               <strong>{remainingSeconds > 0 ? `${formatTimer(remainingSeconds)} target remaining` : `${formatTimer(elapsedSeconds)} elapsed`}</strong>

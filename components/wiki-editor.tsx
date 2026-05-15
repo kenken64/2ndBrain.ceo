@@ -13,7 +13,7 @@ import {
   Save,
   SquarePen
 } from "lucide-react";
-import { ChangeEvent, FormEvent, useRef, useState, useTransition } from "react";
+import { ChangeEvent, FormEvent, useEffect, useRef, useState, useTransition } from "react";
 import type { WikiPage, WikiTreeItem } from "@/lib/wiki";
 
 type WikiEditorProps = {
@@ -29,6 +29,15 @@ type WikiEditorProps = {
 };
 
 type ViewMode = "edit" | "preview";
+type IngestJobStatus = "failed" | "queued" | "ready" | "running";
+type IngestJob = {
+  completed_at?: string | null;
+  created_at?: string | null;
+  error?: string | null;
+  id: string;
+  started_at?: string | null;
+  status: IngestJobStatus;
+};
 
 const WIKI_UPLOAD_ACCEPT = [
   "image/*",
@@ -156,7 +165,7 @@ function markdownBlocks(value: string) {
 
 export function WikiEditor({
   apiBase = "/api/wiki",
-  eyebrow = "LLM Wiki",
+  eyebrow = "Second Brain",
   graphHref,
   initialError,
   initialPage,
@@ -177,6 +186,7 @@ export function WikiEditor({
   const [isUploading, setIsUploading] = useState(false);
   const [uploadError, setUploadError] = useState("");
   const [uploadFiles, setUploadFiles] = useState<File[]>([]);
+  const [uploadJob, setUploadJob] = useState<IngestJob | null>(null);
   const [uploadPrompt, setUploadPrompt] = useState("");
   const [uploadSuccess, setUploadSuccess] = useState("");
   const fileInputRef = useRef<HTMLInputElement | null>(null);
@@ -329,11 +339,52 @@ export function WikiEditor({
     setUploadFiles((current) => current.filter((_, currentIndex) => currentIndex !== index));
   }
 
+  useEffect(() => {
+    if (!projectId || !uploadJob || (uploadJob.status !== "queued" && uploadJob.status !== "running")) {
+      return;
+    }
+
+    const interval = window.setInterval(async () => {
+      try {
+        const response = await fetch(`/api/wiki/ingest?projectId=${encodeURIComponent(projectId)}`, {
+          credentials: "same-origin"
+        });
+        const payload = await response.json().catch(() => null);
+
+        if (!response.ok || !payload?.job) {
+          return;
+        }
+
+        const nextJob = payload.job as IngestJob;
+        setUploadJob(nextJob);
+
+        if (nextJob.status === "ready") {
+          setStatus("Background ingest complete");
+          setUploadSuccess("Background upload finished. Refreshing the page tree.");
+          setUploadError("");
+          window.setTimeout(() => {
+            router.refresh();
+          }, 1200);
+        }
+
+        if (nextJob.status === "failed") {
+          setStatus("Background ingest failed");
+          setUploadError(nextJob.error ?? "Background upload failed");
+          setUploadSuccess("");
+        }
+      } catch {
+        // Keep polling on the next interval.
+      }
+    }, 5000);
+
+    return () => window.clearInterval(interval);
+  }, [projectId, router, uploadJob]);
+
   async function ingestDocuments(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
 
     if (!projectId) {
-      setUploadError("Open a generated LLM Wiki before uploading documents.");
+      setUploadError("Open a generated Second Brain before uploading documents.");
       return;
     }
 
@@ -347,6 +398,7 @@ export function WikiEditor({
     setError("");
     setUploadError("");
     setUploadSuccess("");
+    setUploadJob(null);
     setIsUploading(true);
     setStatus(`Uploading ${filesToUpload.length} document${filesToUpload.length === 1 ? "" : "s"}`);
 
@@ -372,17 +424,16 @@ export function WikiEditor({
         return;
       }
 
-      const uploadedCount = payload?.attachments?.length ?? filesToUpload.length;
+      const uploadedCount = payload?.acceptedFiles?.length ?? filesToUpload.length;
+      const nextJob = (payload?.job as IngestJob | undefined) ?? null;
 
-      setStatus(`Uploaded ${uploadedCount} document${uploadedCount === 1 ? "" : "s"}`);
+      setStatus(`Queued ${uploadedCount} document${uploadedCount === 1 ? "" : "s"} for background ingest`);
       setUploadSuccess(
-        `Uploaded ${uploadedCount} document${uploadedCount === 1 ? "" : "s"} into this wiki. Refreshing the page tree.`
+        `Queued ${uploadedCount} document${uploadedCount === 1 ? "" : "s"} for background ingest. You can keep working while OpenClaw processes them.`
       );
+      setUploadJob(nextJob);
       setUploadFiles([]);
       setUploadPrompt("");
-      window.setTimeout(() => {
-        router.refresh();
-      }, 1200);
     } catch (error) {
       setUploadError(error instanceof Error ? error.message : "Document upload failed");
       setStatus("Upload failed");
@@ -393,7 +444,7 @@ export function WikiEditor({
 
   return (
     <div className="wiki-workspace">
-      <aside className="wiki-tree" aria-label="Wiki pages">
+      <aside className="wiki-tree" aria-label="Second Brain pages">
         <div className="wiki-panel-header">
           <FileText size={17} strokeWidth={1.8} />
           <span>Pages</span>
@@ -401,7 +452,7 @@ export function WikiEditor({
         {canUploadDocuments ? (
           <form aria-busy={isUploading} className="wiki-upload-form" encType="multipart/form-data" noValidate onSubmit={ingestDocuments}>
             <div className="wiki-upload-form__header">
-              <strong>Upload to this wiki</strong>
+              <strong>Upload to this Second Brain</strong>
               <span>DOC, DOCX, Excel, CSV, PDF, images, text, and markdown are converted before OpenClaw sees them.</span>
             </div>
             <input
@@ -443,13 +494,18 @@ export function WikiEditor({
               <textarea
                 disabled={isBusy}
                 onChange={(event) => setUploadPrompt(event.target.value)}
-                placeholder="Ask the AI to decide where these sources belong, update existing pages if useful, and modify the wiki index/log."
+                placeholder="Ask the AI to decide where these sources belong, update existing pages if useful, and modify the Second Brain index/log."
                 rows={3}
                 value={uploadPrompt}
               />
             </label>
             {uploadError ? <p className="form-error">{uploadError}</p> : null}
             {uploadSuccess ? <p className="form-success">{uploadSuccess}</p> : null}
+            {uploadJob && (uploadJob.status === "queued" || uploadJob.status === "running") ? (
+              <p className="form-success">
+                Background ingest is {uploadJob.status}. You can keep editing while the documents are processed.
+              </p>
+            ) : null}
             {isUploading ? (
               <div
                 aria-live="polite"
@@ -459,7 +515,7 @@ export function WikiEditor({
               >
                 <div className="submit-progress__meta">
                   <strong>Uploading artifacts</strong>
-                  <span>Converting files to markdown and asking OpenClaw to place them inside this wiki.</span>
+                  <span>Sending files to the app so they can be queued for background processing.</span>
                 </div>
                 <div className="submit-progress__track">
                   <span className="submit-progress__bar" />
@@ -467,7 +523,7 @@ export function WikiEditor({
               </div>
             ) : null}
             <button className="btn-primary btn-primary--compact" disabled={isBusy || uploadFiles.length === 0} type="submit">
-              {isUploading ? "Uploading..." : "Upload into wiki"}
+              {isUploading ? "Uploading..." : "Upload into Second Brain"}
             </button>
           </form>
         ) : null}
@@ -512,7 +568,7 @@ export function WikiEditor({
               </button>
             ) : null}
             {showExport ? (
-              <a aria-label="Export wiki" className="btn-icon" href={wikiUrl(`${apiBase}/export`)} title="Export wiki">
+              <a aria-label="Export Second Brain" className="btn-icon" href={wikiUrl(`${apiBase}/export`)} title="Export Second Brain">
                 <Download size={17} strokeWidth={1.8} />
               </a>
             ) : null}

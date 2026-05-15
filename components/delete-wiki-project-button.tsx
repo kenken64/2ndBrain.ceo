@@ -36,12 +36,12 @@ export function DeleteWikiProjectButton({
 
       if (!response.ok) {
         const payload = await response.json().catch(() => null);
-        throw new Error(payload?.error ?? "Wiki deletion failed");
+        throw new Error(payload?.error ?? "Second Brain deletion failed");
       }
 
       window.location.reload();
     } catch (deleteError) {
-      setError(deleteError instanceof Error ? deleteError.message : "Wiki deletion failed");
+      setError(deleteError instanceof Error ? deleteError.message : "Second Brain deletion failed");
       setIsDeleting(false);
     }
   }
@@ -60,7 +60,7 @@ export function DeleteWikiProjectButton({
       {isDialogOpen ? (
         <div className="destroy-dialog" role="presentation">
           <button
-            aria-label="Close delete wiki dialog"
+            aria-label="Close delete Second Brain dialog"
             className="destroy-dialog__scrim"
             disabled={isDeleting}
             onClick={() => setIsDialogOpen(false)}
@@ -68,7 +68,7 @@ export function DeleteWikiProjectButton({
           />
           <section aria-labelledby={`delete-wiki-${projectId}`} aria-modal="true" className="destroy-dialog__panel" role="dialog">
             <button
-              aria-label="Close delete wiki dialog"
+              aria-label="Close delete Second Brain dialog"
               className="destroy-dialog__close"
               disabled={isDeleting}
               onClick={() => setIsDialogOpen(false)}
@@ -79,8 +79,8 @@ export function DeleteWikiProjectButton({
             <div className="destroy-dialog__icon" aria-hidden="true">
               <AlertTriangle size={28} strokeWidth={1.9} />
             </div>
-            <p className="workspace-status-card__eyebrow">Delete LLM Wiki</p>
-            <h2 id={`delete-wiki-${projectId}`}>Delete this wiki?</h2>
+            <p className="workspace-status-card__eyebrow">Delete Second Brain</p>
+            <h2 id={`delete-wiki-${projectId}`}>Delete this Second Brain?</h2>
             <p>
               This deletes <strong>{title}</strong> from Supabase and removes its OpenClaw workspace directory.
             </p>
@@ -94,7 +94,7 @@ export function DeleteWikiProjectButton({
               </button>
               <button className="btn-danger" disabled={isDeleting} onClick={handleDelete} type="button">
                 {isDeleting ? <LoaderCircle className="spin-icon" size={17} strokeWidth={1.8} /> : <Trash2 size={17} strokeWidth={1.8} />}
-                {isDeleting ? "Deleting..." : "Delete wiki"}
+                {isDeleting ? "Deleting..." : "Delete Second Brain"}
               </button>
             </div>
           </section>
