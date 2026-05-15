@@ -70,7 +70,7 @@ export function TelegramApprovalForm({ errorMessage, next, status }: TelegramApp
       </label>
       <div className="provision-summary">
         <strong>Telegram approval required</strong>
-        <span>Open your Telegram bot, copy the 8-character approval code, and submit it here before creating the Second Brain.</span>
+        <span>Open your Telegram bot, copy the 8-character approval code, and submit it here before creating the Nth Brain.</span>
       </div>
       {errorMessage ? <p className="form-error">{errorMessage}</p> : null}
       {submitError ? (

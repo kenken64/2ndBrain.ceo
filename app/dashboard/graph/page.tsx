@@ -96,17 +96,17 @@ export default async function DashboardGraphPage({ searchParams }: GraphPageProp
             <div className="dashboard-topbar">
               <AnnouncementPill>Knowledge Graph</AnnouncementPill>
               <a className="btn-primary" href="/dashboard/wiki">
-                Second Brain
+                Nth Brain
               </a>
             </div>
             <section className="graph-workbench">
               <div className="graph-workbench__header">
                 <div>
                   <p className="workspace-status-card__eyebrow">Intent-scoped graphs</p>
-                  <h1>Select a Second Brain intent</h1>
+                  <h1>Select a Nth Brain intent</h1>
                 </div>
                 <span className="project-status project-status--ready">
-                  {graphProjects.length} Second Brain projects
+                  {graphProjects.length} Nth Brain projects
                 </span>
               </div>
               <div className="projects-grid">
@@ -136,14 +136,14 @@ export default async function DashboardGraphPage({ searchParams }: GraphPageProp
                           Open graph <span className="arrow">-&gt;</span>
                         </a>
                         <a className="btn-ghost" href={`/dashboard/wiki?projectId=${project.id}`}>
-                          Open Second Brain
+                          Open Nth Brain
                         </a>
                       </div>
                     </article>
                   ))
                 ) : (
                   <div className="empty-state">
-                    No ready Second Brain projects yet. Generate a Second Brain from an intent before opening its graph.
+                    No ready Nth Brain projects yet. Generate a Nth Brain from an intent before opening its graph.
                   </div>
                 )}
               </div>
@@ -186,7 +186,7 @@ export default async function DashboardGraphPage({ searchParams }: GraphPageProp
           <div className="dashboard-topbar">
             <AnnouncementPill>{context.project?.title ?? "Knowledge Graph"}</AnnouncementPill>
             <a className="btn-primary" href="/dashboard/wiki">
-              Second Brain
+              Nth Brain
             </a>
           </div>
           <section className="graph-workbench">
@@ -202,7 +202,7 @@ export default async function DashboardGraphPage({ searchParams }: GraphPageProp
             <KnowledgeGraph
               edges={(edges ?? []) as GraphEdge[]}
               nodes={(nodes ?? []) as GraphNode[]}
-              rootLabel={context.project?.title ?? "Selected Second Brain intent"}
+              rootLabel={context.project?.title ?? "Selected Nth Brain intent"}
             />
           </section>
         </main>

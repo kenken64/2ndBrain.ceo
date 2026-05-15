@@ -58,11 +58,11 @@ export async function POST(request: Request) {
     const context = await getWikiContext(projectId, { selectLatest: false });
 
     if (!context.project || !context.projectSlug) {
-      return NextResponse.json({ error: "Second Brain has not been generated yet" }, { status: 409 });
+      return NextResponse.json({ error: "Nth Brain has not been generated yet" }, { status: 409 });
     }
 
     if (context.project.status !== "ready") {
-      return NextResponse.json({ error: "Second Brain is not ready for document upload" }, { status: 409 });
+      return NextResponse.json({ error: "Nth Brain is not ready for document upload" }, { status: 409 });
     }
 
     const project = context.project;

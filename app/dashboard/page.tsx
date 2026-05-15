@@ -94,7 +94,7 @@ export default async function DashboardPage() {
           <section className="dashboard-center">
             <h1 className="dashboard-heading">{firstName}&apos;s 2ndBrain workspace</h1>
             <p className="dashboard-copy">
-              Launch OpenClaw, review the Remotion AI Assistant setup, and decide how the Second Brain
+              Launch OpenClaw, review the Remotion AI Assistant setup, and decide how the Nth Brain
               should be delivered from one dashboard shell.
             </p>
             <div className="workspace-status-grid">
@@ -139,27 +139,27 @@ export default async function DashboardPage() {
               <article className="workspace-status-card" id="llm-wiki">
                 <div className="workspace-status-card__header">
                   <div>
-                    <p className="workspace-status-card__eyebrow">Second Brain</p>
+                    <p className="workspace-status-card__eyebrow">Nth Brain</p>
                     <h2>Markdown workspace and graph</h2>
                   </div>
                   <span className="project-status project-status--running">foundation ready</span>
                 </div>
                 <p className="workspace-status-card__copy">
-                  Generate and edit project-specific Second Brain markdown, then index linked pages into the knowledge graph.
+                  Generate and edit project-specific Nth Brain markdown, then index linked pages into the knowledge graph.
                 </p>
                 <div className="wiki-decision-grid">
                   <div className="wiki-decision-card">
-                    <strong>Hosted Second Brain</strong>
+                    <strong>Hosted Nth Brain</strong>
                     <span>Best for continuous access from the workspace, direct navigation, and future collaboration.</span>
                   </div>
                   <div className="wiki-decision-card">
-                    <strong>Downloadable Second Brain</strong>
+                    <strong>Downloadable Nth Brain</strong>
                     <span>Best for portability, backup, and sharing generated project bundles outside the app.</span>
                   </div>
                 </div>
                 <div className="workspace-status-actions">
                   <a className="btn-primary" href="/dashboard/wiki">
-                    Open Second Brain <span className="arrow">-&gt;</span>
+                    Open Nth Brain <span className="arrow">-&gt;</span>
                   </a>
                   <a className="text-link" href="/dashboard/graph">
                     Knowledge graph -&gt;
@@ -170,7 +170,7 @@ export default async function DashboardPage() {
 
             <section className="projects-section" aria-labelledby="projects-title">
               <div className="projects-section__header">
-                <h2 id="projects-title">Recent Second Brain jobs</h2>
+                <h2 id="projects-title">Recent Nth Brain jobs</h2>
                 <a className="text-link" href="/api/projects">
                   API JSON -&gt;
                 </a>
@@ -196,7 +196,7 @@ export default async function DashboardPage() {
                   ))
                 ) : (
                   <div className="empty-state">
-                    No Second Brain jobs yet. Your hosted versus download decision can stay open while projects start accumulating here.
+                    No Nth Brain jobs yet. Your hosted versus download decision can stay open while projects start accumulating here.
                   </div>
                 )}
               </div>

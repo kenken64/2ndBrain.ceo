@@ -82,17 +82,17 @@ export default async function IntentPage({ searchParams }: IntentPageProps) {
       <main className="intent-page">
         <section className="intent-panel">
           <BrandHeart size={96} />
-          <p className="wizard-kicker">Second Brain intent</p>
-          <h1 className="onboarding-title">Describe the Second Brain you want to build</h1>
+          <p className="wizard-kicker">Nth Brain intent</p>
+          <h1 className="onboarding-title">Describe the Nth Brain you want to build</h1>
           <p className="onboarding-copy">
-            This prompt seeds the OpenClaw Second Brain project. The generated markdown will appear in the Second Brain dashboard after creation.
+            This prompt seeds the OpenClaw Nth Brain project. The generated markdown will appear in the Nth Brain dashboard after creation.
           </p>
           <ChatInput
             className="intent-chat"
             defaultPrompt={prompt}
-            pendingCopy="Generating the OpenClaw markdown Second Brain, project scaffold, and graph-ready page structure."
-            pendingTitle="Generating Second Brain"
-            placeholder="Describe the knowledge base, project, or operating system you want the Second Brain to maintain..."
+            pendingCopy="Generating the OpenClaw markdown Nth Brain, project scaffold, and graph-ready page structure."
+            pendingTitle="Generating Nth Brain"
+            placeholder="Describe the knowledge base, project, or operating system you want the Nth Brain to maintain..."
             returnTo="/dashboard/wiki"
           />
         </section>

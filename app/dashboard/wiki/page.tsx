@@ -164,25 +164,25 @@ export default async function DashboardWikiPage({ searchParams }: WikiPageProps)
           />
           <main className="dashboard-main">
             <div className="dashboard-topbar">
-              <AnnouncementPill>Second Brain</AnnouncementPill>
+              <AnnouncementPill>Nth Brain</AnnouncementPill>
               <a className="btn-primary" href="/auth/logout">
                 Log out
               </a>
             </div>
             <section className="dashboard-workbench wiki-hub">
               <div className="wiki-empty-panel wiki-generator-panel">
-                <h1>Generate a Second Brain</h1>
-                <p>Describe a new Second Brain project. Each generated Second Brain gets its own Supabase project UUID and OpenClaw markdown directory.</p>
+                <h1>Generate a Nth Brain</h1>
+                <p>Describe a new Nth Brain project. Each generated Nth Brain gets its own Supabase project UUID and OpenClaw markdown directory.</p>
                 {params.error ? (
                   <p className="form-error">
-                    Second Brain generation failed on the previous attempt. Try again; the app will create a markdown scaffold even if Claude refinement is unavailable.
+                    Nth Brain generation failed on the previous attempt. Try again; the app will create a markdown scaffold even if Claude refinement is unavailable.
                   </p>
                 ) : null}
                 <ChatInput
                   className="wiki-empty-panel__chat"
-                  pendingCopy="Generating the OpenClaw markdown Second Brain, project scaffold, and graph-ready page structure."
-                  pendingTitle="Generating Second Brain"
-                  placeholder="Describe the knowledge base, project, or operating system you want the Second Brain to maintain..."
+                  pendingCopy="Generating the OpenClaw markdown Nth Brain, project scaffold, and graph-ready page structure."
+                  pendingTitle="Generating Nth Brain"
+                  placeholder="Describe the knowledge base, project, or operating system you want the Nth Brain to maintain..."
                   returnTo="/dashboard/wiki"
                 />
               </div>
@@ -190,8 +190,8 @@ export default async function DashboardWikiPage({ searchParams }: WikiPageProps)
               <section className="projects-section wiki-projects-section" aria-labelledby="wiki-projects-title">
                 <div className="projects-section__header">
                   <div>
-                    <p className="workspace-status-card__eyebrow">Generated Second Brains</p>
-                    <h2 id="wiki-projects-title">Second Brain projects</h2>
+                    <p className="workspace-status-card__eyebrow">Generated Nth Brains</p>
+                    <h2 id="wiki-projects-title">Nth Brain projects</h2>
                   </div>
                   <span className="project-status project-status--ready">
                     {searchQuery ? `${totalProjects} matched` : `${totalProjects} total`}
@@ -205,7 +205,7 @@ export default async function DashboardWikiPage({ searchParams }: WikiPageProps)
                         defaultValue={searchQuery}
                         id="wiki-title-search"
                         name="q"
-                        placeholder="Search generated Second Brain title..."
+                        placeholder="Search generated Nth Brain title..."
                         type="search"
                       />
                       <button className="btn-primary btn-primary--compact" type="submit">
@@ -269,13 +269,13 @@ export default async function DashboardWikiPage({ searchParams }: WikiPageProps)
                   ) : (
                     <div className="empty-state">
                       {searchQuery
-                        ? "No Second Brain projects match that title search."
-                        : "No generated Second Brain projects yet. Create the first one from the prompt above."}
+                        ? "No Nth Brain projects match that title search."
+                        : "No generated Nth Brain projects yet. Create the first one from the prompt above."}
                     </div>
                   )}
                 </div>
                 {totalPages > 1 ? (
-                  <nav aria-label="Second Brain pagination" className="wiki-pagination">
+                  <nav aria-label="Nth Brain pagination" className="wiki-pagination">
                     {currentPage > 1 ? (
                       <a className="btn-ghost" href={wikiListHref(searchQuery, currentPage - 1)}>
                         Previous
@@ -352,7 +352,7 @@ export default async function DashboardWikiPage({ searchParams }: WikiPageProps)
         />
         <main className="dashboard-main">
           <div className="dashboard-topbar">
-            <AnnouncementPill>{context.project?.title ?? "Second Brain"}</AnnouncementPill>
+            <AnnouncementPill>{context.project?.title ?? "Nth Brain"}</AnnouncementPill>
             <a className="btn-primary" href="/auth/logout">
               Log out
             </a>

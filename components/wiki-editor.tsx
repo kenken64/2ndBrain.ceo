@@ -165,7 +165,7 @@ function markdownBlocks(value: string) {
 
 export function WikiEditor({
   apiBase = "/api/wiki",
-  eyebrow = "Second Brain",
+  eyebrow = "Nth Brain",
   graphHref,
   initialError,
   initialPage,
@@ -384,7 +384,7 @@ export function WikiEditor({
     event.preventDefault();
 
     if (!projectId) {
-      setUploadError("Open a generated Second Brain before uploading documents.");
+      setUploadError("Open a generated Nth Brain before uploading documents.");
       return;
     }
 
@@ -444,7 +444,7 @@ export function WikiEditor({
 
   return (
     <div className="wiki-workspace">
-      <aside className="wiki-tree" aria-label="Second Brain pages">
+      <aside className="wiki-tree" aria-label="Nth Brain pages">
         <div className="wiki-panel-header">
           <FileText size={17} strokeWidth={1.8} />
           <span>Pages</span>
@@ -452,7 +452,7 @@ export function WikiEditor({
         {canUploadDocuments ? (
           <form aria-busy={isUploading} className="wiki-upload-form" encType="multipart/form-data" noValidate onSubmit={ingestDocuments}>
             <div className="wiki-upload-form__header">
-              <strong>Upload to this Second Brain</strong>
+              <strong>Upload to this Nth Brain</strong>
               <span>DOC, DOCX, Excel, CSV, PDF, images, text, and markdown are converted before OpenClaw sees them.</span>
             </div>
             <input
@@ -494,7 +494,7 @@ export function WikiEditor({
               <textarea
                 disabled={isBusy}
                 onChange={(event) => setUploadPrompt(event.target.value)}
-                placeholder="Ask the AI to decide where these sources belong, update existing pages if useful, and modify the Second Brain index/log."
+                placeholder="Ask the AI to decide where these sources belong, update existing pages if useful, and modify the Nth Brain index/log."
                 rows={3}
                 value={uploadPrompt}
               />
@@ -523,7 +523,7 @@ export function WikiEditor({
               </div>
             ) : null}
             <button className="btn-primary btn-primary--compact" disabled={isBusy || uploadFiles.length === 0} type="submit">
-              {isUploading ? "Uploading..." : "Upload into Second Brain"}
+              {isUploading ? "Uploading..." : "Upload into Nth Brain"}
             </button>
           </form>
         ) : null}
@@ -568,7 +568,7 @@ export function WikiEditor({
               </button>
             ) : null}
             {showExport ? (
-              <a aria-label="Export Second Brain" className="btn-icon" href={wikiUrl(`${apiBase}/export`)} title="Export Second Brain">
+              <a aria-label="Export Nth Brain" className="btn-icon" href={wikiUrl(`${apiBase}/export`)} title="Export Nth Brain">
                 <Download size={17} strokeWidth={1.8} />
               </a>
             ) : null}

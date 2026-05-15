@@ -93,7 +93,7 @@ export default async function DashboardSettingsPage() {
                   <p className="workspace-status-card__eyebrow">Danger zone</p>
                   <h2>Destroy workspace</h2>
                   <p>
-                    Destroy the Lightsail OpenClaw instance, clear generated Second Brain project history, reset onboarding, and log out.
+                    Destroy the Lightsail OpenClaw instance, clear generated Nth Brain project history, reset onboarding, and log out.
                   </p>
                 </div>
                 <DestroyWorkspaceButton variant="panel" />
