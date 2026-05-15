@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+import { after, NextResponse } from "next/server";
 import { hasSupabaseEnv } from "@/lib/env";
 import {
   getUserIdFromClaims,
@@ -161,15 +161,10 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "OpenClaw profile is incomplete" }, { status: 409 });
   }
 
-  let attachments: Awaited<ReturnType<typeof convertWikiAttachments>> = [];
-
-  try {
-    attachments = payload instanceof FormData ? await convertWikiAttachments(payload.getAll("attachments")) : [];
-  } catch (error) {
-    const message = error instanceof Error ? error.message : "attachment_conversion_failed";
-
-    return NextResponse.json({ error: message }, { status: 400 });
-  }
+  const attachmentInputs =
+    payload instanceof FormData
+      ? payload.getAll("attachments").filter((value): value is File => value instanceof File && value.size > 0)
+      : [];
 
   const { data, error } = await auth.supabase
     .from("projects")
@@ -201,66 +196,51 @@ export async function POST(request: Request) {
     })
     .eq("id", data.id);
 
-  try {
-    const generated = await generateOpenClawWikiProject({
-      avatarName,
-      attachments,
-      instance: openclawInstance,
-      ownerName,
-      projectId: data.id,
-      projectSlug,
-      prompt: prompt.trim(),
-      userId: auth.userId
-    });
-
-    const { data: updatedProject, error: updateError } = await auth.supabase
-      .from("projects")
-      .update({
-        openclaw_generation_completed_at: new Date().toISOString(),
-        openclaw_generation_error: null,
-        openclaw_generation_mapping: generated.mapping,
-        openclaw_generation_output: outputSummary(
-          [generated.hooksOutput, generated.sendOutput].filter(Boolean).join("\n\n")
-        ),
-        openclaw_generation_prompt: generated.task,
-        status: "ready"
-      })
-      .eq("id", data.id)
-      .select("id,title,prompt,status,created_at")
-      .single();
-
-    if (updateError) {
-      if (isFormPost) {
-        return redirectWithParams(request, returnTo, { error: "project_update" });
-      }
-
-      return NextResponse.json({ error: updateError.message }, { status: 500 });
-    }
-
-    if (isFormPost) {
-      return redirectWithParams(request, returnTo, { created: "1" });
-    }
-
-    return NextResponse.json({ project: updatedProject }, { status: 201 });
-  } catch (generationError) {
-    const message =
-      generationError instanceof Error ? generationError.message : "project_generation";
-
-    await auth.supabase
-      .from("projects")
-      .update({
-        openclaw_generation_completed_at: new Date().toISOString(),
-        openclaw_generation_error: outputSummary(message),
-        status: "failed"
-      })
-      .eq("id", data.id);
-
-    if (isFormPost) {
-      return redirectWithParams(request, returnTo, {
-        error: projectGenerationErrorCode(generationError)
+  after(async () => {
+    try {
+      const attachments = await convertWikiAttachments(attachmentInputs);
+      const generated = await generateOpenClawWikiProject({
+        avatarName,
+        attachments,
+        instance: openclawInstance,
+        ownerName,
+        projectId: data.id,
+        projectSlug,
+        prompt: prompt.trim(),
+        userId: auth.userId
       });
-    }
 
-    return NextResponse.json({ error: message, project: data }, { status: 500 });
+      await auth.supabase
+        .from("projects")
+        .update({
+          openclaw_generation_completed_at: new Date().toISOString(),
+          openclaw_generation_error: null,
+          openclaw_generation_mapping: generated.mapping,
+          openclaw_generation_output: outputSummary(
+            [generated.hooksOutput, generated.sendOutput].filter(Boolean).join("\n\n")
+          ),
+          openclaw_generation_prompt: generated.task,
+          status: "ready"
+        })
+        .eq("id", data.id);
+    } catch (generationError) {
+      const message =
+        generationError instanceof Error ? generationError.message : "project_generation";
+
+      await auth.supabase
+        .from("projects")
+        .update({
+          openclaw_generation_completed_at: new Date().toISOString(),
+          openclaw_generation_error: outputSummary(message),
+          status: "failed"
+        })
+        .eq("id", data.id);
+    }
+  });
+
+  if (isFormPost) {
+    return redirectWithParams(request, returnTo, { created: "1" });
   }
+
+  return NextResponse.json({ project: data }, { status: 202 });
 }
