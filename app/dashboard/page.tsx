@@ -3,6 +3,7 @@ import { AnnouncementPill } from "@/components/announcement-pill";
 import { Atmosphere } from "@/components/atmosphere";
 import { DashboardSidebar } from "@/components/dashboard-sidebar";
 import { OpenClawGatewayStatus } from "@/components/openclaw-gateway-status";
+import { RemotionAvatarStatus } from "@/components/remotion-avatar-status";
 import { SetupCallout } from "@/components/setup-callout";
 import { hasSupabaseEnv } from "@/lib/env";
 import {
@@ -100,41 +101,7 @@ export default async function DashboardPage() {
             <div className="workspace-status-grid">
               <OpenClawGatewayStatus initialGatewayUrl={openclawGatewayUrl} instance={openclawInstance} />
 
-              <article className="workspace-status-card" id="remotion-avatar">
-                <div className="workspace-status-card__header">
-                  <div>
-                    <p className="workspace-status-card__eyebrow">Remotion AI Assistant</p>
-                    <h2>AI Assistant runtime output</h2>
-                  </div>
-                  <span className={`project-status project-status--${remotionUrl ? "ready" : "running"}`}>
-                    {remotionUrl ? "ready" : "processing"}
-                  </span>
-                </div>
-                <p className="workspace-status-card__copy">
-                  Review the public AI Assistant URL after setup finishes and use it as the dashboard access point for Remotion output.
-                </p>
-                <dl className="workspace-status-list">
-                  <div>
-                    <dt>AI Assistant</dt>
-                    <dd>{avatarName ?? "Not named yet"}</dd>
-                  </div>
-                  <div>
-                    <dt>Public URL</dt>
-                    <dd>{remotionUrl ?? "Still waiting for Remotion to publish a URL"}</dd>
-                  </div>
-                </dl>
-                <div className="workspace-status-actions">
-                  {remotionUrl ? (
-                    <a className="btn-primary" href={remotionUrl} rel="noreferrer" target="_blank">
-                      Open Remotion AI Assistant <span className="arrow">-&gt;</span>
-                    </a>
-                  ) : (
-                    <span aria-disabled="true" className="btn-primary is-disabled" role="link">
-                      Waiting for Remotion URL
-                    </span>
-                  )}
-                </div>
-              </article>
+              <RemotionAvatarStatus avatarName={avatarName} initialRemotionUrl={remotionUrl} />
 
               <article className="workspace-status-card" id="llm-wiki">
                 <div className="workspace-status-card__header">
