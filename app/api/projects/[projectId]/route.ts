@@ -13,10 +13,14 @@ type ProjectRouteContext = {
 };
 
 type ProjectDeleteRow = {
+  created_at: string;
   id: string;
   openclaw_project_slug: string | null;
+  status: string;
   title: string;
 };
+
+const STALE_RUNNING_PROJECT_MS = 60 * 60 * 1000;
 
 function outputSummary(value: string) {
   return value.slice(-4000);
@@ -30,6 +34,20 @@ function isAlreadyDeleted(error: unknown) {
     message.includes("no such file") ||
     message.includes("does not exist")
   );
+}
+
+function isStaleRunningProject(project: ProjectDeleteRow) {
+  if (project.status !== "running") {
+    return false;
+  }
+
+  const createdAt = new Date(project.created_at).getTime();
+
+  return Number.isFinite(createdAt) && Date.now() - createdAt > STALE_RUNNING_PROJECT_MS;
+}
+
+function shouldSkipRemoteWikiDelete(project: ProjectDeleteRow) {
+  return project.status === "failed" || isStaleRunningProject(project);
 }
 
 export async function DELETE(_request: Request, context: ProjectRouteContext) {
@@ -58,7 +76,7 @@ export async function DELETE(_request: Request, context: ProjectRouteContext) {
 
   const { data: project, error: projectError } = await supabase
     .from("projects")
-    .select("id,title,openclaw_project_slug")
+    .select("created_at,id,title,status,openclaw_project_slug")
     .eq("id", projectId)
     .eq("user_id", userId)
     .maybeSingle();
@@ -77,25 +95,28 @@ export async function DELETE(_request: Request, context: ProjectRouteContext) {
   let openclawDeleteOutput: string | null = null;
 
   if (projectSlug) {
-    if (!instance) {
+    if (shouldSkipRemoteWikiDelete(wikiProject)) {
+      openclawDeleteOutput =
+        `Skipped OpenClaw cleanup for ${projectSlug} because this project is ${wikiProject.status} or stale.`;
+    } else if (!instance) {
       return NextResponse.json({ error: "OpenClaw instance is not available" }, { status: 409 });
-    }
+    } else {
+      try {
+        const deleted = await deleteOpenClawWikiProject({
+          instance,
+          projectSlug
+        });
 
-    try {
-      const deleted = await deleteOpenClawWikiProject({
-        instance,
-        projectSlug
-      });
+        openclawDeleteOutput = deleted.output;
+      } catch (error) {
+        if (!isAlreadyDeleted(error)) {
+          const message = error instanceof Error ? error.message : "openclaw_wiki_delete_failed";
 
-      openclawDeleteOutput = deleted.output;
-    } catch (error) {
-      if (!isAlreadyDeleted(error)) {
-        const message = error instanceof Error ? error.message : "openclaw_wiki_delete_failed";
+          return NextResponse.json({ error: outputSummary(message) }, { status: 500 });
+        }
 
-        return NextResponse.json({ error: outputSummary(message) }, { status: 500 });
+        openclawDeleteOutput = `OpenClaw wiki project ${projectSlug} was already missing.`;
       }
-
-      openclawDeleteOutput = `OpenClaw wiki project ${projectSlug} was already missing.`;
     }
   }
 

@@ -98,6 +98,16 @@ async function expireStaleRunningProjects(context: Awaited<ReturnType<typeof get
     .lt("created_at", staleCutoff);
 }
 
+function isStaleRunningProject(project: LlmWikiProject) {
+  if (project.status !== "running") {
+    return false;
+  }
+
+  const createdAt = new Date(project.created_at).getTime();
+
+  return Number.isFinite(createdAt) && Date.now() - createdAt > WIKI_GENERATION_STALE_AFTER_MS;
+}
+
 function firstMarkdownFile(items: WikiTreeItem[]): WikiTreeItem | null {
   for (const item of items) {
     if (item.type === "file") {
@@ -244,48 +254,52 @@ export default async function DashboardWikiPage({ searchParams }: WikiPageProps)
                 </div>
                 <div className="projects-grid">
                   {wikiProjects.length > 0 ? (
-                    wikiProjects.map((project) => (
-                      <article className="project-card wiki-project-card" key={project.id}>
-                        <span className={`project-status project-status--${project.status}`}>
-                          {project.status}
-                        </span>
-                        <h3>{project.title}</h3>
-                        <p>{project.prompt}</p>
-                        <dl className="project-card__details">
-                          <div>
-                            <dt>Project UUID</dt>
-                            <dd>{project.id}</dd>
+                    wikiProjects.map((project) => {
+                      const isStale = isStaleRunningProject(project);
+                      const displayStatus = isStale ? "failed" : project.status;
+                      const displayError = project.openclaw_generation_error ?? (isStale ? WIKI_GENERATION_STALE_MESSAGE : null);
+
+                      return (
+                        <article className="project-card wiki-project-card" key={project.id}>
+                          <span className={`project-status project-status--${displayStatus}`}>
+                            {displayStatus}
+                          </span>
+                          <h3>{project.title}</h3>
+                          <p>{project.prompt}</p>
+                          <dl className="project-card__details">
+                            <div>
+                              <dt>Project UUID</dt>
+                              <dd>{project.id}</dd>
+                            </div>
+                            <div>
+                              <dt>OpenClaw folder</dt>
+                              <dd>{project.openclaw_project_slug ?? "Pending"}</dd>
+                            </div>
+                          </dl>
+                          {displayError ? <p className="form-error">{displayError.slice(0, 180)}</p> : null}
+                          <div className="project-card__meta">
+                            <time dateTime={project.created_at}>{formatProjectDate(project.created_at)}</time>
                           </div>
-                          <div>
-                            <dt>OpenClaw folder</dt>
-                            <dd>{project.openclaw_project_slug ?? "Pending"}</dd>
+                          <div className="project-card__actions">
+                            {displayStatus === "ready" && project.openclaw_project_slug ? (
+                              <a className="btn-primary btn-primary--compact" href={`/dashboard/wiki?projectId=${project.id}`}>
+                                Open markdown <span className="arrow">-&gt;</span>
+                              </a>
+                            ) : (
+                              <span className="text-link is-disabled">
+                                {displayStatus === "running" ? "Generating..." : "Markdown unavailable"}
+                              </span>
+                            )}
+                            <DeleteWikiProjectButton
+                              disabled={displayStatus === "running"}
+                              projectId={project.id}
+                              projectSlug={project.openclaw_project_slug}
+                              title={project.title}
+                            />
                           </div>
-                        </dl>
-                        {project.openclaw_generation_error ? (
-                          <p className="form-error">{project.openclaw_generation_error.slice(0, 180)}</p>
-                        ) : null}
-                        <div className="project-card__meta">
-                          <time dateTime={project.created_at}>{formatProjectDate(project.created_at)}</time>
-                        </div>
-                        <div className="project-card__actions">
-                          {project.status === "ready" && project.openclaw_project_slug ? (
-                            <a className="btn-primary btn-primary--compact" href={`/dashboard/wiki?projectId=${project.id}`}>
-                              Open markdown <span className="arrow">-&gt;</span>
-                            </a>
-                          ) : (
-                            <span className="text-link is-disabled">
-                              {project.status === "running" ? "Generating..." : "Markdown unavailable"}
-                            </span>
-                          )}
-                          <DeleteWikiProjectButton
-                            disabled={project.status === "running"}
-                            projectId={project.id}
-                            projectSlug={project.openclaw_project_slug}
-                            title={project.title}
-                          />
-                        </div>
-                      </article>
-                    ))
+                        </article>
+                      );
+                    })
                   ) : (
                     <div className="empty-state">
                       {searchQuery

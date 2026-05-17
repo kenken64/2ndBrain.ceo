@@ -47,6 +47,10 @@ type OpenClawGatewayUrlInput = {
   instance: string;
 };
 
+type OpenClawPublicIpInput = {
+  instance: string;
+};
+
 type OpenClawGenerationInput = {
   attachments?: ConvertedWikiAttachment[];
   avatarName: string;
@@ -119,6 +123,12 @@ type LightsailInstance = {
   state?: {
     name?: string;
   };
+};
+
+type ClawmacdoDeployRecord = {
+  hostname?: string;
+  id?: string;
+  ip_address?: string;
 };
 
 type ExecFileFailure = Error & {
@@ -474,6 +484,7 @@ function openClawAgentId() {
 
 async function downloadOpenClawMarkdownZip(input: OpenClawWikiInput, outputPath?: string) {
   const awsEnv = getAwsEnv();
+  const instance = await resolveOpenClawSshTarget(input.instance, awsEnv, "openclaw-md-download");
   const tempDir = outputPath ? null : await fs.mkdtemp(path.join(os.tmpdir(), "openclaw-md-"));
   const zipPath = outputPath ?? path.join(tempDir ?? os.tmpdir(), `openclaw-md-${randomUUID()}.zip`);
 
@@ -481,7 +492,7 @@ async function downloadOpenClawMarkdownZip(input: OpenClawWikiInput, outputPath?
     [
       "openclaw-md-download",
       "--instance",
-      input.instance,
+      instance,
       "--agent",
       openClawAgentId(),
       "--output",
@@ -584,6 +595,60 @@ function isIpAddress(value: string) {
   return /^\d{1,3}(?:\.\d{1,3}){3}$/.test(value);
 }
 
+function clawmacdoStateDir() {
+  const configured = process.env.CLAWMACDO_STATE_DIR?.trim();
+
+  if (configured) {
+    return configured;
+  }
+
+  const railwayVolume = process.env.RAILWAY_VOLUME_MOUNT_PATH?.trim();
+
+  if (railwayVolume) {
+    return railwayVolume;
+  }
+
+  return path.join(os.homedir(), ".clawmacdo");
+}
+
+function recordMatchesInstance(record: ClawmacdoDeployRecord, instance: string) {
+  const normalized = instance.toLowerCase();
+
+  return [record.id, record.hostname, record.ip_address]
+    .filter((value): value is string => Boolean(value?.trim()))
+    .some((value) => value.toLowerCase() === normalized);
+}
+
+async function readClawmacdoDeployRecord(instance: string) {
+  const deploysDir = path.join(clawmacdoStateDir(), "deploys");
+  let entries: string[];
+
+  try {
+    entries = await fs.readdir(deploysDir);
+  } catch {
+    return null;
+  }
+
+  for (const entry of entries) {
+    if (!entry.endsWith(".json")) {
+      continue;
+    }
+
+    try {
+      const filePath = path.join(deploysDir, entry);
+      const record = JSON.parse(await fs.readFile(filePath, "utf8")) as ClawmacdoDeployRecord;
+
+      if (recordMatchesInstance(record, instance)) {
+        return record;
+      }
+    } catch {
+      // Ignore malformed or concurrently written deploy records.
+    }
+  }
+
+  return null;
+}
+
 async function waitForTcp(host: string, port: number, timeoutMs: number) {
   return new Promise<void>((resolve, reject) => {
     const socket = net.createConnection({ host, port });
@@ -642,6 +707,50 @@ async function getExistingLightsailInstance(
     }
 
     throw error;
+  }
+}
+
+async function resolveOpenClawSshTarget(
+  instance: string,
+  awsEnv: Record<string, string>,
+  context: string
+) {
+  const requestedInstance = instance.trim();
+
+  if (!requestedInstance || isIpAddress(requestedInstance)) {
+    return requestedInstance;
+  }
+
+  const region = awsEnv.AWS_REGION || awsEnv.AWS_DEFAULT_REGION || optionalEnv("AWS_REGION");
+
+  if (!region) {
+    return requestedInstance;
+  }
+
+  try {
+    const lightsailInstance = await getExistingLightsailInstance(requestedInstance, region, awsEnv);
+    const publicIp = lightsailInstance?.publicIpAddress?.trim();
+
+    if (!publicIp) {
+      return requestedInstance;
+    }
+
+    consoleClawmacdo("ssh_target_resolved", {
+      context,
+      instance: requestedInstance,
+      publicIp,
+      region
+    });
+
+    return publicIp;
+  } catch (error) {
+    consoleClawmacdo("ssh_target_resolve_failed", {
+      context,
+      instance: requestedInstance,
+      message: error instanceof Error ? sanitizeLogText(error.message) : "resolve_failed"
+    });
+
+    return requestedInstance;
   }
 }
 
@@ -1335,10 +1444,11 @@ export async function provisionOpenClaw(input: OpenClawProvisionInput) {
 
 export async function setupOpenClawIdentity(input: OpenClawIdentityInput) {
   const awsEnv = getAwsEnv();
+  const instance = await resolveOpenClawSshTarget(input.instance, awsEnv, "openclaw-identity");
   const identityArgs = [
     "openclaw-identity",
     "--instance",
-    input.instance,
+    instance,
     "--openclaw-name",
     input.avatarName,
     "--owner-name",
@@ -1357,11 +1467,12 @@ export async function setupOpenClawIdentity(input: OpenClawIdentityInput) {
 export async function getOpenClawGatewayUrl(input: OpenClawGatewayUrlInput) {
   const awsEnv = getAwsEnv();
   const region = requireEnv("AWS_REGION");
+  const instance = await resolveOpenClawSshTarget(input.instance, awsEnv, "openclaw-gateway-url");
   let output = "";
 
   try {
     output = await runClawmacdo(
-      ["openclaw-gateway-url", "--instance", input.instance, "--json"],
+      ["openclaw-gateway-url", "--instance", instance, "--json"],
       awsEnv
     );
   } catch (error) {
@@ -1411,6 +1522,24 @@ export async function getOpenClawGatewayUrl(input: OpenClawGatewayUrlInput) {
   };
 }
 
+export async function getOpenClawPublicIp(input: OpenClawPublicIpInput) {
+  const instance = input.instance.trim();
+
+  if (isIpAddress(instance)) {
+    return {
+      publicIp: instance,
+      source: "stored"
+    };
+  }
+
+  const deployRecord = await readClawmacdoDeployRecord(instance);
+
+  return {
+    publicIp: deployRecord?.ip_address?.trim() || null,
+    source: deployRecord ? "clawmacdo" : "missing"
+  };
+}
+
 export async function setupOpenClawAvatar(input: OpenClawAvatarSetupInput) {
   const awsEnv = getAwsEnv();
   const openAiApiKey = requireEnv("OPENAI_API_KEY");
@@ -1431,10 +1560,11 @@ export async function setupOpenClawAvatar(input: OpenClawAvatarSetupInput) {
     remotionPort
   });
 
+  const instance = await resolveOpenClawSshTarget(input.instance, awsEnv, "remotion-avatar-setup");
   const remotionArgs = [
     "remotion-avatar-setup",
     "--instance",
-    input.instance,
+    instance,
     "--name",
     input.avatarName,
     "--openai-api-key",
@@ -1469,6 +1599,7 @@ export async function setupOpenClawAvatar(input: OpenClawAvatarSetupInput) {
 
 export async function generateOpenClawWikiProject(input: OpenClawGenerationInput) {
   const awsEnv = getAwsEnv();
+  const instance = await resolveOpenClawSshTarget(input.instance, awsEnv, "openclaw-llm-wiki");
   const prompt = buildWikiGenerationPrompt(input);
   const llmWikiPromptPath = getLlmWikiPromptPath();
   const timeout = optionalEnv("OPENCLAW_LLM_WIKI_TIMEOUT_SECONDS") ?? "600";
@@ -1490,7 +1621,7 @@ export async function generateOpenClawWikiProject(input: OpenClawGenerationInput
   const args = [
     "openclaw-llm-wiki",
     "--instance",
-    input.instance,
+    instance,
     "--agent",
     agent,
     "--project",
@@ -1558,6 +1689,7 @@ export async function ingestOpenClawWikiAttachments(input: OpenClawWikiIngestInp
   }
 
   const awsEnv = getAwsEnv();
+  const instance = await resolveOpenClawSshTarget(input.instance, awsEnv, "wiki-ingest");
   const prompt = buildWikiIngestPrompt(input);
   const timeout = optionalEnv("OPENCLAW_LLM_WIKI_TIMEOUT_SECONDS") ?? "600";
   const agent = optionalEnv("OPENCLAW_AGENT_ID") ?? "main";
@@ -1596,7 +1728,7 @@ export async function ingestOpenClawWikiAttachments(input: OpenClawWikiIngestInp
           [
             "wiki-ingest",
             "--instance",
-            input.instance,
+            instance,
             "--agent",
             agent,
             "--project",
@@ -1627,6 +1759,7 @@ export async function ingestOpenClawWikiAttachments(input: OpenClawWikiIngestInp
 
 export async function pairOpenClawTelegram(input: OpenClawTelegramPairInput) {
   const awsEnv = getAwsEnv();
+  const instance = await resolveOpenClawSshTarget(input.instance, awsEnv, "telegram-pair");
 
   consoleClawmacdo("telegram_pair_input", {
     code: maskSecret(input.code),
@@ -1634,7 +1767,7 @@ export async function pairOpenClawTelegram(input: OpenClawTelegramPairInput) {
   });
 
   const output = await runClawmacdo(
-    ["telegram-pair", "--instance", input.instance, "--code", input.code],
+    ["telegram-pair", "--instance", instance, "--code", input.code],
     awsEnv
   );
 
@@ -1645,6 +1778,7 @@ export async function pairOpenClawTelegram(input: OpenClawTelegramPairInput) {
 
 export async function setupOpenClawTelegramBot(input: OpenClawTelegramSetupInput) {
   const awsEnv = getAwsEnv();
+  const instance = await resolveOpenClawSshTarget(input.instance, awsEnv, "telegram-setup");
 
   consoleClawmacdo("telegram_setup_input", {
     instance: input.instance,
@@ -1652,7 +1786,7 @@ export async function setupOpenClawTelegramBot(input: OpenClawTelegramSetupInput
   });
 
   const output = await runClawmacdo(
-    ["telegram-setup", "--instance", input.instance, "--bot-token", input.telegramBotToken, "--reset"],
+    ["telegram-setup", "--instance", instance, "--bot-token", input.telegramBotToken, "--reset"],
     awsEnv
   );
 
@@ -1663,12 +1797,13 @@ export async function setupOpenClawTelegramBot(input: OpenClawTelegramSetupInput
 
 export async function readOpenClawWikiTree(input: OpenClawWikiInput) {
   const awsEnv = getAwsEnv();
+  const instance = await resolveOpenClawSshTarget(input.instance, awsEnv, "wiki-tree");
   let output = "";
 
   try {
     output = await runClawmacdo(
       withProjectArgs(
-        ["wiki-tree", "--instance", input.instance, "--agent", openClawAgentId(), "--json"],
+        ["wiki-tree", "--instance", instance, "--agent", openClawAgentId(), "--json"],
         input.projectSlug
       ),
       awsEnv
@@ -1700,6 +1835,7 @@ export async function readOpenClawWikiTree(input: OpenClawWikiInput) {
 
 export async function readOpenClawWikiPage(input: OpenClawWikiPageInput): Promise<WikiPage> {
   const awsEnv = getAwsEnv();
+  const instance = await resolveOpenClawSshTarget(input.instance, awsEnv, "wiki-read");
   const filePath = normalizeWikiPath(input.filePath);
 
   try {
@@ -1707,7 +1843,7 @@ export async function readOpenClawWikiPage(input: OpenClawWikiPageInput): Promis
       [
         "wiki-read",
         "--instance",
-        input.instance,
+        instance,
         "--agent",
         openClawAgentId(),
         "--path",
@@ -1757,12 +1893,13 @@ export async function readOpenClawWikiPage(input: OpenClawWikiPageInput): Promis
 
 async function writeOpenClawWikiFile(input: OpenClawWikiWriteInput): Promise<WikiPage> {
   const awsEnv = getAwsEnv();
+  const instance = await resolveOpenClawSshTarget(input.instance, awsEnv, "wiki-write");
   const filePath = normalizeWikiPath(input.filePath);
   const tempPath = path.join(os.tmpdir(), `openclaw-wiki-${randomUUID()}.md`);
   const args = [
     "wiki-write",
     "--instance",
-    input.instance,
+    instance,
     "--agent",
     openClawAgentId(),
     "--path",
@@ -1806,12 +1943,13 @@ export async function writeOpenClawWikiPage(input: OpenClawWikiWriteInput): Prom
 
 export async function exportOpenClawWiki(input: OpenClawWikiInput) {
   const awsEnv = getAwsEnv();
+  const instance = await resolveOpenClawSshTarget(input.instance, awsEnv, "wiki-export");
   let output = "";
 
   try {
     output = await runClawmacdo(
       withProjectArgs(
-        ["wiki-export", "--instance", input.instance, "--agent", openClawAgentId(), "--json"],
+        ["wiki-export", "--instance", instance, "--agent", openClawAgentId(), "--json"],
         input.projectSlug
       ),
       awsEnv
@@ -1835,6 +1973,7 @@ export async function exportOpenClawWiki(input: OpenClawWikiInput) {
 
 export async function deleteOpenClawWikiProject(input: OpenClawWikiDeleteInput) {
   const awsEnv = getAwsEnv();
+  const instance = await resolveOpenClawSshTarget(input.instance, awsEnv, "wiki-delete");
   const projectSlug = input.projectSlug.trim();
 
   if (!projectSlug) {
@@ -1845,7 +1984,7 @@ export async function deleteOpenClawWikiProject(input: OpenClawWikiDeleteInput) 
     [
       "wiki-delete",
       "--instance",
-      input.instance,
+      instance,
       "--agent",
       openClawAgentId(),
       "--project",
