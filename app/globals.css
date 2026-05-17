@@ -1829,6 +1829,37 @@ svg {
   word-break: break-word;
 }
 
+.workspace-secret-field {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.workspace-secret-field span {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.workspace-secret-toggle {
+  flex: 0 0 auto;
+  border: 1px solid rgba(0, 77, 230, 0.2);
+  border-radius: 999px;
+  background: rgba(0, 167, 255, 0.08);
+  color: var(--brand-blue);
+  cursor: pointer;
+  font-family: var(--font-sans);
+  font-size: 12px;
+  font-weight: 800;
+  line-height: 1;
+  padding: 7px 10px;
+}
+
+.workspace-secret-toggle:hover {
+  border-color: rgba(0, 77, 230, 0.35);
+  background: rgba(0, 167, 255, 0.14);
+}
+
 .workspace-status-actions {
   display: flex;
   align-items: center;

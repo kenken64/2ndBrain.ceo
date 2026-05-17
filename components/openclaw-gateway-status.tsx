@@ -8,6 +8,13 @@ type GatewayPayload = {
   status?: string;
 };
 
+type PublicIpPayload = {
+  error?: string;
+  publicIp?: string | null;
+  source?: string;
+  status?: string;
+};
+
 type OpenClawGatewayStatusProps = {
   initialGatewayUrl?: string | null;
   instance?: string | null;
@@ -15,14 +22,76 @@ type OpenClawGatewayStatusProps = {
 
 const POLL_INTERVAL_MS = 10_000;
 
+function isIpAddress(value: string) {
+  return /^\d{1,3}(?:\.\d{1,3}){3}$/.test(value);
+}
+
 export function OpenClawGatewayStatus({
   initialGatewayUrl,
   instance
 }: OpenClawGatewayStatusProps) {
   const [gatewayUrl, setGatewayUrl] = useState(initialGatewayUrl?.trim() || "");
   const [lastError, setLastError] = useState("");
-  const hasInstance = Boolean(instance?.trim());
+  const instanceAddress = instance?.trim() || "";
+  const [publicIp, setPublicIp] = useState(isIpAddress(instanceAddress) ? instanceAddress : "");
+  const [publicIpError, setPublicIpError] = useState("");
+  const [isPublicIpVisible, setIsPublicIpVisible] = useState(false);
+  const hasInstance = Boolean(instanceAddress);
   const isReady = Boolean(gatewayUrl);
+  const hiddenPublicIpValue = publicIp ? "**** **** ****" : hasInstance ? "Resolving public IP" : "Not available yet";
+
+  useEffect(() => {
+    if (!hasInstance || publicIp) {
+      return;
+    }
+
+    let isCancelled = false;
+    let isFetching = false;
+
+    async function fetchPublicIp() {
+      if (isFetching) {
+        return;
+      }
+
+      isFetching = true;
+
+      try {
+        const response = await fetch("/api/openclaw/public-ip", {
+          cache: "no-store",
+          credentials: "same-origin"
+        });
+        const payload = (await response.json().catch(() => null)) as PublicIpPayload | null;
+
+        if (isCancelled) {
+          return;
+        }
+
+        if (response.ok && payload?.publicIp) {
+          setPublicIp(payload.publicIp);
+          setPublicIpError("");
+          return;
+        }
+
+        if (payload?.error) {
+          setPublicIpError(payload.error);
+        }
+      } catch (error) {
+        if (!isCancelled) {
+          setPublicIpError(error instanceof Error ? error.message : "Public IP check failed");
+        }
+      } finally {
+        isFetching = false;
+      }
+    }
+
+    void fetchPublicIp();
+    const interval = window.setInterval(fetchPublicIp, POLL_INTERVAL_MS);
+
+    return () => {
+      isCancelled = true;
+      window.clearInterval(interval);
+    };
+  }, [hasInstance, publicIp]);
 
   useEffect(() => {
     if (!hasInstance || gatewayUrl) {
@@ -93,8 +162,20 @@ export function OpenClawGatewayStatus({
       </p>
       <dl className="workspace-status-list">
         <div>
-          <dt>Stored instance</dt>
-          <dd>{instance ?? "Not available yet"}</dd>
+          <dt>OpenClaw IP address</dt>
+          <dd className="workspace-secret-field">
+            <span>{isPublicIpVisible ? publicIp : hiddenPublicIpValue}</span>
+            {publicIp ? (
+              <button
+                aria-label={`${isPublicIpVisible ? "Hide" : "Show"} OpenClaw IP address`}
+                className="workspace-secret-toggle"
+                onClick={() => setIsPublicIpVisible((current) => !current)}
+                type="button"
+              >
+                {isPublicIpVisible ? "Hide" : "Show"}
+              </button>
+            ) : null}
+          </dd>
         </div>
         <div>
           <dt>Tailscale Funnel URL</dt>
@@ -105,6 +186,7 @@ export function OpenClawGatewayStatus({
           <dd>{gatewayUrl ? "Tailscale Funnel public HTTPS URL" : "Polling every 10 seconds until available"}</dd>
         </div>
       </dl>
+      {publicIpError && !publicIp ? <p className="workspace-status-card__hint">IP check: {publicIpError}</p> : null}
       {lastError && !gatewayUrl ? <p className="workspace-status-card__hint">Last check: {lastError}</p> : null}
       <div className="workspace-status-actions">
         <a className="btn-primary" href="/dashboard/openclaw">

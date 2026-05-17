@@ -56,13 +56,14 @@ ENV NEXT_PUBLIC_AVATURN_URL=$NEXT_PUBLIC_AVATURN_URL
 ENV HOME=/app
 ENV XDG_CACHE_HOME=/app/.cache
 ENV XDG_CONFIG_HOME=/app/.config
+ENV CLAWMACDO_STATE_DIR=/app/.clawmacdo
 
 RUN apt-get update \
   && apt-get install -y --no-install-recommends awscli bash ca-certificates openssh-client unzip \
   && rm -rf /var/lib/apt/lists/* \
   && groupadd --system --gid 1001 nodejs \
   && useradd --system --uid 1001 --gid nodejs --home-dir /app --shell /usr/sbin/nologin nextjs \
-  && mkdir -p /app/.cache /app/.config /app/.openclaw /app/storage/avatars
+  && mkdir -p /app/.cache /app/.clawmacdo /app/.config /app/.openclaw /app/storage/avatars
 
 COPY --from=builder --chown=nextjs:nodejs /app/public ./public
 COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
