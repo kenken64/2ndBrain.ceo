@@ -131,6 +131,11 @@ type ClawmacdoDeployRecord = {
   ip_address?: string;
 };
 
+type ClawmacdoDeployRecordMatch = {
+  filePath: string;
+  record: ClawmacdoDeployRecord;
+};
+
 type ExecFileFailure = Error & {
   code?: string | number;
   killed?: boolean;
@@ -417,14 +422,16 @@ async function runClawmacdo(args: string[], extraEnv: Record<string, string>) {
     return output;
   } catch (error) {
     const failure = error as ExecFileFailure;
-    const message = sanitizeLogText(failure.message || "clawmacdo_failed");
+    const stderr = sanitizeLogText((failure.stderr ?? "").trim());
+    const stdout = sanitizeLogText((failure.stdout ?? "").trim());
+    const message = stderr || stdout || sanitizeLogText(failure.message || "clawmacdo_failed");
 
     consoleClawmacdo("failed", {
       args: sanitizedArgs,
       code: failure.code ? String(failure.code) : undefined,
       durationMs: Date.now() - startedAt,
       killed: failure.killed,
-      message,
+      message: sanitizeLogText(failure.message || "clawmacdo_failed"),
       signal: failure.signal,
       stderrTail: sanitizeLogText((failure.stderr ?? "").slice(-2000)),
       stdoutTail: sanitizeLogText((failure.stdout ?? "").slice(-2000))
@@ -619,7 +626,7 @@ function recordMatchesInstance(record: ClawmacdoDeployRecord, instance: string) 
     .some((value) => value.toLowerCase() === normalized);
 }
 
-async function readClawmacdoDeployRecord(instance: string) {
+async function readClawmacdoDeployRecord(instance: string): Promise<ClawmacdoDeployRecordMatch | null> {
   const deploysDir = path.join(clawmacdoStateDir(), "deploys");
   let entries: string[];
 
@@ -639,7 +646,10 @@ async function readClawmacdoDeployRecord(instance: string) {
       const record = JSON.parse(await fs.readFile(filePath, "utf8")) as ClawmacdoDeployRecord;
 
       if (recordMatchesInstance(record, instance)) {
-        return record;
+        return {
+          filePath,
+          record
+        };
       }
     } catch {
       // Ignore malformed or concurrently written deploy records.
@@ -647,6 +657,43 @@ async function readClawmacdoDeployRecord(instance: string) {
   }
 
   return null;
+}
+
+async function refreshClawmacdoDeployRecordIp(
+  instance: string,
+  publicIp: string,
+  context: string
+) {
+  const deployRecord = await readClawmacdoDeployRecord(instance);
+  const currentIp = deployRecord?.record.ip_address?.trim() || "";
+
+  if (!deployRecord) {
+    consoleClawmacdo("deploy_record_missing_for_ip_refresh", {
+      context,
+      instance,
+      publicIp
+    });
+    return false;
+  }
+
+  if (currentIp === publicIp) {
+    return true;
+  }
+
+  const nextRecord = {
+    ...deployRecord.record,
+    ip_address: publicIp
+  };
+
+  await fs.writeFile(deployRecord.filePath, `${JSON.stringify(nextRecord, null, 2)}\n`, "utf8");
+  consoleClawmacdo("deploy_record_ip_refreshed", {
+    context,
+    instance,
+    previousIp: currentIp || null,
+    publicIp
+  });
+
+  return true;
 }
 
 async function waitForTcp(host: string, port: number, timeoutMs: number) {
@@ -735,14 +782,17 @@ async function resolveOpenClawSshTarget(
       return requestedInstance;
     }
 
+    const deployRecordRefreshed = await refreshClawmacdoDeployRecordIp(requestedInstance, publicIp, context);
+
     consoleClawmacdo("ssh_target_resolved", {
       context,
+      deployRecordRefreshed,
       instance: requestedInstance,
       publicIp,
       region
     });
 
-    return publicIp;
+    return requestedInstance;
   } catch (error) {
     consoleClawmacdo("ssh_target_resolve_failed", {
       context,
@@ -1533,7 +1583,7 @@ export async function getOpenClawPublicIp(input: OpenClawPublicIpInput) {
   }
 
   const deployRecord = await readClawmacdoDeployRecord(instance);
-  const cachedPublicIp = deployRecord?.ip_address?.trim() || null;
+  const cachedPublicIp = deployRecord?.record.ip_address?.trim() || null;
 
   try {
     const awsEnv = getAwsEnv();
@@ -1542,8 +1592,15 @@ export async function getOpenClawPublicIp(input: OpenClawPublicIpInput) {
     const lightsailPublicIp = lightsailInstance?.publicIpAddress?.trim() || null;
 
     if (lightsailPublicIp) {
+      const deployRecordRefreshed = await refreshClawmacdoDeployRecordIp(
+        instance,
+        lightsailPublicIp,
+        "public-ip"
+      );
+
       consoleClawmacdo("public_ip_resolved", {
         cachedIpChanged: Boolean(cachedPublicIp && cachedPublicIp !== lightsailPublicIp),
+        deployRecordRefreshed,
         instance,
         publicIp: lightsailPublicIp,
         source: "lightsail"

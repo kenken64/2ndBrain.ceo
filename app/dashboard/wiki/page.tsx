@@ -276,7 +276,12 @@ export default async function DashboardWikiPage({ searchParams }: WikiPageProps)
                               <dd>{project.openclaw_project_slug ?? "Pending"}</dd>
                             </div>
                           </dl>
-                          {displayError ? <p className="form-error">{displayError.slice(0, 180)}</p> : null}
+                          {displayError ? (
+                            <details className="project-error" open>
+                              <summary>Generation error</summary>
+                              <pre>{displayError}</pre>
+                            </details>
+                          ) : null}
                           <div className="project-card__meta">
                             <time dateTime={project.created_at}>{formatProjectDate(project.created_at)}</time>
                           </div>

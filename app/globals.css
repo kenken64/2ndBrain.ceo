@@ -2463,8 +2463,7 @@ svg {
   min-height: 260px;
 }
 
-.wiki-project-card > p,
-.wiki-project-card > .form-error {
+.wiki-project-card > p {
   display: -webkit-box;
   overflow: hidden;
   -webkit-box-orient: vertical;
@@ -2476,9 +2475,29 @@ svg {
   line-clamp: 5;
 }
 
-.wiki-project-card > .form-error {
-  -webkit-line-clamp: 2;
-  line-clamp: 2;
+.project-error {
+  border: 1px solid rgba(255, 111, 61, 0.35);
+  border-radius: var(--radius-md);
+  background: rgba(255, 111, 61, 0.08);
+  color: var(--error-text);
+  padding: 12px 14px;
+}
+
+.project-error summary {
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.project-error pre {
+  margin: 10px 0 0;
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+  word-break: break-word;
+  font-family: var(--font-sans);
+  font-size: 12px;
+  font-weight: 800;
+  line-height: 1.45;
 }
 
 .wiki-projects-toolbar {
