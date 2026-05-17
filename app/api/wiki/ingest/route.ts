@@ -5,6 +5,7 @@ import { getWikiContext, wikiApiError } from "@/lib/wiki-server";
 import { convertWikiAttachments } from "@/lib/wiki-attachments";
 
 export const runtime = "nodejs";
+export const maxDuration = 900;
 
 function outputSummary(value: string) {
   return value.slice(-4000);

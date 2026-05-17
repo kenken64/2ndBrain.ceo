@@ -13,6 +13,7 @@ import { appUrl, safeNextPath } from "@/lib/url";
 import { convertWikiAttachments } from "@/lib/wiki-attachments";
 
 export const runtime = "nodejs";
+export const maxDuration = 900;
 
 function titleFromPrompt(prompt: string) {
   const cleaned = prompt.trim().replace(/\s+/g, " ");

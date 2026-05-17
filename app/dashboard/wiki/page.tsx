@@ -33,6 +33,9 @@ type LlmWikiProject = {
 };
 
 const WIKI_PROJECTS_PAGE_SIZE = 6;
+const WIKI_GENERATION_STALE_AFTER_MS = 60 * 60 * 1000;
+const WIKI_GENERATION_STALE_MESSAGE =
+  "Generation timed out before OpenClaw returned markdown. This stale job was closed automatically; create a new Nth Brain or delete this one.";
 
 function formatProjectDate(value: string) {
   return new Intl.DateTimeFormat("en", {
@@ -80,6 +83,21 @@ function visiblePageNumbers(currentPage: number, totalPages: number) {
   return Array.from({ length: end - start + 1 }, (_, index) => start + index);
 }
 
+async function expireStaleRunningProjects(context: Awaited<ReturnType<typeof getWikiContext>>) {
+  const staleCutoff = new Date(Date.now() - WIKI_GENERATION_STALE_AFTER_MS).toISOString();
+
+  await context.supabase
+    .from("projects")
+    .update({
+      openclaw_generation_completed_at: new Date().toISOString(),
+      openclaw_generation_error: WIKI_GENERATION_STALE_MESSAGE,
+      status: "failed"
+    })
+    .eq("user_id", context.userId)
+    .eq("status", "running")
+    .lt("created_at", staleCutoff);
+}
+
 function firstMarkdownFile(items: WikiTreeItem[]): WikiTreeItem | null {
   for (const item of items) {
     if (item.type === "file") {
@@ -124,6 +142,8 @@ export default async function DashboardWikiPage({ searchParams }: WikiPageProps)
   }
 
   if (!params.projectId) {
+    await expireStaleRunningProjects(context);
+
     const searchQuery = normalizeSearchParam(params.q);
     const currentPage = parsePageParam(params.page);
     const rangeStart = (currentPage - 1) * WIKI_PROJECTS_PAGE_SIZE;
