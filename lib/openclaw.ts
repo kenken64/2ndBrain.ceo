@@ -1533,9 +1533,36 @@ export async function getOpenClawPublicIp(input: OpenClawPublicIpInput) {
   }
 
   const deployRecord = await readClawmacdoDeployRecord(instance);
+  const cachedPublicIp = deployRecord?.ip_address?.trim() || null;
+
+  try {
+    const awsEnv = getAwsEnv();
+    const region = awsEnv.AWS_REGION || awsEnv.AWS_DEFAULT_REGION;
+    const lightsailInstance = await getExistingLightsailInstance(instance, region, awsEnv);
+    const lightsailPublicIp = lightsailInstance?.publicIpAddress?.trim() || null;
+
+    if (lightsailPublicIp) {
+      consoleClawmacdo("public_ip_resolved", {
+        cachedIpChanged: Boolean(cachedPublicIp && cachedPublicIp !== lightsailPublicIp),
+        instance,
+        publicIp: lightsailPublicIp,
+        source: "lightsail"
+      });
+
+      return {
+        publicIp: lightsailPublicIp,
+        source: "lightsail"
+      };
+    }
+  } catch (error) {
+    consoleClawmacdo("public_ip_lightsail_failed", {
+      instance,
+      message: error instanceof Error ? sanitizeLogText(error.message) : "lightsail_lookup_failed"
+    });
+  }
 
   return {
-    publicIp: deployRecord?.ip_address?.trim() || null,
+    publicIp: cachedPublicIp,
     source: deployRecord ? "clawmacdo" : "missing"
   };
 }

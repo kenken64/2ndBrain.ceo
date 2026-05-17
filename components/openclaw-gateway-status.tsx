@@ -41,7 +41,7 @@ export function OpenClawGatewayStatus({
   const hiddenPublicIpValue = publicIp ? "**** **** ****" : hasInstance ? "Resolving public IP" : "Not available yet";
 
   useEffect(() => {
-    if (!hasInstance || publicIp) {
+    if (!hasInstance) {
       return;
     }
 
@@ -91,7 +91,7 @@ export function OpenClawGatewayStatus({
       isCancelled = true;
       window.clearInterval(interval);
     };
-  }, [hasInstance, publicIp]);
+  }, [hasInstance]);
 
   useEffect(() => {
     if (!hasInstance || gatewayUrl) {
