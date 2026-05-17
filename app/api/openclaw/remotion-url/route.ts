@@ -54,10 +54,10 @@ export async function GET(request: Request) {
     }
 
     const avatarGender = context.profile.avatar_gender?.trim();
-    const avatarGlbPath = context.profile.avatar_glb_path?.trim();
+    const avatarGlbPath = context.profile.avatar_glb_path?.trim() || null;
     const avatarName = context.profile.avatar_name?.trim();
 
-    if (!avatarGender || !avatarGlbPath || !avatarName) {
+    if (!avatarGender || !avatarName) {
       return NextResponse.json({
         error: "Remotion avatar profile is incomplete",
         remotionUrl: storedRemotionUrl || null,

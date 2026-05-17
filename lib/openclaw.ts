@@ -901,6 +901,22 @@ function absoluteFromWorkspace(relativePath: string) {
   return path.join(/* turbopackIgnore: true */ process.cwd(), relativePath);
 }
 
+async function optionalExistingWorkspaceFile(relativePath?: string | null) {
+  const value = relativePath?.trim();
+  if (!value) {
+    return null;
+  }
+
+  const absolutePath = path.isAbsolute(value) ? value : absoluteFromWorkspace(value);
+
+  try {
+    const stat = await fs.stat(absolutePath);
+    return stat.isFile() ? absolutePath : null;
+  } catch {
+    return null;
+  }
+}
+
 function normalizeVoiceGender(value: string) {
   return value.toLowerCase() === "female" ? "female" : "male";
 }
@@ -1630,7 +1646,7 @@ export async function setupOpenClawAvatar(input: OpenClawAvatarSetupInput) {
   const remotionAppDir = optionalEnv("OPENCLAW_REMOTION_APP_DIR");
   const remotionPort = optionalEnv("OPENCLAW_REMOTION_PORT");
   const chatModel = optionalEnv("OPENCLAW_CHAT_MODEL");
-  const avatarGlbAbsolutePath = input.avatarGlbPath ? absoluteFromWorkspace(input.avatarGlbPath) : null;
+  const avatarGlbAbsolutePath = await optionalExistingWorkspaceFile(input.avatarGlbPath);
 
   consoleClawmacdo("avatar_setup_input", {
     avatarGender: input.avatarGender,
