@@ -2190,6 +2190,14 @@ svg {
   font-weight: 800;
 }
 
+.wiki-sync-strip__actions {
+  display: inline-flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 14px;
+  justify-content: flex-end;
+}
+
 .wiki-graph-action:disabled {
   cursor: not-allowed;
   opacity: 0.55;
@@ -2212,14 +2220,31 @@ svg {
 
 .wiki-preview {
   min-height: 620px;
+  color: var(--fg-secondary);
+  font-size: 15px;
+  line-height: 1.75;
   padding: 22px;
 }
 
 .wiki-preview h1,
 .wiki-preview h2,
 .wiki-preview h3 {
-  margin: 22px 0 8px;
+  color: var(--fg-primary);
+  letter-spacing: 0;
+  margin: 26px 0 10px;
   line-height: 1.2;
+}
+
+.wiki-preview h1 {
+  font-size: clamp(28px, 4vw, 36px);
+}
+
+.wiki-preview h2 {
+  font-size: 24px;
+}
+
+.wiki-preview h3 {
+  font-size: 19px;
 }
 
 .wiki-preview h1:first-child,
@@ -2231,6 +2256,98 @@ svg {
 .wiki-preview p,
 .wiki-preview li {
   color: var(--fg-secondary);
+}
+
+.wiki-preview p {
+  margin: 0 0 14px;
+}
+
+.wiki-preview strong {
+  color: var(--fg-primary);
+  font-weight: 850;
+}
+
+.wiki-preview ul,
+.wiki-preview ol {
+  display: grid;
+  gap: 6px;
+  margin: 10px 0 18px;
+  padding-left: 24px;
+}
+
+.wiki-preview blockquote {
+  border-left: 3px solid rgba(0, 167, 255, 0.42);
+  color: var(--fg-secondary);
+  margin: 18px 0;
+  padding: 8px 0 8px 16px;
+}
+
+.wiki-preview hr {
+  border: 0;
+  border-top: 1px solid var(--border-soft);
+  margin: 22px 0;
+}
+
+.wiki-preview a,
+.wiki-preview-wikilink {
+  color: var(--action-primary);
+  font-weight: 750;
+  text-decoration: none;
+}
+
+.wiki-preview code {
+  border: 1px solid var(--border-soft);
+  border-radius: 6px;
+  background: rgba(15, 23, 42, 0.05);
+  color: var(--fg-primary);
+  font-family: var(--font-mono);
+  font-size: 0.92em;
+  padding: 1px 5px;
+}
+
+.wiki-preview pre {
+  overflow-x: auto;
+  border: 1px solid var(--border-soft);
+  border-radius: var(--radius-sm);
+  background: rgba(15, 23, 42, 0.06);
+  margin: 18px 0;
+  padding: 14px;
+}
+
+.wiki-preview pre code {
+  border: 0;
+  background: transparent;
+  padding: 0;
+}
+
+.wiki-preview-table-wrap {
+  overflow-x: auto;
+  margin: 16px 0 22px;
+}
+
+.wiki-preview table {
+  width: 100%;
+  min-width: 560px;
+  border-collapse: collapse;
+  font-size: 14px;
+}
+
+.wiki-preview th,
+.wiki-preview td {
+  border: 1px solid var(--border-soft);
+  padding: 9px 11px;
+  text-align: left;
+  vertical-align: top;
+}
+
+.wiki-preview th {
+  background: rgba(0, 167, 255, 0.08);
+  color: var(--fg-primary);
+  font-weight: 850;
+}
+
+.wiki-preview tbody tr:nth-child(even) {
+  background: rgba(15, 23, 42, 0.025);
 }
 
 .graph-workbench {

@@ -5,12 +5,14 @@ import { DashboardSidebar } from "@/components/dashboard-sidebar";
 import { KnowledgeGraph } from "@/components/knowledge-graph";
 import { SetupCallout } from "@/components/setup-callout";
 import { hasSupabaseEnv } from "@/lib/env";
+import { normalizeWikiPath } from "@/lib/wiki";
 import { getWikiContext, WikiContextError } from "@/lib/wiki-server";
 
 export const dynamic = "force-dynamic";
 
 type GraphPageProps = {
   searchParams: Promise<{
+    path?: string;
     projectId?: string;
   }>;
 };
@@ -102,6 +104,18 @@ function withGraphNodeSourcePaths(
   }));
 }
 
+function normalizeHighlightPath(value?: string) {
+  if (!value) {
+    return null;
+  }
+
+  try {
+    return normalizeWikiPath(value);
+  } catch {
+    return null;
+  }
+}
+
 export default async function DashboardGraphPage({ searchParams }: GraphPageProps) {
   if (!hasSupabaseEnv()) {
     return (
@@ -115,6 +129,7 @@ export default async function DashboardGraphPage({ searchParams }: GraphPageProp
   }
 
   const params = await searchParams;
+  const highlightPath = normalizeHighlightPath(params.path);
   let context: Awaited<ReturnType<typeof getWikiContext>>;
 
   try {
@@ -277,6 +292,7 @@ export default async function DashboardGraphPage({ searchParams }: GraphPageProp
             <KnowledgeGraph
               edges={(edges ?? []) as GraphEdge[]}
               nodes={graphNodes}
+              highlightPath={highlightPath}
               projectId={projectId}
               rootLabel={context.project?.title ?? "Selected Nth Brain intent"}
             />

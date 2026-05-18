@@ -134,12 +134,11 @@ NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY
 NEXT_PUBLIC_SUPABASE_ANON_KEY
 SUPABASE_URL
 SUPABASE_PUBLISHABLE_KEY
-SUPABASE_ANON_KEY
 NEXT_PUBLIC_SITE_URL
 NEXT_PUBLIC_AVATURN_URL
 ```
 
-Only public/browser-safe values are passed this way. Keep AWS keys, OpenAI keys, Telegram tokens, and Supabase service role keys as Railway runtime variables only.
+Only public/browser-safe values are passed this way. Keep AWS keys, OpenAI keys, Telegram tokens, Supabase service role keys, and the `SUPABASE_ANON_KEY` runtime alias as Railway runtime variables only.
 
 ## Product Flow
 

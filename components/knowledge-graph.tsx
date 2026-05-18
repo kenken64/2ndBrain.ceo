@@ -11,6 +11,7 @@ type GraphNode = {
   label: string;
   node_type: string;
   slug: string;
+  source_page_id?: string | null;
   source_path?: string | null;
   synthetic?: boolean;
 };
@@ -26,6 +27,7 @@ type GraphEdge = {
 
 type KnowledgeGraphProps = {
   edges: GraphEdge[];
+  highlightPath?: string | null;
   nodes: GraphNode[];
   projectId?: string | null;
   rootLabel?: string | null;
@@ -251,7 +253,12 @@ function nodeWidth(label: string, isRoot: boolean) {
   return Math.min(isRoot ? 280 : 220, Math.max(base, label.length * (isRoot ? 7 : 6)));
 }
 
-function buildElements(nodes: GraphNode[], edges: GraphEdge[], rootLabel?: string | null) {
+function buildElements(
+  nodes: GraphNode[],
+  edges: GraphEdge[],
+  rootLabel?: string | null,
+  highlightPath?: string | null
+) {
   const graph = buildConnectedGraph(nodes, edges, rootLabel);
   const degrees = degreeMap(graph.edges);
   const componentByNodeId = new Map<string, string>();
@@ -280,7 +287,12 @@ function buildElements(nodes: GraphNode[], edges: GraphEdge[], rootLabel?: strin
     const degree = degrees.get(node.id) ?? 0;
 
     elements.push({
-      classes: [node.node_type, isRoot ? "intent-root" : "", node.synthetic ? "synthetic-node" : ""]
+      classes: [
+        node.node_type,
+        isRoot ? "intent-root" : "",
+        node.synthetic ? "synthetic-node" : "",
+        !isRoot && node.source_page_id && highlightPath && node.source_path === highlightPath ? "highlighted-node" : ""
+      ]
         .filter(Boolean)
         .join(" "),
       data: {
@@ -374,6 +386,19 @@ function graphStylesheet() {
       }
     },
     {
+      selector: "node.highlighted-node",
+      style: {
+        "background-color": "#ef4444",
+        "border-color": "#fff7ed",
+        "border-width": 4,
+        "shadow-blur": 28,
+        "shadow-color": "rgba(239, 68, 68, 0.55)",
+        "shadow-offset-y": 12,
+        "text-outline-color": "#ef4444",
+        "text-outline-opacity": 0.88
+      }
+    },
+    {
       selector: "node.cluster-shell",
       style: {
         "background-opacity": 0,
@@ -458,11 +483,11 @@ function wikiPageHref(projectId: string, sourcePath: string) {
   return `/dashboard/wiki?${params.toString()}`;
 }
 
-export function KnowledgeGraph({ edges, nodes, projectId, rootLabel }: KnowledgeGraphProps) {
+export function KnowledgeGraph({ edges, highlightPath, nodes, projectId, rootLabel }: KnowledgeGraphProps) {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const cyRef = useRef<Core | null>(null);
   const [runCount, setRunCount] = useState(0);
-  const graph = useMemo(() => buildElements(nodes, edges, rootLabel), [edges, nodes, rootLabel]);
+  const graph = useMemo(() => buildElements(nodes, edges, rootLabel, highlightPath), [edges, highlightPath, nodes, rootLabel]);
 
   useEffect(() => {
     if (!containerRef.current || nodes.length === 0) {
@@ -514,13 +539,36 @@ export function KnowledgeGraph({ edges, nodes, projectId, rootLabel }: Knowledge
       });
     });
 
+    const focusHighlightedNode = () => {
+      const highlightedNodes = instance.nodes(".highlighted-node");
+
+      if (highlightedNodes.length === 0) {
+        return;
+      }
+
+      instance.animate({
+        center: {
+          eles: highlightedNodes.first()
+        },
+        duration: 280,
+        fit: {
+          eles: highlightedNodes.first().closedNeighborhood(),
+          padding: 110
+        }
+      });
+    };
+
+    instance.one("layoutstop", focusHighlightedNode);
+    const highlightTimeout = window.setTimeout(focusHighlightedNode, 120);
+
     cyRef.current = instance;
 
     return () => {
+      window.clearTimeout(highlightTimeout);
       cyRef.current?.destroy();
       cyRef.current = null;
     };
-  }, [graph.elements, nodes.length, projectId, runCount]);
+  }, [graph.elements, highlightPath, nodes.length, projectId, runCount]);
 
   if (nodes.length === 0) {
     return (

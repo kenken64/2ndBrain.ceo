@@ -13,7 +13,7 @@ import {
   Save,
   SquarePen
 } from "lucide-react";
-import { ChangeEvent, FormEvent, useEffect, useRef, useState, useTransition } from "react";
+import { ChangeEvent, FormEvent, Fragment, type ReactNode, useEffect, useRef, useState, useTransition } from "react";
 import type { WikiPage, WikiTreeItem } from "@/lib/wiki";
 
 type WikiEditorProps = {
@@ -138,29 +138,246 @@ function TreeNode({
   );
 }
 
+function stripMarkdownFrontmatter(value: string) {
+  const trimmed = value.trimStart();
+
+  if (trimmed.startsWith("---\n")) {
+    const endIndex = trimmed.indexOf("\n---", 4);
+
+    if (endIndex !== -1) {
+      return trimmed.slice(endIndex + 4).replace(/^\s*\n/, "");
+    }
+  }
+
+  const firstLineEnd = trimmed.indexOf("\n");
+  const firstLine = firstLineEnd === -1 ? trimmed : trimmed.slice(0, firstLineEnd);
+
+  if (firstLine.startsWith("--- ") && firstLine.trimEnd().endsWith(" ---")) {
+    return firstLineEnd === -1 ? "" : trimmed.slice(firstLineEnd + 1).replace(/^\s*\n/, "");
+  }
+
+  return value;
+}
+
+function splitTableRow(line: string) {
+  return line
+    .trim()
+    .replace(/^\|/, "")
+    .replace(/\|$/, "")
+    .split("|")
+    .map((cell) => cell.trim());
+}
+
+function isTableSeparator(line: string) {
+  const cells = splitTableRow(line);
+
+  return cells.length > 1 && cells.every((cell) => /^:?-{3,}:?$/.test(cell));
+}
+
+function isTableStart(lines: string[], index: number) {
+  return Boolean(lines[index]?.includes("|") && lines[index + 1] && isTableSeparator(lines[index + 1]));
+}
+
+function isBlockStart(lines: string[], index: number) {
+  const line = lines[index] ?? "";
+
+  return (
+    /^#{1,6}\s+/.test(line) ||
+    /^```/.test(line) ||
+    /^>\s?/.test(line) ||
+    /^[-*+]\s+/.test(line) ||
+    /^\d+\.\s+/.test(line) ||
+    /^-{3,}$/.test(line.trim()) ||
+    isTableStart(lines, index)
+  );
+}
+
+function renderInline(value: string): ReactNode[] {
+  const nodes: ReactNode[] = [];
+  const pattern = /(`[^`]+`|\*\*[^*]+\*\*|\[[^\]]+\]\([^)]+\)|\[\[[^\]]+\]\])/g;
+  let lastIndex = 0;
+  let match: RegExpExecArray | null;
+
+  while ((match = pattern.exec(value)) !== null) {
+    if (match.index > lastIndex) {
+      nodes.push(value.slice(lastIndex, match.index));
+    }
+
+    const token = match[0];
+    const key = `${token}-${match.index}`;
+
+    if (token.startsWith("`")) {
+      nodes.push(<code key={key}>{token.slice(1, -1)}</code>);
+    } else if (token.startsWith("**")) {
+      nodes.push(<strong key={key}>{token.slice(2, -2)}</strong>);
+    } else if (token.startsWith("[[")) {
+      const wikiLabel = token.slice(2, -2).split("|").pop()?.trim() ?? token.slice(2, -2);
+      nodes.push(<span className="wiki-preview-wikilink" key={key}>{wikiLabel}</span>);
+    } else {
+      const linkMatch = token.match(/^\[([^\]]+)\]\(([^)]+)\)$/);
+      const href = linkMatch?.[2] ?? "";
+      const isSafeHref = /^(https?:|mailto:|\/)/.test(href);
+
+      nodes.push(
+        isSafeHref ? (
+          <a href={href} key={key} rel="noreferrer" target={href.startsWith("http") ? "_blank" : undefined}>
+            {linkMatch?.[1] ?? href}
+          </a>
+        ) : (
+          linkMatch?.[1] ?? token
+        )
+      );
+    }
+
+    lastIndex = pattern.lastIndex;
+  }
+
+  if (lastIndex < value.length) {
+    nodes.push(value.slice(lastIndex));
+  }
+
+  return nodes;
+}
+
 function markdownBlocks(value: string) {
-  return value.split(/\n{2,}/g).map((block, index) => {
-    const trimmed = block.trim();
-    const heading = trimmed.match(/^(#{1,3})\s+(.+)$/);
+  const lines = stripMarkdownFrontmatter(value).replace(/\r\n/g, "\n").split("\n");
+  const blocks: ReactNode[] = [];
+  let index = 0;
+
+  while (index < lines.length) {
+    const line = lines[index] ?? "";
+    const trimmed = line.trim();
+
+    if (!trimmed) {
+      index += 1;
+      continue;
+    }
+
+    const heading = trimmed.match(/^(#{1,6})\s+(.+)$/);
 
     if (heading) {
       const Tag = heading[1].length === 1 ? "h1" : heading[1].length === 2 ? "h2" : "h3";
 
-      return <Tag key={`${trimmed}-${index}`}>{heading[2]}</Tag>;
+      blocks.push(<Tag key={`${trimmed}-${index}`}>{renderInline(heading[2])}</Tag>);
+      index += 1;
+      continue;
     }
 
-    if (trimmed.startsWith("- ")) {
-      return (
-        <ul key={`${trimmed}-${index}`}>
-          {trimmed.split("\n").map((item) => (
-            <li key={item}>{item.replace(/^-\s+/, "")}</li>
-          ))}
-        </ul>
+    if (/^```/.test(trimmed)) {
+      const language = trimmed.replace(/^```/, "").trim();
+      const codeLines: string[] = [];
+      index += 1;
+
+      while (index < lines.length && !/^```/.test(lines[index]?.trim() ?? "")) {
+        codeLines.push(lines[index] ?? "");
+        index += 1;
+      }
+
+      blocks.push(
+        <pre className={language ? `language-${language}` : undefined} key={`code-${index}`}>
+          <code>{codeLines.join("\n")}</code>
+        </pre>
       );
+      index += 1;
+      continue;
     }
 
-    return <p key={`${trimmed}-${index}`}>{trimmed}</p>;
-  });
+    if (isTableStart(lines, index)) {
+      const headers = splitTableRow(lines[index] ?? "");
+      const rows: string[][] = [];
+      index += 2;
+
+      while (index < lines.length && lines[index]?.includes("|") && lines[index]?.trim()) {
+        rows.push(splitTableRow(lines[index] ?? ""));
+        index += 1;
+      }
+
+      blocks.push(
+        <div className="wiki-preview-table-wrap" key={`table-${index}`}>
+          <table>
+            <thead>
+              <tr>
+                {headers.map((cell, cellIndex) => (
+                  <th key={`${cell}-${cellIndex}`}>{renderInline(cell)}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {rows.map((row, rowIndex) => (
+                <tr key={`${row.join("|")}-${rowIndex}`}>
+                  {headers.map((_, cellIndex) => (
+                    <td key={`${rowIndex}-${cellIndex}`}>{renderInline(row[cellIndex] ?? "")}</td>
+                  ))}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      );
+      continue;
+    }
+
+    if (/^>\s?/.test(trimmed)) {
+      const quoteLines: string[] = [];
+
+      while (index < lines.length && /^>\s?/.test(lines[index]?.trim() ?? "")) {
+        quoteLines.push((lines[index] ?? "").trim().replace(/^>\s?/, ""));
+        index += 1;
+      }
+
+      blocks.push(
+        <blockquote key={`quote-${index}`}>
+          {quoteLines.map((quote, quoteIndex) => (
+            <Fragment key={`${quote}-${quoteIndex}`}>
+              {quoteIndex > 0 ? <br /> : null}
+              {renderInline(quote)}
+            </Fragment>
+          ))}
+        </blockquote>
+      );
+      continue;
+    }
+
+    if (/^[-*+]\s+/.test(trimmed) || /^\d+\.\s+/.test(trimmed)) {
+      const ordered = /^\d+\.\s+/.test(trimmed);
+      const listItems: string[] = [];
+      const listPattern = ordered ? /^\d+\.\s+/ : /^[-*+]\s+/;
+
+      while (index < lines.length && listPattern.test(lines[index]?.trim() ?? "")) {
+        listItems.push((lines[index] ?? "").trim().replace(listPattern, ""));
+        index += 1;
+      }
+
+      const ListTag = ordered ? "ol" : "ul";
+
+      blocks.push(
+        <ListTag key={`list-${index}`}>
+          {listItems.map((item, itemIndex) => (
+            <li key={`${item}-${itemIndex}`}>{renderInline(item)}</li>
+          ))}
+        </ListTag>
+      );
+      continue;
+    }
+
+    if (/^-{3,}$/.test(trimmed)) {
+      blocks.push(<hr key={`hr-${index}`} />);
+      index += 1;
+      continue;
+    }
+
+    const paragraphLines = [trimmed];
+    index += 1;
+
+    while (index < lines.length && lines[index]?.trim() && !isBlockStart(lines, index)) {
+      paragraphLines.push(lines[index]?.trim() ?? "");
+      index += 1;
+    }
+
+    blocks.push(<p key={`${trimmed}-${index}`}>{renderInline(paragraphLines.join(" "))}</p>);
+  }
+
+  return blocks;
 }
 
 export function WikiEditor({
@@ -191,9 +408,28 @@ export function WikiEditor({
   const [uploadSuccess, setUploadSuccess] = useState("");
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const [isPending, startTransition] = useTransition();
-  const graphUrl = graphHref ?? (projectId ? `/dashboard/graph?projectId=${projectId}` : "/dashboard/graph");
   const canUploadDocuments = Boolean(projectId);
   const isBusy = isPending || isUploading;
+
+  function graphUrl(pathValue?: string) {
+    if (graphHref) {
+      return graphHref;
+    }
+
+    const params = new URLSearchParams();
+
+    if (projectId) {
+      params.set("projectId", projectId);
+    }
+
+    if (pathValue) {
+      params.set("path", pathValue);
+    }
+
+    const suffix = params.toString();
+
+    return suffix ? `/dashboard/graph?${suffix}` : "/dashboard/graph";
+  }
 
   function wikiUrl(pathname: string, pathValue?: string) {
     const params = new URLSearchParams();
@@ -322,7 +558,7 @@ export function WikiEditor({
       }
 
       setStatus(`Graph synced from ${payload.sync?.pageCount ?? files.length} pages`);
-      window.location.assign(graphUrl);
+      window.location.assign(graphUrl(selectedPath));
     });
   }
 
@@ -582,15 +818,23 @@ export function WikiEditor({
         <div className="wiki-sync-strip">
           <span>{status}</span>
           {graphHref !== null ? (
-            <button
-              className="wiki-graph-action"
-              disabled={files.length === 0 || isPending}
-              onClick={syncProjectGraph}
-              type="button"
-            >
-              <GitBranch size={15} strokeWidth={1.8} />
-              {isPending && status.startsWith("Indexing") ? "Generating graph..." : "Generate knowledge graph"}
-            </button>
+            <div className="wiki-sync-strip__actions">
+              {selectedPath ? (
+                <a className="wiki-graph-action" href={graphUrl(selectedPath)}>
+                  <GitBranch size={15} strokeWidth={1.8} />
+                  View in graph
+                </a>
+              ) : null}
+              <button
+                className="wiki-graph-action"
+                disabled={files.length === 0 || isPending}
+                onClick={syncProjectGraph}
+                type="button"
+              >
+                <GitBranch size={15} strokeWidth={1.8} />
+                {isPending && status.startsWith("Indexing") ? "Generating graph..." : "Generate knowledge graph"}
+              </button>
+            </div>
           ) : null}
         </div>
 
