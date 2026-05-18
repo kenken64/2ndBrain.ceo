@@ -9,7 +9,7 @@ import { WikiEditor } from "@/components/wiki-editor";
 import { hasSupabaseEnv } from "@/lib/env";
 import { readOpenClawWikiPage, readOpenClawWikiTree } from "@/lib/openclaw";
 import { getWikiContext, WikiContextError } from "@/lib/wiki-server";
-import type { WikiPage, WikiTreeItem } from "@/lib/wiki";
+import { normalizeWikiPath, type WikiPage, type WikiTreeItem } from "@/lib/wiki";
 
 export const dynamic = "force-dynamic";
 
@@ -17,6 +17,7 @@ type WikiPageProps = {
   searchParams: Promise<{
     error?: string;
     page?: string;
+    path?: string;
     projectId?: string;
     q?: string;
   }>;
@@ -367,10 +368,15 @@ export default async function DashboardWikiPage({ searchParams }: WikiPageProps)
     });
 
     const firstFile = firstMarkdownFile(tree);
+    let initialPath = firstFile?.path ?? null;
 
-    if (firstFile) {
+    if (params.path) {
+      initialPath = normalizeWikiPath(params.path);
+    }
+
+    if (initialPath) {
       initialPage = await readOpenClawWikiPage({
-        filePath: firstFile.path,
+        filePath: initialPath,
         instance: context.instance,
         projectSlug: context.projectSlug
       });

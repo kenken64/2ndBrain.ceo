@@ -40,7 +40,7 @@ export function DashboardSidebar({ activeItem = "gateway", email, ownerName }: D
         <span className="sidebar-section-label">WORKSPACE</span>
         <a className={`sidebar-item${activeItem === "gateway" ? " is-active" : ""}`} href="/dashboard/openclaw">
           <Plug size={18} strokeWidth={1.7} />
-          OpenClaw Gateway UI
+          AI Assistant Gateway UI
         </a>
         <a className={`sidebar-item${activeItem === "remotion" ? " is-active" : ""}`} href="/dashboard#remotion-avatar">
           <Clapperboard size={18} strokeWidth={1.7} />

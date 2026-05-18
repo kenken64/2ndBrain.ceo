@@ -11,6 +11,7 @@ type GraphNode = {
   label: string;
   node_type: string;
   slug: string;
+  source_path?: string | null;
   synthetic?: boolean;
 };
 
@@ -26,6 +27,7 @@ type GraphEdge = {
 type KnowledgeGraphProps = {
   edges: GraphEdge[];
   nodes: GraphNode[];
+  projectId?: string | null;
   rootLabel?: string | null;
 };
 
@@ -288,6 +290,7 @@ function buildElements(nodes: GraphNode[], edges: GraphEdge[], rootLabel?: strin
         label: truncateLabel(node.label),
         parent: isRoot ? undefined : componentByNodeId.get(node.id),
         size: isRoot ? Math.max(86, 66 + degree * 2) : Math.max(44, Math.min(76, 42 + degree * 3)),
+        sourcePath: isRoot ? undefined : node.source_path,
         width: nodeWidth(node.label, isRoot)
       }
     });
@@ -446,7 +449,16 @@ function graphLayout(runCount: number) {
   };
 }
 
-export function KnowledgeGraph({ edges, nodes, rootLabel }: KnowledgeGraphProps) {
+function wikiPageHref(projectId: string, sourcePath: string) {
+  const params = new URLSearchParams({
+    path: sourcePath,
+    projectId
+  });
+
+  return `/dashboard/wiki?${params.toString()}`;
+}
+
+export function KnowledgeGraph({ edges, nodes, projectId, rootLabel }: KnowledgeGraphProps) {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const cyRef = useRef<Core | null>(null);
   const [runCount, setRunCount] = useState(0);
@@ -471,8 +483,24 @@ export function KnowledgeGraph({ edges, nodes, rootLabel }: KnowledgeGraphProps)
       wheelSensitivity: 0.22
     });
 
+    instance.on("mouseover", "node", (event) => {
+      if (event.target.data("sourcePath")) {
+        containerRef.current?.style.setProperty("cursor", "pointer");
+      }
+    });
+
+    instance.on("mouseout", "node", () => {
+      containerRef.current?.style.removeProperty("cursor");
+    });
+
     instance.on("tap", "node", (event) => {
       const tappedNode = event.target;
+      const sourcePath = tappedNode.data("sourcePath") as string | undefined;
+
+      if (projectId && sourcePath) {
+        window.location.assign(wikiPageHref(projectId, sourcePath));
+        return;
+      }
 
       instance.animate({
         center: {
@@ -492,7 +520,7 @@ export function KnowledgeGraph({ edges, nodes, rootLabel }: KnowledgeGraphProps)
       cyRef.current?.destroy();
       cyRef.current = null;
     };
-  }, [graph.elements, nodes.length, runCount]);
+  }, [graph.elements, nodes.length, projectId, runCount]);
 
   if (nodes.length === 0) {
     return (

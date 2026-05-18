@@ -20,6 +20,8 @@ type GraphNode = {
   label: string;
   node_type: string;
   slug: string;
+  source_page_id?: string | null;
+  source_path?: string | null;
 };
 
 type GraphEdge = {
@@ -39,12 +41,65 @@ type GraphProject = {
   title: string;
 };
 
+type GraphPageRow = {
+  file_path: string;
+  id: string;
+};
+
+type GraphPageNodeRow = {
+  node_id: string;
+  page_id: string;
+  role: string;
+};
+
 function formatProjectDate(value: string) {
   return new Intl.DateTimeFormat("en", {
     day: "numeric",
     month: "short",
     year: "numeric"
   }).format(new Date(value));
+}
+
+function pageNodePriority(role: string) {
+  if (role === "page") {
+    return 0;
+  }
+
+  if (role === "mention") {
+    return 1;
+  }
+
+  return 2;
+}
+
+function withGraphNodeSourcePaths(
+  nodes: GraphNode[],
+  pages: GraphPageRow[],
+  pageNodes: GraphPageNodeRow[]
+) {
+  const pathByPageId = new Map(pages.map((page) => [page.id, page.file_path]));
+  const pathByNodeId = new Map<string, string>();
+
+  for (const node of nodes) {
+    const sourcePath = node.source_page_id ? pathByPageId.get(node.source_page_id) : null;
+
+    if (sourcePath) {
+      pathByNodeId.set(node.id, sourcePath);
+    }
+  }
+
+  for (const pageNode of [...pageNodes].sort((left, right) => pageNodePriority(left.role) - pageNodePriority(right.role))) {
+    const sourcePath = pathByPageId.get(pageNode.page_id);
+
+    if (sourcePath && (!pathByNodeId.has(pageNode.node_id) || pageNode.role === "page")) {
+      pathByNodeId.set(pageNode.node_id, sourcePath);
+    }
+  }
+
+  return nodes.map((node) => ({
+    ...node,
+    source_path: pathByNodeId.get(node.id) ?? null
+  }));
 }
 
 export default async function DashboardGraphPage({ searchParams }: GraphPageProps) {
@@ -161,16 +216,36 @@ export default async function DashboardGraphPage({ searchParams }: GraphPageProp
   const projectId = context.project.id;
   const nodeQuery = context.supabase
     .from("wiki_nodes")
-    .select("id,label,slug,node_type")
+    .select("id,label,slug,node_type,source_page_id")
     .eq("user_id", context.userId)
     .order("label", { ascending: true });
   const edgeQuery = context.supabase
     .from("wiki_edges")
     .select("id,from_node_id,to_node_id,relation,weight")
     .eq("user_id", context.userId);
+  const pageQuery = context.supabase
+    .from("wiki_pages")
+    .select("id,file_path")
+    .eq("user_id", context.userId);
+  const pageNodeQuery = context.supabase
+    .from("wiki_page_nodes")
+    .select("node_id,page_id,role")
+    .eq("user_id", context.userId);
   const filteredNodeQuery = nodeQuery.eq("project_id", projectId);
   const filteredEdgeQuery = edgeQuery.eq("project_id", projectId);
-  const [{ data: nodes }, { data: edges }] = await Promise.all([filteredNodeQuery, filteredEdgeQuery]);
+  const filteredPageQuery = pageQuery.eq("project_id", projectId);
+  const filteredPageNodeQuery = pageNodeQuery.eq("project_id", projectId);
+  const [{ data: nodes }, { data: edges }, { data: pages }, { data: pageNodes }] = await Promise.all([
+    filteredNodeQuery,
+    filteredEdgeQuery,
+    filteredPageQuery,
+    filteredPageNodeQuery
+  ]);
+  const graphNodes = withGraphNodeSourcePaths(
+    (nodes ?? []) as GraphNode[],
+    (pages ?? []) as GraphPageRow[],
+    (pageNodes ?? []) as GraphPageNodeRow[]
+  );
 
   return (
     <>
@@ -196,12 +271,13 @@ export default async function DashboardGraphPage({ searchParams }: GraphPageProp
                 <h1>Node map</h1>
               </div>
               <span className="project-status project-status--running">
-                {(nodes ?? []).length} nodes
+                {graphNodes.length} nodes
               </span>
             </div>
             <KnowledgeGraph
               edges={(edges ?? []) as GraphEdge[]}
-              nodes={(nodes ?? []) as GraphNode[]}
+              nodes={graphNodes}
+              projectId={projectId}
               rootLabel={context.project?.title ?? "Selected Nth Brain intent"}
             />
           </section>
