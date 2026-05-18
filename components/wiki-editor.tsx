@@ -168,14 +168,88 @@ function splitTableRow(line: string) {
     .map((cell) => cell.trim());
 }
 
+function isTableSeparatorCell(value: string) {
+  return /^:?-{2,}:?$/.test(value.trim());
+}
+
 function isTableSeparator(line: string) {
   const cells = splitTableRow(line);
 
-  return cells.length > 1 && cells.every((cell) => /^:?-{3,}:?$/.test(cell));
+  return cells.length > 1 && cells.every(isTableSeparatorCell);
 }
 
 function isTableStart(lines: string[], index: number) {
   return Boolean(lines[index]?.includes("|") && lines[index + 1] && isTableSeparator(lines[index + 1]));
+}
+
+function splitCompactTableLine(line: string) {
+  const trimmed = line.trim();
+
+  if (!trimmed.startsWith("|") || !trimmed.includes("|")) {
+    return null;
+  }
+
+  const cells = trimmed.split("|").map((cell) => cell.trim());
+  let separatorStart = -1;
+  let columnCount = 0;
+
+  for (let index = 0; index < cells.length; index += 1) {
+    if (!isTableSeparatorCell(cells[index] ?? "")) {
+      continue;
+    }
+
+    let runLength = 0;
+
+    while (index + runLength < cells.length && isTableSeparatorCell(cells[index + runLength] ?? "")) {
+      runLength += 1;
+    }
+
+    if (runLength >= 2) {
+      separatorStart = index;
+      columnCount = runLength;
+      break;
+    }
+  }
+
+  if (separatorStart === -1 || columnCount === 0) {
+    return null;
+  }
+
+  const headerEnd = cells[separatorStart - 1] === "" ? separatorStart - 1 : separatorStart;
+  const headerStart = headerEnd - columnCount;
+
+  if (headerStart < 0) {
+    return null;
+  }
+
+  const rows = [
+    cells.slice(headerStart, headerEnd),
+    cells.slice(separatorStart, separatorStart + columnCount)
+  ];
+  let cursor = separatorStart + columnCount;
+
+  while (cursor < cells.length) {
+    while (cursor < cells.length && cells[cursor] === "") {
+      cursor += 1;
+    }
+
+    const row = cells.slice(cursor, cursor + columnCount);
+
+    if (row.length === columnCount && row.some(Boolean)) {
+      rows.push(row);
+    }
+
+    cursor += Math.max(row.length, 1);
+  }
+
+  return rows.map((row) => `| ${row.join(" | ")} |`);
+}
+
+function normalizeCompactTables(value: string) {
+  return value
+    .split("\n")
+    .flatMap((line) => splitCompactTableLine(line) ?? [line])
+    .join("\n");
 }
 
 function isBlockStart(lines: string[], index: number) {
@@ -240,7 +314,7 @@ function renderInline(value: string): ReactNode[] {
 }
 
 function markdownBlocks(value: string) {
-  const lines = stripMarkdownFrontmatter(value).replace(/\r\n/g, "\n").split("\n");
+  const lines = normalizeCompactTables(stripMarkdownFrontmatter(value).replace(/\r\n/g, "\n")).split("\n");
   const blocks: ReactNode[] = [];
   let index = 0;
 
