@@ -592,7 +592,7 @@ export function KnowledgeGraph({ edges, highlightPath, nodes, projectId, rootLab
       style: graphStylesheet(),
       userPanningEnabled: true,
       userZoomingEnabled: true,
-      wheelSensitivity: 0.22
+      wheelSensitivity: 0.72
     });
 
     instance.on("mouseover", "node", (event) => {
