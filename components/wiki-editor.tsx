@@ -9,8 +9,10 @@ import {
   Folder,
   FolderOpen,
   GitBranch,
+  ListChecks,
   RefreshCw,
   Save,
+  Search,
   SquarePen
 } from "lucide-react";
 import { ChangeEvent, FormEvent, Fragment, type ReactNode, useEffect, useRef, useState, useTransition } from "react";
@@ -37,6 +39,26 @@ type IngestJob = {
   id: string;
   started_at?: string | null;
   status: IngestJobStatus;
+};
+type BrainSearchResult = {
+  filePath: string;
+  lineNumber: number;
+  snippet: string;
+  title: string;
+};
+type BrainFollowUp = {
+  filePath: string;
+  kind: "follow_up" | "task";
+  line: string;
+  lineNumber: number;
+  title: string;
+};
+type BrainWorkspacePayload = {
+  error?: string;
+  followUps?: BrainFollowUp[];
+  pageCount?: number;
+  query?: string;
+  searchResults?: BrainSearchResult[];
 };
 
 const WIKI_UPLOAD_ACCEPT = [
@@ -544,6 +566,13 @@ export function WikiEditor({
   const [uploadJob, setUploadJob] = useState<IngestJob | null>(null);
   const [uploadPrompt, setUploadPrompt] = useState("");
   const [uploadSuccess, setUploadSuccess] = useState("");
+  const [brainQuery, setBrainQuery] = useState("");
+  const [brainError, setBrainError] = useState("");
+  const [brainFollowUps, setBrainFollowUps] = useState<BrainFollowUp[]>([]);
+  const [brainPageCount, setBrainPageCount] = useState(0);
+  const [brainResults, setBrainResults] = useState<BrainSearchResult[]>([]);
+  const [brainStatus, setBrainStatus] = useState("Workspace scan pending");
+  const [isBrainLoading, setIsBrainLoading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const [isPending, startTransition] = useTransition();
   const canUploadDocuments = Boolean(projectId);
@@ -601,6 +630,54 @@ export function WikiEditor({
       setContent(payload.page.content ?? "");
       setStatus("Loaded");
     });
+  }
+
+  async function loadBrainWorkspace(queryValue = brainQuery) {
+    if (!projectId) {
+      return;
+    }
+
+    setBrainError("");
+    setIsBrainLoading(true);
+    setBrainStatus(queryValue.trim() ? "Searching brain" : "Scanning brain");
+
+    try {
+      const params = new URLSearchParams({
+        projectId
+      });
+
+      if (queryValue.trim()) {
+        params.set("q", queryValue.trim());
+      }
+
+      const response = await fetch(`/api/wiki/workspace?${params.toString()}`, {
+        credentials: "same-origin"
+      });
+      const payload = (await response.json().catch(() => null)) as BrainWorkspacePayload | null;
+
+      if (!response.ok || !payload || payload.error) {
+        setBrainError(payload?.error ?? "Brain workspace scan failed");
+        setBrainStatus("Workspace scan failed");
+        return;
+      }
+
+      const results = payload.searchResults ?? [];
+      const followUps = payload.followUps ?? [];
+
+      setBrainResults(results);
+      setBrainFollowUps(followUps);
+      setBrainPageCount(payload.pageCount ?? 0);
+      setBrainStatus(
+        queryValue.trim()
+          ? `${results.length} search result${results.length === 1 ? "" : "s"}`
+          : `${followUps.length} open follow-up${followUps.length === 1 ? "" : "s"}`
+      );
+    } catch (error) {
+      setBrainError(error instanceof Error ? error.message : "Brain workspace scan failed");
+      setBrainStatus("Workspace scan failed");
+    } finally {
+      setIsBrainLoading(false);
+    }
   }
 
   function savePage() {
@@ -754,6 +831,15 @@ export function WikiEditor({
     return () => window.clearInterval(interval);
   }, [projectId, router, uploadJob]);
 
+  useEffect(() => {
+    if (!projectId) {
+      return;
+    }
+
+    void loadBrainWorkspace("");
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [projectId]);
+
   async function ingestDocuments(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
 
@@ -814,6 +900,10 @@ export function WikiEditor({
     } finally {
       setIsUploading(false);
     }
+  }
+
+  function openWorkspaceSource(pathValue: string) {
+    loadPage(pathValue);
   }
 
   return (
@@ -900,6 +990,87 @@ export function WikiEditor({
               {isUploading ? "Uploading..." : "Upload into Nth Brain"}
             </button>
           </form>
+        ) : null}
+        {projectId ? (
+          <section className="wiki-brain-panel" aria-label="Brain search and follow-ups">
+            <div className="wiki-brain-panel__header">
+              <div>
+                <strong>Brain search</strong>
+                <span>{brainPageCount > 0 ? `${brainPageCount} markdown pages` : brainStatus}</span>
+              </div>
+              <button
+                aria-label="Refresh brain workspace"
+                disabled={isBrainLoading}
+                onClick={() => loadBrainWorkspace(brainQuery)}
+                type="button"
+              >
+                <RefreshCw size={14} strokeWidth={1.9} />
+              </button>
+            </div>
+            <form
+              className="wiki-brain-search"
+              noValidate
+              onSubmit={(event) => {
+                event.preventDefault();
+                void loadBrainWorkspace(brainQuery);
+              }}
+            >
+              <Search size={14} strokeWidth={1.9} />
+              <input
+                disabled={isBrainLoading}
+                onChange={(event) => setBrainQuery(event.target.value)}
+                placeholder="Search lessons, notes, tasks..."
+                type="search"
+                value={brainQuery}
+              />
+              <button disabled={isBrainLoading} type="submit">
+                Search
+              </button>
+            </form>
+            <p className="wiki-brain-panel__status">{isBrainLoading ? "Loading..." : brainStatus}</p>
+            {brainError ? <p className="form-error">{brainError}</p> : null}
+            {brainResults.length > 0 ? (
+              <div className="wiki-brain-results">
+                {brainResults.slice(0, 6).map((result) => (
+                  <button
+                    className="wiki-brain-result"
+                    key={`${result.filePath}-${result.lineNumber}-${result.snippet}`}
+                    onClick={() => openWorkspaceSource(result.filePath)}
+                    type="button"
+                  >
+                    <strong>{result.title}</strong>
+                    <span>{result.snippet}</span>
+                    <small>
+                      {result.filePath}:{result.lineNumber}
+                    </small>
+                  </button>
+                ))}
+              </div>
+            ) : null}
+            <div className="wiki-brain-followups">
+              <div className="wiki-brain-followups__title">
+                <ListChecks size={15} strokeWidth={1.9} />
+                <strong>Open follow-ups</strong>
+              </div>
+              {brainFollowUps.length > 0 ? (
+                brainFollowUps.slice(0, 8).map((item) => (
+                  <button
+                    className="wiki-brain-followup"
+                    key={`${item.filePath}-${item.lineNumber}-${item.line}`}
+                    onClick={() => openWorkspaceSource(item.filePath)}
+                    type="button"
+                  >
+                    <span>{item.line}</span>
+                    <small>
+                      {item.kind === "follow_up" ? "Follow-up" : "Task"} · {item.title}
+                    </small>
+                  </button>
+                ))
+              ) : (
+                <p className="wiki-empty-note">No open teacher/student follow-ups found.</p>
+              )}
+            </div>
+          </section>
         ) : null}
         <div className="wiki-tree-list">
           {files.length > 0 ? (
