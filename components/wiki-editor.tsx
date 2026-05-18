@@ -59,6 +59,24 @@ const WIKI_UPLOAD_ACCEPT = [
   "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
   "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
 ].join(",");
+const METADATA_LABELS = [
+  "Address",
+  "Built",
+  "Client",
+  "Config",
+  "District",
+  "Price",
+  "PSF",
+  "Size",
+  "Source",
+  "Status",
+  "Tenure",
+  "Type"
+];
+const METADATA_LABEL_PATTERN = new RegExp(
+  String.raw`(?:^|\s+|\|\s*)(?:\*\*)?(${METADATA_LABELS.join("|")}):(?:\*\*)?\s*`,
+  "gi"
+);
 
 function flattenTree(items: WikiTreeItem[]) {
   const files: WikiTreeItem[] = [];
@@ -252,6 +270,35 @@ function normalizeCompactTables(value: string) {
     .join("\n");
 }
 
+function parseMetadataLine(line: string) {
+  if (line.trim().startsWith("|") || !line.includes(":")) {
+    return null;
+  }
+
+  const matches = [...line.matchAll(METADATA_LABEL_PATTERN)];
+
+  if (matches.length < 2) {
+    return null;
+  }
+
+  const pairs = matches
+    .map((match, index) => {
+      const label = match[1];
+      const start = (match.index ?? 0) + match[0].length;
+      const end = matches[index + 1]?.index ?? line.length;
+      const value = line
+        .slice(start, end)
+        .replace(/^\s*\|\s*/, "")
+        .replace(/\s*\|\s*$/, "")
+        .trim();
+
+      return label && value ? { label, value } : null;
+    })
+    .filter((pair): pair is { label: string; value: string } => Boolean(pair));
+
+  return pairs.length >= 2 ? pairs : null;
+}
+
 function isBlockStart(lines: string[], index: number) {
   const line = lines[index] ?? "";
 
@@ -388,6 +435,23 @@ function markdownBlocks(value: string) {
           </table>
         </div>
       );
+      continue;
+    }
+
+    const metadataPairs = parseMetadataLine(trimmed);
+
+    if (metadataPairs) {
+      blocks.push(
+        <dl className="wiki-preview-metadata" key={`metadata-${index}`}>
+          {metadataPairs.map((pair) => (
+            <div className="wiki-preview-metadata__item" key={`${pair.label}-${pair.value}`}>
+              <dt>{pair.label}</dt>
+              <dd>{renderInline(pair.value)}</dd>
+            </div>
+          ))}
+        </dl>
+      );
+      index += 1;
       continue;
     }
 

@@ -2350,6 +2350,40 @@ svg {
   background: rgba(15, 23, 42, 0.025);
 }
 
+.wiki-preview-metadata {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+  overflow: hidden;
+  border: 1px solid var(--border-soft);
+  border-radius: var(--radius-sm);
+  margin: 12px 0 22px;
+}
+
+.wiki-preview-metadata__item {
+  display: grid;
+  gap: 3px;
+  border-right: 1px solid var(--border-soft);
+  border-bottom: 1px solid var(--border-soft);
+  background: rgba(255, 255, 255, 0.42);
+  padding: 10px 12px;
+}
+
+.wiki-preview-metadata dt {
+  color: var(--fg-muted);
+  font-size: 11px;
+  font-weight: 850;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.wiki-preview-metadata dd {
+  color: var(--fg-primary);
+  font-size: 14px;
+  font-weight: 650;
+  line-height: 1.45;
+  margin: 0;
+}
+
 .graph-workbench {
   padding: 18px;
 }
