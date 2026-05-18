@@ -2432,7 +2432,7 @@ svg {
 .graph-controls-panel {
   display: grid;
   gap: 8px;
-  max-width: 360px;
+  max-width: 390px;
   border: 1px solid var(--border-soft);
   border-radius: var(--radius-md);
   background: rgba(255, 255, 255, 0.9);
@@ -2458,13 +2458,57 @@ svg {
   line-height: 1.4;
 }
 
-.graph-controls-panel div {
+.graph-controls-panel__actions {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
 }
 
-.graph-controls-panel button {
+.graph-search-field {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  min-height: 34px;
+  border: 1px solid var(--border-medium);
+  border-radius: var(--radius-sm);
+  background: rgba(255, 255, 255, 0.74);
+  padding: 0 8px;
+}
+
+.graph-search-field svg {
+  color: var(--fg-muted);
+  flex: 0 0 auto;
+}
+
+.graph-search-field input {
+  width: 100%;
+  min-width: 0;
+  border: 0;
+  background: transparent;
+  color: var(--fg-primary);
+  font-size: 12px;
+  font-weight: 700;
+  outline: none;
+}
+
+.graph-search-field input::placeholder {
+  color: var(--fg-muted);
+}
+
+.graph-search-status {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.graph-search-nav {
+  display: flex;
+  gap: 6px;
+}
+
+.graph-controls-panel button,
+.graph-search-clear {
   min-height: 30px;
   border: 1px solid var(--border-medium);
   border-radius: var(--radius-pill);
@@ -2476,7 +2520,20 @@ svg {
   font-weight: 800;
 }
 
-.graph-controls-panel button:hover {
+.graph-search-clear {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 26px;
+  padding: 0;
+}
+
+.graph-controls-panel button:disabled {
+  cursor: not-allowed;
+  opacity: 0.48;
+}
+
+.graph-controls-panel button:hover:not(:disabled) {
   border-color: var(--action-primary);
   box-shadow: var(--shadow-sm);
 }
