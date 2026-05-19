@@ -126,6 +126,16 @@ The Docker image:
 
 Railway variables must include the same required values as `.env.example`. At minimum, login requires one Supabase URL and one anon/publishable key.
 
+For constrained Railway containers, keep OpenClaw CLI work serialized and thread-light:
+
+```txt
+CLAWMACDO_MAX_CONCURRENCY=1
+CLAWMACDO_SPAWN_RETRIES=3
+CLAWMACDO_SPAWN_RETRY_DELAY_MS=1500
+CLAWMACDO_TOKIO_WORKER_THREADS=1
+CLAWMACDO_RAYON_NUM_THREADS=1
+```
+
 The Dockerfile also declares build args for public values used by Next.js during `npm run build`:
 
 ```txt
@@ -220,3 +230,5 @@ If provisioning logs show `spawn /app/node_modules/@clawmacdo/linux-x64/bin/claw
 If provisioning logs show `Permission denied (os error 13)` immediately after starting clawmacdo, the runtime user cannot write to its home/cache/config/workspace path. Rebuild with the current Dockerfile; it chowns `/app` and validates clawmacdo as the non-root `nextjs` user.
 
 If provisioning fails, check Railway logs for sanitized `[clawmacdo]` events, AWS variables, snapshot name, region, and whether the `clawmacdo` version in Railway matches `package-lock.json`.
+
+If logs show `spawn ... EAGAIN`, `Resource temporarily unavailable`, or a Tokio panic saying the OS cannot spawn a worker thread, the container has hit its process/thread limit. Keep `CLAWMACDO_MAX_CONCURRENCY=1`, `CLAWMACDO_TOKIO_WORKER_THREADS=1`, and `CLAWMACDO_RAYON_NUM_THREADS=1`; the app will queue `clawmacdo` calls and retry transient spawn failures.

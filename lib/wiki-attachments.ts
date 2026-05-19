@@ -3,7 +3,6 @@ import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { promisify } from "node:util";
-import { PDFParse } from "pdf-parse";
 import mammoth from "mammoth";
 
 const MAX_ATTACHMENTS = 8;
@@ -113,6 +112,7 @@ function markdownFromText(input: {
 }
 
 async function convertPdf(buffer: Buffer) {
+  const { PDFParse } = await import("pdf-parse");
   const parser = new PDFParse({ data: buffer });
 
   try {

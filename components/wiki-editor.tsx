@@ -1067,7 +1067,7 @@ export function WikiEditor({
                   </button>
                 ))
               ) : (
-                <p className="wiki-empty-note">No open teacher/student follow-ups found.</p>
+                <p className="wiki-empty-note">No open follow-ups found.</p>
               )}
             </div>
           </section>

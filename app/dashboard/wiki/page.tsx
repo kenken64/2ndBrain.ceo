@@ -203,7 +203,7 @@ export default async function DashboardWikiPage({ searchParams }: WikiPageProps)
             <section className="dashboard-workbench wiki-hub">
               <div className="wiki-empty-panel wiki-generator-panel">
                 <h1>Generate a Nth Brain</h1>
-                <p>Describe a new Nth Brain project. Each generated Nth Brain gets its own Supabase project UUID and OpenClaw markdown directory.</p>
+                <p>Describe a new Nth Brain project. Each generated Nth Brain gets its own workspace, markdown pages, and graph-ready structure.</p>
                 {params.error ? (
                   <p className="form-error">
                     Nth Brain generation failed on the previous attempt. Try again; the app will create a markdown scaffold even if Claude refinement is unavailable.

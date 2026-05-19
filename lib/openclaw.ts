@@ -15,6 +15,10 @@ const DEFAULT_INSTANCE_READY_TIMEOUT_MS = 8 * 60 * 1000;
 const DEFAULT_SSH_READY_TIMEOUT_MS = 10 * 60 * 1000;
 const DEFAULT_READY_POLL_MS = 10 * 1000;
 const DEFAULT_POST_SSH_READY_DELAY_MS = 3 * 60 * 1000;
+const DEFAULT_CLAWMACDO_MAX_CONCURRENCY = 1;
+const DEFAULT_CLAWMACDO_SPAWN_RETRIES = 3;
+const DEFAULT_CLAWMACDO_SPAWN_RETRY_DELAY_MS = 1500;
+const DEFAULT_CLAWMACDO_WORKER_THREADS = "1";
 
 type OpenClawProvisionInput = {
   existingInstance?: string | null;
@@ -144,6 +148,9 @@ type ExecFileFailure = Error & {
   stdout?: string;
 };
 
+let activeClawmacdoProcesses = 0;
+const clawmacdoProcessQueue: Array<() => void> = [];
+
 const SENSITIVE_ARG_NAMES = new Set([
   "--bot-token",
   "--code",
@@ -217,7 +224,10 @@ function summarizeEnv(extraEnv: Record<string, string>) {
     AWS_DEFAULT_REGION: extraEnv.AWS_DEFAULT_REGION ?? "[missing]",
     AWS_REGION: extraEnv.AWS_REGION ?? "[missing]",
     AWS_SECRET_ACCESS_KEY: maskSecret(extraEnv.AWS_SECRET_ACCESS_KEY),
-    OPENAI_API_KEY: maskSecret(process.env.OPENAI_API_KEY)
+    CLAWMACDO_MAX_CONCURRENCY: String(clawmacdoMaxConcurrency()),
+    OPENAI_API_KEY: maskSecret(process.env.OPENAI_API_KEY),
+    RAYON_NUM_THREADS: clawmacdoWorkerThreadValue("CLAWMACDO_RAYON_NUM_THREADS", "RAYON_NUM_THREADS"),
+    TOKIO_WORKER_THREADS: clawmacdoWorkerThreadValue("CLAWMACDO_TOKIO_WORKER_THREADS", "TOKIO_WORKER_THREADS")
   };
 }
 
@@ -253,6 +263,77 @@ function optionalEnv(name: string) {
 function clawmacdoTimeout() {
   const configured = Number(process.env.CLAWMACDO_TIMEOUT_MS ?? "");
   return Number.isFinite(configured) && configured > 0 ? configured : DEFAULT_TIMEOUT_MS;
+}
+
+function clawmacdoMaxConcurrency() {
+  return optionalPositiveNumber("CLAWMACDO_MAX_CONCURRENCY", DEFAULT_CLAWMACDO_MAX_CONCURRENCY);
+}
+
+function clawmacdoSpawnRetries() {
+  return optionalPositiveNumber("CLAWMACDO_SPAWN_RETRIES", DEFAULT_CLAWMACDO_SPAWN_RETRIES);
+}
+
+function clawmacdoSpawnRetryDelayMs() {
+  return optionalPositiveNumber("CLAWMACDO_SPAWN_RETRY_DELAY_MS", DEFAULT_CLAWMACDO_SPAWN_RETRY_DELAY_MS);
+}
+
+function clawmacdoWorkerThreadValue(specificName: string, genericName: string) {
+  return optionalEnv(specificName) ?? optionalEnv(genericName) ?? DEFAULT_CLAWMACDO_WORKER_THREADS;
+}
+
+function clawmacdoRuntimeEnv(extraEnv: Record<string, string>) {
+  return {
+    ...process.env,
+    RAYON_NUM_THREADS: clawmacdoWorkerThreadValue("CLAWMACDO_RAYON_NUM_THREADS", "RAYON_NUM_THREADS"),
+    TOKIO_WORKER_THREADS: clawmacdoWorkerThreadValue("CLAWMACDO_TOKIO_WORKER_THREADS", "TOKIO_WORKER_THREADS"),
+    ...extraEnv
+  };
+}
+
+async function acquireClawmacdoSlot(args: string[]) {
+  const maxConcurrency = clawmacdoMaxConcurrency();
+  const queuedAt = Date.now();
+
+  if (activeClawmacdoProcesses >= maxConcurrency) {
+    consoleClawmacdo("queue_wait", {
+      active: activeClawmacdoProcesses,
+      args,
+      maxConcurrency,
+      queueDepth: clawmacdoProcessQueue.length + 1
+    });
+
+    await new Promise<void>((resolve) => {
+      clawmacdoProcessQueue.push(() => {
+        activeClawmacdoProcesses += 1;
+        resolve();
+      });
+    });
+
+    consoleClawmacdo("queue_ready", {
+      active: activeClawmacdoProcesses,
+      args,
+      maxConcurrency,
+      waitMs: Date.now() - queuedAt
+    });
+  } else {
+    activeClawmacdoProcesses += 1;
+  }
+
+  let released = false;
+
+  return () => {
+    if (released) {
+      return;
+    }
+
+    released = true;
+    activeClawmacdoProcesses = Math.max(0, activeClawmacdoProcesses - 1);
+    const next = clawmacdoProcessQueue.shift();
+
+    if (next) {
+      next();
+    }
+  };
 }
 
 function optionalPositiveNumber(name: string, fallback: number) {
@@ -386,58 +467,101 @@ function extractInstanceId(output: string) {
   return null;
 }
 
+function clawmacdoFailureMessage(error: unknown) {
+  const failure = error as ExecFileFailure;
+  const stderr = sanitizeLogText((failure.stderr ?? "").trim());
+  const stdout = sanitizeLogText((failure.stdout ?? "").trim());
+
+  return stderr || stdout || sanitizeLogText(failure.message || "clawmacdo_failed");
+}
+
+function isClawmacdoResourceFailure(error: unknown) {
+  const failure = error as ExecFileFailure;
+  const combined = [
+    String(failure.code ?? ""),
+    failure.message ?? "",
+    failure.stderr ?? "",
+    failure.stdout ?? ""
+  ]
+    .join("\n")
+    .toLowerCase();
+
+  return (
+    combined.includes("eagain") ||
+    combined.includes("resource temporarily unavailable") ||
+    combined.includes("os can't spawn worker thread") ||
+    combined.includes("can't spawn worker thread")
+  );
+}
+
 async function runClawmacdo(args: string[], extraEnv: Record<string, string>) {
   const binary = getClawmacdoBinaryPath();
   const timeoutMs = clawmacdoTimeout();
   const startedAt = Date.now();
   const sanitizedArgs = sanitizeArgs(args);
+  const releaseClawmacdoSlot = await acquireClawmacdoSlot(sanitizedArgs);
+  const maxAttempts = clawmacdoSpawnRetries() + 1;
+  const retryDelayMs = clawmacdoSpawnRetryDelayMs();
 
   consoleClawmacdo("start", {
     args: sanitizedArgs,
     binary,
     cwd: process.cwd(),
     env: summarizeEnv(extraEnv),
+    maxAttempts,
+    retryDelayMs,
     timeoutMs
   });
 
   try {
-    const { stdout, stderr } = await execFileAsync(binary, args, {
-      env: {
-        ...process.env,
-        ...extraEnv
-      },
-      maxBuffer: 1024 * 1024 * 4,
-      timeout: timeoutMs
-    });
+    for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
+      try {
+        const { stdout, stderr } = await execFileAsync(binary, args, {
+          env: clawmacdoRuntimeEnv(extraEnv),
+          maxBuffer: 1024 * 1024 * 4,
+          timeout: timeoutMs
+        });
 
-    const output = `${stdout ?? ""}${stderr ? `\n${stderr}` : ""}`.trim();
+        const output = `${stdout ?? ""}${stderr ? `\n${stderr}` : ""}`.trim();
 
-    consoleClawmacdo("success", {
-      args: sanitizedArgs,
-      durationMs: Date.now() - startedAt,
-      outputLength: output.length,
-      outputTail: sanitizeLogText(output.slice(-2000))
-    });
+        consoleClawmacdo("success", {
+          args: sanitizedArgs,
+          attempt,
+          durationMs: Date.now() - startedAt,
+          outputLength: output.length,
+          outputTail: sanitizeLogText(output.slice(-2000))
+        });
 
-    return output;
-  } catch (error) {
-    const failure = error as ExecFileFailure;
-    const stderr = sanitizeLogText((failure.stderr ?? "").trim());
-    const stdout = sanitizeLogText((failure.stdout ?? "").trim());
-    const message = stderr || stdout || sanitizeLogText(failure.message || "clawmacdo_failed");
+        return output;
+      } catch (error) {
+        const failure = error as ExecFileFailure;
+        const message = clawmacdoFailureMessage(error);
+        const shouldRetry = attempt < maxAttempts && isClawmacdoResourceFailure(error);
 
-    consoleClawmacdo("failed", {
-      args: sanitizedArgs,
-      code: failure.code ? String(failure.code) : undefined,
-      durationMs: Date.now() - startedAt,
-      killed: failure.killed,
-      message: sanitizeLogText(failure.message || "clawmacdo_failed"),
-      signal: failure.signal,
-      stderrTail: sanitizeLogText((failure.stderr ?? "").slice(-2000)),
-      stdoutTail: sanitizeLogText((failure.stdout ?? "").slice(-2000))
-    });
+        consoleClawmacdo(shouldRetry ? "retry" : "failed", {
+          args: sanitizedArgs,
+          attempt,
+          code: failure.code ? String(failure.code) : undefined,
+          durationMs: Date.now() - startedAt,
+          killed: failure.killed,
+          message: sanitizeLogText(failure.message || message),
+          nextDelayMs: shouldRetry ? retryDelayMs : undefined,
+          signal: failure.signal,
+          stderrTail: sanitizeLogText((failure.stderr ?? "").slice(-2000)),
+          stdoutTail: sanitizeLogText((failure.stdout ?? "").slice(-2000))
+        });
 
-    throw new Error(message);
+        if (!shouldRetry) {
+          throw new Error(message);
+        }
+
+        await sleep(retryDelayMs);
+      }
+    }
+
+    throw new Error("clawmacdo_failed");
+  } finally {
+    releaseClawmacdoSlot();
   }
 }
 
