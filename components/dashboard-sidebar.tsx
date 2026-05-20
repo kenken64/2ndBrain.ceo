@@ -44,7 +44,7 @@ export function DashboardSidebar({ activeItem = "gateway", email, ownerName }: D
         </a>
         <a className={`sidebar-item${activeItem === "remotion" ? " is-active" : ""}`} href="/dashboard#remotion-avatar">
           <Clapperboard size={18} strokeWidth={1.7} />
-          Remotion AI Assistant
+          My AI Avatar
         </a>
         <a className={`sidebar-item${activeItem === "wiki" ? " is-active" : ""}`} href="/dashboard/wiki">
           <ScrollText size={18} strokeWidth={1.7} />

@@ -2,7 +2,6 @@
 
 import { Maximize2, PlugZap, TerminalSquare, X } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
-import { createClient } from "@/lib/supabase/client";
 
 type ConsoleStatus = "closed" | "connecting" | "connected" | "error";
 
@@ -14,6 +13,11 @@ type XtermModule = typeof import("@xterm/xterm");
 type FitModule = typeof import("@xterm/addon-fit");
 type TerminalInstance = import("@xterm/xterm").Terminal;
 type FitAddonInstance = import("@xterm/addon-fit").FitAddon;
+type SshTokenPayload = {
+  error?: string;
+  expiresAt?: string;
+  token?: string;
+};
 
 function websocketUrl() {
   const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
@@ -26,6 +30,20 @@ function parseMessage(value: MessageEvent<string>): SshConsoleMessage | null {
   } catch {
     return null;
   }
+}
+
+async function fetchSshToken() {
+  const response = await fetch("/api/openclaw/ssh-token", {
+    cache: "no-store",
+    method: "POST"
+  });
+  const payload = (await response.json().catch(() => null)) as SshTokenPayload | null;
+
+  if (!response.ok || !payload?.token) {
+    throw new Error(payload?.error || "Unable to create SSH console token.");
+  }
+
+  return payload.token;
 }
 
 export function SshConsolePanel() {
@@ -145,20 +163,21 @@ export function SshConsolePanel() {
       });
       resizeObserver.observe(terminalHostRef.current);
 
-      const supabase = createClient();
-      const { data, error: sessionError } = await supabase.auth.getSession();
-      const accessToken = data.session?.access_token;
+      setStatusText("Authorizing SSH console...");
+      let sshToken: string;
 
-      if (isCancelled) {
-        return;
-      }
-
-      if (sessionError || !accessToken) {
-        const message = "Login session is required before SSH can start.";
+      try {
+        sshToken = await fetchSshToken();
+      } catch (tokenError) {
+        const message = tokenError instanceof Error ? tokenError.message : "Login session is required before SSH can start.";
         setStatus("error");
         setStatusText(message);
         setError(message);
         writeLine(message);
+        return;
+      }
+
+      if (isCancelled) {
         return;
       }
 
@@ -181,9 +200,9 @@ export function SshConsolePanel() {
         setStatusText("Authenticating...");
         socket.send(
           JSON.stringify({
-            accessToken,
             cols: terminal.cols,
             rows: terminal.rows,
+            sshToken,
             type: "auth"
           })
         );

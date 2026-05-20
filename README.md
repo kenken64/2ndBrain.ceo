@@ -138,6 +138,8 @@ CLAWMACDO_TOKIO_WORKER_THREADS=1
 CLAWMACDO_RAYON_NUM_THREADS=1
 ```
 
+For the OpenClaw SSH console, set `OPENCLAW_SSH_TOKEN_SECRET` to a long random value. The browser asks the server for a short-lived SSH token, so the console does not require browser-exposed Supabase variables.
+
 The Dockerfile also declares build args for public values used by Next.js during `npm run build`:
 
 ```txt

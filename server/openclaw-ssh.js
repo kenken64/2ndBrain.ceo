@@ -1,8 +1,7 @@
-const fs = require("node:fs");
+const { createHmac, timingSafeEqual } = require("node:crypto");
 const fsp = require("node:fs/promises");
 const os = require("node:os");
 const path = require("node:path");
-const { createClient } = require("@supabase/supabase-js");
 const { Client: SshClient } = require("ssh2");
 const { WebSocketServer } = require("ws");
 
@@ -34,22 +33,69 @@ function optionalPositiveNumber(name, fallback) {
   return Number.isFinite(value) && value > 0 ? value : fallback;
 }
 
-function getSupabaseEnv() {
-  const supabaseUrl = firstEnv(["NEXT_PUBLIC_SUPABASE_URL", "SUPABASE_URL"]);
-  const supabaseKey = firstEnv([
-    "NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY",
-    "NEXT_PUBLIC_SUPABASE_ANON_KEY",
+function sshTokenSecret() {
+  const secret = firstEnv([
+    "OPENCLAW_SSH_TOKEN_SECRET",
+    "SUPABASE_SERVICE_ROLE_KEY",
+    "SUPABASE_JWT_SECRET",
+    "SUPABASE_ANON_KEY",
     "SUPABASE_PUBLISHABLE_KEY",
-    "SUPABASE_ANON_KEY"
+    "NEXT_PUBLIC_SUPABASE_ANON_KEY",
+    "NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY"
   ]);
 
-  if (!supabaseUrl || !supabaseKey) {
-    throw new Error("Supabase credentials are required before SSH can run.");
+  if (!secret) {
+    throw new Error("SSH console token secret is not configured.");
+  }
+
+  return secret;
+}
+
+function signPayload(encodedPayload) {
+  return createHmac("sha256", sshTokenSecret()).update(encodedPayload).digest("base64url");
+}
+
+function safeEqual(left, right) {
+  const leftBuffer = Buffer.from(left);
+  const rightBuffer = Buffer.from(right);
+
+  return leftBuffer.length === rightBuffer.length && timingSafeEqual(leftBuffer, rightBuffer);
+}
+
+function verifySshToken(token) {
+  if (!token || typeof token !== "string") {
+    throw new Error("SSH console token is required.");
+  }
+
+  const [encodedPayload, signature] = token.split(".");
+
+  if (!encodedPayload || !signature || !safeEqual(signature, signPayload(encodedPayload))) {
+    throw new Error("SSH console token is invalid.");
+  }
+
+  let payload;
+
+  try {
+    payload = JSON.parse(Buffer.from(encodedPayload, "base64url").toString("utf8"));
+  } catch {
+    throw new Error("SSH console token could not be read.");
+  }
+
+  const exp = Number(payload.exp);
+  const userId = typeof payload.sub === "string" ? payload.sub.trim() : "";
+  const instance = typeof payload.instance === "string" ? payload.instance.trim() : "";
+
+  if (!userId || !instance || !Number.isFinite(exp)) {
+    throw new Error("SSH console token is incomplete.");
+  }
+
+  if (Math.floor(Date.now() / 1000) > exp) {
+    throw new Error("SSH console token expired. Reopen the console and try again.");
   }
 
   return {
-    supabaseKey,
-    supabaseUrl
+    instance,
+    userId
   };
 }
 
@@ -248,58 +294,6 @@ async function resolveSshTarget(instance) {
   };
 }
 
-async function authenticate(accessToken) {
-  if (!accessToken || typeof accessToken !== "string") {
-    throw new Error("Authentication token is required.");
-  }
-
-  const { supabaseKey, supabaseUrl } = getSupabaseEnv();
-  const authClient = createClient(supabaseUrl, supabaseKey, {
-    auth: {
-      autoRefreshToken: false,
-      persistSession: false
-    }
-  });
-  const { data: userData, error: userError } = await authClient.auth.getUser(accessToken);
-  const user = userData?.user;
-
-  if (userError || !user?.id) {
-    throw new Error("Authentication failed.");
-  }
-
-  const dbClient = createClient(supabaseUrl, supabaseKey, {
-    auth: {
-      autoRefreshToken: false,
-      persistSession: false
-    },
-    global: {
-      headers: {
-        Authorization: `Bearer ${accessToken}`
-      }
-    }
-  });
-  const { data: profile, error: profileError } = await dbClient
-    .from("profiles")
-    .select("openclaw_instance,openclaw_provision_status,openclaw_provision_completed_at")
-    .eq("id", user.id)
-    .maybeSingle();
-
-  if (profileError) {
-    throw new Error(profileError.message);
-  }
-
-  const instance = typeof profile?.openclaw_instance === "string" ? profile.openclaw_instance.trim() : "";
-
-  if (!instance || profile?.openclaw_provision_status !== "ready" || !profile.openclaw_provision_completed_at) {
-    throw new Error("OpenClaw must be provisioned before SSH can start.");
-  }
-
-  return {
-    instance,
-    userId: user.id
-  };
-}
-
 function sendJson(socket, payload) {
   if (socket.readyState === WS_OPEN) {
     socket.send(JSON.stringify(payload));
@@ -376,7 +370,7 @@ function attachOpenClawSshServer(server) {
     }
 
     async function startSshSession(payload) {
-      const auth = await authenticate(payload.accessToken);
+      const auth = verifySshToken(payload.sshToken);
       releaseUserSession = incrementUserSession(auth.userId);
       const target = await resolveSshTarget(auth.instance);
       const privateKey = await fsp.readFile(target.privateKeyPath, "utf8");
