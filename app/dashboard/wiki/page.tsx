@@ -222,7 +222,7 @@ export default async function DashboardWikiPage({ searchParams }: WikiPageProps)
                 <div className="projects-section__header">
                   <div>
                     <p className="workspace-status-card__eyebrow">Generated Nth Brains</p>
-                    <h2 id="wiki-projects-title">Nth Brain projects</h2>
+                    <h2 id="wiki-projects-title">Nth Brain - Augmented Memory</h2>
                   </div>
                   <span className="project-status project-status--ready">
                     {searchQuery ? `${totalProjects} matched` : `${totalProjects} total`}
