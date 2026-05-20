@@ -70,9 +70,11 @@ COPY --from=deps --chown=nextjs:nodejs /app/node_modules/@napi-rs ./node_modules
 COPY --from=deps --chown=nextjs:nodejs /app/node_modules/@supabase ./node_modules/@supabase
 COPY --from=deps --chown=nextjs:nodejs /app/node_modules/asn1 ./node_modules/asn1
 COPY --from=deps --chown=nextjs:nodejs /app/node_modules/bcrypt-pbkdf ./node_modules/bcrypt-pbkdf
+COPY --from=deps --chown=nextjs:nodejs /app/node_modules/iceberg-js ./node_modules/iceberg-js
 COPY --from=deps --chown=nextjs:nodejs /app/node_modules/safer-buffer ./node_modules/safer-buffer
 COPY --from=deps --chown=nextjs:nodejs /app/node_modules/ssh2 ./node_modules/ssh2
 COPY --from=deps --chown=nextjs:nodejs /app/node_modules/tweetnacl ./node_modules/tweetnacl
+COPY --from=deps --chown=nextjs:nodejs /app/node_modules/tslib ./node_modules/tslib
 COPY --from=deps --chown=nextjs:nodejs /app/node_modules/ws ./node_modules/ws
 
 RUN chown -R nextjs:nodejs /app
