@@ -70,8 +70,6 @@ COPY --from=deps --chown=nextjs:nodejs /app/node_modules/@napi-rs ./node_modules
 COPY --from=deps --chown=nextjs:nodejs /app/node_modules/@supabase ./node_modules/@supabase
 COPY --from=deps --chown=nextjs:nodejs /app/node_modules/asn1 ./node_modules/asn1
 COPY --from=deps --chown=nextjs:nodejs /app/node_modules/bcrypt-pbkdf ./node_modules/bcrypt-pbkdf
-COPY --from=deps --chown=nextjs:nodejs /app/node_modules/buildcheck ./node_modules/buildcheck
-COPY --from=deps --chown=nextjs:nodejs /app/node_modules/cpu-features ./node_modules/cpu-features
 COPY --from=deps --chown=nextjs:nodejs /app/node_modules/safer-buffer ./node_modules/safer-buffer
 COPY --from=deps --chown=nextjs:nodejs /app/node_modules/ssh2 ./node_modules/ssh2
 COPY --from=deps --chown=nextjs:nodejs /app/node_modules/tweetnacl ./node_modules/tweetnacl
