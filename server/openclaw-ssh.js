@@ -10,6 +10,7 @@ const WS_OPEN = 1;
 const DEFAULT_IDLE_TIMEOUT_MS = 15 * 60 * 1000;
 const DEFAULT_READY_TIMEOUT_MS = 30 * 1000;
 const DEFAULT_MAX_SESSIONS_PER_USER = 1;
+const DEFAULT_SSH_USERS = ["openclaw", "ubuntu", "bitnami", "admin", "ec2-user"];
 const activeSessionsByUser = new Map();
 
 function cleanEnv(value) {
@@ -26,6 +27,22 @@ function firstEnv(names) {
   }
 
   return null;
+}
+
+function uniqueStrings(values) {
+  const seen = new Set();
+  const result = [];
+
+  for (const value of values) {
+    const cleaned = typeof value === "string" ? value.trim() : "";
+
+    if (cleaned && !seen.has(cleaned)) {
+      seen.add(cleaned);
+      result.push(cleaned);
+    }
+  }
+
+  return result;
 }
 
 function optionalPositiveNumber(name, fallback) {
@@ -155,6 +172,29 @@ function findPathLikeValue(value, matcher) {
   return null;
 }
 
+function findStringValues(value, keys) {
+  const matches = [];
+
+  function walk(input) {
+    if (!input || typeof input !== "object") {
+      return;
+    }
+
+    for (const [key, nested] of Object.entries(input)) {
+      if (keys.includes(key) && typeof nested === "string" && nested.trim()) {
+        matches.push(nested.trim());
+      }
+
+      if (nested && typeof nested === "object") {
+        walk(nested);
+      }
+    }
+  }
+
+  walk(value);
+  return uniqueStrings(matches);
+}
+
 function recordMatchesInstance(record, instance) {
   const normalized = instance.toLowerCase();
   const values = [
@@ -222,10 +262,40 @@ async function existingFile(candidate) {
   }
 }
 
-async function resolvePrivateKeyPath(deployRecord) {
+async function readPrivateKey(candidate) {
+  if (!candidate) {
+    return null;
+  }
+
+  const filePath = candidate.endsWith(".pub") ? candidate.slice(0, -4) : candidate;
+  const existing = await existingFile(filePath);
+
+  if (!existing) {
+    return null;
+  }
+
+  let privateKey = "";
+
+  try {
+    privateKey = await fsp.readFile(existing, "utf8");
+  } catch {
+    return null;
+  }
+
+  if (!privateKey.includes("PRIVATE KEY")) {
+    return null;
+  }
+
+  return {
+    path: existing,
+    privateKey
+  };
+}
+
+async function resolvePrivateKey(deployRecord) {
   const stateDir = clawmacdoStateDir();
   const record = deployRecord.record;
-  const direct = findStringValue(record, [
+  const directValues = findStringValues(record, [
     "ssh_key",
     "sshKey",
     "ssh_key_path",
@@ -238,11 +308,20 @@ async function resolvePrivateKeyPath(deployRecord) {
     "keyPath"
   ]);
   const pathLike = findPathLikeValue(record, (value) => value.includes("/keys/") || value.includes(".clawmacdo/keys/"));
-  const candidates = [direct, pathLike]
-    .filter(Boolean)
+  const keyNames = findStringValues(record, [
+    "key_name",
+    "keyName",
+    "ssh_key_name",
+    "sshKeyName",
+    "sshKeyPairName",
+    "keyPairName"
+  ]);
+  const candidates = uniqueStrings([...directValues, pathLike, ...keyNames].filter(Boolean))
     .flatMap((value) => [
       path.isAbsolute(value) ? value : path.join(stateDir, value),
-      path.isAbsolute(value) ? value : path.join(path.dirname(deployRecord.filePath), value)
+      path.isAbsolute(value) ? value : path.join(path.dirname(deployRecord.filePath), value),
+      path.isAbsolute(value) ? value : path.join(stateDir, "keys", value),
+      path.isAbsolute(value) ? value : path.join(stateDir, "keys", `clawmacdo_${value}`)
     ]);
 
   if (typeof record.id === "string" && record.id.trim()) {
@@ -254,7 +333,7 @@ async function resolvePrivateKeyPath(deployRecord) {
   }
 
   for (const candidate of candidates) {
-    const match = await existingFile(candidate);
+    const match = await readPrivateKey(candidate);
 
     if (match) {
       return match;
@@ -262,6 +341,26 @@ async function resolvePrivateKeyPath(deployRecord) {
   }
 
   throw new Error("SSH key for this OpenClaw instance was not found on the Railway volume.");
+}
+
+function resolveUsernameCandidates(record) {
+  const envUsers = [
+    cleanEnv(process.env.OPENCLAW_SSH_USER),
+    ...(cleanEnv(process.env.OPENCLAW_SSH_USERS)?.split(",") ?? [])
+  ];
+  const recordUsers = findStringValues(record, [
+    "ssh_user",
+    "sshUser",
+    "ssh_username",
+    "sshUsername",
+    "user",
+    "username",
+    "login",
+    "login_user",
+    "loginUser"
+  ]);
+
+  return uniqueStrings([...envUsers, ...recordUsers, ...DEFAULT_SSH_USERS]);
 }
 
 async function resolveSshTarget(instance) {
@@ -281,7 +380,7 @@ async function resolveSshTarget(instance) {
       "publicIpAddress",
       "host"
     ]) || (isIpAddress(instance) ? instance : null);
-  const privateKeyPath = await resolvePrivateKeyPath(deployRecord);
+  const privateKey = await resolvePrivateKey(deployRecord);
 
   if (!host) {
     throw new Error("OpenClaw public IP is missing from the deploy record.");
@@ -289,8 +388,9 @@ async function resolveSshTarget(instance) {
 
   return {
     host,
-    privateKeyPath,
-    username: cleanEnv(process.env.OPENCLAW_SSH_USER) || "openclaw"
+    privateKey: privateKey.privateKey,
+    privateKeyPath: privateKey.path,
+    usernames: resolveUsernameCandidates(record)
   };
 }
 
@@ -319,6 +419,61 @@ function incrementUserSession(userId) {
       activeSessionsByUser.set(userId, next);
     }
   };
+}
+
+function connectSshShell(input) {
+  return new Promise((resolve, reject) => {
+    const client = new SshClient();
+    let settled = false;
+
+    function fail(error) {
+      if (settled) {
+        return;
+      }
+
+      settled = true;
+      client.end();
+      reject(error);
+    }
+
+    client.on("ready", () => {
+      client.shell(
+        {
+          cols: input.columns,
+          rows: input.rows,
+          term: "xterm-256color"
+        },
+        (error, stream) => {
+          if (error) {
+            fail(error);
+            return;
+          }
+
+          settled = true;
+          resolve({
+            client,
+            stream,
+            username: input.username
+          });
+        }
+      );
+    });
+    client.on("error", fail);
+    client.on("close", () => {
+      if (!settled) {
+        fail(new Error("SSH connection closed before authentication completed."));
+      }
+    });
+    client.connect({
+      host: input.host,
+      keepaliveInterval: optionalPositiveNumber("OPENCLAW_SSH_KEEPALIVE_INTERVAL_MS", 20 * 1000),
+      passphrase: cleanEnv(process.env.OPENCLAW_SSH_KEY_PASSPHRASE) || undefined,
+      port: optionalPositiveNumber("OPENCLAW_SSH_PORT", 22),
+      privateKey: input.privateKey,
+      readyTimeout: optionalPositiveNumber("OPENCLAW_SSH_CONNECT_TIMEOUT_MS", DEFAULT_READY_TIMEOUT_MS),
+      username: input.username
+    });
+  });
 }
 
 function attachOpenClawSshServer(server) {
@@ -373,7 +528,6 @@ function attachOpenClawSshServer(server) {
       const auth = verifySshToken(payload.sshToken);
       releaseUserSession = incrementUserSession(auth.userId);
       const target = await resolveSshTarget(auth.instance);
-      const privateKey = await fsp.readFile(target.privateKeyPath, "utf8");
 
       columns = Number.isFinite(Number(payload.cols)) ? Math.max(20, Number(payload.cols)) : columns;
       rows = Number.isFinite(Number(payload.rows)) ? Math.max(8, Number(payload.rows)) : rows;
@@ -384,53 +538,72 @@ function attachOpenClawSshServer(server) {
         type: "status"
       });
 
-      sshClient = new SshClient();
-      sshClient.on("ready", () => {
-        sshClient.shell(
-          {
-            cols: columns,
+      let connected = null;
+      let lastError = null;
+
+      for (const username of target.usernames) {
+        sendJson(socket, {
+          message: `Trying SSH user ${username}...`,
+          type: "status"
+        });
+
+        try {
+          connected = await connectSshShell({
+            columns,
+            host: target.host,
+            privateKey: target.privateKey,
             rows,
-            term: "xterm-256color"
-          },
-          (error, stream) => {
-            if (error) {
-              sendJson(socket, {
-                message: error.message,
-                type: "error"
-              });
-              closeSession(1011, "ssh shell failed");
-              return;
-            }
+            username
+          });
+          break;
+        } catch (error) {
+          lastError = error;
+          console.info(
+            "[ssh-console] auth_attempt_failed",
+            JSON.stringify({
+              instance: auth.instance,
+              message: error instanceof Error ? error.message : "ssh_auth_failed",
+              username
+            })
+          );
+        }
+      }
 
-            shellStream = stream;
-            authenticated = true;
-            resetIdleTimer();
-            sendJson(socket, {
-              message: "SSH connected.",
-              type: "ready"
-            });
-
-            stream.on("data", (data) => {
-              sendJson(socket, {
-                data: data.toString("utf8"),
-                type: "data"
-              });
-            });
-            stream.stderr.on("data", (data) => {
-              sendJson(socket, {
-                data: data.toString("utf8"),
-                type: "data"
-              });
-            });
-            stream.on("close", () => {
-              sendJson(socket, {
-                message: "SSH shell closed.",
-                type: "exit"
-              });
-              closeSession(1000, "ssh shell closed");
-            });
-          }
+      if (!connected) {
+        throw new Error(
+          `SSH authentication failed for ${target.usernames.join(", ")}: ${
+            lastError instanceof Error ? lastError.message : "No username worked"
+          }`
         );
+      }
+
+      sshClient = connected.client;
+      shellStream = connected.stream;
+      authenticated = true;
+      resetIdleTimer();
+      sendJson(socket, {
+        message: `SSH connected as ${connected.username}.`,
+        type: "ready"
+      });
+
+      shellStream.on("data", (data) => {
+        sendJson(socket, {
+          data: data.toString("utf8"),
+          type: "data"
+        });
+      });
+      shellStream.stderr.on("data", (data) => {
+        sendJson(socket, {
+          data: data.toString("utf8"),
+          type: "data"
+        });
+      });
+      shellStream.on("close", () => {
+        sendJson(socket, {
+          message: "SSH shell closed.",
+          type: "exit"
+        });
+        closeSession(1000, "ssh shell closed");
       });
       sshClient.on("error", (error) => {
         sendJson(socket, {
@@ -445,15 +618,6 @@ function attachOpenClawSshServer(server) {
           type: "exit"
         });
         closeSession(1000, "ssh closed");
-      });
-      sshClient.connect({
-        host: target.host,
-        keepaliveInterval: optionalPositiveNumber("OPENCLAW_SSH_KEEPALIVE_INTERVAL_MS", 20 * 1000),
-        passphrase: cleanEnv(process.env.OPENCLAW_SSH_KEY_PASSPHRASE) || undefined,
-        port: optionalPositiveNumber("OPENCLAW_SSH_PORT", 22),
-        privateKey,
-        readyTimeout: optionalPositiveNumber("OPENCLAW_SSH_CONNECT_TIMEOUT_MS", DEFAULT_READY_TIMEOUT_MS),
-        username: target.username
       });
     }
 
