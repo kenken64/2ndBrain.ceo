@@ -1743,6 +1743,7 @@ svg {
 }
 
 .settings-toggle-card,
+.settings-profile-card,
 .settings-action-card {
   display: grid;
   gap: 16px;
@@ -1757,6 +1758,29 @@ svg {
   position: relative;
   grid-template-columns: auto minmax(0, 1fr) auto;
   align-items: start;
+}
+
+.settings-profile-card {
+  grid-template-columns: minmax(0, 1fr) minmax(240px, 0.9fr) auto;
+  align-items: end;
+}
+
+.settings-profile-card h3 {
+  margin: 6px 0 0;
+  color: var(--fg-primary);
+  font-size: 24px;
+  line-height: 1.15;
+}
+
+.settings-profile-card p {
+  margin: 10px 0 0;
+  color: var(--fg-secondary);
+  font-size: 14px;
+  line-height: 1.55;
+}
+
+.settings-profile-card .settings-toggle-card__status {
+  grid-column: 1 / -1;
 }
 
 .settings-toggle-card__icon {
@@ -1819,6 +1843,11 @@ svg {
   transition:
     background 180ms ease,
     border-color 180ms ease;
+}
+
+.settings-switch:disabled {
+  cursor: wait;
+  opacity: 0.72;
 }
 
 .settings-switch span {
@@ -3960,6 +3989,11 @@ svg {
 
   .settings-grid {
     grid-template-columns: 1fr;
+  }
+
+  .settings-profile-card {
+    grid-template-columns: 1fr;
+    align-items: stretch;
   }
 
   .settings-integrations__grid {

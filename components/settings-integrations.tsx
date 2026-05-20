@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, type FormEvent } from "react";
 import {
   BriefcaseBusiness,
   CheckCircle2,
@@ -71,8 +71,113 @@ const integrations: Integration[] = [
   }
 ];
 
-export function SettingsIntegrations() {
-  const [enabled, setEnabled] = useState<Record<string, boolean>>({});
+type SettingsIntegrationsProps = {
+  initialGoogleWorkspaceEnabled?: boolean;
+  initialProfileName?: string | null;
+};
+
+type SavePayload = {
+  googleWorkspaceEnabled?: boolean;
+  profileName?: string;
+};
+
+async function saveProfileSettings(payload: SavePayload) {
+  const response = await fetch("/api/settings/profile", {
+    body: JSON.stringify(payload),
+    headers: {
+      "Content-Type": "application/json"
+    },
+    method: "PATCH"
+  });
+  const data = (await response.json().catch(() => null)) as
+    | {
+        error?: string;
+        googleWorkspaceEnabled?: boolean;
+        profileName?: string;
+      }
+    | null;
+
+  if (!response.ok) {
+    throw new Error(data?.error ?? "Settings could not be saved.");
+  }
+
+  return data;
+}
+
+export function SettingsIntegrations({
+  initialGoogleWorkspaceEnabled = false,
+  initialProfileName = ""
+}: SettingsIntegrationsProps) {
+  const [enabled, setEnabled] = useState<Record<string, boolean>>({
+    "google-workspace": initialGoogleWorkspaceEnabled
+  });
+  const [profileName, setProfileName] = useState(initialProfileName?.trim() ?? "");
+  const [profileError, setProfileError] = useState<string | null>(null);
+  const [profileStatus, setProfileStatus] = useState<string | null>(null);
+  const [savingProfile, setSavingProfile] = useState(false);
+  const [savingIntegration, setSavingIntegration] = useState<string | null>(null);
+
+  async function handleProfileSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const trimmed = profileName.trim();
+
+    setProfileError(null);
+    setProfileStatus(null);
+
+    if (!trimmed) {
+      setProfileError("Profile name is required.");
+      return;
+    }
+
+    setSavingProfile(true);
+
+    try {
+      const saved = await saveProfileSettings({ profileName: trimmed });
+      setProfileName(saved?.profileName ?? trimmed);
+      setProfileStatus("Profile name saved.");
+    } catch (error) {
+      setProfileError(error instanceof Error ? error.message : "Profile name could not be saved.");
+    } finally {
+      setSavingProfile(false);
+    }
+  }
+
+  async function handleToggle(integrationId: string) {
+    const nextEnabled = !enabled[integrationId];
+
+    if (integrationId !== "google-workspace") {
+      setEnabled((current) => ({
+        ...current,
+        [integrationId]: nextEnabled
+      }));
+      return;
+    }
+
+    setProfileError(null);
+    setProfileStatus(null);
+    setSavingIntegration(integrationId);
+    setEnabled((current) => ({
+      ...current,
+      [integrationId]: nextEnabled
+    }));
+
+    try {
+      const saved = await saveProfileSettings({ googleWorkspaceEnabled: nextEnabled });
+      setEnabled((current) => ({
+        ...current,
+        [integrationId]: Boolean(saved?.googleWorkspaceEnabled)
+      }));
+      setProfileStatus(`Google Workspace ${nextEnabled ? "enabled" : "disabled"}.`);
+    } catch (error) {
+      setEnabled((current) => ({
+        ...current,
+        [integrationId]: !nextEnabled
+      }));
+      setProfileError(error instanceof Error ? error.message : "Google Workspace setting could not be saved.");
+    } finally {
+      setSavingIntegration(null);
+    }
+  }
 
   return (
     <section className="settings-integrations" aria-labelledby="settings-integrations-title">
@@ -82,10 +187,46 @@ export function SettingsIntegrations() {
         <p>Enable the channels you want this workspace to support. Backend OAuth and sync jobs can be wired per platform after the product flow is confirmed.</p>
       </div>
 
+      <form className="settings-profile-card" noValidate onSubmit={handleProfileSubmit}>
+        <div>
+          <p className="workspace-status-card__eyebrow">Profile</p>
+          <h3>Profile name</h3>
+          <p>Save the display name used for this workspace profile.</p>
+        </div>
+        <label className="field-stack">
+          <span>Profile name</span>
+          <input
+            aria-invalid={profileError ? "true" : "false"}
+            disabled={savingProfile}
+            maxLength={120}
+            name="profileName"
+            onChange={(event) => {
+              setProfileName(event.target.value);
+              setProfileError(null);
+              setProfileStatus(null);
+            }}
+            placeholder="Kenneth's workspace"
+            type="text"
+            value={profileName}
+          />
+          {profileError ? <span className="field-error">{profileError}</span> : null}
+        </label>
+        <button className="settings-action-button settings-action-button--telegram" disabled={savingProfile} type="submit">
+          {savingProfile ? "Saving..." : "Save profile"}
+        </button>
+        {profileStatus ? (
+          <div className="settings-toggle-card__status">
+            <CheckCircle2 size={16} strokeWidth={1.8} />
+            {profileStatus}
+          </div>
+        ) : null}
+      </form>
+
       <div className="settings-integrations__grid">
         {integrations.map((integration) => {
           const Icon = integration.icon;
           const isEnabled = Boolean(enabled[integration.id]);
+          const isSaving = savingIntegration === integration.id;
 
           return (
             <div className="settings-toggle-card" key={integration.id}>
@@ -102,21 +243,17 @@ export function SettingsIntegrations() {
                 aria-checked={isEnabled}
                 aria-label={`${isEnabled ? "Disable" : "Enable"} ${integration.label}`}
                 className={`settings-switch${isEnabled ? " is-enabled" : ""}`}
-                onClick={() =>
-                  setEnabled((current) => ({
-                    ...current,
-                    [integration.id]: !current[integration.id]
-                  }))
-                }
+                disabled={isSaving}
+                onClick={() => handleToggle(integration.id)}
                 role="switch"
                 type="button"
               >
                 <span />
               </button>
-              {isEnabled ? (
+              {isEnabled || isSaving ? (
                 <div className="settings-toggle-card__status">
                   <CheckCircle2 size={16} strokeWidth={1.8} />
-                  {integration.label} enabled
+                  {isSaving ? `Saving ${integration.label}...` : `${integration.label} enabled`}
                 </div>
               ) : null}
             </div>

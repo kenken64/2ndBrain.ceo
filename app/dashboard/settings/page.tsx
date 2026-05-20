@@ -18,6 +18,11 @@ import { createClient } from "@/lib/supabase/server";
 
 export const dynamic = "force-dynamic";
 
+type ProfileSettings = OnboardingProfile & {
+  google_workspace_enabled: boolean | null;
+  profile_name: string | null;
+};
+
 export default async function DashboardSettingsPage() {
   if (!hasSupabaseEnv()) {
     return (
@@ -41,7 +46,7 @@ export default async function DashboardSettingsPage() {
   const { data: profile } = userId
     ? await supabase
         .from("profiles")
-        .select(onboardingProfileSelect)
+        .select(`${onboardingProfileSelect},profile_name,google_workspace_enabled`)
         .eq("id", userId)
         .maybeSingle()
     : { data: null };
@@ -51,9 +56,10 @@ export default async function DashboardSettingsPage() {
   }
 
   const email = typeof claimsData.claims.email === "string" ? claimsData.claims.email : null;
-  const onboardingProfile = profile as OnboardingProfile | null;
+  const onboardingProfile = profile as ProfileSettings | null;
   const ownerName = onboardingProfile?.owner_name?.trim();
   const avatarName = onboardingProfile?.avatar_name?.trim();
+  const profileName = onboardingProfile?.profile_name?.trim() || ownerName || "";
 
   return (
     <>
@@ -75,7 +81,10 @@ export default async function DashboardSettingsPage() {
             </div>
 
             <div className="settings-grid">
-              <SettingsIntegrations />
+              <SettingsIntegrations
+                initialGoogleWorkspaceEnabled={Boolean(onboardingProfile?.google_workspace_enabled)}
+                initialProfileName={profileName}
+              />
 
               <article className="settings-action-card">
                 <div>
