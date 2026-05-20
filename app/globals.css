@@ -208,6 +208,35 @@ svg {
   gap: 12px;
 }
 
+.github-link {
+  display: inline-grid;
+  width: 40px;
+  height: 40px;
+  place-items: center;
+  border: 1px solid var(--border-soft);
+  border-radius: var(--radius-pill);
+  background: rgba(255, 255, 255, 0.62);
+  color: var(--fg-primary);
+  box-shadow: var(--shadow-sm);
+  transition:
+    transform 160ms ease,
+    background 160ms ease,
+    border-color 160ms ease,
+    box-shadow 160ms ease;
+}
+
+.github-link:hover {
+  border-color: var(--border-medium);
+  background: var(--bg-elevated);
+  box-shadow: var(--shadow-md);
+  transform: translateY(-1px);
+}
+
+.github-link__icon {
+  width: 18px;
+  height: 18px;
+}
+
 .nav-link,
 .text-link {
   color: var(--fg-soft);
