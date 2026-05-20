@@ -23,6 +23,8 @@ type ProfileSettings = OnboardingProfile & {
   profile_name: string | null;
 };
 
+type OptionalProfileSettings = Pick<ProfileSettings, "google_workspace_enabled" | "profile_name">;
+
 export default async function DashboardSettingsPage() {
   if (!hasSupabaseEnv()) {
     return (
@@ -46,7 +48,7 @@ export default async function DashboardSettingsPage() {
   const { data: profile } = userId
     ? await supabase
         .from("profiles")
-        .select(`${onboardingProfileSelect},profile_name,google_workspace_enabled`)
+        .select(onboardingProfileSelect)
         .eq("id", userId)
         .maybeSingle()
     : { data: null };
@@ -59,7 +61,15 @@ export default async function DashboardSettingsPage() {
   const onboardingProfile = profile as ProfileSettings | null;
   const ownerName = onboardingProfile?.owner_name?.trim();
   const avatarName = onboardingProfile?.avatar_name?.trim();
-  const profileName = onboardingProfile?.profile_name?.trim() || ownerName || "";
+  const { data: settingsProfile } = userId
+    ? await supabase
+        .from("profiles")
+        .select("profile_name,google_workspace_enabled")
+        .eq("id", userId)
+        .maybeSingle()
+    : { data: null };
+  const optionalSettings = settingsProfile as OptionalProfileSettings | null;
+  const profileName = optionalSettings?.profile_name?.trim() || ownerName || "";
 
   return (
     <>
@@ -82,7 +92,7 @@ export default async function DashboardSettingsPage() {
 
             <div className="settings-grid">
               <SettingsIntegrations
-                initialGoogleWorkspaceEnabled={Boolean(onboardingProfile?.google_workspace_enabled)}
+                initialGoogleWorkspaceEnabled={Boolean(optionalSettings?.google_workspace_enabled)}
                 initialProfileName={profileName}
               />
 

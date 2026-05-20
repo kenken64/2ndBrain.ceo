@@ -97,6 +97,16 @@ export async function PATCH(request: Request) {
     .maybeSingle();
 
   if (error) {
+    if (
+      error.message.includes("profile_name") ||
+      error.message.includes("google_workspace_enabled")
+    ) {
+      return NextResponse.json(
+        { error: "Settings database columns are missing. Apply Supabase migration 0013_profile_settings.sql." },
+        { status: 500 }
+      );
+    }
+
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 
