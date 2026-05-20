@@ -13,7 +13,7 @@
   "dependencies": {
     "@supabase/ssr": "latest",
     "@supabase/supabase-js": "latest",
-    "clawmacdo": "^0.81.0",
+    "clawmacdo": "^0.82.0",
     "clsx": "latest",
     "cytoscape": "^3.33.3",
     "cytoscape-fcose": "^2.2.0",
