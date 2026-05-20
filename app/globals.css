@@ -747,6 +747,14 @@ svg {
   gap: 16px;
 }
 
+.dashboard-topbar__actions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+  justify-content: flex-end;
+}
+
 .templates-grid {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -1484,6 +1492,166 @@ svg {
 .settings-dialog__scrim:disabled {
   cursor: not-allowed;
   opacity: 0.72;
+}
+
+.ssh-console-trigger {
+  cursor: pointer;
+}
+
+.ssh-console {
+  position: fixed;
+  inset: 0;
+  z-index: 95;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  isolation: isolate;
+}
+
+.ssh-console__scrim {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  background:
+    radial-gradient(ellipse 72% 52% at 50% 92%, rgba(0, 196, 140, 0.2), transparent 58%),
+    rgba(3, 7, 18, 0.58);
+  backdrop-filter: blur(16px);
+  cursor: default;
+}
+
+.ssh-console__panel {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  grid-template-rows: auto auto minmax(0, 1fr) auto;
+  width: min(100%, 1120px);
+  height: min(78vh, 760px);
+  min-height: 520px;
+  overflow: hidden;
+  border: 1px solid rgba(0, 196, 140, 0.28);
+  border-radius: var(--radius-xl);
+  background: #07111f;
+  box-shadow: 0 34px 110px rgba(3, 7, 18, 0.44);
+}
+
+.ssh-console__header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 18px;
+  border-bottom: 1px solid rgba(215, 228, 242, 0.12);
+  background:
+    linear-gradient(135deg, rgba(0, 196, 140, 0.16), transparent 44%),
+    rgba(7, 17, 31, 0.96);
+  padding: 18px 20px;
+}
+
+.ssh-console__eyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  color: #67e8f9;
+  font-size: 12px;
+  font-weight: 850;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.ssh-console__header h2 {
+  margin: 6px 0 0;
+  color: #f8fbff;
+  font-size: 28px;
+  line-height: 1.1;
+}
+
+.ssh-console__header p {
+  margin: 7px 0 0;
+  color: rgba(215, 228, 242, 0.7);
+  font-size: 13px;
+  line-height: 1.4;
+}
+
+.ssh-console__actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.ssh-console__actions .btn-icon {
+  color: rgba(248, 251, 255, 0.78);
+}
+
+.ssh-console__actions .btn-icon:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: #ffffff;
+}
+
+.ssh-console__status {
+  display: inline-flex;
+  align-items: center;
+  min-height: 30px;
+  border: 1px solid rgba(148, 163, 184, 0.28);
+  border-radius: var(--radius-pill);
+  background: rgba(15, 23, 42, 0.72);
+  color: rgba(226, 232, 240, 0.78);
+  padding: 5px 10px;
+  font-size: 11px;
+  font-weight: 850;
+  text-transform: uppercase;
+}
+
+.ssh-console__status.is-connected {
+  border-color: rgba(0, 196, 140, 0.44);
+  background: rgba(0, 196, 140, 0.14);
+  color: #6ee7b7;
+}
+
+.ssh-console__status.is-connecting {
+  border-color: rgba(56, 189, 248, 0.44);
+  background: rgba(56, 189, 248, 0.12);
+  color: #7dd3fc;
+}
+
+.ssh-console__status.is-error {
+  border-color: rgba(248, 113, 113, 0.48);
+  background: rgba(248, 113, 113, 0.13);
+  color: #fca5a5;
+}
+
+.ssh-console__error {
+  margin: 0;
+  border-bottom: 1px solid rgba(248, 113, 113, 0.2);
+  background: rgba(248, 113, 113, 0.12);
+  color: #fecaca;
+  padding: 10px 20px;
+  font-size: 13px;
+  font-weight: 750;
+}
+
+.ssh-console__terminal {
+  min-height: 0;
+  overflow: hidden;
+  background:
+    radial-gradient(circle at 20% 0%, rgba(0, 196, 140, 0.1), transparent 34%),
+    #07111f;
+  padding: 14px;
+}
+
+.ssh-console__terminal .xterm {
+  height: 100%;
+}
+
+.ssh-console__terminal .xterm-viewport {
+  border-radius: var(--radius-sm);
+}
+
+.ssh-console__footer {
+  border-top: 1px solid rgba(215, 228, 242, 0.1);
+  background: rgba(2, 6, 23, 0.72);
+  color: rgba(215, 228, 242, 0.58);
+  padding: 10px 20px;
+  font-size: 12px;
 }
 
 .settings-workbench {
@@ -3847,6 +4015,7 @@ svg {
   }
 
   .dashboard-topbar,
+  .dashboard-topbar__actions,
   .dashboard-topbar .btn-primary,
   .dashboard-topbar .btn-ghost,
   .settings-action-button,
@@ -3861,6 +4030,11 @@ svg {
 
   .dashboard-topbar {
     align-items: stretch;
+  }
+
+  .dashboard-topbar__actions {
+    align-items: stretch;
+    flex-direction: column;
   }
 
   .sidebar {
@@ -4191,13 +4365,15 @@ svg {
 
   .login-modal,
   .destroy-dialog,
-  .settings-dialog {
+  .settings-dialog,
+  .ssh-console {
     padding: 14px;
   }
 
   .login-dialog,
   .destroy-dialog__panel,
-  .settings-dialog__panel {
+  .settings-dialog__panel,
+  .ssh-console__panel {
     max-height: calc(100svh - 28px);
     overflow: auto;
   }
@@ -4209,6 +4385,36 @@ svg {
   .destroy-dialog__panel,
   .settings-dialog__panel {
     padding: 22px;
+  }
+
+  .ssh-console__panel {
+    width: 100%;
+    height: calc(100svh - 28px);
+    min-height: 0;
+    overflow: hidden;
+    border-radius: 20px;
+  }
+
+  .ssh-console__header {
+    align-items: stretch;
+    flex-direction: column;
+    padding: 16px;
+  }
+
+  .ssh-console__header h2 {
+    font-size: 22px;
+  }
+
+  .ssh-console__actions {
+    justify-content: space-between;
+  }
+
+  .ssh-console__terminal {
+    padding: 10px;
+  }
+
+  .ssh-console__footer {
+    padding: 9px 12px;
   }
 
   .destroy-dialog__actions,

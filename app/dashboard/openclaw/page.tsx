@@ -4,6 +4,7 @@ import { Atmosphere } from "@/components/atmosphere";
 import { DashboardSidebar } from "@/components/dashboard-sidebar";
 import { OpenClawGatewayButton } from "@/components/openclaw-gateway-button";
 import { SetupCallout } from "@/components/setup-callout";
+import { SshConsolePanel } from "@/components/ssh-console-panel";
 import { WikiEditor } from "@/components/wiki-editor";
 import { hasSupabaseEnv } from "@/lib/env";
 import { readOpenClawWikiPage, readOpenClawWikiTree } from "@/lib/openclaw";
@@ -91,7 +92,10 @@ export default async function DashboardOpenClawPage() {
         <main className="dashboard-main">
           <div className="dashboard-topbar">
             <AnnouncementPill>OpenClaw workspace</AnnouncementPill>
-            <OpenClawGatewayButton initialGatewayUrl={gatewayUrl} />
+            <div className="dashboard-topbar__actions">
+              <SshConsolePanel />
+              <OpenClawGatewayButton initialGatewayUrl={gatewayUrl} />
+            </div>
           </div>
           <section className="dashboard-workbench">
             <WikiEditor

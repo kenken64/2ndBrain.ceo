@@ -112,17 +112,19 @@ Deployment notes are also in `docs/supabase-railway.md`.
 
 ## Railway
 
-`railway.json` uses the root `Dockerfile`, starts the standalone server with `node server.js`, and uses `/api/health` as the health check.
+`railway.json` uses the root `Dockerfile`, starts the custom Next.js server with `node server/custom-server.js`, and uses `/api/health` as the health check.
 
 The Docker image:
 
 - Builds with `npm ci` and `npm run build`.
 - Runs the Next.js standalone output.
+- Uses a custom Node server so the OpenClaw SSH console can accept WebSocket upgrades.
 - Uses Debian Trixie slim instead of Alpine/Bookworm so the `@clawmacdo/linux-x64` binary has the required glibc version on Railway.
 - Installs runtime tools needed by provisioning: `aws-cli`, `bash`, and `openssh-client`.
 - Sets writable app-owned `HOME`, cache, config, OpenClaw, and avatar storage paths for the non-root runtime user.
 - Copies `@clawmacdo` into the runtime image for the OpenClaw CLI binary.
 - Copies `@napi-rs` into the runtime image for PDF parsing canvas polyfills.
+- Copies `ssh2`, `ws`, and their runtime dependencies into the image for the authenticated SSH console.
 
 Railway variables must include the same required values as `.env.example`. At minimum, login requires one Supabase URL and one anon/publishable key.
 
@@ -211,6 +213,7 @@ Commit and redeploy after upgrading so Railway rebuilds the Docker image with th
 - `/onboarding` enrolment, avatar, provision, and Telegram approval wizard
 - `/dashboard` authenticated dashboard shell
 - `/dashboard/openclaw` OpenClaw settings markdown
+- `/dashboard/openclaw` also includes a pop-up SSH console that proxies through the app and reads SSH deploy records from `CLAWMACDO_STATE_DIR`
 - `/dashboard/wiki` LLM Wiki generation and project list
 - `/dashboard/wiki?projectId=...` selected wiki markdown editor
 - `/dashboard/graph` knowledge graph project selector

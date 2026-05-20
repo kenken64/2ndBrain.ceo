@@ -64,8 +64,19 @@ RUN apt-get update \
 COPY --from=builder --chown=nextjs:nodejs /app/public ./public
 COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
 COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
+COPY --from=builder --chown=nextjs:nodejs /app/server ./server
 COPY --from=deps --chown=nextjs:nodejs /app/node_modules/@clawmacdo ./node_modules/@clawmacdo
 COPY --from=deps --chown=nextjs:nodejs /app/node_modules/@napi-rs ./node_modules/@napi-rs
+COPY --from=deps --chown=nextjs:nodejs /app/node_modules/@supabase ./node_modules/@supabase
+COPY --from=deps --chown=nextjs:nodejs /app/node_modules/asn1 ./node_modules/asn1
+COPY --from=deps --chown=nextjs:nodejs /app/node_modules/bcrypt-pbkdf ./node_modules/bcrypt-pbkdf
+COPY --from=deps --chown=nextjs:nodejs /app/node_modules/buildcheck ./node_modules/buildcheck
+COPY --from=deps --chown=nextjs:nodejs /app/node_modules/cpu-features ./node_modules/cpu-features
+COPY --from=deps --chown=nextjs:nodejs /app/node_modules/nan ./node_modules/nan
+COPY --from=deps --chown=nextjs:nodejs /app/node_modules/safer-buffer ./node_modules/safer-buffer
+COPY --from=deps --chown=nextjs:nodejs /app/node_modules/ssh2 ./node_modules/ssh2
+COPY --from=deps --chown=nextjs:nodejs /app/node_modules/tweetnacl ./node_modules/tweetnacl
+COPY --from=deps --chown=nextjs:nodejs /app/node_modules/ws ./node_modules/ws
 
 RUN chown -R nextjs:nodejs /app
 
@@ -75,4 +86,4 @@ RUN if [ "$(uname -m)" = "x86_64" ]; then ./node_modules/@clawmacdo/linux-x64/bi
 
 EXPOSE 3000
 
-CMD ["node", "server.js"]
+CMD ["node", "server/custom-server.js"]
