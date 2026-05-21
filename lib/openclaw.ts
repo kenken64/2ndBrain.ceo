@@ -1563,18 +1563,37 @@ function flattenWikiTreeItems(items: WikiTreeItem[]) {
   return files;
 }
 
+function normalizeWikiProjectSlug(value: string) {
+  const normalized = path.posix
+    .normalize(value.trim().replace(/\\/g, "/"))
+    .replace(/^\/+|\/+$/g, "");
+
+  if (
+    !normalized ||
+    normalized === "." ||
+    normalized.startsWith("../") ||
+    normalized.includes("/../") ||
+    normalized.includes("/")
+  ) {
+    throw new Error("invalid_wiki_path");
+  }
+
+  return normalized;
+}
+
 function relativeProjectWikiPath(filePath: string, projectSlug: string) {
   const normalized = normalizeWikiPath(filePath);
-  const prefix = `${normalizeWikiPath(projectSlug)}/`;
+  const prefix = `${normalizeWikiProjectSlug(projectSlug)}/`;
 
   return normalized.startsWith(prefix) ? normalized.slice(prefix.length) : normalized;
 }
 
 function absoluteProjectWikiPath(filePath: string, projectSlug: string) {
   const normalized = normalizeWikiPath(filePath);
-  const prefix = `${normalizeWikiPath(projectSlug)}/`;
+  const projectPrefix = normalizeWikiProjectSlug(projectSlug);
+  const prefix = `${projectPrefix}/`;
 
-  return normalized.startsWith(prefix) ? normalized : `${normalizeWikiPath(projectSlug)}/${normalized}`;
+  return normalized.startsWith(prefix) ? normalized : `${projectPrefix}/${normalized}`;
 }
 
 function uploadSourceNamespace(filePath: string, projectSlug: string) {
@@ -1588,7 +1607,13 @@ function latestUploadedSourcePaths(tree: WikiTreeItem[], projectSlug: string) {
   const byNamespace = new Map<string, string[]>();
 
   for (const file of flattenWikiTreeItems(tree)) {
-    const namespace = uploadSourceNamespace(file.path, projectSlug);
+    const namespace = (() => {
+      try {
+        return uploadSourceNamespace(file.path, projectSlug);
+      } catch {
+        return null;
+      }
+    })();
 
     if (!namespace) {
       continue;
