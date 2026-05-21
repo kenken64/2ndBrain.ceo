@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { AnnouncementPill } from "@/components/announcement-pill";
 import { Atmosphere } from "@/components/atmosphere";
+import { BackfillWikiIngestButton } from "@/components/backfill-wiki-ingest-button";
 import { ChatInput } from "@/components/chat-input";
 import { DashboardSidebar } from "@/components/dashboard-sidebar";
 import { DeleteWikiProjectButton } from "@/components/delete-wiki-project-button";
@@ -31,6 +32,14 @@ type LlmWikiProject = {
   prompt: string;
   status: string;
   title: string;
+};
+
+type FailedIngestJob = {
+  created_at: string;
+  error: string | null;
+  id: string;
+  project_id: string;
+  status: string;
 };
 
 const WIKI_PROJECTS_PAGE_SIZE = 6;
@@ -178,6 +187,24 @@ export default async function DashboardWikiPage({ searchParams }: WikiPageProps)
     const totalPages = Math.max(1, Math.ceil(totalProjects / WIKI_PROJECTS_PAGE_SIZE));
     const firstVisibleProject = totalProjects === 0 ? 0 : rangeStart + 1;
     const lastVisibleProject = Math.min(rangeEnd + 1, totalProjects);
+    const failedIngestJobsByProject = new Map<string, FailedIngestJob>();
+
+    if (wikiProjects.length > 0) {
+      const { data: failedIngestJobs } = await context.supabase
+        .from("wiki_sync_jobs")
+        .select("id,project_id,status,error,created_at")
+        .eq("user_id", context.userId)
+        .eq("job_type", "ingest")
+        .eq("status", "failed")
+        .in("project_id", wikiProjects.map((project) => project.id))
+        .order("created_at", { ascending: false });
+
+      for (const job of (failedIngestJobs ?? []) as FailedIngestJob[]) {
+        if (!failedIngestJobsByProject.has(job.project_id)) {
+          failedIngestJobsByProject.set(job.project_id, job);
+        }
+      }
+    }
 
     if (currentPage > 1 && currentPage > totalPages) {
       redirect(wikiListHref(searchQuery, totalPages));
@@ -258,7 +285,9 @@ export default async function DashboardWikiPage({ searchParams }: WikiPageProps)
                     wikiProjects.map((project) => {
                       const isStale = isStaleRunningProject(project);
                       const displayStatus = isStale ? "failed" : project.status;
-                      const displayError = project.openclaw_generation_error ?? (isStale ? WIKI_GENERATION_STALE_MESSAGE : null);
+                      const failedIngestJob = failedIngestJobsByProject.get(project.id);
+                      const displayError = project.openclaw_generation_error ?? failedIngestJob?.error ?? (isStale ? WIKI_GENERATION_STALE_MESSAGE : null);
+                      const canBackfillIngest = displayStatus === "ready" && Boolean(project.openclaw_project_slug) && Boolean(failedIngestJob || project.openclaw_generation_error?.includes("wiki ingest JSON"));
 
                       return (
                         <article className="project-card wiki-project-card" key={project.id}>
@@ -302,6 +331,7 @@ export default async function DashboardWikiPage({ searchParams }: WikiPageProps)
                               projectSlug={project.openclaw_project_slug}
                               title={project.title}
                             />
+                            {canBackfillIngest ? <BackfillWikiIngestButton projectId={project.id} /> : null}
                           </div>
                         </article>
                       );

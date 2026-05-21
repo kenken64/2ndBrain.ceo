@@ -331,6 +331,12 @@ svg {
   font-weight: 600;
 }
 
+.btn-ghost--compact {
+  min-height: 36px;
+  padding: 8px 12px;
+  font-size: 12px;
+}
+
 .btn-ghost:hover {
   border-color: var(--border-strong);
   background: var(--bg-subtle);
@@ -2993,6 +2999,17 @@ svg {
   justify-content: space-between;
   gap: 10px;
   margin-top: 4px;
+}
+
+.wiki-backfill-action {
+  display: inline-grid;
+  gap: 6px;
+}
+
+.wiki-backfill-action .form-error {
+  max-width: 260px;
+  padding: 8px 10px;
+  font-size: 11px;
 }
 
 .empty-state {

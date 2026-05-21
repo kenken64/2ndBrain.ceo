@@ -75,6 +75,18 @@ type OpenClawWikiIngestInput = {
   projectSlug: string;
   prompt: string;
   projectTitle?: string | null;
+  writeAttachments?: boolean;
+  userId: string;
+};
+
+type OpenClawWikiIngestBackfillInput = {
+  avatarName: string;
+  instance: string;
+  ownerName: string;
+  projectId: string;
+  projectSlug: string;
+  prompt?: string | null;
+  projectTitle?: string | null;
   userId: string;
 };
 
@@ -491,6 +503,16 @@ function isClawmacdoResourceFailure(error: unknown) {
     combined.includes("resource temporarily unavailable") ||
     combined.includes("os can't spawn worker thread") ||
     combined.includes("can't spawn worker thread")
+  );
+}
+
+function isNonFatalWikiIngestJsonError(error: unknown) {
+  const message = error instanceof Error ? error.message : String(error ?? "");
+  const normalized = message.toLowerCase();
+
+  return (
+    normalized.includes("failed to parse wiki ingest json") ||
+    normalized.includes("eof while parsing a value")
   );
 }
 
@@ -1522,6 +1544,129 @@ async function writeOpenClawWikiAttachments(input: {
   return `attachments_written=${written.join(",")}`;
 }
 
+function flattenWikiTreeItems(items: WikiTreeItem[]) {
+  const files: WikiTreeItem[] = [];
+
+  function walk(nodes: WikiTreeItem[]) {
+    for (const node of nodes) {
+      if (node.type === "file") {
+        files.push(node);
+      }
+
+      if (node.children) {
+        walk(node.children);
+      }
+    }
+  }
+
+  walk(items);
+  return files;
+}
+
+function relativeProjectWikiPath(filePath: string, projectSlug: string) {
+  const normalized = normalizeWikiPath(filePath);
+  const prefix = `${normalizeWikiPath(projectSlug)}/`;
+
+  return normalized.startsWith(prefix) ? normalized.slice(prefix.length) : normalized;
+}
+
+function absoluteProjectWikiPath(filePath: string, projectSlug: string) {
+  const normalized = normalizeWikiPath(filePath);
+  const prefix = `${normalizeWikiPath(projectSlug)}/`;
+
+  return normalized.startsWith(prefix) ? normalized : `${normalizeWikiPath(projectSlug)}/${normalized}`;
+}
+
+function uploadSourceNamespace(filePath: string, projectSlug: string) {
+  const relativePath = relativeProjectWikiPath(filePath, projectSlug);
+  const match = relativePath.match(/^raw\/uploads\/([^/]+)\/sources\/[^/]+\.md$/i);
+
+  return match?.[1] ?? null;
+}
+
+function latestUploadedSourcePaths(tree: WikiTreeItem[], projectSlug: string) {
+  const byNamespace = new Map<string, string[]>();
+
+  for (const file of flattenWikiTreeItems(tree)) {
+    const namespace = uploadSourceNamespace(file.path, projectSlug);
+
+    if (!namespace) {
+      continue;
+    }
+
+    const paths = byNamespace.get(namespace) ?? [];
+    paths.push(file.path);
+    byNamespace.set(namespace, paths);
+  }
+
+  const latestNamespace = [...byNamespace.keys()].sort().at(-1);
+
+  return latestNamespace ? (byNamespace.get(latestNamespace) ?? []).sort() : [];
+}
+
+function markdownField(value: string, fieldName: string) {
+  const match = value.match(new RegExp(`^${fieldName}:\\s*(.+)$`, "im"))?.[1]?.trim();
+
+  if (!match) {
+    return null;
+  }
+
+  return match.replace(/^['"]|['"]$/g, "");
+}
+
+function sourceTypeFromMarkdown(value: string): ConvertedWikiAttachment["sourceType"] {
+  const candidate = markdownField(value, "source_type") ?? "";
+  const allowed = new Set<ConvertedWikiAttachment["sourceType"]>([
+    "csv",
+    "doc",
+    "docx",
+    "image",
+    "markdown",
+    "pdf",
+    "spreadsheet",
+    "text"
+  ]);
+
+  return allowed.has(candidate as ConvertedWikiAttachment["sourceType"])
+    ? (candidate as ConvertedWikiAttachment["sourceType"])
+    : "markdown";
+}
+
+async function attachmentsFromLatestUploadedSources(input: OpenClawWikiIngestBackfillInput) {
+  const tree = await readOpenClawWikiTree({
+    instance: input.instance,
+    projectSlug: input.projectSlug
+  });
+  const sourcePaths = latestUploadedSourcePaths(tree, input.projectSlug);
+
+  if (sourcePaths.length === 0) {
+    throw new Error("No uploaded source markdown was found for this Nth Brain.");
+  }
+
+  const attachments: ConvertedWikiAttachment[] = [];
+
+  for (const sourcePath of sourcePaths.slice(0, 8)) {
+    const relativePath = relativeProjectWikiPath(sourcePath, input.projectSlug);
+    const page = await readOpenClawWikiPage({
+      filePath: absoluteProjectWikiPath(sourcePath, input.projectSlug),
+      instance: input.instance,
+      projectSlug: input.projectSlug
+    });
+    const fileName = markdownField(page.content, "source_file") ?? path.basename(relativePath, ".md");
+
+    attachments.push({
+      fileName,
+      markdown: page.content,
+      mimeType: markdownField(page.content, "mime_type") ?? "text/markdown",
+      path: relativePath,
+      size: page.content.length,
+      sourceType: sourceTypeFromMarkdown(page.content)
+    });
+  }
+
+  return attachments;
+}
+
 export async function provisionOpenClaw(input: OpenClawProvisionInput) {
   const region = requireEnv("AWS_REGION");
   const snapshotName = requireEnv("OPENCLAW_LIGHTSAIL_SNAPSHOT_NAME");
@@ -1929,7 +2074,9 @@ export async function ingestOpenClawWikiAttachments(input: OpenClawWikiIngestInp
     userId: input.userId
   });
 
-  const attachmentOutput = await writeOpenClawWikiAttachments(input);
+  const attachmentOutput = input.writeAttachments === false
+    ? `attachments_reused=${input.attachments.map((attachment) => attachment.path).join(",")}`
+    : await writeOpenClawWikiAttachments(input);
   const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "openclaw-wiki-ingest-"));
   const outputs: string[] = [];
 
@@ -1947,27 +2094,51 @@ export async function ingestOpenClawWikiAttachments(input: OpenClawWikiIngestInp
 
       await fs.writeFile(sourcePath, attachment.markdown, "utf8");
 
-      outputs.push(
-        await runClawmacdo(
+      try {
+        outputs.push(
+          await runClawmacdo(
+            [
+              "wiki-ingest",
+              "--instance",
+              instance,
+              "--agent",
+              agent,
+              "--project",
+              input.projectSlug,
+              "--source",
+              sourcePath,
+              "--prompt",
+              sourcePrompt,
+              "--timeout",
+              timeout,
+              "--json"
+            ],
+            awsEnv
+          )
+        );
+      } catch (error) {
+        if (!isNonFatalWikiIngestJsonError(error)) {
+          throw error;
+        }
+
+        const message = error instanceof Error ? error.message : "wiki_ingest_json_empty";
+
+        consoleClawmacdo("wiki_ingest_attachment_only", {
+          attachment: attachment.fileName,
+          instance: input.instance,
+          message: sanitizeLogText(message),
+          projectId: input.projectId,
+          projectSlug: input.projectSlug
+        });
+        outputs.push(
           [
-            "wiki-ingest",
-            "--instance",
-            instance,
-            "--agent",
-            agent,
-            "--project",
-            input.projectSlug,
-            "--source",
-            sourcePath,
-            "--prompt",
-            sourcePrompt,
-            "--timeout",
-            timeout,
-            "--json"
-          ],
-          awsEnv
-        )
-      );
+            "wiki_ingest_attachment_saved",
+            `file=${attachment.fileName}`,
+            `path=${attachment.path}`,
+            "warning=wiki-ingest returned empty JSON; source markdown was saved without AI augmentation"
+          ].join("\n")
+        );
+      }
     }
   } finally {
     await fs.rm(tempDir, { force: true, recursive: true }).catch(() => undefined);
@@ -1975,9 +2146,32 @@ export async function ingestOpenClawWikiAttachments(input: OpenClawWikiIngestInp
 
   return {
     attachmentsOutput: attachmentOutput,
-    mapping: "wiki-ingest",
+    mapping: outputs.some((output) => output.includes("wiki_ingest_attachment_saved"))
+      ? "wiki-ingest-attachment-only"
+      : "wiki-ingest",
     output: outputs.join("\n\n"),
     task: prompt
+  };
+}
+
+export async function backfillOpenClawWikiIngest(input: OpenClawWikiIngestBackfillInput) {
+  const attachments = await attachmentsFromLatestUploadedSources(input);
+  const result = await ingestOpenClawWikiAttachments({
+    attachments,
+    avatarName: input.avatarName,
+    instance: input.instance,
+    ownerName: input.ownerName,
+    projectId: input.projectId,
+    projectSlug: input.projectSlug,
+    projectTitle: input.projectTitle,
+    prompt: input.prompt ?? "Backfill the latest uploaded source documents into this Nth Brain.",
+    userId: input.userId,
+    writeAttachments: false
+  });
+
+  return {
+    ...result,
+    mapping: result.mapping.replace(/^wiki-ingest/, "wiki-ingest-backfill")
   };
 }
 

@@ -168,13 +168,6 @@ export async function POST(request: Request) {
             status: "failed"
           })
           .eq("id", job.id);
-
-        await context.supabase
-          .from("projects")
-          .update({
-            openclaw_generation_error: outputSummary(message)
-          })
-          .eq("id", project.id);
       }
     });
 
