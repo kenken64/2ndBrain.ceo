@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { AnnouncementPill } from "@/components/announcement-pill";
 import { Atmosphere } from "@/components/atmosphere";
 import { ChangeTelegramBotTokenButton } from "@/components/change-telegram-bot-token-button";
+import { ClaudeAuthReconnectButton } from "@/components/claude-auth-reconnect-button";
 import { DashboardSidebar } from "@/components/dashboard-sidebar";
 import { DestroyWorkspaceButton } from "@/components/destroy-workspace-button";
 import { SetupCallout } from "@/components/setup-callout";
@@ -105,6 +106,17 @@ export default async function DashboardSettingsPage() {
                   </p>
                 </div>
                 <ChangeTelegramBotTokenButton variant="panel" />
+              </article>
+
+              <article className="settings-action-card">
+                <div>
+                  <p className="workspace-status-card__eyebrow">Claude Code auth</p>
+                  <h2>Reconnect Claude on OpenClaw</h2>
+                  <p>
+                    Start the Claude sign-in flow on the OpenClaw instance, open the returned login URL, and poll until Claude Code auth is restored.
+                  </p>
+                </div>
+                <ClaudeAuthReconnectButton />
               </article>
 
               <article className="settings-action-card settings-action-card--danger">

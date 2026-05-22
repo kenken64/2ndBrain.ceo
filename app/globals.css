@@ -1929,6 +1929,45 @@ svg {
   opacity: 0.72;
 }
 
+.claude-auth-card {
+  display: grid;
+  gap: 12px;
+}
+
+.claude-auth-card__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.claude-auth-card__link {
+  display: inline-flex;
+  width: fit-content;
+  align-items: center;
+  gap: 7px;
+  border-radius: var(--radius-pill);
+  background: rgba(0, 196, 140, 0.1);
+  color: var(--fg-primary);
+  padding: 9px 12px;
+  font-size: 13px;
+  font-weight: 900;
+}
+
+.claude-auth-card__message {
+  margin: 0;
+  border: 1px solid rgba(0, 167, 255, 0.18);
+  border-radius: var(--radius-md);
+  background: rgba(0, 167, 255, 0.07);
+  padding: 10px 12px;
+}
+
+.claude-auth-card__message--error {
+  border-color: rgba(220, 38, 38, 0.28);
+  background: rgba(220, 38, 38, 0.08);
+  color: #b91c1c;
+  font-weight: 800;
+}
+
 .destroy-workspace--panel {
   gap: 8px;
 }

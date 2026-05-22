@@ -55,6 +55,10 @@ type OpenClawPublicIpInput = {
   instance: string;
 };
 
+type OpenClawClaudeAuthInput = {
+  instance: string;
+};
+
 type OpenClawGenerationInput = {
   attachments?: ConvertedWikiAttachment[];
   avatarName: string;
@@ -133,6 +137,20 @@ type OpenClawWikiDeleteInput = {
   projectSlug: string;
 };
 
+type OpenClawClaudeAuthStartResult = {
+  authUrl: string | null;
+  message: string | null;
+  output: string;
+  status: string;
+};
+
+type OpenClawClaudeAuthStatusResult = {
+  authenticated: boolean;
+  message: string | null;
+  output: string;
+  status: string;
+};
+
 type LightsailInstance = {
   name?: string;
   publicIpAddress?: string;
@@ -174,6 +192,7 @@ const SENSITIVE_ARG_NAMES = new Set([
 
 function sanitizeLogText(value: string) {
   return value
+    .replace(/https:\/\/claude\.com\/cai\/oauth\/authorize\?[^\s"'<>]+/g, "[claude_oauth_url]")
     .replace(/[0-9]{6,}:[A-Za-z0-9_-]+/g, "[telegram_token]")
     .replace(/(telegram-pair\s+--instance\s+\S+\s+--code\s+)[A-Za-z0-9]{6,}/g, "$1[telegram_pair_code]")
     .replace(/(Approving Telegram pairing code\s+)[A-Za-z0-9]{6,}/g, "$1[telegram_pair_code]")
@@ -901,6 +920,54 @@ async function getExistingLightsailInstance(
 
     throw error;
   }
+}
+
+function parseJsonRecordOutput(output: string) {
+  try {
+    const parsed = parseJsonOutput<unknown>(output);
+
+    if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
+      return parsed as Record<string, unknown>;
+    }
+  } catch {
+    return {};
+  }
+
+  return {};
+}
+
+function recordStringValue(record: Record<string, unknown>, keys: string[]) {
+  for (const key of keys) {
+    const value = record[key];
+
+    if (typeof value === "string" && value.trim()) {
+      return value.trim();
+    }
+  }
+
+  return null;
+}
+
+function recordBooleanValue(record: Record<string, unknown>, keys: string[]) {
+  for (const key of keys) {
+    const value = record[key];
+
+    if (typeof value === "boolean") {
+      return value;
+    }
+  }
+
+  return null;
+}
+
+function firstUrlFromText(value: string) {
+  const match = value.match(/https?:\/\/[^\s"'<>]+/);
+
+  return match?.[0]?.replace(/[)\].,;]+$/g, "") ?? null;
+}
+
+function outputSummary(value: string) {
+  return sanitizeLogText(value.slice(-4000));
 }
 
 async function resolveOpenClawSshTarget(
@@ -1932,6 +1999,97 @@ export async function getOpenClawPublicIp(input: OpenClawPublicIpInput) {
     publicIp: cachedPublicIp,
     source: deployRecord ? "clawmacdo" : "missing"
   };
+}
+
+function isClaudeAuthRequiredMessage(value: string) {
+  const normalized = value.toLowerCase();
+
+  return (
+    normalized.includes("invalid authentication credentials") ||
+    normalized.includes("please run /login") ||
+    normalized.includes("not authenticated") ||
+    normalized.includes("unauthenticated") ||
+    normalized.includes("auth required") ||
+    normalized.includes("login required")
+  );
+}
+
+function normalizeClaudeAuthStatus(output: string): OpenClawClaudeAuthStatusResult {
+  const parsed = parseJsonRecordOutput(output);
+  const status = recordStringValue(parsed, ["status", "state"]) ?? "unknown";
+  const authenticated =
+    recordBooleanValue(parsed, ["authenticated", "isAuthenticated", "valid", "ready"]) ??
+    ["authenticated", "ready", "valid", "ok"].includes(status.toLowerCase());
+
+  return {
+    authenticated,
+    message: recordStringValue(parsed, ["message", "detail", "error"]) ?? null,
+    output: outputSummary(output),
+    status
+  };
+}
+
+export async function startOpenClawClaudeAuth(input: OpenClawClaudeAuthInput): Promise<OpenClawClaudeAuthStartResult> {
+  const awsEnv = getAwsEnv();
+  const instance = await resolveOpenClawSshTarget(input.instance, awsEnv, "claude-auth-start");
+
+  consoleClawmacdo("claude_auth_start_input", {
+    instance: input.instance
+  });
+
+  const output = await runClawmacdo(
+    ["claude-auth-start", "--instance", instance, "--json"],
+    awsEnv
+  );
+  const parsed = parseJsonRecordOutput(output);
+  const authUrl =
+    recordStringValue(parsed, [
+      "authUrl",
+      "auth_url",
+      "authorizationUrl",
+      "authorization_url",
+      "loginUrl",
+      "login_url",
+      "url"
+    ]) ?? firstUrlFromText(output);
+
+  return {
+    authUrl,
+    message: recordStringValue(parsed, ["message", "detail", "error"]) ?? null,
+    output: outputSummary(output),
+    status: recordStringValue(parsed, ["status", "state"]) ?? (authUrl ? "login_required" : "started")
+  };
+}
+
+export async function getOpenClawClaudeAuthStatus(input: OpenClawClaudeAuthInput): Promise<OpenClawClaudeAuthStatusResult> {
+  const awsEnv = getAwsEnv();
+  const instance = await resolveOpenClawSshTarget(input.instance, awsEnv, "claude-auth-status");
+
+  consoleClawmacdo("claude_auth_status_input", {
+    instance: input.instance
+  });
+
+  try {
+    const output = await runClawmacdo(
+      ["claude-auth-status", "--instance", instance, "--json"],
+      awsEnv
+    );
+
+    return normalizeClaudeAuthStatus(output);
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "claude_auth_status_failed";
+
+    if (!isClaudeAuthRequiredMessage(message)) {
+      throw error;
+    }
+
+    return {
+      authenticated: false,
+      message: outputSummary(message),
+      output: outputSummary(message),
+      status: "login_required"
+    };
+  }
 }
 
 export async function setupOpenClawAvatar(input: OpenClawAvatarSetupInput) {

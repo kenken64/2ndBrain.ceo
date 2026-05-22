@@ -1,6 +1,6 @@
 "use client";
 
-import { FormEvent, useId, useState } from "react";
+import { FormEvent, useEffect, useId, useState } from "react";
 import { KeyRound } from "lucide-react";
 
 type TelegramApprovalFormProps = {
@@ -12,9 +12,78 @@ type TelegramApprovalFormProps = {
 export function TelegramApprovalForm({ errorMessage, next, status }: TelegramApprovalFormProps) {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState("");
+  const [remoteStatus, setRemoteStatus] = useState(status ?? null);
+  const [canRetry, setCanRetry] = useState(false);
   const codeErrorId = useId();
-  const isRunning = status === "running";
+  const isRunning = remoteStatus === "running" && !canRetry;
   const isDisabled = isRunning || isSubmitting;
+
+  useEffect(() => {
+    setRemoteStatus(status ?? null);
+  }, [status]);
+
+  useEffect(() => {
+    if (!isRunning && !isSubmitting) {
+      return;
+    }
+
+    let cancelled = false;
+
+    async function pollStatus() {
+      try {
+        const response = await fetch(`/api/openclaw/telegram-pair/status?next=${encodeURIComponent(next)}`, {
+          credentials: "same-origin"
+        });
+        const data = (await response.json().catch(() => null)) as
+          | {
+              canRetry?: boolean;
+              error?: string;
+              message?: string;
+              redirectTo?: string;
+              status?: string;
+            }
+          | null;
+
+        if (cancelled) {
+          return;
+        }
+
+        if (!response.ok) {
+          throw new Error(data?.error ?? "Telegram approval status could not be checked.");
+        }
+
+        if (data?.redirectTo) {
+          window.location.assign(data.redirectTo);
+          return;
+        }
+
+        setRemoteStatus(data?.status ?? null);
+        setCanRetry(Boolean(data?.canRetry));
+
+        if (data?.canRetry) {
+          setIsSubmitting(false);
+          setSubmitError(data.message ?? "Telegram approval timed out. Submit the approval code again.");
+        }
+      } catch (error) {
+        if (cancelled) {
+          return;
+        }
+
+        setIsSubmitting(false);
+        setCanRetry(true);
+        setRemoteStatus("failed");
+        setSubmitError(error instanceof Error ? error.message : "Telegram approval status could not be checked.");
+      }
+    }
+
+    pollStatus();
+    const interval = window.setInterval(pollStatus, 3000);
+
+    return () => {
+      cancelled = true;
+      window.clearInterval(interval);
+    };
+  }, [isRunning, isSubmitting, next]);
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -33,6 +102,8 @@ export function TelegramApprovalForm({ errorMessage, next, status }: TelegramApp
 
     setIsSubmitting(true);
     setSubmitError("");
+    setCanRetry(false);
+    setRemoteStatus("running");
 
     try {
       const response = await fetch("/api/openclaw/telegram-pair", {
@@ -41,9 +112,24 @@ export function TelegramApprovalForm({ errorMessage, next, status }: TelegramApp
         method: "POST"
       });
 
-      window.location.assign(response.url || `/onboarding?next=${encodeURIComponent(next)}&step=approval`);
-    } catch {
-      setSubmitError("Telegram approval could not be started. Check the server and try again.");
+      if (response.redirected && response.url) {
+        window.location.assign(response.url);
+        return;
+      }
+
+      const data = (await response.json().catch(() => null)) as { error?: string; redirectTo?: string } | null;
+
+      if (!response.ok) {
+        throw new Error(data?.error ?? "Telegram approval failed. Check the code from Telegram and try again.");
+      }
+
+      if (data?.redirectTo) {
+        window.location.assign(data.redirectTo);
+      }
+    } catch (error) {
+      setCanRetry(true);
+      setRemoteStatus("failed");
+      setSubmitError(error instanceof Error ? error.message : "Telegram approval could not be started. Check the server and try again.");
       setIsSubmitting(false);
     }
   }
