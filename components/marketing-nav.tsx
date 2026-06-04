@@ -20,14 +20,14 @@ export function MarketingNav({ supabaseConfigured = true }: MarketingNavProps) {
             <BrandHeart size={56} />
           </a>
           <div className="nav-links">
-            <a className="nav-link" href="#builder">
-              Builder
+            <a className="nav-link" href="#how-it-works">
+              How it works
             </a>
-            <a className="nav-link" href="#templates">
-              Templates
+            <a className="nav-link" href="#setup">
+              Setup
             </a>
-            <a className="nav-link" href="#numbers">
-              Numbers
+            <a className="nav-link" href="#workspace">
+              Workspace
             </a>
             <a className="nav-link" href="/onboarding">
               Onboarding

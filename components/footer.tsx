@@ -2,20 +2,29 @@ import { BrandHeart } from "@/components/brand-heart";
 
 const columns = [
   {
-    title: "Product",
-    links: ["Builder", "Dashboard", "Templates", "Connectors"]
+    title: "Workspace",
+    links: [
+      ["Dashboard", "/dashboard"],
+      ["LLM Wiki", "/dashboard/wiki"],
+      ["Knowledge Graph", "/dashboard/graph"],
+      ["OpenClaw Gateway", "/dashboard/openclaw"]
+    ]
   },
   {
-    title: "Resources",
-    links: ["Guides", "Examples", "API status", "Security"]
+    title: "Setup",
+    links: [
+      ["Onboarding", "/onboarding"],
+      ["Login", "/login"],
+      ["Start With Intent", "/intent"],
+      ["Settings", "/dashboard/settings"]
+    ]
   },
   {
-    title: "Company",
-    links: ["About", "Changelog", "Careers", "Contact"]
-  },
-  {
-    title: "Legal",
-    links: ["Privacy", "Terms", "DPA", "Cookies"]
+    title: "Project",
+    links: [
+      ["Source Code", "https://github.com/kenken64/2ndBrain.ceo"],
+      ["Health Check", "/api/health"]
+    ]
   }
 ];
 
@@ -29,17 +38,17 @@ export function Footer() {
               <BrandHeart size={58} />
             </a>
             <p>
-              A calm AI workspace for founders who need their knowledge base to become an
-              operating system.
+              An educational front door for the 2ndBrain workspace: onboarding, OpenClaw,
+              LLM Wiki projects, markdown editing, and knowledge graph exploration.
             </p>
           </div>
           {columns.map((column) => (
             <div key={column.title}>
               <h4>{column.title}</h4>
               <ul>
-                {column.links.map((link) => (
-                  <li key={link}>
-                    <a href="/dashboard">{link}</a>
+                {column.links.map(([label, href]) => (
+                  <li key={label}>
+                    <a href={href}>{label}</a>
                   </li>
                 ))}
               </ul>

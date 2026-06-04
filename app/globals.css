@@ -606,7 +606,8 @@ svg {
 }
 
 .step-card,
-.stat-card,
+.education-card,
+.workspace-card,
 .auth-panel,
 .setup-callout,
 .onboarding-card,
@@ -688,7 +689,8 @@ svg {
 }
 
 .step-card h3,
-.template-card h3,
+.education-card h3,
+.workspace-card h3,
 .project-card h3 {
   margin: 0;
   color: var(--fg-primary);
@@ -751,30 +753,47 @@ svg {
 }
 
 .step-card p,
-.template-card p,
+.education-card p,
+.workspace-card p,
 .project-card p {
   margin: 8px 0 0;
   color: var(--fg-secondary);
   font-size: 14px;
 }
 
-.templates-panel {
-  position: relative;
-  overflow: hidden;
-  border-radius: var(--radius-2xl);
-  background: var(--bg-panel);
-  padding: 34px;
+.education-grid,
+.workspace-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 20px;
+  margin-top: 36px;
 }
 
-.templates-panel::before {
-  position: absolute;
-  inset: 0 0 auto;
-  height: 10px;
-  background: linear-gradient(90deg, var(--brand-blue), var(--brand-green), var(--brand-orange));
-  content: "";
+.education-card,
+.workspace-card {
+  min-width: 0;
+  padding: 28px;
 }
 
-.templates-panel__header,
+.education-card__label {
+  display: inline-flex;
+  min-height: 26px;
+  align-items: center;
+  border: 1px solid rgba(0, 167, 255, 0.24);
+  border-radius: var(--radius-pill);
+  background: rgba(0, 167, 255, 0.08);
+  color: var(--fg-primary);
+  padding: 4px 10px;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.education-card h3 {
+  margin-top: 18px;
+}
+
 .dashboard-topbar {
   display: flex;
   align-items: center;
@@ -788,71 +807,6 @@ svg {
   flex-wrap: wrap;
   gap: 10px;
   justify-content: flex-end;
-}
-
-.templates-grid {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 26px;
-  margin-top: 26px;
-}
-
-.template-card {
-  min-width: 0;
-}
-
-.template-card__thumb {
-  position: relative;
-  overflow: hidden;
-  aspect-ratio: 4 / 3;
-  border-radius: var(--radius-lg);
-  border: 1px solid rgba(17, 24, 39, 0.08);
-  background:
-    linear-gradient(rgba(0, 167, 255, 0.13) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(182, 76, 255, 0.1) 1px, transparent 1px),
-    linear-gradient(135deg, #f8fbff, #d9f4ff 48%, #e4f8ef 100%);
-  background-size: 24px 24px, 24px 24px, 100% 100%;
-  box-shadow: var(--shadow-sm);
-  transition:
-    transform 180ms ease,
-    box-shadow 180ms ease;
-}
-
-.template-card:hover .template-card__thumb {
-  transform: scale(1.02);
-  box-shadow: var(--shadow-md);
-}
-
-.template-card__body {
-  padding: 14px 2px 0;
-}
-
-.stats-grid {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 20px;
-  margin-top: 36px;
-}
-
-.stat-card {
-  padding: 28px;
-  text-align: center;
-}
-
-.stat-card strong {
-  display: block;
-  color: var(--fg-primary);
-  font-size: clamp(36px, 5vw, 58px);
-  line-height: 1;
-  font-variant-numeric: tabular-nums;
-  letter-spacing: 0;
-}
-
-.stat-card span {
-  display: block;
-  margin-top: 10px;
-  color: var(--fg-secondary);
-  font-size: 14px;
 }
 
 .final-cta {
@@ -871,7 +825,7 @@ svg {
 
 .footer__grid {
   display: grid;
-  grid-template-columns: 1.35fr repeat(4, 1fr);
+  grid-template-columns: 1.45fr repeat(3, 1fr);
   gap: 28px;
 }
 
@@ -3925,8 +3879,8 @@ svg {
   }
 
   .steps-grid,
-  .templates-grid,
-  .stats-grid,
+  .education-grid,
+  .workspace-grid,
   .projects-grid,
   .agent-select-grid,
   .wiki-decision-grid {
@@ -4118,7 +4072,6 @@ svg {
   .graph-workbench__header,
   .project-card__actions,
   .wiki-projects-toolbar,
-  .templates-panel__header,
   .projects-section__header {
     align-items: flex-start;
     flex-direction: column;
@@ -4246,8 +4199,8 @@ svg {
   }
 
   .steps-grid,
-  .templates-grid,
-  .stats-grid,
+  .education-grid,
+  .workspace-grid,
   .projects-grid,
   .agent-select-grid,
   .wiki-decision-grid,
@@ -4255,7 +4208,6 @@ svg {
     grid-template-columns: 1fr;
   }
 
-  .templates-panel,
   .auth-panel,
   .onboarding-card {
     padding: 24px;
@@ -4573,7 +4525,6 @@ svg {
     max-width: 110px;
   }
 
-  .templates-panel,
   .auth-panel,
   .onboarding-card {
     padding: 18px 14px;

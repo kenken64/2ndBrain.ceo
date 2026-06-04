@@ -2,30 +2,56 @@ import { Atmosphere } from "@/components/atmosphere";
 import { ChatInput } from "@/components/chat-input";
 import { Footer } from "@/components/footer";
 import { MarketingNav } from "@/components/marketing-nav";
-import { TemplatesPanel } from "@/components/templates-panel";
 import { hasSupabaseEnv } from "@/lib/env";
 
 export const dynamic = "force-dynamic";
 
 const steps = [
   {
-    title: "Describe the system",
-    description: "Start with a goal, a workflow, or a messy pile of notes."
+    title: "Start With Intent",
+    description: "Describe the company memory you need: a project wiki, operating notes, a decision trail, or a focused knowledge graph."
   },
   {
-    title: "Shape the output",
-    description: "2ndBrain drafts pages, trackers, rituals, and decision logs."
+    title: "Connect The Workspace",
+    description: "Onboarding connects your profile, Telegram approval, avatar settings, and an OpenClaw workspace before heavier actions run."
   },
   {
-    title: "Run it with your team",
-    description: "Keep the operating system alive with projects and recurring prompts."
+    title: "Turn Notes Into Structure",
+    description: "Upload files or write prompts, then review the generated markdown pages, wiki tree, and graph instead of treating AI output as final."
   }
 ];
 
-const stats = [
-  ["12k+", "workflows generated"],
-  ["4.8x", "faster knowledge retrieval"],
-  ["91%", "teams shipping weekly reviews"]
+const setupItems = [
+  {
+    label: "Identity",
+    title: "Name, avatar, and owner context",
+    description: "The app stores basic profile details so generated workspace pages can use consistent names and references."
+  },
+  {
+    label: "Approval",
+    title: "Telegram pairing",
+    description: "Telegram approval is used as a human checkpoint before the connected OpenClaw agent continues sensitive setup work."
+  },
+  {
+    label: "Runtime",
+    title: "OpenClaw on AWS Lightsail",
+    description: "Provisioning restores a configured Lightsail snapshot and gives the dashboard a workspace to read, write, export, and inspect."
+  }
+];
+
+const workspaceItems = [
+  {
+    title: "LLM Wiki",
+    description: "Create a wiki project from a prompt and optional source files, then edit the generated markdown directly."
+  },
+  {
+    title: "Knowledge Graph",
+    description: "Sync wiki pages into graph tables and explore concepts, page relationships, and links visually."
+  },
+  {
+    title: "OpenClaw Gateway",
+    description: "Check gateway status, refresh URLs, reconnect Claude auth, and open the authenticated SSH console when configured."
+  }
 ];
 
 export default function Home() {
@@ -41,38 +67,38 @@ export default function Home() {
           <section className="hero">
             <div className="container hero__inner">
               <h1 className="hero__headline">
-                <span>Knowledge overload?</span>
-                <span>Let Nth Brain organize it.</span>
+                <span>2ndBrain.ceo</span>
               </h1>
               <p className="hero__subhead">
-                Create dashboards, rituals, and knowledge workflows by chatting with an AI
-                builder that understands founder context.
+                A workspace for learning how your notes, files, Telegram approval, OpenClaw
+                runtime, markdown wiki, and knowledge graph fit together before you ask AI to
+                generate anything important.
               </p>
               <ChatInput
                 action="/intent"
                 className="hero__chat"
                 method="get"
-                placeholder="Ask 2ndBrain to turn my notes into a weekly operating dashboard..."
+                placeholder="Describe a project, upload source notes, or ask for an LLM Wiki about a specific operating problem..."
               />
               <div className="trust-strip">
-                Built for fast-moving teams
+                Learn the workflow before running it
                 <div aria-hidden="true" className="trust-strip__logos">
-                  <span>Founders</span>
-                  <span>Ops</span>
-                  <span>Product</span>
-                  <span>Sales</span>
-                  <span>Strategy</span>
+                  <span>Onboarding</span>
+                  <span>Telegram</span>
+                  <span>OpenClaw</span>
+                  <span>LLM Wiki</span>
+                  <span>Knowledge Graph</span>
                 </div>
               </div>
             </div>
           </section>
 
-          <section className="section" id="builder">
+          <section className="section" id="how-it-works">
             <div className="container">
-              <h2 className="section-heading">AI App Builder</h2>
+              <h2 className="section-heading">How 2ndBrain Works</h2>
               <p className="section-copy">
-                The first screen is the product: a chat-led workspace that turns intent into
-                useful company surfaces.
+                The app is not a magic app builder. It is a guided workflow for converting
+                source material into a maintained workspace you can inspect and revise.
               </p>
               <div className="steps-grid">
                 {steps.map((step) => (
@@ -104,21 +130,38 @@ export default function Home() {
             </div>
           </section>
 
-          <section className="section">
+          <section className="section" id="setup">
             <div className="container">
-              <TemplatesPanel />
+              <h2 className="section-heading">What Setup Connects</h2>
+              <p className="section-copy">
+                Setup is explicit because the app coordinates user identity, approval, cloud
+                runtime state, and generated workspace files.
+              </p>
+              <div className="education-grid">
+                {setupItems.map((item) => (
+                  <article className="education-card" key={item.title}>
+                    <span className="education-card__label">{item.label}</span>
+                    <h3>{item.title}</h3>
+                    <p>{item.description}</p>
+                  </article>
+                ))}
+              </div>
             </div>
           </section>
 
-          <section className="section" id="numbers">
+          <section className="section" id="workspace">
             <div className="container">
-              <h2 className="section-heading">2ndBrain in numbers</h2>
-              <div className="stats-grid">
-                {stats.map(([value, label]) => (
-                  <div className="stat-card" key={label}>
-                    <strong>{value}</strong>
-                    <span>{label}</span>
-                  </div>
+              <h2 className="section-heading">Inside The Workspace</h2>
+              <p className="section-copy">
+                After onboarding, the dashboard focuses on concrete surfaces: wiki projects,
+                markdown editing, graph exploration, gateway status, and settings.
+              </p>
+              <div className="workspace-grid">
+                {workspaceItems.map((item) => (
+                  <article className="workspace-card" key={item.title}>
+                    <h3>{item.title}</h3>
+                    <p>{item.description}</p>
+                  </article>
                 ))}
               </div>
             </div>
