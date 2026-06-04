@@ -7,7 +7,7 @@ const columns = [
       ["Dashboard", "/dashboard"],
       ["LLM Wiki", "/dashboard/wiki"],
       ["Knowledge Graph", "/dashboard/graph"],
-      ["OpenClaw Gateway", "/dashboard/openclaw"]
+      ["AI Agent Gateway", "/dashboard/openclaw"]
     ]
   },
   {
@@ -38,7 +38,7 @@ export function Footer() {
               <BrandHeart size={58} />
             </a>
             <p>
-              An educational front door for the 2ndBrain workspace: onboarding, OpenClaw,
+              An educational front door for the 2ndBrain workspace: onboarding, AI Agent,
               LLM Wiki projects, markdown editing, and knowledge graph exploration.
             </p>
           </div>

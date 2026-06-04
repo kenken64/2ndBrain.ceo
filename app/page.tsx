@@ -13,7 +13,7 @@ const steps = [
   },
   {
     title: "Connect The Workspace",
-    description: "Onboarding connects your profile, Telegram approval, avatar settings, and an OpenClaw workspace before heavier actions run."
+    description: "Onboarding connects your profile, Telegram approval, avatar settings, and an AI Agent workspace before heavier actions run."
   },
   {
     title: "Turn Notes Into Structure",
@@ -30,11 +30,11 @@ const setupItems = [
   {
     label: "Approval",
     title: "Telegram pairing",
-    description: "Telegram approval is used as a human checkpoint before the connected OpenClaw agent continues sensitive setup work."
+    description: "Telegram approval is used as a human checkpoint before the connected AI Agent continues sensitive setup work."
   },
   {
     label: "Runtime",
-    title: "OpenClaw on AWS Lightsail",
+    title: "AI Agent on AWS Lightsail",
     description: "Provisioning restores a configured Lightsail snapshot and gives the dashboard a workspace to read, write, export, and inspect."
   }
 ];
@@ -49,8 +49,8 @@ const workspaceItems = [
     description: "Sync wiki pages into graph tables and explore concepts, page relationships, and links visually."
   },
   {
-    title: "OpenClaw Gateway",
-    description: "Check gateway status, refresh URLs, reconnect Claude auth, and open the authenticated SSH console when configured."
+    title: "AI Agent Gateway",
+    description: "Check gateway status, refresh URLs, reconnect Fronttier AI Model, and open the authenticated SSH console when configured."
   }
 ];
 
@@ -70,7 +70,7 @@ export default function Home() {
                 <span>2ndBrain.ceo</span>
               </h1>
               <p className="hero__subhead">
-                A workspace for learning how your notes, files, Telegram approval, OpenClaw
+                A workspace for learning how your notes, files, Telegram approval, AI Agent
                 runtime, markdown wiki, and knowledge graph fit together before you ask AI to
                 generate anything important.
               </p>
@@ -85,7 +85,7 @@ export default function Home() {
                 <div aria-hidden="true" className="trust-strip__logos">
                   <span>Onboarding</span>
                   <span>Telegram</span>
-                  <span>OpenClaw</span>
+                  <span>AI Agent</span>
                   <span>LLM Wiki</span>
                   <span>Knowledge Graph</span>
                 </div>
