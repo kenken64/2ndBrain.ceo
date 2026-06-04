@@ -9,15 +9,21 @@ export const dynamic = "force-dynamic";
 const steps = [
   {
     title: "Start With Intent",
-    description: "Describe the company memory you need: a project wiki, operating notes, a decision trail, or a focused knowledge graph."
+    description: "Describe the company memory you need: a project wiki, operating notes, a decision trail, or a focused knowledge graph.",
+    imageAlt: "Generated wiki project card for a senior DevSecOps engineer profile",
+    imageSrc: "/landing/1.png"
   },
   {
     title: "Connect The Workspace",
-    description: "Onboarding connects your profile, Telegram approval, avatar settings, and an AI Agent workspace before heavier actions run."
+    description: "Onboarding connects your profile, Telegram approval, avatar settings, and an AI Agent workspace before heavier actions run.",
+    imageAlt: "Generated wiki project card for an academic lecturer profile",
+    imageSrc: "/landing/2.png"
   },
   {
     title: "Turn Notes Into Structure",
-    description: "Upload files or write prompts, then review the generated markdown pages, wiki tree, and graph instead of treating AI output as final."
+    description: "Upload files or write prompts, then review the generated markdown pages, wiki tree, and graph instead of treating AI output as final.",
+    imageAlt: "Generated wiki project card for a Singapore property agent profile",
+    imageSrc: "/landing/3.png"
   }
 ];
 
@@ -103,22 +109,8 @@ export default function Home() {
               <div className="steps-grid">
                 {steps.map((step) => (
                   <article className="step-card" key={step.title}>
-                    <div className="step-card__mock">
-                      <div className="mock-window">
-                        <div className="mock-dots">
-                          <span />
-                          <span />
-                          <span />
-                        </div>
-                        <div className="mock-line short" />
-                        <div className="mock-line medium" />
-                        <div className="mock-line" />
-                        <div className="mock-card-row">
-                          <div className="mock-card" />
-                          <div className="mock-card" />
-                          <div className="mock-card" />
-                        </div>
-                      </div>
+                    <div className="step-card__media">
+                      <img alt={step.imageAlt} height={900} src={step.imageSrc} width={830} />
                     </div>
                     <div className="step-card__body">
                       <h3>{step.title}</h3>

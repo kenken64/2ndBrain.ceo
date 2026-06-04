@@ -622,9 +622,10 @@ svg {
   overflow: hidden;
 }
 
-.step-card__mock {
-  min-height: 220px;
-  padding: 18px;
+.step-card__media {
+  display: grid;
+  aspect-ratio: 1.9;
+  overflow: hidden;
   background:
     linear-gradient(rgba(0, 167, 255, 0.12) 1px, transparent 1px),
     linear-gradient(90deg, rgba(0, 196, 140, 0.1) 1px, transparent 1px),
@@ -632,56 +633,11 @@ svg {
   background-size: 28px 28px, 28px 28px, 100% 100%;
 }
 
-.mock-window {
-  height: 184px;
-  border: 1px solid rgba(17, 24, 39, 0.1);
-  border-radius: var(--radius-md);
-  background: rgba(255, 255, 255, 0.78);
-  padding: 14px;
-  box-shadow: var(--shadow-lg);
-}
-
-.mock-dots {
-  display: flex;
-  gap: 6px;
-  margin-bottom: 18px;
-}
-
-.mock-dots span,
-.pagination-dot {
-  width: 6px;
-  height: 6px;
-  border-radius: var(--radius-pill);
-  background: var(--fg-muted);
-}
-
-.mock-line {
-  height: 10px;
-  margin-bottom: 10px;
-  border-radius: var(--radius-pill);
-  background: rgba(0, 167, 255, 0.18);
-}
-
-.mock-line.short {
-  width: 58%;
-}
-
-.mock-line.medium {
-  width: 76%;
-}
-
-.mock-card-row {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 10px;
-  margin-top: 20px;
-}
-
-.mock-card {
-  aspect-ratio: 1;
-  border-radius: 12px;
-  background: var(--bg-elevated);
-  border: 1px solid rgba(17, 24, 39, 0.08);
+.step-card__media img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: top center;
 }
 
 .step-card__body {
@@ -3844,6 +3800,10 @@ svg {
 }
 
 .pagination-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: var(--radius-pill);
+  background: var(--fg-muted);
   opacity: 0.4;
 }
 
