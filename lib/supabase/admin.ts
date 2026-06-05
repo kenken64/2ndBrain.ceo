@@ -8,12 +8,26 @@ function cleanEnvValue(value: string | undefined) {
   return cleaned || null;
 }
 
+const SUPABASE_SERVICE_ROLE_ENV_NAMES = [
+  "SUPABASE_SERVICE_ROLE_KEY",
+  "SUPABASE_SERVICE_KEY",
+  "SERVICE_ROLE_KEY"
+] as const;
+
+export function getSupabaseServiceRoleKeySource() {
+  for (const name of SUPABASE_SERVICE_ROLE_ENV_NAMES) {
+    const value = cleanEnvValue(process.env[name]);
+
+    if (value) {
+      return { name, value };
+    }
+  }
+
+  return null;
+}
+
 export function getSupabaseServiceRoleKey() {
-  return (
-    cleanEnvValue(process.env.SUPABASE_SERVICE_ROLE_KEY) ??
-    cleanEnvValue(process.env.SUPABASE_SERVICE_KEY) ??
-    cleanEnvValue(process.env.SERVICE_ROLE_KEY)
-  );
+  return getSupabaseServiceRoleKeySource()?.value ?? null;
 }
 
 export function hasSupabaseServiceRoleEnv() {
