@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { AdminMfaPanel } from "@/components/admin-mfa-panel";
 import { Atmosphere } from "@/components/atmosphere";
 import { requireAdminPage } from "@/lib/admin";
+import { getSupabaseEnv } from "@/lib/env";
 
 export const dynamic = "force-dynamic";
 
@@ -46,11 +47,17 @@ export default async function AdminMfaPage({ searchParams }: AdminMfaPageProps) 
     redirect(nextPath);
   }
 
+  const { supabasePublishableKey, supabaseUrl } = getSupabaseEnv();
+
   return (
     <>
       <Atmosphere />
       <main className="auth-page">
-        <AdminMfaPanel nextPath={nextPath} />
+        <AdminMfaPanel
+          nextPath={nextPath}
+          supabasePublishableKey={supabasePublishableKey}
+          supabaseUrl={supabaseUrl}
+        />
       </main>
     </>
   );

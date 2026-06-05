@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { createClient } from "@/lib/supabase/client";
+import { createBrowserClient } from "@supabase/ssr";
 
 type TotpFactor = {
   friendly_name?: string;
@@ -17,11 +17,16 @@ type Enrollment = {
 
 type AdminMfaPanelProps = {
   nextPath: string;
+  supabasePublishableKey: string;
+  supabaseUrl: string;
 };
 
-export function AdminMfaPanel({ nextPath }: AdminMfaPanelProps) {
+export function AdminMfaPanel({ nextPath, supabasePublishableKey, supabaseUrl }: AdminMfaPanelProps) {
   const router = useRouter();
-  const supabase = useMemo(() => createClient(), []);
+  const supabase = useMemo(
+    () => createBrowserClient(supabaseUrl, supabasePublishableKey),
+    [supabasePublishableKey, supabaseUrl]
+  );
   const [code, setCode] = useState("");
   const [enrollment, setEnrollment] = useState<Enrollment | null>(null);
   const [factors, setFactors] = useState<TotpFactor[]>([]);
