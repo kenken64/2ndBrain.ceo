@@ -9,7 +9,11 @@ function cleanEnvValue(value: string | undefined) {
 }
 
 export function getSupabaseServiceRoleKey() {
-  return cleanEnvValue(process.env.SUPABASE_SERVICE_ROLE_KEY) ?? cleanEnvValue(process.env.SUPABASE_SERVICE_KEY);
+  return (
+    cleanEnvValue(process.env.SUPABASE_SERVICE_ROLE_KEY) ??
+    cleanEnvValue(process.env.SUPABASE_SERVICE_KEY) ??
+    cleanEnvValue(process.env.SERVICE_ROLE_KEY)
+  );
 }
 
 export function hasSupabaseServiceRoleEnv() {

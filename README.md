@@ -151,6 +151,8 @@ For the admin module, Railway must also include:
 SUPABASE_SERVICE_ROLE_KEY=your_service_role_key
 ```
 
+For self-hosted Supabase on Railway, the Supabase service commonly exposes `SERVICE_ROLE_KEY`; the app also accepts that name as a fallback, or you can set `SUPABASE_SERVICE_ROLE_KEY=${{YourSupabaseService.SERVICE_ROLE_KEY}}` on the app service.
+
 Admin access is loaded into Supabase, not registered inside the app. After running `0014_admin_controls.sql`, load or reload the allowlist:
 
 ```sh
