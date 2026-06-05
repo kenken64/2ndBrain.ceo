@@ -36,6 +36,7 @@ Useful commands:
 ```sh
 npm run typecheck
 npm run build
+npm run admin:load -- --email owner@example.com --replace
 npm run wiki:backfill -- --email bunnyppl@gmail.com --dry-run
 npm run start
 ```
@@ -99,6 +100,10 @@ Run migrations in order from `supabase/migrations`:
 0008_wiki_graph.sql
 0009_openclaw_identity_async.sql
 0010_projects_multi_wiki_registry.sql
+0011_agent_provision_target.sql
+0012_openclaw_gateway_url.sql
+0013_profile_settings.sql
+0014_admin_controls.sql
 ```
 
 Auth redirect URLs:
@@ -139,6 +144,22 @@ CLAWMACDO_RAYON_NUM_THREADS=1
 ```
 
 For the OpenClaw SSH console, set `OPENCLAW_SSH_TOKEN_SECRET` to a long random value. The browser asks the server for a short-lived SSH token, so the console does not require browser-exposed Supabase variables.
+
+For the admin module, Railway must also include:
+
+```txt
+SUPABASE_SERVICE_ROLE_KEY=your_service_role_key
+```
+
+Admin access is loaded into Supabase, not registered inside the app. After running `0014_admin_controls.sql`, load or reload the allowlist:
+
+```sh
+npm run admin:load -- --email owner@example.com --replace
+```
+
+You can also provide multiple emails with `--emails owner@example.com,ops@example.com`, a newline-delimited file with `--file admin-emails.txt`, or the optional local `ADMIN_EMAILS` env var as script input. The app authorizes admins from `public.admin_users`.
+
+There is no separate admin password or in-app admin registration form. Admin pages and admin APIs require a Supabase Google session with TOTP MFA verified to `aal2`. Enable Supabase Auth MFA/TOTP for the project, load the admin email with `npm run admin:load`, sign in with that same Google account, then visit `/admin`; admins who have not verified MFA are redirected to `/admin/mfa` for authenticator app enrollment.
 
 The Dockerfile also declares build args for public values used by Next.js during `npm run build`:
 
@@ -220,6 +241,8 @@ Commit and redeploy after upgrading so Railway rebuilds the Docker image with th
 - `/dashboard/wiki?projectId=...` selected wiki markdown editor
 - `/dashboard/graph` knowledge graph project selector
 - `/dashboard/graph?projectId=...` selected wiki graph
+- `/admin` script-loaded admin console for quotas, access disablement, workspace deletion, and Bedrock bearer-token overwrite
+- `/admin/mfa` Supabase TOTP enrollment and verification for admin sessions
 - `/api/health` deployment health check
 
 ## Troubleshooting

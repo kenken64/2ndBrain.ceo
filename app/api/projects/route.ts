@@ -8,6 +8,7 @@ import {
   type OnboardingProfile
 } from "@/lib/onboarding";
 import { generateOpenClawWikiProject } from "@/lib/openclaw";
+import { createAdminClient, hasSupabaseServiceRoleEnv } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 import { appUrl, safeNextPath } from "@/lib/url";
 import { convertWikiAttachments } from "@/lib/wiki-attachments";
@@ -33,6 +34,13 @@ function slugFromProjectId(projectId: string) {
 
 function outputSummary(value: string) {
   return value.slice(-4000);
+}
+
+function estimateProjectTokenCost(prompt: string, files: File[]) {
+  const promptTokens = Math.ceil(prompt.trim().length / 4);
+  const fileTokens = Math.ceil(files.reduce((sum, file) => sum + file.size, 0) / 4);
+
+  return Math.max(1, 1000 + promptTokens + fileTokens);
 }
 
 function projectGenerationErrorCode(error: unknown) {
@@ -132,12 +140,21 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Prompt is required" }, { status: 400 });
   }
 
-  const { data: profile } = await auth.supabase
+  const { data: profile, error: profileError } = await auth.supabase
     .from("profiles")
-    .select(onboardingProfileSelect)
+    .select(`${onboardingProfileSelect},admin_disabled,admin_deleted_at,llm_token_quota,llm_token_used`)
     .eq("id", auth.userId)
     .maybeSingle();
-  const onboardingProfile = profile as OnboardingProfile | null;
+  const onboardingProfile = profile as (OnboardingProfile & {
+    admin_deleted_at?: string | null;
+    admin_disabled?: boolean | null;
+    llm_token_quota?: number | null;
+    llm_token_used?: number | null;
+  }) | null;
+
+  if (profileError) {
+    return NextResponse.json({ error: profileError.message }, { status: 500 });
+  }
 
   if (!isOnboardingComplete(onboardingProfile)) {
     if (isFormPost) {
@@ -148,6 +165,10 @@ export async function POST(request: Request) {
     }
 
     return NextResponse.json({ error: "Onboarding required" }, { status: 403 });
+  }
+
+  if (onboardingProfile?.admin_disabled || onboardingProfile?.admin_deleted_at) {
+    return NextResponse.json({ error: "Account access is disabled" }, { status: 403 });
   }
 
   const openclawInstance = onboardingProfile?.openclaw_instance?.trim();
@@ -166,6 +187,72 @@ export async function POST(request: Request) {
     payload instanceof FormData
       ? payload.getAll("attachments").filter((value): value is File => value instanceof File && value.size > 0)
       : [];
+  const estimatedTokenCost = estimateProjectTokenCost(prompt, attachmentInputs);
+
+  if (!hasSupabaseServiceRoleEnv()) {
+    if (isFormPost) {
+      return redirectWithParams(request, returnTo, { error: "token_quota_unavailable" });
+    }
+
+    return NextResponse.json({ error: "SUPABASE_SERVICE_ROLE_KEY is required for token quota enforcement" }, { status: 503 });
+  }
+
+  const adminSupabase = createAdminClient();
+  const { data: quotaProfile, error: quotaProfileError } = await adminSupabase
+    .from("profiles")
+    .select("admin_disabled,admin_deleted_at,llm_token_quota,llm_token_used")
+    .eq("id", auth.userId)
+    .maybeSingle();
+
+  if (quotaProfileError) {
+    if (isFormPost) {
+      return redirectWithParams(request, returnTo, { error: "token_quota_profile" });
+    }
+
+    return NextResponse.json({ error: quotaProfileError.message }, { status: 500 });
+  }
+
+  const quota = Number(quotaProfile?.llm_token_quota ?? 0);
+  const used = Number(quotaProfile?.llm_token_used ?? 0);
+  const remaining = quota - used;
+
+  if (quotaProfile?.admin_disabled || quotaProfile?.admin_deleted_at) {
+    if (isFormPost) {
+      return NextResponse.redirect(appUrl("/disabled", request), { status: 303 });
+    }
+
+    return NextResponse.json({ error: "Account access is disabled" }, { status: 403 });
+  }
+
+  if (quota <= 0 || remaining < estimatedTokenCost) {
+    if (isFormPost) {
+      return redirectWithParams(request, returnTo, { error: "token_quota_exceeded" });
+    }
+
+    return NextResponse.json(
+      {
+        error: "LLM token quota exceeded",
+        estimatedTokenCost,
+        remaining: Math.max(0, remaining)
+      },
+      { status: 402 }
+    );
+  }
+
+  const { error: usageError } = await adminSupabase
+    .from("profiles")
+    .update({
+      llm_token_used: used + estimatedTokenCost
+    })
+    .eq("id", auth.userId);
+
+  if (usageError) {
+    if (isFormPost) {
+      return redirectWithParams(request, returnTo, { error: "token_quota_update" });
+    }
+
+    return NextResponse.json({ error: usageError.message }, { status: 500 });
+  }
 
   const { data, error } = await auth.supabase
     .from("projects")

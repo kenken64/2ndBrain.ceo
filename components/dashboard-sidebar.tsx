@@ -1,6 +1,7 @@
 import {
   ChevronDown,
   Clapperboard,
+  ShieldCheck,
   GitBranch,
   LayoutGrid,
   Plug,
@@ -11,13 +12,14 @@ import {
 import { BrandHeart } from "@/components/brand-heart";
 
 type DashboardSidebarProps = {
-  activeItem?: "gateway" | "remotion" | "wiki" | "graph" | "settings";
+  activeItem?: "admin" | "gateway" | "remotion" | "wiki" | "graph" | "settings";
   avatarName?: string | null;
   email?: string | null;
   ownerName?: string | null;
+  showAdmin?: boolean;
 };
 
-export function DashboardSidebar({ activeItem = "gateway", email, ownerName }: DashboardSidebarProps) {
+export function DashboardSidebar({ activeItem = "gateway", email, ownerName, showAdmin = false }: DashboardSidebarProps) {
   const workspaceOwner = ownerName?.trim() || email?.split("@")[0] || "Personal";
   const workspaceName = `${workspaceOwner}'s workspace`;
 
@@ -61,6 +63,12 @@ export function DashboardSidebar({ activeItem = "gateway", email, ownerName }: D
           <Settings size={18} strokeWidth={1.7} />
           Settings
         </a>
+        {showAdmin || activeItem === "admin" ? (
+          <a className={`sidebar-item${activeItem === "admin" ? " is-active" : ""}`} href="/admin">
+            <ShieldCheck size={18} strokeWidth={1.7} />
+            Admin
+          </a>
+        ) : null}
         <a className="sidebar-item sidebar-item--logout" href="/auth/logout">
           <Power size={18} strokeWidth={1.7} />
           Log out

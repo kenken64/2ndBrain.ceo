@@ -9,6 +9,7 @@
     "start:standalone": "node .next/standalone/server.js",
     "start:next": "next start",
     "typecheck": "tsc --noEmit",
+    "admin:load": "node scripts/load-admin-users.mjs",
     "wiki:backfill": "node scripts/backfill-wiki-graph.mjs"
   },
   "dependencies": {
@@ -16,7 +17,7 @@
     "@supabase/supabase-js": "latest",
     "@xterm/addon-fit": "^0.11.0",
     "@xterm/xterm": "^6.0.0",
-    "clawmacdo": "^0.87.0",
+    "clawmacdo": "^0.88.0",
     "clsx": "latest",
     "cytoscape": "^3.33.3",
     "cytoscape-fcose": "^2.2.0",

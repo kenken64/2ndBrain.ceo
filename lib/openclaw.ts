@@ -132,6 +132,12 @@ type OpenClawDestroyInput = {
   region?: string | null;
 };
 
+type OpenClawBedrockTokenInput = {
+  bearerToken: string;
+  envFile?: string | null;
+  instance: string;
+};
+
 type OpenClawWikiDeleteInput = {
   instance: string;
   projectSlug: string;
@@ -182,6 +188,7 @@ let activeClawmacdoProcesses = 0;
 const clawmacdoProcessQueue: Array<() => void> = [];
 
 const SENSITIVE_ARG_NAMES = new Set([
+  "--bearer-token",
   "--bot-token",
   "--code",
   "--open-api-key",
@@ -196,6 +203,7 @@ function sanitizeLogText(value: string) {
     .replace(/[0-9]{6,}:[A-Za-z0-9_-]+/g, "[telegram_token]")
     .replace(/(telegram-pair\s+--instance\s+\S+\s+--code\s+)[A-Za-z0-9]{6,}/g, "$1[telegram_pair_code]")
     .replace(/(Approving Telegram pairing code\s+)[A-Za-z0-9]{6,}/g, "$1[telegram_pair_code]")
+    .replace(/(AWS_BEARER_TOKEN_BEDROCK=)[^\s]+/g, "$1[bedrock_bearer_token]")
     .replace(/sk-[A-Za-z0-9_-]+/g, "[openai_key]")
     .replace(/AKIA[A-Z0-9]+/g, "[aws_access_key]")
     .replace(/(AWS_SECRET_ACCESS_KEY=)[^\s]+/g, "$1[aws_secret_key]");
@@ -1946,6 +1954,29 @@ export async function getOpenClawGatewayUrl(input: OpenClawGatewayUrlInput) {
   return {
     gatewayOutput: output,
     gatewayUrl
+  };
+}
+
+export async function updateOpenClawBedrockBearerToken(input: OpenClawBedrockTokenInput) {
+  const bearerToken = input.bearerToken.trim();
+
+  if (!bearerToken) {
+    throw new Error("bedrock_bearer_token_required");
+  }
+
+  const awsEnv = getAwsEnv();
+  const instance = await resolveOpenClawSshTarget(input.instance, awsEnv, "bedrock-token-set");
+  const args = ["bedrock-token-set", "--instance", instance, "--bearer-token", bearerToken];
+  const envFile = input.envFile?.trim();
+
+  if (envFile) {
+    args.push("--env-file", envFile);
+  }
+
+  const output = await runClawmacdo(args, awsEnv);
+
+  return {
+    output
   };
 }
 
