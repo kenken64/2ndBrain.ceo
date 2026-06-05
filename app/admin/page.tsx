@@ -47,6 +47,8 @@ export default async function AdminPage() {
   });
 
   if (!access.ok) {
+    const switchAccountPath = `/auth/logout?next=${encodeURIComponent("/login?next=/admin")}`;
+
     return (
       <>
         <Atmosphere />
@@ -54,6 +56,19 @@ export default async function AdminPage() {
           <section className="auth-panel">
             <h1>Admin unavailable</h1>
             <p>{access.message}</p>
+            {access.email ? (
+              <p className="login-dialog__message">
+                Signed in as {access.email}. Use the Google account loaded in the admin allowlist.
+              </p>
+            ) : null}
+            <div className="auth-actions">
+              <a className="btn-primary" href={switchAccountPath}>
+                Switch Google account
+              </a>
+              <a className="btn-ghost" href="/api/admin/access-check">
+                Check admin session
+              </a>
+            </div>
           </section>
         </main>
       </>

@@ -6,6 +6,7 @@ import { appUrl, getRequestOrigin, safeNextPath } from "@/lib/url";
 export async function GET(request: Request) {
   const requestUrl = new URL(request.url);
   const next = safeNextPath(requestUrl.searchParams.get("next"));
+  const loginHint = requestUrl.searchParams.get("login_hint")?.trim();
 
   if (!hasSupabaseEnv()) {
     return NextResponse.redirect(
@@ -21,7 +22,8 @@ export async function GET(request: Request) {
       redirectTo: `${origin}/auth/callback?next=${encodeURIComponent(next)}`,
       queryParams: {
         access_type: "offline",
-        prompt: "consent"
+        ...(loginHint ? { login_hint: loginHint } : {}),
+        prompt: "select_account consent"
       }
     }
   });

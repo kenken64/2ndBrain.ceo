@@ -29,10 +29,13 @@ export type AdminAccessResult =
       userId: string;
     }
   | {
+      aal?: string | null;
+      email?: string;
       message: string;
       ok: false;
       reason: AdminAccessFailureReason;
       status: number;
+      userId?: string;
     };
 
 async function isAdminEmail(email: string, userId: string) {
@@ -86,19 +89,23 @@ export async function getAdminAccess(options: AdminAccessOptions = {}): Promise<
 
   if (!hasSupabaseServiceRoleEnv()) {
     return {
+      email,
       message: "SUPABASE_SERVICE_ROLE_KEY is required for admin controls.",
       ok: false,
       reason: "missing_supabase_service_role_key",
-      status: 503
+      status: 503,
+      userId
     };
   }
 
   if (!(await isAdminEmail(email, userId))) {
     return {
+      email,
       message: "Admin access required.",
       ok: false,
       reason: "admin_forbidden",
-      status: 403
+      status: 403,
+      userId
     };
   }
 
@@ -107,10 +114,13 @@ export async function getAdminAccess(options: AdminAccessOptions = {}): Promise<
 
   if (requireMfa && aal !== "aal2") {
     return {
+      aal,
+      email,
       message: "Admin TOTP verification required.",
       ok: false,
       reason: "admin_mfa_required",
-      status: 403
+      status: 403,
+      userId
     };
   }
 
