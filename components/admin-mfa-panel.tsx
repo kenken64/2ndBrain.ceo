@@ -5,8 +5,10 @@ import { useRouter } from "next/navigation";
 import { createBrowserClient } from "@supabase/ssr";
 
 type TotpFactor = {
+  created_at?: string;
   friendly_name?: string;
   id: string;
+  status?: string;
 };
 
 type Enrollment = {
@@ -37,6 +39,10 @@ function qrCodeImageSrc(value: string) {
   }
 
   return trimmed;
+}
+
+function newFriendlyName() {
+  return `2ndBrain admin ${new Date().toISOString().replace(/[-:.TZ]/g, "").slice(0, 14)}`;
 }
 
 export function AdminMfaPanel({ nextPath, supabasePublishableKey, supabaseUrl }: AdminMfaPanelProps) {
@@ -78,7 +84,7 @@ export function AdminMfaPanel({ nextPath, supabasePublishableKey, supabaseUrl }:
 
     const { data, error } = await supabase.auth.mfa.enroll({
       factorType: "totp",
-      friendlyName: "2ndBrain admin",
+      friendlyName: newFriendlyName(),
       issuer: "2ndBrain.ceo"
     });
 
@@ -137,10 +143,16 @@ export function AdminMfaPanel({ nextPath, supabasePublishableKey, supabaseUrl }:
       <h1>Admin TOTP required</h1>
       <p>Verify a Supabase TOTP factor before using admin controls.</p>
 
-      {factors.length === 0 && !enrollment ? (
+      {!enrollment ? (
         <button className="btn-primary" disabled={isBusy} onClick={startEnrollment} type="button">
-          Set up TOTP
+          {factors.length > 0 ? "Set up new TOTP" : "Set up TOTP"}
         </button>
+      ) : null}
+
+      {factors.length > 0 && !enrollment ? (
+        <p className="login-dialog__message">
+          Existing TOTP factor detected. Enter a code from that authenticator, or set up a new TOTP factor.
+        </p>
       ) : null}
 
       {enrollment && qrCodeSrc ? (
