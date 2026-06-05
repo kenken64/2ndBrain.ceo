@@ -21,6 +21,24 @@ type AdminMfaPanelProps = {
   supabaseUrl: string;
 };
 
+function qrCodeImageSrc(value: string) {
+  const trimmed = value.trim();
+
+  if (!trimmed) {
+    return null;
+  }
+
+  if (trimmed.startsWith("data:image/")) {
+    return trimmed;
+  }
+
+  if (trimmed.startsWith("<svg")) {
+    return `data:image/svg+xml;charset=utf-8,${encodeURIComponent(trimmed)}`;
+  }
+
+  return trimmed;
+}
+
 export function AdminMfaPanel({ nextPath, supabasePublishableKey, supabaseUrl }: AdminMfaPanelProps) {
   const router = useRouter();
   const supabase = useMemo(
@@ -112,9 +130,7 @@ export function AdminMfaPanel({ nextPath, supabasePublishableKey, supabaseUrl }:
     router.refresh();
   }
 
-  const qrCodeSrc = enrollment
-    ? `data:image/svg+xml;utf-8,${encodeURIComponent(enrollment.qrCode)}`
-    : null;
+  const qrCodeSrc = enrollment ? qrCodeImageSrc(enrollment.qrCode) : null;
 
   return (
     <section className="auth-panel admin-mfa-panel">
