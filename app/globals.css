@@ -884,16 +884,19 @@ svg {
 }
 
 .admin-mfa-panel {
-  text-align: left;
+  text-align: center;
 }
 
 .admin-mfa-panel__setup {
   display: grid;
   gap: 12px;
+  justify-items: center;
   margin-top: 20px;
+  text-align: center;
 }
 
 .admin-mfa-panel__setup img {
+  display: block;
   width: min(100%, 220px);
   border: 1px solid var(--border-soft);
   border-radius: var(--radius-sm);
@@ -904,6 +907,7 @@ svg {
 .admin-mfa-panel code {
   display: block;
   margin-top: 8px;
+  width: min(100%, 520px);
   overflow-wrap: anywhere;
   border-radius: var(--radius-sm);
   background: var(--bg-subtle);
