@@ -863,7 +863,8 @@ svg {
 }
 
 .admin-user-row input,
-.admin-mfa-panel input {
+.admin-mfa-panel input,
+.admin-mfa-panel select {
   width: 100%;
   min-height: 42px;
   border: 1px solid var(--border-soft);
@@ -886,6 +887,12 @@ svg {
 
 .admin-mfa-panel {
   text-align: center;
+}
+
+.admin-mfa-panel__actions {
+  display: flex;
+  justify-content: center;
+  margin-top: 16px;
 }
 
 .admin-mfa-panel__setup {

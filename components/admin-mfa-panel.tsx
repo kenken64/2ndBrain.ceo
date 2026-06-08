@@ -45,6 +45,10 @@ function newFriendlyName() {
   return `2ndBrain admin ${new Date().toISOString().replace(/[-:.TZ]/g, "").slice(0, 14)}`;
 }
 
+function factorLabel(factor: TotpFactor, index: number) {
+  return factor.friendly_name?.trim() || `TOTP factor ${index + 1}`;
+}
+
 export function AdminMfaPanel({ nextPath, supabasePublishableKey, supabaseUrl }: AdminMfaPanelProps) {
   const router = useRouter();
   const supabase = useMemo(
@@ -54,6 +58,7 @@ export function AdminMfaPanel({ nextPath, supabasePublishableKey, supabaseUrl }:
   const [code, setCode] = useState("");
   const [enrollment, setEnrollment] = useState<Enrollment | null>(null);
   const [factors, setFactors] = useState<TotpFactor[]>([]);
+  const [selectedFactorId, setSelectedFactorId] = useState("");
   const [isBusy, setIsBusy] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
 
@@ -70,7 +75,12 @@ export function AdminMfaPanel({ nextPath, supabasePublishableKey, supabaseUrl }:
         return;
       }
 
-      setFactors(data?.totp ?? []);
+      const verifiedTotpFactors = data?.totp ?? [];
+
+      setFactors(verifiedTotpFactors);
+      setSelectedFactorId((currentFactorId) =>
+        currentFactorId || verifiedTotpFactors[0]?.id || ""
+      );
     });
 
     return () => {
@@ -100,15 +110,17 @@ export function AdminMfaPanel({ nextPath, supabasePublishableKey, supabaseUrl }:
       qrCode: data.totp.qr_code,
       secret: data.totp.secret
     });
+    setSelectedFactorId(data.id);
+    setCode("");
   }
 
   async function verify(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
 
-    const factorId = enrollment?.factorId ?? factors[0]?.id;
+    const factorId = enrollment?.factorId ?? selectedFactorId;
 
     if (!factorId) {
-      setMessage("Set up a TOTP factor before verifying.");
+      setMessage("No verified TOTP factor is available for this account.");
       return;
     }
 
@@ -132,28 +144,28 @@ export function AdminMfaPanel({ nextPath, supabasePublishableKey, supabaseUrl }:
       return;
     }
 
+    const { data: aalData } = await supabase.auth.mfa.getAuthenticatorAssuranceLevel();
+
+    if (aalData?.currentLevel !== "aal2") {
+      setMessage("The TOTP code was accepted, but this browser session did not update to aal2. Sign out and sign in again, then verify the code once more.");
+      return;
+    }
+
     router.replace(nextPath);
     router.refresh();
   }
 
   const qrCodeSrc = enrollment ? qrCodeImageSrc(enrollment.qrCode) : null;
+  const hasVerifiedFactor = factors.length > 0;
 
   return (
     <section className="auth-panel admin-mfa-panel">
-      <h1>Admin TOTP required</h1>
-      <p>Verify a Supabase TOTP factor before using admin controls.</p>
-
-      {!enrollment ? (
-        <button className="btn-primary" disabled={isBusy} onClick={startEnrollment} type="button">
-          {factors.length > 0 ? "Set up new TOTP" : "Set up TOTP"}
-        </button>
-      ) : null}
-
-      {factors.length > 0 && !enrollment ? (
-        <p className="login-dialog__message">
-          Existing TOTP factor detected. Enter a code from that authenticator, or set up a new TOTP factor.
-        </p>
-      ) : null}
+      <h1>{hasVerifiedFactor && !enrollment ? "Verify admin TOTP" : "Set up admin TOTP"}</h1>
+      <p>
+        {hasVerifiedFactor && !enrollment
+          ? "Use your existing authenticator code to unlock admin controls for this session."
+          : "Create and verify a Supabase TOTP factor before using admin controls."}
+      </p>
 
       {enrollment && qrCodeSrc ? (
         <div className="admin-mfa-panel__setup">
@@ -165,8 +177,25 @@ export function AdminMfaPanel({ nextPath, supabasePublishableKey, supabaseUrl }:
         </div>
       ) : null}
 
-      {factors.length > 0 || enrollment ? (
+      {hasVerifiedFactor || enrollment ? (
         <form className="settings-dialog__form" onSubmit={verify}>
+          {factors.length > 1 && !enrollment ? (
+            <>
+              <label htmlFor="totp-factor">Authenticator</label>
+              <select
+                id="totp-factor"
+                name="factorId"
+                onChange={(event) => setSelectedFactorId(event.target.value)}
+                value={selectedFactorId}
+              >
+                {factors.map((factor, index) => (
+                  <option key={factor.id} value={factor.id}>
+                    {factorLabel(factor, index)}
+                  </option>
+                ))}
+              </select>
+            </>
+          ) : null}
           <label htmlFor="totp-code">Authenticator code</label>
           <input
             autoComplete="one-time-code"
@@ -176,7 +205,7 @@ export function AdminMfaPanel({ nextPath, supabasePublishableKey, supabaseUrl }:
             name="code"
             onChange={(event) => setCode(event.target.value)}
             pattern="[0-9 ]*"
-            placeholder="123456"
+            placeholder="6-digit code"
             value={code}
           />
           <button className="btn-primary" disabled={isBusy} type="submit">
@@ -184,6 +213,28 @@ export function AdminMfaPanel({ nextPath, supabasePublishableKey, supabaseUrl }:
           </button>
         </form>
       ) : null}
+
+      <div className="admin-mfa-panel__actions">
+        {!enrollment ? (
+          <button className={hasVerifiedFactor ? "btn-ghost" : "btn-primary"} disabled={isBusy} onClick={startEnrollment} type="button">
+            {hasVerifiedFactor ? "Set up another TOTP" : "Set up TOTP"}
+          </button>
+        ) : hasVerifiedFactor ? (
+          <button
+            className="btn-ghost"
+            disabled={isBusy}
+            onClick={() => {
+              setEnrollment(null);
+              setSelectedFactorId(factors[0]?.id ?? "");
+              setCode("");
+              setMessage(null);
+            }}
+            type="button"
+          >
+            Use existing TOTP
+          </button>
+        ) : null}
+      </div>
 
       {message ? <p className="login-dialog__message" role="alert">{message}</p> : null}
     </section>
