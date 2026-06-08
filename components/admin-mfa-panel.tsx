@@ -75,7 +75,7 @@ export function AdminMfaPanel({ nextPath, supabasePublishableKey, supabaseUrl }:
         return;
       }
 
-      const verifiedTotpFactors = data?.totp ?? [];
+      const verifiedTotpFactors = (data?.totp ?? []).filter((factor) => factor.status === "verified");
 
       setFactors(verifiedTotpFactors);
       setSelectedFactorId((currentFactorId) =>
@@ -215,11 +215,11 @@ export function AdminMfaPanel({ nextPath, supabasePublishableKey, supabaseUrl }:
       ) : null}
 
       <div className="admin-mfa-panel__actions">
-        {!enrollment ? (
-          <button className={hasVerifiedFactor ? "btn-ghost" : "btn-primary"} disabled={isBusy} onClick={startEnrollment} type="button">
-            {hasVerifiedFactor ? "Set up another TOTP" : "Set up TOTP"}
+        {!enrollment && !hasVerifiedFactor ? (
+          <button className="btn-primary" disabled={isBusy} onClick={startEnrollment} type="button">
+            Set up TOTP
           </button>
-        ) : hasVerifiedFactor ? (
+        ) : enrollment && hasVerifiedFactor ? (
           <button
             className="btn-ghost"
             disabled={isBusy}
