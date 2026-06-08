@@ -7,6 +7,7 @@ import { DashboardSidebar } from "@/components/dashboard-sidebar";
 import { DestroyWorkspaceButton } from "@/components/destroy-workspace-button";
 import { SetupCallout } from "@/components/setup-callout";
 import { SettingsIntegrations } from "@/components/settings-integrations";
+import { SolanaCreditPurchase } from "@/components/solana-credit-purchase";
 import { canShowAdminWorkspaceLink } from "@/lib/admin";
 import { hasSupabaseEnv } from "@/lib/env";
 import {
@@ -16,6 +17,11 @@ import {
   onboardingProfileSelect,
   type OnboardingProfile
 } from "@/lib/onboarding";
+import {
+  AI_CREDIT_PACKAGE_TOKENS,
+  AI_CREDIT_PACKAGE_USD_CENTS,
+  hasSolanaBillingEnv
+} from "@/lib/solana-billing";
 import { createClient } from "@/lib/supabase/server";
 
 export const dynamic = "force-dynamic";
@@ -26,6 +32,11 @@ type ProfileSettings = OnboardingProfile & {
 };
 
 type OptionalProfileSettings = Pick<ProfileSettings, "google_workspace_enabled" | "profile_name">;
+
+type BillingProfileSettings = OptionalProfileSettings & {
+  llm_token_quota: number | null;
+  llm_token_used: number | null;
+};
 
 export default async function DashboardSettingsPage() {
   if (!hasSupabaseEnv()) {
@@ -67,11 +78,11 @@ export default async function DashboardSettingsPage() {
   const { data: settingsProfile } = userId
     ? await supabase
         .from("profiles")
-        .select("profile_name,google_workspace_enabled")
+        .select("profile_name,google_workspace_enabled,llm_token_quota,llm_token_used")
         .eq("id", userId)
         .maybeSingle()
     : { data: null };
-  const optionalSettings = settingsProfile as OptionalProfileSettings | null;
+  const optionalSettings = settingsProfile as BillingProfileSettings | null;
   const profileName = optionalSettings?.profile_name?.trim() || ownerName || "";
 
   return (
@@ -94,6 +105,14 @@ export default async function DashboardSettingsPage() {
             </div>
 
             <div className="settings-grid">
+              <SolanaCreditPurchase
+                billingConfigured={hasSolanaBillingEnv()}
+                initialQuota={Number(optionalSettings?.llm_token_quota ?? 0)}
+                initialUsed={Number(optionalSettings?.llm_token_used ?? 0)}
+                packageTokens={AI_CREDIT_PACKAGE_TOKENS}
+                packageUsdCents={AI_CREDIT_PACKAGE_USD_CENTS}
+              />
+
               <SettingsIntegrations
                 initialGoogleWorkspaceEnabled={Boolean(optionalSettings?.google_workspace_enabled)}
                 initialProfileName={profileName}

@@ -1891,6 +1891,82 @@ svg {
   padding: 22px;
 }
 
+.solana-credit-card {
+  grid-column: 1 / -1;
+}
+
+.solana-credit-card__header {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: start;
+  gap: 14px;
+}
+
+.solana-credit-card__header .settings-toggle-card__status {
+  grid-column: auto;
+  justify-self: end;
+}
+
+.solana-credit-card__metrics,
+.solana-credit-card__quote {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.solana-credit-card__metrics div,
+.solana-credit-card__quote div {
+  min-width: 0;
+  border: 1px solid var(--border-soft);
+  border-radius: var(--radius-md);
+  background: rgba(245, 248, 251, 0.72);
+  padding: 12px;
+}
+
+.solana-credit-card__metrics dt,
+.solana-credit-card__quote dt {
+  color: var(--fg-muted);
+  font-size: 11px;
+  font-weight: 900;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.solana-credit-card__metrics dd,
+.solana-credit-card__quote dd {
+  margin: 5px 0 0;
+  overflow-wrap: anywhere;
+  color: var(--fg-primary);
+  font-size: 18px;
+  font-weight: 900;
+  line-height: 1.2;
+}
+
+.solana-credit-card__quote dd {
+  font-family: var(--font-mono);
+  font-size: 13px;
+}
+
+.solana-credit-card__actions {
+  flex-wrap: wrap;
+  justify-content: flex-start;
+}
+
+.solana-credit-card__actions .btn-primary,
+.solana-credit-card__actions .btn-ghost {
+  cursor: pointer;
+}
+
+.solana-credit-card__wallet {
+  overflow-wrap: anywhere;
+  border-radius: var(--radius-md);
+  background: var(--bg-subtle);
+  padding: 10px 12px;
+  color: var(--fg-secondary);
+  font-family: var(--font-mono);
+  font-size: 12px;
+}
+
 .settings-toggle-card {
   position: relative;
   grid-template-columns: auto minmax(0, 1fr) auto;
@@ -4185,6 +4261,16 @@ svg {
 
   .settings-grid {
     grid-template-columns: 1fr;
+  }
+
+  .solana-credit-card__header,
+  .solana-credit-card__metrics,
+  .solana-credit-card__quote {
+    grid-template-columns: 1fr;
+  }
+
+  .solana-credit-card__header .settings-toggle-card__status {
+    grid-column: auto;
   }
 
   .settings-profile-card {

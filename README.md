@@ -104,6 +104,7 @@ Run migrations in order from `supabase/migrations`:
 0012_openclaw_gateway_url.sql
 0013_profile_settings.sql
 0014_admin_controls.sql
+0015_solana_credit_purchases.sql
 ```
 
 Auth redirect URLs:
@@ -162,6 +163,28 @@ npm run admin:load -- --email owner@example.com --replace
 You can also provide multiple emails with `--emails owner@example.com,ops@example.com`, a newline-delimited file with `--file admin-emails.txt`, or the optional local `ADMIN_EMAILS` env var as script input. The app authorizes admins from `public.admin_users`.
 
 There is no separate admin password or in-app admin registration form. Admin pages and admin APIs require a Supabase Google session with TOTP MFA verified to `aal2`. Enable Supabase Auth MFA/TOTP for the project, load the admin email with `npm run admin:load`, sign in with that same Google account, then visit `/admin`; admins who have not verified MFA are redirected to `/admin/mfa` for authenticator app enrollment.
+
+For Solana credit purchases, Railway must include a treasury wallet public key. The browser connects to Phantom and sends SOL directly from the user wallet to this treasury address. The server verifies the on-chain transaction before incrementing `profiles.llm_token_quota`.
+
+Use devnet first for payment testing. The app defaults to devnet when `SOLANA_PAYMENT_NETWORK` is not set, and selecting `devnet` uses `https://api.devnet.solana.com` unless `SOLANA_RPC_URL` overrides it. Switch Phantom to devnet before paying test quotes.
+
+```txt
+SOLANA_TREASURY_WALLET=your_solana_treasury_wallet_public_key
+SOLANA_PAYMENT_NETWORK=devnet
+# Optional custom devnet RPC:
+# SOLANA_RPC_URL=https://api.devnet.solana.com
+SOLANA_QUOTE_TTL_MS=300000
+```
+
+For live paid purchases, set `SOLANA_PAYMENT_NETWORK=mainnet-beta` and use a funded production treasury wallet:
+
+```txt
+SOLANA_PAYMENT_NETWORK=mainnet-beta
+# Optional custom mainnet RPC:
+# SOLANA_RPC_URL=https://api.mainnet-beta.solana.com
+```
+
+`SOLANA_RPC_URL`, `SOLANA_PAYMENT_NETWORK`, and `SOLANA_QUOTE_TTL_MS` are optional. If `SOLANA_RPC_URL` contains a provider key, keep it as a runtime variable only and do not expose it through `NEXT_PUBLIC_` build args.
 
 The Dockerfile also declares build args for public values used by Next.js during `npm run build`:
 
