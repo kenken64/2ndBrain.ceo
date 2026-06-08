@@ -6,6 +6,7 @@ import { OpenClawGatewayButton } from "@/components/openclaw-gateway-button";
 import { SetupCallout } from "@/components/setup-callout";
 import { SshConsolePanel } from "@/components/ssh-console-panel";
 import { WikiEditor } from "@/components/wiki-editor";
+import { canShowAdminWorkspaceLink } from "@/lib/admin";
 import { hasSupabaseEnv } from "@/lib/env";
 import { readOpenClawWikiPage, readOpenClawWikiTree } from "@/lib/openclaw";
 import { getWikiContext, WikiContextError } from "@/lib/wiki-server";
@@ -55,6 +56,7 @@ export default async function DashboardOpenClawPage() {
     redirect("/dashboard");
   }
 
+  const showAdmin = await canShowAdminWorkspaceLink();
   let tree: WikiTreeItem[] = [];
   let initialPage: WikiPage | null = null;
   let initialError: string | null = null;
@@ -88,6 +90,7 @@ export default async function DashboardOpenClawPage() {
           avatarName={context.profile.avatar_name}
           email={null}
           ownerName={context.profile.owner_name}
+          showAdmin={showAdmin}
         />
         <main className="dashboard-main">
           <div className="dashboard-topbar">

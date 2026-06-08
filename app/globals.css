@@ -50,6 +50,7 @@
   --container-narrow: 880px;
   --container-tight: 720px;
   --sidebar-width: 240px;
+  --sidebar-collapsed-width: 72px;
   --gutter: clamp(20px, 5vw, 80px);
 }
 
@@ -1188,18 +1189,23 @@ svg {
   display: grid;
   grid-template-columns: var(--sidebar-width) minmax(0, 1fr);
   min-height: 100vh;
+  transition: grid-template-columns 180ms ease;
 }
 
 .sidebar {
   position: sticky;
   top: 0;
   height: 100vh;
+  overflow: hidden;
   border-right: 1px solid var(--border-soft);
   background: rgba(245, 248, 251, 0.92);
   padding: 16px;
   display: flex;
   flex-direction: column;
   gap: 18px;
+  transition:
+    padding 180ms ease,
+    gap 180ms ease;
 }
 
 .sidebar-header {
@@ -1207,6 +1213,10 @@ svg {
   align-items: center;
   justify-content: space-between;
   min-height: 54px;
+}
+
+.sidebar-toggle {
+  flex: 0 0 auto;
 }
 
 .workspace-pill {
@@ -1259,6 +1269,17 @@ svg {
   padding: 8px 12px;
   font-size: 14px;
   font-weight: 600;
+}
+
+.sidebar-item svg {
+  flex: 0 0 auto;
+}
+
+.sidebar-item__label {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .sidebar-item:hover,
@@ -1341,6 +1362,54 @@ svg {
 .sidebar-item--destroy:disabled {
   cursor: not-allowed;
   opacity: 0.72;
+}
+
+@media (min-width: 961px) {
+  .dashboard-layout.is-sidebar-collapsed {
+    grid-template-columns: var(--sidebar-collapsed-width) minmax(0, 1fr);
+  }
+
+  .sidebar.is-collapsed {
+    align-items: center;
+    padding-inline: 12px;
+  }
+
+  .sidebar.is-collapsed .sidebar-header {
+    justify-content: center;
+  }
+
+  .sidebar.is-collapsed .sidebar-brand,
+  .sidebar.is-collapsed .workspace-pill__name,
+  .sidebar.is-collapsed .workspace-pill > svg,
+  .sidebar.is-collapsed .sidebar-section-label,
+  .sidebar.is-collapsed .sidebar-item__label {
+    display: none;
+  }
+
+  .sidebar.is-collapsed .workspace-pill {
+    width: 44px;
+    min-width: 44px;
+    justify-content: center;
+    padding: 6px;
+  }
+
+  .sidebar.is-collapsed .sidebar-nav,
+  .sidebar.is-collapsed .sidebar-footer {
+    width: 100%;
+    justify-items: center;
+  }
+
+  .sidebar.is-collapsed .sidebar-footer {
+    border-top: 0;
+    padding-top: 0;
+  }
+
+  .sidebar.is-collapsed .sidebar-item {
+    width: 44px;
+    min-height: 44px;
+    justify-content: center;
+    padding: 10px;
+  }
 }
 
 .destroy-workspace__error {
@@ -4035,6 +4104,10 @@ svg {
 
   .sidebar-header {
     min-height: 44px;
+  }
+
+  .sidebar-toggle {
+    display: none;
   }
 
   .sidebar-brand .app-logo {

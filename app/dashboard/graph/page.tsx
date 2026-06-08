@@ -4,6 +4,7 @@ import { Atmosphere } from "@/components/atmosphere";
 import { DashboardSidebar } from "@/components/dashboard-sidebar";
 import { KnowledgeGraph } from "@/components/knowledge-graph";
 import { SetupCallout } from "@/components/setup-callout";
+import { canShowAdminWorkspaceLink } from "@/lib/admin";
 import { hasSupabaseEnv } from "@/lib/env";
 import { normalizeWikiPath } from "@/lib/wiki";
 import { getWikiContext, WikiContextError } from "@/lib/wiki-server";
@@ -142,6 +143,8 @@ export default async function DashboardGraphPage({ searchParams }: GraphPageProp
     redirect("/dashboard");
   }
 
+  const showAdmin = await canShowAdminWorkspaceLink();
+
   if (!params.projectId) {
     const { data: projects } = await context.supabase
       .from("projects")
@@ -161,6 +164,7 @@ export default async function DashboardGraphPage({ searchParams }: GraphPageProp
             avatarName={context.profile.avatar_name}
             email={null}
             ownerName={context.profile.owner_name}
+            showAdmin={showAdmin}
           />
           <main className="dashboard-main">
             <div className="dashboard-topbar">
@@ -271,6 +275,7 @@ export default async function DashboardGraphPage({ searchParams }: GraphPageProp
           avatarName={context.profile.avatar_name}
           email={null}
           ownerName={context.profile.owner_name}
+          showAdmin={showAdmin}
         />
         <main className="dashboard-main">
           <div className="dashboard-topbar">

@@ -5,6 +5,7 @@ import { DashboardSidebar } from "@/components/dashboard-sidebar";
 import { OpenClawGatewayStatus } from "@/components/openclaw-gateway-status";
 import { RemotionAvatarStatus } from "@/components/remotion-avatar-status";
 import { SetupCallout } from "@/components/setup-callout";
+import { canShowAdminWorkspaceLink } from "@/lib/admin";
 import { hasSupabaseEnv } from "@/lib/env";
 import {
   getUserIdFromClaims,
@@ -67,6 +68,7 @@ export default async function DashboardPage() {
   }
 
   const email = typeof claimsData.claims.email === "string" ? claimsData.claims.email : null;
+  const showAdmin = await canShowAdminWorkspaceLink({ email, userId });
   const onboardingProfile = profile as OnboardingProfile | null;
   const ownerName = onboardingProfile?.owner_name?.trim();
   const avatarName = onboardingProfile?.avatar_name?.trim();
@@ -84,7 +86,7 @@ export default async function DashboardPage() {
     <>
       <Atmosphere />
       <div className="dashboard-layout">
-        <DashboardSidebar activeItem="gateway" avatarName={avatarName} email={email} ownerName={ownerName} />
+        <DashboardSidebar activeItem="gateway" avatarName={avatarName} email={email} ownerName={ownerName} showAdmin={showAdmin} />
         <main className="dashboard-main">
           <div className="dashboard-topbar">
             <AnnouncementPill>Workspace is provisioned</AnnouncementPill>

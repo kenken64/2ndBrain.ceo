@@ -7,6 +7,7 @@ import { DashboardSidebar } from "@/components/dashboard-sidebar";
 import { DestroyWorkspaceButton } from "@/components/destroy-workspace-button";
 import { SetupCallout } from "@/components/setup-callout";
 import { SettingsIntegrations } from "@/components/settings-integrations";
+import { canShowAdminWorkspaceLink } from "@/lib/admin";
 import { hasSupabaseEnv } from "@/lib/env";
 import {
   getUserIdFromClaims,
@@ -59,6 +60,7 @@ export default async function DashboardSettingsPage() {
   }
 
   const email = typeof claimsData.claims.email === "string" ? claimsData.claims.email : null;
+  const showAdmin = await canShowAdminWorkspaceLink({ email, userId });
   const onboardingProfile = profile as ProfileSettings | null;
   const ownerName = onboardingProfile?.owner_name?.trim();
   const avatarName = onboardingProfile?.avatar_name?.trim();
@@ -76,7 +78,7 @@ export default async function DashboardSettingsPage() {
     <>
       <Atmosphere />
       <div className="dashboard-layout">
-        <DashboardSidebar activeItem="settings" avatarName={avatarName} email={email} ownerName={ownerName} />
+        <DashboardSidebar activeItem="settings" avatarName={avatarName} email={email} ownerName={ownerName} showAdmin={showAdmin} />
         <main className="dashboard-main">
           <div className="dashboard-topbar">
             <AnnouncementPill>Workspace settings</AnnouncementPill>

@@ -60,6 +60,22 @@ async function isAdminEmail(email: string, userId: string) {
   return Boolean(data);
 }
 
+export async function canShowAdminWorkspaceLink(input?: { email?: string | null; userId?: string | null }) {
+  const email = input?.email?.trim().toLowerCase();
+  const userId = input?.userId?.trim();
+
+  if (email && userId) {
+    return isAdminEmail(email, userId);
+  }
+
+  const access = await getAdminAccess({
+    requireMfa: false,
+    requireServiceRole: false
+  });
+
+  return access.ok;
+}
+
 export async function getAdminAccess(options: AdminAccessOptions = {}): Promise<AdminAccessResult> {
   const requireMfa = options.requireMfa ?? true;
   const requireServiceRole = options.requireServiceRole ?? true;
