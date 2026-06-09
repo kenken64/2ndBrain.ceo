@@ -56,6 +56,7 @@ export function AiCreditTransfer({ balance, onBalanceChange }: AiCreditTransferP
   const available = Math.max(0, balance.quota - balance.used);
   const parsedAmount = useMemo(() => parseCreditAmount(amount), [amount]);
   const canTransfer = Boolean(recipient && parsedAmount && parsedAmount <= available && !isTransferring);
+  const canUseMax = Boolean(recipient && available > 0 && !isTransferring);
 
   async function searchRecipient(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -203,22 +204,36 @@ export function AiCreditTransfer({ balance, onBalanceChange }: AiCreditTransferP
       <form className="ai-credit-transfer-card__form" noValidate onSubmit={transferCredits}>
         <label className="field-stack">
           <span>AI credits</span>
-          <input
-            disabled={!recipient || isTransferring}
-            inputMode="numeric"
-            min={1}
-            max={available || undefined}
-            name="amountTokens"
-            onChange={(event) => {
-              setAmount(event.target.value);
-              setError(null);
-              setMessage(null);
-            }}
-            placeholder="100000"
-            step={1}
-            type="number"
-            value={amount}
-          />
+          <div className="ai-credit-transfer-card__amount-field">
+            <input
+              disabled={!recipient || isTransferring}
+              inputMode="numeric"
+              min={1}
+              max={available || undefined}
+              name="amountTokens"
+              onChange={(event) => {
+                setAmount(event.target.value);
+                setError(null);
+                setMessage(null);
+              }}
+              placeholder="100000"
+              step={1}
+              type="number"
+              value={amount}
+            />
+            <button
+              className="ai-credit-transfer-card__max"
+              disabled={!canUseMax}
+              onClick={() => {
+                setAmount(String(available));
+                setError(null);
+                setMessage(null);
+              }}
+              type="button"
+            >
+              Max
+            </button>
+          </div>
         </label>
         <button className="btn-primary" disabled={!canTransfer} type="submit">
           {isTransferring ? <Loader2 size={16} strokeWidth={1.8} /> : <Send size={16} strokeWidth={1.8} />}
