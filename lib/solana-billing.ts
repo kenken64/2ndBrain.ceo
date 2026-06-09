@@ -8,7 +8,7 @@ const DEFAULT_SOLANA_NETWORK: SupportedSolanaNetwork = "devnet";
 
 export const AI_CREDIT_PACKAGE_TOKENS = 7_500_000;
 export const AI_CREDIT_PACKAGE_USD_CENTS = 3_000;
-export const AI_CREDIT_PACKAGE_LABEL = "7.5M AI tokens";
+export const AI_CREDIT_PACKAGE_LABEL = "7.5M AI credits";
 export const SOLANA_QUOTE_TTL_MS = 5 * 60 * 1000;
 
 type SupportedSolanaNetwork = (typeof SUPPORTED_SOLANA_NETWORKS)[number];

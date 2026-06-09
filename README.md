@@ -164,7 +164,7 @@ You can also provide multiple emails with `--emails owner@example.com,ops@exampl
 
 There is no separate admin password or in-app admin registration form. Admin pages and admin APIs require a Supabase Google session with TOTP MFA verified to `aal2`. Enable Supabase Auth MFA/TOTP for the project, load the admin email with `npm run admin:load`, sign in with that same Google account, then visit `/admin`; admins who have not verified MFA are redirected to `/admin/mfa` for authenticator app enrollment.
 
-For Solana credit purchases, Railway must include a treasury wallet public key. The browser connects to Phantom and sends SOL directly from the user wallet to this treasury address. The server verifies the on-chain transaction before incrementing `profiles.llm_token_quota`.
+For Solana credit purchases, Railway must include a treasury wallet public key. The browser connects to Phantom and sends Solana directly from the user wallet to this treasury address. The server verifies the on-chain transaction before incrementing the user's AI credit quota.
 
 Use devnet first for payment testing. The app defaults to devnet when `SOLANA_PAYMENT_NETWORK` is not set, and selecting `devnet` uses `https://api.devnet.solana.com` unless `SOLANA_RPC_URL` overrides it. Switch Phantom to devnet before paying test quotes.
 

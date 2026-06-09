@@ -14,6 +14,7 @@ export function DestroyWorkspaceButton({ variant = "sidebar" }: DestroyWorkspace
   const wrapperClassName = variant === "panel" ? "destroy-workspace destroy-workspace--panel" : "destroy-workspace";
   const buttonClassName =
     variant === "panel" ? "settings-action-button settings-action-button--danger" : "sidebar-item sidebar-item--destroy";
+  const idleLabel = variant === "panel" ? "Destroy instance" : "Destroy workspace";
 
   async function handleDestroy() {
     if (isDestroying) {
@@ -53,7 +54,7 @@ export function DestroyWorkspaceButton({ variant = "sidebar" }: DestroyWorkspace
         type="button"
       >
         {isDestroying ? <LoaderCircle className="spin-icon" size={18} strokeWidth={1.7} /> : <Trash2 size={18} strokeWidth={1.7} />}
-        {isDestroying ? "Destroying..." : "Destroy workspace"}
+        {isDestroying ? "Destroying..." : idleLabel}
       </button>
       {error ? <span className="destroy-workspace__error">{error}</span> : null}
       {isDialogOpen ? (

@@ -7,6 +7,8 @@ import { DashboardSidebar } from "@/components/dashboard-sidebar";
 import { DestroyWorkspaceButton } from "@/components/destroy-workspace-button";
 import { SetupCallout } from "@/components/setup-callout";
 import { SettingsIntegrations } from "@/components/settings-integrations";
+import { SettingsProfileForm } from "@/components/settings-profile-form";
+import { SettingsTabs } from "@/components/settings-tabs";
 import { SolanaCreditPurchase } from "@/components/solana-credit-purchase";
 import { canShowAdminWorkspaceLink } from "@/lib/admin";
 import { hasSupabaseEnv } from "@/lib/env";
@@ -104,53 +106,64 @@ export default async function DashboardSettingsPage() {
               <p>Manage external integrations and destructive workspace actions from one protected page.</p>
             </div>
 
-            <div className="settings-grid">
-              <SolanaCreditPurchase
-                billingConfigured={hasSolanaBillingEnv()}
-                initialQuota={Number(optionalSettings?.llm_token_quota ?? 0)}
-                initialUsed={Number(optionalSettings?.llm_token_used ?? 0)}
-                packageTokens={AI_CREDIT_PACKAGE_TOKENS}
-                packageUsdCents={AI_CREDIT_PACKAGE_USD_CENTS}
-              />
+            <SettingsTabs
+              general={
+                <div className="settings-grid settings-grid--general">
+                  <SettingsProfileForm initialProfileName={profileName} />
 
-              <SettingsIntegrations
-                initialGoogleWorkspaceEnabled={Boolean(optionalSettings?.google_workspace_enabled)}
-                initialProfileName={profileName}
-              />
-
-              <article className="settings-action-card">
-                <div>
-                  <p className="workspace-status-card__eyebrow">Telegram bot</p>
-                  <h2>Reconfigure Telegram bot</h2>
-                  <p>
-                    Update the Telegram bot token on the current OpenClaw instance and restart the pairing flow for approval.
-                  </p>
+                  <article className="settings-action-card settings-action-card--danger">
+                    <div>
+                      <p className="workspace-status-card__eyebrow">Danger zone</p>
+                      <h2>Destroy instance</h2>
+                      <p>
+                        Destroy the Lightsail OpenClaw instance, clear generated Nth Brain project history, reset onboarding, and log out.
+                      </p>
+                    </div>
+                    <DestroyWorkspaceButton variant="panel" />
+                  </article>
                 </div>
-                <ChangeTelegramBotTokenButton variant="panel" />
-              </article>
+              }
+              integrations={
+                <div className="settings-grid settings-grid--integrations">
+                  <SettingsIntegrations
+                    initialGoogleWorkspaceEnabled={Boolean(optionalSettings?.google_workspace_enabled)}
+                  />
 
-              <article className="settings-action-card">
-                <div>
-                  <p className="workspace-status-card__eyebrow">Claude Code auth</p>
-                  <h2>Reconnect Claude on OpenClaw</h2>
-                  <p>
-                    Start the Claude sign-in flow on the OpenClaw instance, open the returned login URL, and poll until Claude Code auth is restored.
-                  </p>
-                </div>
-                <ClaudeAuthReconnectButton />
-              </article>
+                  <article className="settings-action-card">
+                    <div>
+                      <p className="workspace-status-card__eyebrow">Telegram bot</p>
+                      <h2>Reconfigure Telegram bot</h2>
+                      <p>
+                        Update the Telegram bot token on the current OpenClaw instance and restart the pairing flow for approval.
+                      </p>
+                    </div>
+                    <ChangeTelegramBotTokenButton variant="panel" />
+                  </article>
 
-              <article className="settings-action-card settings-action-card--danger">
-                <div>
-                  <p className="workspace-status-card__eyebrow">Danger zone</p>
-                  <h2>Destroy workspace</h2>
-                  <p>
-                    Destroy the Lightsail OpenClaw instance, clear generated Nth Brain project history, reset onboarding, and log out.
-                  </p>
+                  <article className="settings-action-card">
+                    <div>
+                      <p className="workspace-status-card__eyebrow">Claude Code auth</p>
+                      <h2>Reconnect Claude on OpenClaw</h2>
+                      <p>
+                        Start the Claude sign-in flow on the OpenClaw instance, open the returned login URL, and poll until Claude Code auth is restored.
+                      </p>
+                    </div>
+                    <ClaudeAuthReconnectButton />
+                  </article>
                 </div>
-                <DestroyWorkspaceButton variant="panel" />
-              </article>
-            </div>
+              }
+              payment={
+                <div className="settings-grid settings-grid--payment">
+                  <SolanaCreditPurchase
+                    billingConfigured={hasSolanaBillingEnv()}
+                    initialQuota={Number(optionalSettings?.llm_token_quota ?? 0)}
+                    initialUsed={Number(optionalSettings?.llm_token_used ?? 0)}
+                    packageTokens={AI_CREDIT_PACKAGE_TOKENS}
+                    packageUsdCents={AI_CREDIT_PACKAGE_USD_CENTS}
+                  />
+                </div>
+              }
+            />
           </section>
         </main>
       </div>

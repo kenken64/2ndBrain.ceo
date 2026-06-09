@@ -1,12 +1,13 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Buffer } from "buffer";
 import { CreditCard, Loader2, Wallet } from "lucide-react";
 import { PublicKey, SystemProgram, Transaction, TransactionInstruction } from "@solana/web3.js";
 
 type PhantomProvider = {
   connect: () => Promise<{ publicKey: PublicKey }>;
+  disconnect?: () => Promise<void>;
   isPhantom?: boolean;
   publicKey?: PublicKey;
   signAndSendTransaction: (transaction: Transaction) => Promise<{ signature: string }>;
@@ -17,6 +18,7 @@ type SolanaQuote = {
   expiresAt: string;
   id: string;
   label: string;
+  lastValidBlockHeight: number;
   packageTokens: number;
   solAmount: number;
   solAmountLamports: number;
@@ -25,12 +27,6 @@ type SolanaQuote = {
   treasuryWallet: string;
   usdAmount: number;
   walletAddress: string;
-};
-
-type SolanaBlockhash = {
-  blockhash: string;
-  lastValidBlockHeight: number;
-  solanaNetwork: string;
 };
 
 type SolanaCreditPurchaseProps = {
@@ -112,7 +108,11 @@ export function SolanaCreditPurchase({
     }
 
     if (quote) {
-      return `${formatSol(quote.solAmount)} SOL quoted`;
+      return `${formatSol(quote.solAmount)} Solana estimated`;
+    }
+
+    if (isQuoting) {
+      return "Calculating Solana";
     }
 
     if (walletAddress) {
@@ -120,7 +120,26 @@ export function SolanaCreditPurchase({
     }
 
     return "Ready";
-  }, [billingConfigured, quote, walletAddress]);
+  }, [billingConfigured, isQuoting, quote, walletAddress]);
+
+  useEffect(() => {
+    if (!quote || !walletAddress) {
+      return;
+    }
+
+    const expiresAt = Date.parse(quote.expiresAt);
+
+    if (!Number.isFinite(expiresAt)) {
+      return;
+    }
+
+    const refreshDelay = Math.max(0, expiresAt - Date.now() - 15_000);
+    const timeout = window.setTimeout(() => {
+      void createQuoteForWallet(walletAddress, { silent: true });
+    }, refreshDelay);
+
+    return () => window.clearTimeout(timeout);
+  }, [quote?.expiresAt, quote?.id, walletAddress]);
 
   async function connectWallet() {
     setIsConnecting(true);
@@ -139,7 +158,8 @@ export function SolanaCreditPurchase({
 
       setWalletAddress(address);
       setQuote(null);
-      setMessage("Phantom connected.");
+      setMessage("Phantom connected. Calculating Solana amount...");
+      void createQuoteForWallet(address);
     } catch (connectError) {
       setError(connectError instanceof Error ? connectError.message : "Unable to connect Phantom.");
     } finally {
@@ -147,20 +167,46 @@ export function SolanaCreditPurchase({
     }
   }
 
-  async function createQuote() {
-    if (!walletAddress) {
+  async function disconnectWallet() {
+    setIsConnecting(true);
+    setError(null);
+    setMessage(null);
+
+    try {
+      const provider = getPhantomProvider();
+
+      if (provider?.disconnect) {
+        await provider.disconnect();
+      }
+
+      setWalletAddress(null);
+      setQuote(null);
+      setMessage("Phantom disconnected.");
+    } catch (disconnectError) {
+      setError(disconnectError instanceof Error ? disconnectError.message : "Unable to disconnect Phantom.");
+    } finally {
+      setIsConnecting(false);
+    }
+  }
+
+  function handleWalletAction() {
+    return walletAddress ? disconnectWallet() : connectWallet();
+  }
+
+  async function createQuoteForWallet(address: string | null, options?: { silent?: boolean }) {
+    if (!address) {
       setError("Connect Phantom first.");
       return;
     }
 
     setIsQuoting(true);
     setError(null);
-    setMessage(null);
+    setMessage(options?.silent ? null : "Calculating Solana amount...");
 
     try {
       const payload = await readJson<{ quote: SolanaQuote }>(
         await fetch("/api/billing/solana/quote", {
-          body: JSON.stringify({ walletAddress }),
+          body: JSON.stringify({ walletAddress: address }),
           headers: {
             "Content-Type": "application/json"
           },
@@ -170,10 +216,11 @@ export function SolanaCreditPurchase({
 
       setQuote(payload.quote);
       setMessage(
-        `Quote expires ${new Date(payload.quote.expiresAt).toLocaleTimeString()}. Use Phantom on ${payload.quote.solanaNetwork}.`
+        `Estimated Solana payment expires ${new Date(payload.quote.expiresAt).toLocaleTimeString()}. Use Phantom on ${payload.quote.solanaNetwork}.`
       );
     } catch (quoteError) {
-      setError(quoteError instanceof Error ? quoteError.message : "Unable to create quote.");
+      setQuote(null);
+      setError(quoteError instanceof Error ? quoteError.message : "Unable to calculate Solana amount.");
     } finally {
       setIsQuoting(false);
     }
@@ -196,20 +243,22 @@ export function SolanaCreditPurchase({
         throw new Error("Phantom wallet is not available in this browser.");
       }
 
-      const blockhashPayload = await readJson<{ blockhash: SolanaBlockhash }>(
-        await fetch("/api/billing/solana/blockhash", {
-          method: "GET"
-        })
-      );
+      if (Date.now() > Date.parse(quote.expiresAt)) {
+        setQuote(null);
+        void createQuoteForWallet(walletAddress);
+        throw new Error("The Solana estimate expired. A fresh estimate is being calculated.");
+      }
 
-      if (blockhashPayload.blockhash.solanaNetwork !== quote.solanaNetwork) {
-        throw new Error("Solana network changed after quote creation. Refresh the quote and try again.");
+      const providerAddress = provider.publicKey?.toBase58();
+
+      if (providerAddress && providerAddress !== walletAddress) {
+        throw new Error("Phantom is connected to a different wallet. Disconnect and connect the quoted wallet.");
       }
 
       const fromPublicKey = new PublicKey(walletAddress);
       const transaction = new Transaction({
         feePayer: fromPublicKey,
-        recentBlockhash: blockhashPayload.blockhash.blockhash
+        recentBlockhash: quote.blockhash
       });
 
       transaction.add(
@@ -227,6 +276,7 @@ export function SolanaCreditPurchase({
         })
       );
 
+      setMessage("Review the transaction in Phantom.");
       const { signature } = await provider.signAndSendTransaction(transaction);
       setMessage("Payment sent. Confirming on Solana...");
 
@@ -255,7 +305,7 @@ export function SolanaCreditPurchase({
       setQuota(payload.credit.llmTokenQuota);
       setUsed(payload.credit.llmTokenUsed);
       setQuote(null);
-      setMessage(`Credited ${formatInteger(payload.credit.addedTokens)} AI tokens.`);
+      setMessage(`Credited ${formatInteger(payload.credit.addedTokens)} AI credits.`);
     } catch (paymentError) {
       setError(paymentError instanceof Error ? paymentError.message : "Payment could not be confirmed.");
     } finally {
@@ -271,8 +321,8 @@ export function SolanaCreditPurchase({
         </span>
         <div>
           <p className="workspace-status-card__eyebrow">AI credits</p>
-          <h2>Buy AI tokens with SOL</h2>
-          <p>{formatUsd(packageUsd)} adds {formatInteger(packageTokens)} internal AI tokens.</p>
+          <h2>Buy AI credits with Solana</h2>
+          <p>{formatUsd(packageUsd)} adds {formatInteger(packageTokens)} AI credits.</p>
         </div>
         <span className="settings-toggle-card__status">{statusCopy}</span>
       </div>
@@ -295,12 +345,12 @@ export function SolanaCreditPurchase({
       {quote ? (
         <dl className="solana-credit-card__quote">
           <div>
-            <dt>SOL price</dt>
+            <dt>Solana price</dt>
             <dd>{formatUsd(quote.solUsdPrice)}</dd>
           </div>
           <div>
             <dt>Pay</dt>
-            <dd>{formatSol(quote.solAmount)} SOL</dd>
+            <dd>{formatSol(quote.solAmount)} Solana</dd>
           </div>
           <div>
             <dt>Network</dt>
@@ -310,27 +360,23 @@ export function SolanaCreditPurchase({
       ) : null}
 
       <div className="settings-dialog__actions solana-credit-card__actions">
-        <button className="btn-ghost" disabled={!billingConfigured || isConnecting || isPaying} onClick={connectWallet} type="button">
-          {isConnecting ? <Loader2 size={16} strokeWidth={1.8} /> : <Wallet size={16} strokeWidth={1.8} />}
-          {walletAddress ? "Reconnect Phantom" : "Connect Phantom"}
-        </button>
         <button
           className="btn-ghost"
-          disabled={!billingConfigured || !walletAddress || isQuoting || isPaying}
-          onClick={createQuote}
+          disabled={!billingConfigured || isConnecting || isQuoting || isPaying}
+          onClick={handleWalletAction}
           type="button"
         >
-          {isQuoting ? <Loader2 size={16} strokeWidth={1.8} /> : null}
-          {quote ? "Refresh quote" : "Get SOL quote"}
+          {isConnecting ? <Loader2 size={16} strokeWidth={1.8} /> : <Wallet size={16} strokeWidth={1.8} />}
+          {walletAddress ? "Disconnect Phantom" : "Connect Phantom"}
         </button>
         <button
           className="btn-primary"
-          disabled={!billingConfigured || !quote || isPaying}
+          disabled={!billingConfigured || !quote || isQuoting || isPaying}
           onClick={payWithPhantom}
           type="button"
         >
-          {isPaying ? <Loader2 size={16} strokeWidth={1.8} /> : null}
-          Pay with Phantom
+          {isPaying || isQuoting ? <Loader2 size={16} strokeWidth={1.8} /> : null}
+          {isQuoting && !quote ? "Calculating..." : "Pay with Phantom"}
         </button>
       </div>
 

@@ -1849,6 +1849,50 @@ svg {
   gap: 18px;
 }
 
+.settings-tabs {
+  display: grid;
+  gap: 18px;
+}
+
+.settings-tabs__list {
+  display: inline-flex;
+  width: fit-content;
+  max-width: 100%;
+  gap: 4px;
+  border: 1px solid var(--border-soft);
+  border-radius: var(--radius-pill);
+  background: rgba(255, 255, 255, 0.78);
+  box-shadow: var(--shadow-sm);
+  padding: 4px;
+}
+
+.settings-tabs__tab {
+  display: inline-flex;
+  min-height: 38px;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  border: 1px solid transparent;
+  border-radius: var(--radius-pill);
+  background: transparent;
+  color: var(--fg-secondary);
+  cursor: pointer;
+  padding: 8px 14px;
+  font-size: 13px;
+  font-weight: 900;
+}
+
+.settings-tabs__tab:hover,
+.settings-tabs__tab.is-active {
+  border-color: rgba(0, 167, 255, 0.24);
+  background: rgba(0, 167, 255, 0.1);
+  color: var(--fg-primary);
+}
+
+.settings-tabs__panel:focus {
+  outline: none;
+}
+
 .settings-integrations {
   display: grid;
   grid-column: 1 / -1;
@@ -4261,6 +4305,14 @@ svg {
 
   .settings-grid {
     grid-template-columns: 1fr;
+  }
+
+  .settings-tabs__list {
+    width: 100%;
+  }
+
+  .settings-tabs__tab {
+    flex: 1 1 0;
   }
 
   .solana-credit-card__header,
