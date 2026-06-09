@@ -208,23 +208,23 @@ export function AdminMfaPanel({ nextPath, supabasePublishableKey, supabaseUrl }:
             placeholder="6-digit code"
             value={code}
           />
-          <button className="btn-primary" disabled={isBusy} type="submit">
+          <button className="btn-primary admin-mfa-panel__button" disabled={isBusy} type="submit">
             Verify admin access
           </button>
         </form>
       ) : null}
 
       <div className="admin-mfa-panel__actions">
-        <a className="btn-ghost" href="/dashboard">
+        <a className="btn-ghost admin-mfa-panel__button" href="/dashboard">
           Cancel
         </a>
         {!enrollment && !hasVerifiedFactor ? (
-          <button className="btn-primary" disabled={isBusy} onClick={startEnrollment} type="button">
+          <button className="btn-primary admin-mfa-panel__button" disabled={isBusy} onClick={startEnrollment} type="button">
             Set up TOTP
           </button>
         ) : enrollment && hasVerifiedFactor ? (
           <button
-            className="btn-ghost"
+            className="btn-ghost admin-mfa-panel__button"
             disabled={isBusy}
             onClick={() => {
               setEnrollment(null);

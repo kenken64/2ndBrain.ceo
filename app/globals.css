@@ -897,6 +897,14 @@ svg {
   margin-top: 16px;
 }
 
+.admin-mfa-panel__button {
+  box-sizing: border-box;
+  min-height: 46px;
+  min-width: 190px;
+  padding: 12px 22px;
+  font-size: 14px;
+}
+
 .admin-mfa-panel__setup {
   display: grid;
   gap: 12px;
