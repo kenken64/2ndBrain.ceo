@@ -1,13 +1,39 @@
-import { NextResponse } from "next/server";
+import { after, NextResponse } from "next/server";
 import { hasSupabaseEnv } from "@/lib/env";
 import {
   getUserIdFromClaims,
   isOnboardingComplete,
   onboardingPath,
-  onboardingProfileSelect
+  onboardingProfileSelect,
+  type OnboardingProfile
 } from "@/lib/onboarding";
+import { logoutOpenClawGoogleWorkspace } from "@/lib/openclaw";
 import { createClient } from "@/lib/supabase/server";
 import { appUrl, safeNextPath } from "@/lib/url";
+
+function scheduleGoogleWorkspaceLogout(instance: string, userId: string) {
+  after(async () => {
+    try {
+      const result = await logoutOpenClawGoogleWorkspace({ instance });
+
+      console.info(
+        "[auth:gws-logout] complete",
+        JSON.stringify({
+          output: result.output,
+          userId
+        })
+      );
+    } catch (error) {
+      console.warn(
+        "[auth:gws-logout] failed",
+        JSON.stringify({
+          message: error instanceof Error ? error.message : "gws_logout_failed",
+          userId
+        })
+      );
+    }
+  });
+}
 
 export async function GET(request: Request) {
   const requestUrl = new URL(request.url);
@@ -44,9 +70,16 @@ export async function GET(request: Request) {
           .select(onboardingProfileSelect)
           .eq("id", userId)
           .maybeSingle();
+        const onboardingProfile = profile as OnboardingProfile | null;
 
-        if (!isOnboardingComplete(profile)) {
+        if (!isOnboardingComplete(onboardingProfile)) {
           return NextResponse.redirect(appUrl(onboardingPath(next), request));
+        }
+
+        const openClawInstance = onboardingProfile?.openclaw_instance?.trim();
+
+        if (openClawInstance) {
+          scheduleGoogleWorkspaceLogout(openClawInstance, userId);
         }
       }
 

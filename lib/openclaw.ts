@@ -52,6 +52,10 @@ type OpenClawGyneConsumerProfileInput = {
   name: string;
 };
 
+type OpenClawGoogleWorkspaceLogoutInput = {
+  instance: string;
+};
+
 type OpenClawGatewayUrlInput = {
   instance: string;
 };
@@ -1923,6 +1927,16 @@ export async function updateGyneConsumerProfile(input: OpenClawGyneConsumerProfi
 
   return {
     output
+  };
+}
+
+export async function logoutOpenClawGoogleWorkspace(input: OpenClawGoogleWorkspaceLogoutInput) {
+  const awsEnv = getAwsEnv();
+  const instance = await resolveOpenClawSshTarget(input.instance, awsEnv, "gws-logout");
+  const output = await runClawmacdo(["gws-logout", "--instance", instance], awsEnv);
+
+  return {
+    output: outputSummary(output)
   };
 }
 
