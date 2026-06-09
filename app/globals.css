@@ -2121,6 +2121,30 @@ svg {
   gap: 12px;
 }
 
+.settings-profile-card__email {
+  display: grid;
+  min-width: 0;
+  gap: 8px;
+  border: 1px solid var(--border-soft);
+  border-radius: var(--radius-md);
+  background: rgba(245, 248, 251, 0.72);
+  padding: 12px 14px;
+}
+
+.settings-profile-card__email span {
+  color: var(--fg-soft);
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.settings-profile-card__email strong {
+  overflow-wrap: anywhere;
+  color: var(--fg-primary);
+  font-family: var(--font-mono);
+  font-size: 13px;
+  line-height: 1.45;
+}
+
 .settings-profile-card h3 {
   margin: 6px 0 0;
   color: var(--fg-primary);
@@ -3677,13 +3701,6 @@ svg {
   padding: 0 16px;
   outline: 0;
   box-shadow: var(--shadow-sm);
-}
-
-.field-stack input.readonly-field {
-  border-color: var(--border-soft);
-  background: rgba(245, 248, 251, 0.72);
-  color: var(--fg-secondary);
-  cursor: default;
 }
 
 .secret-input {

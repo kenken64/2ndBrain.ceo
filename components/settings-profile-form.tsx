@@ -70,16 +70,10 @@ export function SettingsProfileForm({ initialProfileName = "", userEmail = null 
         <p>View the sign-in email and save the display name used for this workspace profile.</p>
       </div>
       <div className="settings-profile-card__fields">
-        <label className="field-stack">
+        <div className="settings-profile-card__email">
           <span>Email address</span>
-          <input
-            aria-readonly="true"
-            className="readonly-field"
-            readOnly
-            type="email"
-            value={accountEmail}
-          />
-        </label>
+          <strong>{accountEmail}</strong>
+        </div>
         <label className="field-stack">
           <span>Profile name</span>
           <input
