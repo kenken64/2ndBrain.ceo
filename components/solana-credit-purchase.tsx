@@ -29,6 +29,12 @@ type SolanaQuote = {
   walletAddress: string;
 };
 
+type SolanaBlockhash = {
+  blockhash: string;
+  lastValidBlockHeight: number;
+  solanaNetwork: string;
+};
+
 type SolanaCreditPurchaseProps = {
   billingConfigured: boolean;
   initialQuota: number;
@@ -47,6 +53,8 @@ declare global {
 }
 
 const MEMO_PROGRAM_ID = new PublicKey("MemoSq4gqABAXKb96qnH8TysNcWxMyWCqXgDLGmfcHr");
+const TRANSACTION_BLOCKHASH_REFRESH_MS = 30_000;
+const TRANSACTION_BLOCKHASH_MAX_AGE_MS = 55_000;
 
 function formatInteger(value: number) {
   return new Intl.NumberFormat("en").format(value);
@@ -61,6 +69,13 @@ function formatUsd(value: number) {
   }).format(value);
 }
 
+function formatUsdPlain(value: number) {
+  return `USD ${new Intl.NumberFormat("en", {
+    maximumFractionDigits: 2,
+    minimumFractionDigits: Number.isInteger(value) ? 0 : 2
+  }).format(value)}`;
+}
+
 function formatSol(value: number) {
   return new Intl.NumberFormat("en", {
     maximumFractionDigits: 9,
@@ -72,6 +87,65 @@ function getPhantomProvider() {
   const provider = window.phantom?.solana ?? window.solana;
 
   return provider?.isPhantom ? provider : null;
+}
+
+function errorCode(error: unknown) {
+  if (typeof error === "object" && error !== null && "code" in error) {
+    const code = (error as { code?: unknown }).code;
+
+    return typeof code === "number" || typeof code === "string" ? String(code) : null;
+  }
+
+  return null;
+}
+
+function errorMessage(error: unknown) {
+  if (error instanceof Error && error.message) {
+    return error.message;
+  }
+
+  if (typeof error === "object" && error !== null && "message" in error) {
+    const message = (error as { message?: unknown }).message;
+
+    return typeof message === "string" && message ? message : null;
+  }
+
+  return null;
+}
+
+function phantomPaymentErrorMessage(error: unknown, network: string | null) {
+  const code = errorCode(error);
+  const message = errorMessage(error);
+
+  if (code === "4001") {
+    return "Payment was cancelled in Phantom.";
+  }
+
+  if (code === "-32002") {
+    return "A Phantom request is already open. Approve or close it, then try again.";
+  }
+
+  if (message && !/unexpected error/i.test(message)) {
+    return message;
+  }
+
+  const networkCopy = network ? ` Phantom must be set to ${network}.` : "";
+
+  return `Phantom rejected the transaction.${networkCopy} Check that the wallet has enough Solana and try again.`;
+}
+
+function isFreshTransactionBlockhash(
+  quote: SolanaQuote | null,
+  blockhash: SolanaBlockhash | null,
+  fetchedAt: number | null
+) {
+  return Boolean(
+    quote &&
+      blockhash &&
+      blockhash.solanaNetwork === quote.solanaNetwork &&
+      fetchedAt &&
+      Date.now() - fetchedAt < TRANSACTION_BLOCKHASH_MAX_AGE_MS
+  );
 }
 
 async function readJson<T>(response: Response) {
@@ -97,17 +171,29 @@ export function SolanaCreditPurchase({
   const [used, setUsed] = useState(initialUsed);
   const [isConnecting, setIsConnecting] = useState(false);
   const [isQuoting, setIsQuoting] = useState(false);
+  const [isRefreshingBlockhash, setIsRefreshingBlockhash] = useState(false);
   const [isPaying, setIsPaying] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [transactionBlockhash, setTransactionBlockhash] = useState<SolanaBlockhash | null>(null);
+  const [transactionBlockhashFetchedAt, setTransactionBlockhashFetchedAt] = useState<number | null>(null);
   const remaining = Math.max(0, quota - used);
   const packageUsd = packageUsdCents / 100;
+  const hasFreshBlockhash = isFreshTransactionBlockhash(
+    quote,
+    transactionBlockhash,
+    transactionBlockhashFetchedAt
+  );
   const statusCopy = useMemo(() => {
     if (!billingConfigured) {
       return "Treasury wallet missing";
     }
 
     if (quote) {
+      if (isRefreshingBlockhash || !hasFreshBlockhash) {
+        return "Refreshing Solana";
+      }
+
       return `${formatSol(quote.solAmount)} Solana estimated`;
     }
 
@@ -120,7 +206,7 @@ export function SolanaCreditPurchase({
     }
 
     return "Ready";
-  }, [billingConfigured, isQuoting, quote, walletAddress]);
+  }, [billingConfigured, hasFreshBlockhash, isQuoting, isRefreshingBlockhash, quote, walletAddress]);
 
   useEffect(() => {
     if (!quote || !walletAddress) {
@@ -140,6 +226,20 @@ export function SolanaCreditPurchase({
 
     return () => window.clearTimeout(timeout);
   }, [quote?.expiresAt, quote?.id, walletAddress]);
+
+  useEffect(() => {
+    if (!quote || !walletAddress) {
+      setTransactionBlockhash(null);
+      setTransactionBlockhashFetchedAt(null);
+      return;
+    }
+
+    const interval = window.setInterval(() => {
+      void refreshTransactionBlockhash({ silent: true });
+    }, TRANSACTION_BLOCKHASH_REFRESH_MS);
+
+    return () => window.clearInterval(interval);
+  }, [quote?.id, quote?.solanaNetwork, walletAddress]);
 
   async function connectWallet() {
     setIsConnecting(true);
@@ -181,6 +281,8 @@ export function SolanaCreditPurchase({
 
       setWalletAddress(null);
       setQuote(null);
+      setTransactionBlockhash(null);
+      setTransactionBlockhashFetchedAt(null);
       setMessage("Phantom disconnected.");
     } catch (disconnectError) {
       setError(disconnectError instanceof Error ? disconnectError.message : "Unable to disconnect Phantom.");
@@ -215,14 +317,55 @@ export function SolanaCreditPurchase({
       );
 
       setQuote(payload.quote);
+      setTransactionBlockhash({
+        blockhash: payload.quote.blockhash,
+        lastValidBlockHeight: payload.quote.lastValidBlockHeight,
+        solanaNetwork: payload.quote.solanaNetwork
+      });
+      setTransactionBlockhashFetchedAt(Date.now());
       setMessage(
         `Estimated Solana payment expires ${new Date(payload.quote.expiresAt).toLocaleTimeString()}. Use Phantom on ${payload.quote.solanaNetwork}.`
       );
     } catch (quoteError) {
       setQuote(null);
+      setTransactionBlockhash(null);
+      setTransactionBlockhashFetchedAt(null);
       setError(quoteError instanceof Error ? quoteError.message : "Unable to calculate Solana amount.");
     } finally {
       setIsQuoting(false);
+    }
+  }
+
+  async function refreshTransactionBlockhash(options?: { silent?: boolean }) {
+    if (!quote || !walletAddress) {
+      return;
+    }
+
+    setIsRefreshingBlockhash(true);
+
+    if (!options?.silent) {
+      setMessage("Refreshing Solana transaction data...");
+    }
+
+    try {
+      const payload = await readJson<{ blockhash: SolanaBlockhash }>(
+        await fetch("/api/billing/solana/blockhash", {
+          method: "GET"
+        })
+      );
+
+      if (payload.blockhash.solanaNetwork !== quote.solanaNetwork) {
+        throw new Error("Solana network changed after the estimate was created. Reconnect Phantom and try again.");
+      }
+
+      setTransactionBlockhash(payload.blockhash);
+      setTransactionBlockhashFetchedAt(Date.now());
+    } catch (blockhashError) {
+      if (!options?.silent) {
+        setError(blockhashError instanceof Error ? blockhashError.message : "Unable to refresh Solana transaction data.");
+      }
+    } finally {
+      setIsRefreshingBlockhash(false);
     }
   }
 
@@ -245,8 +388,15 @@ export function SolanaCreditPurchase({
 
       if (Date.now() > Date.parse(quote.expiresAt)) {
         setQuote(null);
+        setTransactionBlockhash(null);
+        setTransactionBlockhashFetchedAt(null);
         void createQuoteForWallet(walletAddress);
         throw new Error("The Solana estimate expired. A fresh estimate is being calculated.");
+      }
+
+      if (!isFreshTransactionBlockhash(quote, transactionBlockhash, transactionBlockhashFetchedAt) || !transactionBlockhash) {
+        void refreshTransactionBlockhash();
+        throw new Error("Solana transaction data was refreshing. Try Pay again in a moment.");
       }
 
       const providerAddress = provider.publicKey?.toBase58();
@@ -258,7 +408,7 @@ export function SolanaCreditPurchase({
       const fromPublicKey = new PublicKey(walletAddress);
       const transaction = new Transaction({
         feePayer: fromPublicKey,
-        recentBlockhash: quote.blockhash
+        recentBlockhash: transactionBlockhash.blockhash
       });
 
       transaction.add(
@@ -307,7 +457,11 @@ export function SolanaCreditPurchase({
       setQuote(null);
       setMessage(`Credited ${formatInteger(payload.credit.addedTokens)} AI credits.`);
     } catch (paymentError) {
-      setError(paymentError instanceof Error ? paymentError.message : "Payment could not be confirmed.");
+      if (/unexpected error/i.test(errorMessage(paymentError) ?? "")) {
+        void refreshTransactionBlockhash({ silent: true });
+      }
+
+      setError(phantomPaymentErrorMessage(paymentError, quote?.solanaNetwork ?? null));
     } finally {
       setIsPaying(false);
     }
@@ -322,7 +476,7 @@ export function SolanaCreditPurchase({
         <div>
           <p className="workspace-status-card__eyebrow">AI credits</p>
           <h2>Buy AI credits with Solana</h2>
-          <p>{formatUsd(packageUsd)} adds {formatInteger(packageTokens)} AI credits.</p>
+          <p>Minimum spend is {formatUsdPlain(packageUsd)}, paid in Solana, for {formatInteger(packageTokens)} AI credits.</p>
         </div>
         <span className="settings-toggle-card__status">{statusCopy}</span>
       </div>
@@ -371,16 +525,21 @@ export function SolanaCreditPurchase({
         </button>
         <button
           className="btn-primary"
-          disabled={!billingConfigured || !quote || isQuoting || isPaying}
+          disabled={!billingConfigured || !quote || isQuoting || isRefreshingBlockhash || isPaying}
           onClick={payWithPhantom}
           type="button"
         >
-          {isPaying || isQuoting ? <Loader2 size={16} strokeWidth={1.8} /> : null}
-          {isQuoting && !quote ? "Calculating..." : "Pay with Phantom"}
+          {isPaying || isQuoting || isRefreshingBlockhash ? <Loader2 size={16} strokeWidth={1.8} /> : null}
+          {isQuoting && !quote ? "Calculating..." : isRefreshingBlockhash ? "Refreshing..." : "Pay with Phantom"}
         </button>
       </div>
 
       {walletAddress ? <p className="solana-credit-card__wallet">{walletAddress}</p> : null}
+      {quote ? (
+        <p className="settings-toggle-card__note">
+          Phantom must be set to {quote.solanaNetwork} before payment.
+        </p>
+      ) : null}
       {message ? <p className="settings-toggle-card__note">{message}</p> : null}
       {error ? <p className="form-error" role="alert">{error}</p> : null}
     </article>
