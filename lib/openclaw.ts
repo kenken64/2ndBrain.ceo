@@ -47,6 +47,11 @@ type OpenClawIdentityInput = {
   ownerName: string;
 };
 
+type OpenClawGyneConsumerProfileInput = {
+  instance: string;
+  name: string;
+};
+
 type OpenClawGatewayUrlInput = {
   instance: string;
 };
@@ -1896,6 +1901,28 @@ export async function setupOpenClawIdentity(input: OpenClawIdentityInput) {
 
   return {
     identityOutput
+  };
+}
+
+export async function updateGyneConsumerProfile(input: OpenClawGyneConsumerProfileInput) {
+  const awsEnv = getAwsEnv();
+  const instance = await resolveOpenClawSshTarget(input.instance, awsEnv, "gyne-consumer-profile");
+  const output = await runClawmacdo(
+    [
+      "gyne-consumer-profile",
+      "--instance",
+      instance,
+      "--name",
+      input.name,
+      "--agent",
+      openClawAgentId(),
+      "--json"
+    ],
+    awsEnv
+  );
+
+  return {
+    output
   };
 }
 

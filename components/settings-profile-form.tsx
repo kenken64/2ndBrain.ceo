@@ -52,7 +52,7 @@ export function SettingsProfileForm({ initialProfileName = "" }: SettingsProfile
     try {
       const saved = await saveProfileName(trimmed);
       setProfileName(saved?.profileName ?? trimmed);
-      setProfileStatus("Profile name saved.");
+      setProfileStatus("Profile name saved and Gyne consumer updated.");
     } catch (error) {
       setProfileError(error instanceof Error ? error.message : "Profile name could not be saved.");
     } finally {

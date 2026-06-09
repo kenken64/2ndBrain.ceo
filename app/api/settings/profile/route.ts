@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { hasSupabaseEnv } from "@/lib/env";
 import { getUserIdFromClaims } from "@/lib/onboarding";
+import { updateGyneConsumerProfile } from "@/lib/openclaw";
 import { createClient } from "@/lib/supabase/server";
 
 export const runtime = "nodejs";
@@ -38,6 +39,10 @@ function validateProfileName(value: unknown) {
     error: null,
     value: trimmed
   };
+}
+
+function outputSummary(value: string) {
+  return value.slice(-1200);
 }
 
 export async function PATCH(request: Request) {
@@ -87,6 +92,46 @@ export async function PATCH(request: Request) {
 
   if (claimsError || !userId) {
     return NextResponse.json({ error: "Authentication required" }, { status: 401 });
+  }
+
+  const profileName = typeof updates.profile_name === "string" ? updates.profile_name : null;
+
+  if (profileName) {
+    const { data: currentProfile, error: currentProfileError } = await supabase
+      .from("profiles")
+      .select("openclaw_instance")
+      .eq("id", userId)
+      .maybeSingle();
+
+    if (currentProfileError) {
+      return NextResponse.json({ error: currentProfileError.message }, { status: 500 });
+    }
+
+    const openClawInstance =
+      typeof currentProfile?.openclaw_instance === "string"
+        ? currentProfile.openclaw_instance.trim()
+        : "";
+
+    if (!openClawInstance) {
+      return NextResponse.json(
+        { error: "OpenClaw instance is required before updating the Gyne consumer profile." },
+        { status: 409 }
+      );
+    }
+
+    try {
+      await updateGyneConsumerProfile({
+        instance: openClawInstance,
+        name: profileName
+      });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "gyne_consumer_profile_update_failed";
+
+      return NextResponse.json(
+        { error: `Gyne consumer profile could not be updated: ${outputSummary(message)}` },
+        { status: 502 }
+      );
+    }
   }
 
   const { data, error } = await supabase
