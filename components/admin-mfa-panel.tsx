@@ -215,6 +215,9 @@ export function AdminMfaPanel({ nextPath, supabasePublishableKey, supabaseUrl }:
       ) : null}
 
       <div className="admin-mfa-panel__actions">
+        <a className="btn-ghost" href="/dashboard">
+          Cancel
+        </a>
         {!enrollment && !hasVerifiedFactor ? (
           <button className="btn-primary" disabled={isBusy} onClick={startEnrollment} type="button">
             Set up TOTP
