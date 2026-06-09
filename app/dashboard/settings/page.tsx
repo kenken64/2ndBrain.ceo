@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
 import { AnnouncementPill } from "@/components/announcement-pill";
+import { AiCreditsPaymentPanel } from "@/components/ai-credits-payment-panel";
 import { Atmosphere } from "@/components/atmosphere";
 import { ChangeTelegramBotTokenButton } from "@/components/change-telegram-bot-token-button";
 import { ClaudeAuthReconnectButton } from "@/components/claude-auth-reconnect-button";
@@ -9,7 +10,6 @@ import { SetupCallout } from "@/components/setup-callout";
 import { SettingsIntegrations } from "@/components/settings-integrations";
 import { SettingsProfileForm } from "@/components/settings-profile-form";
 import { SettingsTabs } from "@/components/settings-tabs";
-import { SolanaCreditPurchase } from "@/components/solana-credit-purchase";
 import { canShowAdminWorkspaceLink } from "@/lib/admin";
 import { hasSupabaseEnv } from "@/lib/env";
 import {
@@ -154,7 +154,7 @@ export default async function DashboardSettingsPage() {
               }
               payment={
                 <div className="settings-grid settings-grid--payment">
-                  <SolanaCreditPurchase
+                  <AiCreditsPaymentPanel
                     billingConfigured={hasSolanaBillingEnv()}
                     initialQuota={Number(optionalSettings?.llm_token_quota ?? 0)}
                     initialUsed={Number(optionalSettings?.llm_token_used ?? 0)}

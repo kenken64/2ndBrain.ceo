@@ -1939,6 +1939,10 @@ svg {
   grid-column: 1 / -1;
 }
 
+.ai-credit-transfer-card {
+  grid-column: 1 / -1;
+}
+
 .solana-credit-card__header {
   display: grid;
   grid-template-columns: auto minmax(0, 1fr) auto;
@@ -1946,7 +1950,19 @@ svg {
   gap: 14px;
 }
 
+.ai-credit-transfer-card__header {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: start;
+  gap: 14px;
+}
+
 .solana-credit-card__header .settings-toggle-card__status {
+  grid-column: auto;
+  justify-self: end;
+}
+
+.ai-credit-transfer-card__header .settings-toggle-card__status {
   grid-column: auto;
   justify-self: end;
 }
@@ -2009,6 +2025,50 @@ svg {
   color: var(--fg-secondary);
   font-family: var(--font-mono);
   font-size: 12px;
+}
+
+.ai-credit-transfer-card__form {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: end;
+  gap: 12px;
+}
+
+.ai-credit-transfer-card__form .btn-primary,
+.ai-credit-transfer-card__form .btn-ghost {
+  min-height: 46px;
+}
+
+.ai-credit-transfer-card__recipient {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  border: 1px solid var(--border-soft);
+  border-radius: var(--radius-md);
+  background: rgba(245, 248, 251, 0.72);
+  padding: 12px;
+}
+
+.ai-credit-transfer-card__recipient div {
+  min-width: 0;
+}
+
+.ai-credit-transfer-card__recipient strong,
+.ai-credit-transfer-card__recipient span {
+  display: block;
+  overflow-wrap: anywhere;
+}
+
+.ai-credit-transfer-card__recipient strong {
+  color: var(--fg-primary);
+  font-size: 14px;
+}
+
+.ai-credit-transfer-card__recipient span {
+  color: var(--fg-muted);
+  font-size: 12px;
+  font-weight: 800;
 }
 
 .settings-toggle-card {
@@ -4316,13 +4376,26 @@ svg {
   }
 
   .solana-credit-card__header,
+  .ai-credit-transfer-card__header,
   .solana-credit-card__metrics,
   .solana-credit-card__quote {
     grid-template-columns: 1fr;
   }
 
-  .solana-credit-card__header .settings-toggle-card__status {
+  .solana-credit-card__header .settings-toggle-card__status,
+  .ai-credit-transfer-card__header .settings-toggle-card__status {
     grid-column: auto;
+    justify-self: start;
+  }
+
+  .ai-credit-transfer-card__form,
+  .ai-credit-transfer-card__recipient {
+    grid-template-columns: 1fr;
+  }
+
+  .ai-credit-transfer-card__recipient {
+    align-items: flex-start;
+    flex-direction: column;
   }
 
   .settings-profile-card {

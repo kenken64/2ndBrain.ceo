@@ -39,10 +39,15 @@ type SolanaBlockhash = {
   solanaNetwork: string;
 };
 
+type CreditBalance = {
+  quota: number;
+  used: number;
+};
+
 type SolanaCreditPurchaseProps = {
+  balance: CreditBalance;
   billingConfigured: boolean;
-  initialQuota: number;
-  initialUsed: number;
+  onBalanceChange: (balance: CreditBalance) => void;
   packageTokens: number;
   packageUsdCents: number;
 };
@@ -163,17 +168,15 @@ async function readJson<T>(response: Response) {
 }
 
 export function SolanaCreditPurchase({
+  balance,
   billingConfigured,
-  initialQuota,
-  initialUsed,
+  onBalanceChange,
   packageTokens,
   packageUsdCents
 }: SolanaCreditPurchaseProps) {
   const [walletAddress, setWalletAddress] = useState<string | null>(null);
   const [estimate, setEstimate] = useState<SolanaEstimate | null>(null);
   const [quote, setQuote] = useState<SolanaQuote | null>(null);
-  const [quota, setQuota] = useState(initialQuota);
-  const [used, setUsed] = useState(initialUsed);
   const [isConnecting, setIsConnecting] = useState(false);
   const [isEstimating, setIsEstimating] = useState(false);
   const [isQuoting, setIsQuoting] = useState(false);
@@ -183,6 +186,8 @@ export function SolanaCreditPurchase({
   const [error, setError] = useState<string | null>(null);
   const [transactionBlockhash, setTransactionBlockhash] = useState<SolanaBlockhash | null>(null);
   const [transactionBlockhashFetchedAt, setTransactionBlockhashFetchedAt] = useState<number | null>(null);
+  const quota = balance.quota;
+  const used = balance.used;
   const remaining = Math.max(0, quota - used);
   const packageUsd = packageUsdCents / 100;
   const hasFreshBlockhash = isFreshTransactionBlockhash(
@@ -517,8 +522,10 @@ export function SolanaCreditPurchase({
         })
       );
 
-      setQuota(payload.credit.llmTokenQuota);
-      setUsed(payload.credit.llmTokenUsed);
+      onBalanceChange({
+        quota: payload.credit.llmTokenQuota,
+        used: payload.credit.llmTokenUsed
+      });
       setQuote(null);
       setMessage(`Credited ${formatInteger(payload.credit.addedTokens)} AI credits.`);
     } catch (paymentError) {
