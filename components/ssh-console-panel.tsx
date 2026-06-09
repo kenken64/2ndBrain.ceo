@@ -32,6 +32,14 @@ function parseMessage(value: MessageEvent<string>): SshConsoleMessage | null {
   }
 }
 
+function fitTerminalWithPromptClearance(terminal: TerminalInstance, fitAddon: FitAddonInstance) {
+  fitAddon.fit();
+
+  if (terminal.rows > 2) {
+    terminal.resize(terminal.cols, terminal.rows - 1);
+  }
+}
+
 async function fetchSshToken() {
   const response = await fetch("/api/openclaw/ssh-token", {
     cache: "no-store",
@@ -80,7 +88,7 @@ export function SshConsolePanel() {
       }
 
       try {
-        fitAddon.fit();
+        fitTerminalWithPromptClearance(terminal, fitAddon);
       } catch {
         return;
       }
@@ -328,8 +336,13 @@ export function SshConsolePanel() {
                   aria-label="Resize terminal"
                   className="btn-icon"
                   onClick={() => {
-                    fitAddonRef.current?.fit();
-                    terminalRef.current?.focus();
+                    const terminal = terminalRef.current;
+                    const fitAddon = fitAddonRef.current;
+
+                    if (terminal && fitAddon) {
+                      fitTerminalWithPromptClearance(terminal, fitAddon);
+                      terminal.focus();
+                    }
                   }}
                   type="button"
                 >
