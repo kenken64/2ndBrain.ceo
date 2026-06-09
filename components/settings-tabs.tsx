@@ -3,10 +3,13 @@
 import { useState, type ReactNode } from "react";
 import { CreditCard, PlugZap, Settings } from "lucide-react";
 
-type SettingsTabId = "general" | "integrations" | "payment";
+export type SettingsTabId = "general" | "integrations" | "payment";
 
 type SettingsTabsProps = {
+  disabledReason?: string;
+  disabledTabs?: SettingsTabId[];
   general: ReactNode;
+  initialTab?: SettingsTabId;
   integrations: ReactNode;
   payment: ReactNode;
 };
@@ -21,8 +24,30 @@ const tabs: Array<{
   { icon: CreditCard, id: "payment", label: "Payment" }
 ];
 
-export function SettingsTabs({ general, integrations, payment }: SettingsTabsProps) {
-  const [activeTab, setActiveTab] = useState<SettingsTabId>("general");
+function resolveActiveTab(initialTab: SettingsTabId | undefined, disabledTabs: SettingsTabId[]) {
+  const requestedTab = initialTab ?? "general";
+
+  if (!disabledTabs.includes(requestedTab)) {
+    return requestedTab;
+  }
+
+  return tabs.find((tab) => !disabledTabs.includes(tab.id))?.id ?? "general";
+}
+
+export function SettingsTabs({
+  disabledReason = "Unavailable",
+  disabledTabs = [],
+  general,
+  initialTab,
+  integrations,
+  payment
+}: SettingsTabsProps) {
+  const [activeTab, setActiveTab] = useState<SettingsTabId>(() =>
+    resolveActiveTab(initialTab, disabledTabs)
+  );
+  const activeTabId = disabledTabs.includes(activeTab)
+    ? resolveActiveTab(initialTab, disabledTabs)
+    : activeTab;
   const panels: Record<SettingsTabId, ReactNode> = {
     general,
     integrations,
@@ -34,17 +59,21 @@ export function SettingsTabs({ general, integrations, payment }: SettingsTabsPro
       <div aria-label="Settings sections" className="settings-tabs__list" role="tablist">
         {tabs.map((tab) => {
           const Icon = tab.icon;
-          const isActive = activeTab === tab.id;
+          const isActive = activeTabId === tab.id;
+          const isDisabled = disabledTabs.includes(tab.id);
 
           return (
             <button
               aria-controls={`settings-panel-${tab.id}`}
+              aria-disabled={isDisabled}
               aria-selected={isActive}
               className={`settings-tabs__tab${isActive ? " is-active" : ""}`}
+              disabled={isDisabled}
               id={`settings-tab-${tab.id}`}
               key={tab.id}
               onClick={() => setActiveTab(tab.id)}
               role="tab"
+              title={isDisabled ? disabledReason : tab.label}
               type="button"
             >
               <Icon size={16} strokeWidth={1.8} />
@@ -58,7 +87,7 @@ export function SettingsTabs({ general, integrations, payment }: SettingsTabsPro
         <section
           aria-labelledby={`settings-tab-${tab.id}`}
           className="settings-tabs__panel"
-          hidden={activeTab !== tab.id}
+          hidden={activeTabId !== tab.id}
           id={`settings-panel-${tab.id}`}
           key={tab.id}
           role="tabpanel"

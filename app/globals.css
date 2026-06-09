@@ -1304,6 +1304,16 @@ svg {
   box-shadow: var(--shadow-sm);
 }
 
+.sidebar-item.is-disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
+}
+
+.sidebar-item.is-disabled:hover {
+  background: transparent;
+  box-shadow: none;
+}
+
 .sidebar-section-label {
   padding: 12px 12px 4px;
   color: var(--fg-muted);
@@ -1896,6 +1906,17 @@ svg {
   border-color: rgba(0, 167, 255, 0.24);
   background: rgba(0, 167, 255, 0.1);
   color: var(--fg-primary);
+}
+
+.settings-tabs__tab:disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
+}
+
+.settings-tabs__tab:disabled:hover {
+  border-color: transparent;
+  background: transparent;
+  color: var(--fg-secondary);
 }
 
 .settings-tabs__panel:focus {

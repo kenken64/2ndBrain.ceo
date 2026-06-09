@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import {
   ChevronDown,
   Clapperboard,
@@ -18,6 +18,7 @@ import { BrandHeart } from "@/components/brand-heart";
 type DashboardSidebarProps = {
   activeItem?: "admin" | "gateway" | "remotion" | "wiki" | "graph" | "settings";
   avatarName?: string | null;
+  creditLocked?: boolean;
   email?: string | null;
   ownerName?: string | null;
   showAdmin?: boolean;
@@ -33,13 +34,49 @@ function readStoredSidebarState() {
   }
 }
 
-export function DashboardSidebar({ activeItem = "gateway", email, ownerName, showAdmin = false }: DashboardSidebarProps) {
+type SidebarNavItemProps = {
+  active: boolean;
+  disabled?: boolean;
+  href: string;
+  icon: ReactNode;
+  label: string;
+  title: string;
+};
+
+function SidebarNavItem({ active, disabled = false, href, icon, label, title }: SidebarNavItemProps) {
+  const className = `sidebar-item${active ? " is-active" : ""}${disabled ? " is-disabled" : ""}`;
+
+  if (disabled) {
+    return (
+      <span aria-disabled="true" className={className} role="link" title="AI credits required">
+        {icon}
+        <span className="sidebar-item__label">{label}</span>
+      </span>
+    );
+  }
+
+  return (
+    <a className={className} href={href} title={title}>
+      {icon}
+      <span className="sidebar-item__label">{label}</span>
+    </a>
+  );
+}
+
+export function DashboardSidebar({
+  activeItem = "gateway",
+  creditLocked = false,
+  email,
+  ownerName,
+  showAdmin = false
+}: DashboardSidebarProps) {
   const sidebarRef = useRef<HTMLElement>(null);
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [hasLoadedPreference, setHasLoadedPreference] = useState(false);
   const workspaceOwner = ownerName?.trim() || email?.split("@")[0] || "Personal";
   const workspaceName = `${workspaceOwner}'s workspace`;
   const toggleLabel = isCollapsed ? "Expand sidebar" : "Collapse sidebar";
+  const settingsHref = creditLocked ? "/dashboard/settings?tab=payment" : "/dashboard/settings";
 
   useEffect(() => {
     setIsCollapsed(readStoredSidebarState());
@@ -71,7 +108,7 @@ export function DashboardSidebar({ activeItem = "gateway", email, ownerName, sho
   return (
     <aside className={`sidebar${isCollapsed ? " is-collapsed" : ""}`} ref={sidebarRef}>
       <div className="sidebar-header">
-        <a className="sidebar-brand" href="/dashboard">
+        <a className="sidebar-brand" href={creditLocked ? settingsHref : "/dashboard"}>
           <BrandHeart size={50} />
         </a>
         <button
@@ -97,34 +134,57 @@ export function DashboardSidebar({ activeItem = "gateway", email, ownerName, sho
       </button>
       <nav aria-label="Dashboard navigation" className="sidebar-nav" id="dashboard-sidebar-nav">
         <span className="sidebar-section-label">WORKSPACE</span>
-        <a className={`sidebar-item${activeItem === "gateway" ? " is-active" : ""}`} href="/dashboard/openclaw" title="AI Assistant Gateway UI">
-          <Plug size={18} strokeWidth={1.7} />
-          <span className="sidebar-item__label">AI Assistant Gateway UI</span>
-        </a>
-        <a className={`sidebar-item${activeItem === "remotion" ? " is-active" : ""}`} href="/dashboard#remotion-avatar" title="My AI Avatar">
-          <Clapperboard size={18} strokeWidth={1.7} />
-          <span className="sidebar-item__label">My AI Avatar</span>
-        </a>
-        <a className={`sidebar-item${activeItem === "wiki" ? " is-active" : ""}`} href="/dashboard/wiki" title="Nth Brain">
-          <ScrollText size={18} strokeWidth={1.7} />
-          <span className="sidebar-item__label">Nth Brain</span>
-        </a>
-        <a className={`sidebar-item${activeItem === "graph" ? " is-active" : ""}`} href="/dashboard/graph" title="Knowledge Graph">
-          <GitBranch size={18} strokeWidth={1.7} />
-          <span className="sidebar-item__label">Knowledge Graph</span>
-        </a>
+        <SidebarNavItem
+          active={activeItem === "gateway"}
+          disabled={creditLocked}
+          href="/dashboard/openclaw"
+          icon={<Plug size={18} strokeWidth={1.7} />}
+          label="AI Assistant Gateway UI"
+          title="AI Assistant Gateway UI"
+        />
+        <SidebarNavItem
+          active={activeItem === "remotion"}
+          disabled={creditLocked}
+          href="/dashboard#remotion-avatar"
+          icon={<Clapperboard size={18} strokeWidth={1.7} />}
+          label="My AI Avatar"
+          title="My AI Avatar"
+        />
+        <SidebarNavItem
+          active={activeItem === "wiki"}
+          disabled={creditLocked}
+          href="/dashboard/wiki"
+          icon={<ScrollText size={18} strokeWidth={1.7} />}
+          label="Nth Brain"
+          title="Nth Brain"
+        />
+        <SidebarNavItem
+          active={activeItem === "graph"}
+          disabled={creditLocked}
+          href="/dashboard/graph"
+          icon={<GitBranch size={18} strokeWidth={1.7} />}
+          label="Knowledge Graph"
+          title="Knowledge Graph"
+        />
       </nav>
       <div className="sidebar-spacer" />
       <div className="sidebar-footer">
-        <a className={`sidebar-item${activeItem === "settings" ? " is-active" : ""}`} href="/dashboard/settings" title="Settings">
-          <Settings size={18} strokeWidth={1.7} />
-          <span className="sidebar-item__label">Settings</span>
-        </a>
+        <SidebarNavItem
+          active={activeItem === "settings"}
+          href={settingsHref}
+          icon={<Settings size={18} strokeWidth={1.7} />}
+          label="Settings"
+          title="Settings"
+        />
         {showAdmin || activeItem === "admin" ? (
-          <a className={`sidebar-item${activeItem === "admin" ? " is-active" : ""}`} href="/admin" title="Admin">
-            <ShieldCheck size={18} strokeWidth={1.7} />
-            <span className="sidebar-item__label">Admin</span>
-          </a>
+          <SidebarNavItem
+            active={activeItem === "admin"}
+            disabled={creditLocked}
+            href="/admin"
+            icon={<ShieldCheck size={18} strokeWidth={1.7} />}
+            label="Admin"
+            title="Admin"
+          />
         ) : null}
         <a className="sidebar-item sidebar-item--logout" href="/auth/logout" title="Log out">
           <Power size={18} strokeWidth={1.7} />

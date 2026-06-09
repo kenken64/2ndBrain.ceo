@@ -9,7 +9,7 @@ import { DestroyWorkspaceButton } from "@/components/destroy-workspace-button";
 import { SetupCallout } from "@/components/setup-callout";
 import { SettingsIntegrations } from "@/components/settings-integrations";
 import { SettingsProfileForm } from "@/components/settings-profile-form";
-import { SettingsTabs } from "@/components/settings-tabs";
+import { SettingsTabs, type SettingsTabId } from "@/components/settings-tabs";
 import { canShowAdminWorkspaceLink } from "@/lib/admin";
 import { hasSupabaseEnv } from "@/lib/env";
 import {
@@ -40,7 +40,24 @@ type BillingProfileSettings = OptionalProfileSettings & {
   llm_token_used: number | null;
 };
 
-export default async function DashboardSettingsPage() {
+type DashboardSettingsPageProps = {
+  searchParams?: Promise<{
+    tab?: string;
+  }>;
+};
+
+function parseSettingsTab(value: string | undefined): SettingsTabId | undefined {
+  if (value === "general" || value === "integrations" || value === "payment") {
+    return value;
+  }
+
+  return undefined;
+}
+
+export default async function DashboardSettingsPage({ searchParams }: DashboardSettingsPageProps) {
+  const params = searchParams ? await searchParams : undefined;
+  const requestedTab = parseSettingsTab(params?.tab);
+
   if (!hasSupabaseEnv()) {
     return (
       <>
@@ -86,12 +103,22 @@ export default async function DashboardSettingsPage() {
     : { data: null };
   const optionalSettings = settingsProfile as BillingProfileSettings | null;
   const profileName = optionalSettings?.profile_name?.trim() || ownerName || "";
+  const availableCredits =
+    Number(optionalSettings?.llm_token_quota ?? 0) - Number(optionalSettings?.llm_token_used ?? 0);
+  const isCreditLocked = availableCredits <= 0;
 
   return (
     <>
       <Atmosphere />
       <div className="dashboard-layout">
-        <DashboardSidebar activeItem="settings" avatarName={avatarName} email={email} ownerName={ownerName} showAdmin={showAdmin} />
+        <DashboardSidebar
+          activeItem="settings"
+          avatarName={avatarName}
+          creditLocked={isCreditLocked}
+          email={email}
+          ownerName={ownerName}
+          showAdmin={showAdmin}
+        />
         <main className="dashboard-main">
           <div className="dashboard-topbar">
             <AnnouncementPill>Workspace settings</AnnouncementPill>
@@ -107,9 +134,15 @@ export default async function DashboardSettingsPage() {
             </div>
 
             <SettingsTabs
+              disabledReason="Add AI credits or destroy this instance to continue."
+              disabledTabs={isCreditLocked ? ["integrations"] : []}
               general={
                 <div className="settings-grid settings-grid--general">
-                  <SettingsProfileForm initialProfileName={profileName} userEmail={email} />
+                  <SettingsProfileForm
+                    disabled={isCreditLocked}
+                    initialProfileName={profileName}
+                    userEmail={email}
+                  />
 
                   <article className="settings-action-card settings-action-card--danger">
                     <div>
@@ -123,6 +156,7 @@ export default async function DashboardSettingsPage() {
                   </article>
                 </div>
               }
+              initialTab={isCreditLocked ? (requestedTab === "general" ? "general" : "payment") : requestedTab}
               integrations={
                 <div className="settings-grid settings-grid--integrations">
                   <SettingsIntegrations

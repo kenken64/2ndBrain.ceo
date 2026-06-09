@@ -4,6 +4,7 @@ import { useState, type FormEvent } from "react";
 import { CheckCircle2 } from "lucide-react";
 
 type SettingsProfileFormProps = {
+  disabled?: boolean;
   initialProfileName?: string | null;
   userEmail?: string | null;
 };
@@ -30,7 +31,11 @@ async function saveProfileName(profileName: string) {
   return data;
 }
 
-export function SettingsProfileForm({ initialProfileName = "", userEmail = null }: SettingsProfileFormProps) {
+export function SettingsProfileForm({
+  disabled = false,
+  initialProfileName = "",
+  userEmail = null
+}: SettingsProfileFormProps) {
   const [profileName, setProfileName] = useState(initialProfileName?.trim() ?? "");
   const [profileError, setProfileError] = useState<string | null>(null);
   const [profileStatus, setProfileStatus] = useState<string | null>(null);
@@ -39,6 +44,11 @@ export function SettingsProfileForm({ initialProfileName = "", userEmail = null 
 
   async function handleProfileSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+
+    if (disabled) {
+      return;
+    }
+
     const trimmed = profileName.trim();
 
     setProfileError(null);
@@ -78,7 +88,7 @@ export function SettingsProfileForm({ initialProfileName = "", userEmail = null 
           <span>Profile name</span>
           <input
             aria-invalid={profileError ? "true" : "false"}
-            disabled={savingProfile}
+            disabled={disabled || savingProfile}
             maxLength={120}
             name="profileName"
             onChange={(event) => {
@@ -93,7 +103,7 @@ export function SettingsProfileForm({ initialProfileName = "", userEmail = null 
           {profileError ? <span className="field-error">{profileError}</span> : null}
         </label>
       </div>
-      <button className="settings-action-button settings-action-button--telegram" disabled={savingProfile} type="submit">
+      <button className="settings-action-button settings-action-button--telegram" disabled={disabled || savingProfile} type="submit">
         {savingProfile ? "Saving..." : "Save profile"}
       </button>
       {profileStatus ? (
