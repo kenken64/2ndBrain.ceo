@@ -890,10 +890,8 @@ svg {
 }
 
 .admin-mfa-panel__actions {
-  display: flex;
-  flex-wrap: wrap;
+  display: grid;
   gap: 10px;
-  justify-content: center;
   margin-top: 16px;
 }
 
@@ -903,6 +901,7 @@ svg {
   min-width: 190px;
   padding: 12px 22px;
   font-size: 14px;
+  width: 100%;
 }
 
 .admin-mfa-panel__setup {
