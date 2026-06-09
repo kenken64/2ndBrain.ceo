@@ -2082,6 +2082,11 @@ svg {
   align-items: end;
 }
 
+.settings-profile-card__fields {
+  display: grid;
+  gap: 12px;
+}
+
 .settings-profile-card h3 {
   margin: 6px 0 0;
   color: var(--fg-primary);
@@ -3638,6 +3643,13 @@ svg {
   padding: 0 16px;
   outline: 0;
   box-shadow: var(--shadow-sm);
+}
+
+.field-stack input.readonly-field {
+  border-color: var(--border-soft);
+  background: rgba(245, 248, 251, 0.72);
+  color: var(--fg-secondary);
+  cursor: default;
 }
 
 .secret-input {

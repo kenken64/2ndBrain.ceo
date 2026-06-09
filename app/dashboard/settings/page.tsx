@@ -109,7 +109,7 @@ export default async function DashboardSettingsPage() {
             <SettingsTabs
               general={
                 <div className="settings-grid settings-grid--general">
-                  <SettingsProfileForm initialProfileName={profileName} />
+                  <SettingsProfileForm initialProfileName={profileName} userEmail={email} />
 
                   <article className="settings-action-card settings-action-card--danger">
                     <div>

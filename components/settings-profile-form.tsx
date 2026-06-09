@@ -5,6 +5,7 @@ import { CheckCircle2 } from "lucide-react";
 
 type SettingsProfileFormProps = {
   initialProfileName?: string | null;
+  userEmail?: string | null;
 };
 
 async function saveProfileName(profileName: string) {
@@ -29,11 +30,12 @@ async function saveProfileName(profileName: string) {
   return data;
 }
 
-export function SettingsProfileForm({ initialProfileName = "" }: SettingsProfileFormProps) {
+export function SettingsProfileForm({ initialProfileName = "", userEmail = null }: SettingsProfileFormProps) {
   const [profileName, setProfileName] = useState(initialProfileName?.trim() ?? "");
   const [profileError, setProfileError] = useState<string | null>(null);
   const [profileStatus, setProfileStatus] = useState<string | null>(null);
   const [savingProfile, setSavingProfile] = useState(false);
+  const accountEmail = userEmail?.trim() || "Not available";
 
   async function handleProfileSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -64,27 +66,39 @@ export function SettingsProfileForm({ initialProfileName = "" }: SettingsProfile
     <form className="settings-profile-card" noValidate onSubmit={handleProfileSubmit}>
       <div>
         <p className="workspace-status-card__eyebrow">Profile</p>
-        <h3>Profile name</h3>
-        <p>Save the display name used for this workspace profile.</p>
+        <h3>Account profile</h3>
+        <p>View the sign-in email and save the display name used for this workspace profile.</p>
       </div>
-      <label className="field-stack">
-        <span>Profile name</span>
-        <input
-          aria-invalid={profileError ? "true" : "false"}
-          disabled={savingProfile}
-          maxLength={120}
-          name="profileName"
-          onChange={(event) => {
-            setProfileName(event.target.value);
-            setProfileError(null);
-            setProfileStatus(null);
-          }}
-          placeholder="Kenneth's workspace"
-          type="text"
-          value={profileName}
-        />
-        {profileError ? <span className="field-error">{profileError}</span> : null}
-      </label>
+      <div className="settings-profile-card__fields">
+        <label className="field-stack">
+          <span>Email address</span>
+          <input
+            aria-readonly="true"
+            className="readonly-field"
+            readOnly
+            type="email"
+            value={accountEmail}
+          />
+        </label>
+        <label className="field-stack">
+          <span>Profile name</span>
+          <input
+            aria-invalid={profileError ? "true" : "false"}
+            disabled={savingProfile}
+            maxLength={120}
+            name="profileName"
+            onChange={(event) => {
+              setProfileName(event.target.value);
+              setProfileError(null);
+              setProfileStatus(null);
+            }}
+            placeholder="Kenneth's workspace"
+            type="text"
+            value={profileName}
+          />
+          {profileError ? <span className="field-error">{profileError}</span> : null}
+        </label>
+      </div>
       <button className="settings-action-button settings-action-button--telegram" disabled={savingProfile} type="submit">
         {savingProfile ? "Saving..." : "Save profile"}
       </button>
