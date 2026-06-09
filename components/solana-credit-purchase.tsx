@@ -13,19 +13,23 @@ type PhantomProvider = {
   signAndSendTransaction: (transaction: Transaction) => Promise<{ signature: string }>;
 };
 
-type SolanaQuote = {
-  blockhash: string;
-  expiresAt: string;
-  id: string;
-  label: string;
-  lastValidBlockHeight: number;
+type SolanaEstimate = {
   packageTokens: number;
   solAmount: number;
   solAmountLamports: number;
   solUsdPrice: number;
   solanaNetwork: string;
-  treasuryWallet: string;
   usdAmount: number;
+  usdAmountCents: number;
+};
+
+type SolanaQuote = SolanaEstimate & {
+  blockhash: string;
+  expiresAt: string;
+  id: string;
+  label: string;
+  lastValidBlockHeight: number;
+  treasuryWallet: string;
   walletAddress: string;
 };
 
@@ -166,10 +170,12 @@ export function SolanaCreditPurchase({
   packageUsdCents
 }: SolanaCreditPurchaseProps) {
   const [walletAddress, setWalletAddress] = useState<string | null>(null);
+  const [estimate, setEstimate] = useState<SolanaEstimate | null>(null);
   const [quote, setQuote] = useState<SolanaQuote | null>(null);
   const [quota, setQuota] = useState(initialQuota);
   const [used, setUsed] = useState(initialUsed);
   const [isConnecting, setIsConnecting] = useState(false);
+  const [isEstimating, setIsEstimating] = useState(false);
   const [isQuoting, setIsQuoting] = useState(false);
   const [isRefreshingBlockhash, setIsRefreshingBlockhash] = useState(false);
   const [isPaying, setIsPaying] = useState(false);
@@ -184,6 +190,21 @@ export function SolanaCreditPurchase({
     transactionBlockhash,
     transactionBlockhashFetchedAt
   );
+  const packageSummaryCopy = useMemo(() => {
+    if (quote) {
+      return `Minimum spend is ${formatUsdPlain(packageUsd)}, approximately ${formatSol(quote.solAmount)} Solana at the current payment quote, for ${formatInteger(packageTokens)} AI credits.`;
+    }
+
+    if (estimate) {
+      return `Minimum spend is ${formatUsdPlain(packageUsd)}, approximately ${formatSol(estimate.solAmount)} Solana at the current estimate, for ${formatInteger(packageTokens)} AI credits.`;
+    }
+
+    if (isEstimating) {
+      return `Minimum spend is ${formatUsdPlain(packageUsd)}. Calculating the approximate Solana amount for ${formatInteger(packageTokens)} AI credits.`;
+    }
+
+    return `Minimum spend is ${formatUsdPlain(packageUsd)}, paid in Solana, for ${formatInteger(packageTokens)} AI credits.`;
+  }, [estimate, isEstimating, packageTokens, packageUsd, quote]);
   const statusCopy = useMemo(() => {
     if (!billingConfigured) {
       return "Treasury wallet missing";
@@ -197,8 +218,12 @@ export function SolanaCreditPurchase({
       return `${formatSol(quote.solAmount)} Solana estimated`;
     }
 
-    if (isQuoting) {
+    if (isQuoting || isEstimating) {
       return "Calculating Solana";
+    }
+
+    if (estimate) {
+      return `${formatSol(estimate.solAmount)} Solana estimated`;
     }
 
     if (walletAddress) {
@@ -206,7 +231,47 @@ export function SolanaCreditPurchase({
     }
 
     return "Ready";
-  }, [billingConfigured, hasFreshBlockhash, isQuoting, isRefreshingBlockhash, quote, walletAddress]);
+  }, [billingConfigured, estimate, hasFreshBlockhash, isEstimating, isQuoting, isRefreshingBlockhash, quote, walletAddress]);
+
+  useEffect(() => {
+    if (!billingConfigured) {
+      setEstimate(null);
+      setIsEstimating(false);
+      return;
+    }
+
+    let cancelled = false;
+
+    async function createEstimate() {
+      setIsEstimating(true);
+
+      try {
+        const payload = await readJson<{ estimate: SolanaEstimate }>(
+          await fetch("/api/billing/solana/estimate", {
+            method: "GET"
+          })
+        );
+
+        if (!cancelled) {
+          setEstimate(payload.estimate);
+        }
+      } catch {
+        if (!cancelled) {
+          setEstimate(null);
+        }
+      } finally {
+        if (!cancelled) {
+          setIsEstimating(false);
+        }
+      }
+    }
+
+    void createEstimate();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [billingConfigured]);
 
   useEffect(() => {
     if (!quote || !walletAddress) {
@@ -476,7 +541,7 @@ export function SolanaCreditPurchase({
         <div>
           <p className="workspace-status-card__eyebrow">AI credits</p>
           <h2>Buy AI credits with Solana</h2>
-          <p>Minimum spend is {formatUsdPlain(packageUsd)}, paid in Solana, for {formatInteger(packageTokens)} AI credits.</p>
+          <p>{packageSummaryCopy}</p>
         </div>
         <span className="settings-toggle-card__status">{statusCopy}</span>
       </div>
