@@ -77,7 +77,14 @@ function popupResponse(request: NextRequest, payload: Record<string, string>) {
         window.opener?.postMessage(payload, ${scriptJson(origin)});
       } catch {}
       if (payload.status === "connected") {
-        window.setTimeout(() => window.close(), 900);
+        window.setTimeout(() => {
+          if (window.opener && !window.opener.closed) {
+            window.close();
+            return;
+          }
+
+          window.location.replace(${scriptJson(settingsUrl)});
+        }, 900);
       }
     </script>
   </body>

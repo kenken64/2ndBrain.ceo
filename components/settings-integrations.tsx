@@ -5,12 +5,9 @@ import {
   BriefcaseBusiness,
   CheckCircle2,
   ChartNoAxesColumnIncreasing,
-  ExternalLink,
   NotebookTabs,
   Music2,
-  RefreshCw,
   Share2,
-  ShieldCheck,
   Users
 } from "lucide-react";
 
@@ -111,12 +108,11 @@ type GoogleWorkspaceAuthResponse = {
   error?: string;
   ok?: boolean;
   redirectUri?: string;
-  source?: string;
   status?: string;
   state?: string;
 };
 
-type GoogleWorkspaceAuthPhase = "idle" | "starting" | "waiting" | "submitting" | "ready" | "failed";
+type GoogleWorkspaceAuthPhase = "idle" | "starting" | "waiting" | "ready" | "failed";
 
 type GoogleWorkspaceAuthResultMessage = {
   message?: string;
@@ -150,10 +146,8 @@ export function SettingsIntegrations({
   const [enabled, setEnabled] = useState<Record<string, boolean>>({
     "google-workspace": initialGoogleWorkspaceEnabled
   });
-  const [googleWorkspaceAuthInput, setGoogleWorkspaceAuthInput] = useState("");
   const [googleWorkspaceAuthMessage, setGoogleWorkspaceAuthMessage] = useState<string | null>(null);
   const [googleWorkspaceAuthPhase, setGoogleWorkspaceAuthPhase] = useState<GoogleWorkspaceAuthPhase>("idle");
-  const [googleWorkspaceAuthUrl, setGoogleWorkspaceAuthUrl] = useState<string | null>(null);
   const [integrationError, setIntegrationError] = useState<string | null>(null);
   const [integrationStatus, setIntegrationStatus] = useState<string | null>(null);
   const [savingIntegration, setSavingIntegration] = useState<string | null>(null);
@@ -176,7 +170,6 @@ export function SettingsIntegrations({
 
       if (data.status === "connected") {
         googleWorkspaceAuthState.current = null;
-        setGoogleWorkspaceAuthInput("");
         setGoogleWorkspaceAuthPhase("ready");
         setGoogleWorkspaceAuthMessage(data.message || "Google Workspace OAuth is installed on OpenClaw.");
         return;
@@ -217,15 +210,11 @@ export function SettingsIntegrations({
     }
 
     promptedGoogleWorkspaceAuth.current = true;
-    void startGoogleWorkspaceAuth({ openPopup: false });
+    void startGoogleWorkspaceAuth({ redirectCurrent: true });
   }, [initialGoogleWorkspaceAuthPrompt, googleWorkspaceEnabled]);
 
-  async function startGoogleWorkspaceAuth(options: { loginWindow?: Window | null; openPopup?: boolean } = {}) {
+  async function startGoogleWorkspaceAuth(options: { loginWindow?: Window | null; redirectCurrent?: boolean } = {}) {
     let loginWindow = options.loginWindow ?? null;
-
-    if (!loginWindow && options.openPopup) {
-      loginWindow = window.open("about:blank", "_blank");
-    }
 
     try {
       if (loginWindow) {
@@ -243,50 +232,19 @@ export function SettingsIntegrations({
         throw new Error(data.error || "Google Workspace login URL was not returned.");
       }
 
-      setGoogleWorkspaceAuthUrl(nextUrl);
       googleWorkspaceAuthState.current = data.state?.trim() || null;
       setGoogleWorkspaceAuthPhase("waiting");
       setGoogleWorkspaceAuthMessage("Google login opened. This page will confirm when OpenClaw receives credentials.");
 
       if (loginWindow) {
         loginWindow.location.href = nextUrl;
+      } else if (options.redirectCurrent) {
+        window.location.href = nextUrl;
       }
     } catch (error) {
       loginWindow?.close();
       setGoogleWorkspaceAuthPhase("failed");
       setGoogleWorkspaceAuthMessage(error instanceof Error ? error.message : "Google Workspace login could not start.");
-    }
-  }
-
-  async function submitGoogleWorkspaceAuth() {
-    const input = googleWorkspaceAuthInput.trim();
-
-    if (!input) {
-      setGoogleWorkspaceAuthPhase("failed");
-      setGoogleWorkspaceAuthMessage("Paste the localhost callback URL, authorization code, or exported GWS credentials JSON.");
-      return;
-    }
-
-    setGoogleWorkspaceAuthMessage(null);
-    setGoogleWorkspaceAuthPhase("submitting");
-
-    try {
-      const payload = input.startsWith("{")
-        ? { credentialsJson: input }
-        : { callbackUrl: input };
-      const data = await postGoogleWorkspaceAuth("/api/openclaw/gws-auth/login", payload);
-
-      googleWorkspaceAuthState.current = null;
-      setGoogleWorkspaceAuthInput("");
-      setGoogleWorkspaceAuthPhase("ready");
-      setGoogleWorkspaceAuthMessage(
-        data.source === "oauth_code"
-          ? "Google Workspace OAuth is installed on OpenClaw."
-          : "Google Workspace credentials are installed on OpenClaw."
-      );
-    } catch (error) {
-      setGoogleWorkspaceAuthPhase("failed");
-      setGoogleWorkspaceAuthMessage(error instanceof Error ? error.message : "Google Workspace auth could not be completed.");
     }
   }
 
@@ -323,7 +281,10 @@ export function SettingsIntegrations({
       setIntegrationStatus(`Google Workspace ${nextEnabled ? "enabled" : "disabled"}.`);
 
       if (nextEnabled && saved?.googleWorkspaceEnabled) {
-        await startGoogleWorkspaceAuth({ loginWindow: googleWorkspaceLoginWindow });
+        await startGoogleWorkspaceAuth({
+          loginWindow: googleWorkspaceLoginWindow,
+          redirectCurrent: !googleWorkspaceLoginWindow
+        });
         googleWorkspaceLoginWindow = null;
       }
     } catch (error) {
@@ -381,56 +342,11 @@ export function SettingsIntegrations({
               >
                 <span />
               </button>
-              {integration.id === "google-workspace" && isEnabled ? (
+              {integration.id === "google-workspace" && isEnabled && (googleWorkspaceAuthPhase !== "idle" || googleWorkspaceAuthMessage) ? (
                 <div className="claude-auth-card google-workspace-auth-card">
-                  <div className="claude-auth-card__actions">
-                    <button
-                      className="settings-action-button settings-action-button--telegram"
-                      disabled={googleWorkspaceAuthPhase === "starting" || googleWorkspaceAuthPhase === "submitting"}
-                      onClick={() => startGoogleWorkspaceAuth({ openPopup: true })}
-                      type="button"
-                    >
-                      {googleWorkspaceAuthPhase === "starting" ? (
-                        <>
-                          <RefreshCw className="spin-icon" size={16} strokeWidth={2} />
-                          Starting...
-                        </>
-                      ) : (
-                        <>
-                          <ShieldCheck size={16} strokeWidth={2} />
-                          Open Google login
-                        </>
-                      )}
-                    </button>
-                    <button
-                      className="btn-ghost btn-ghost--compact"
-                      disabled={googleWorkspaceAuthPhase === "submitting"}
-                      onClick={submitGoogleWorkspaceAuth}
-                      type="button"
-                    >
-                      Install pasted credentials
-                    </button>
-                  </div>
-
-                  {googleWorkspaceAuthPhase === "starting" || googleWorkspaceAuthPhase === "submitting" ? (
+                  {googleWorkspaceAuthPhase === "starting" || googleWorkspaceAuthPhase === "waiting" ? (
                     <progress aria-label="Google Workspace auth progress" className="settings-dialog__progress" />
                   ) : null}
-
-                  {googleWorkspaceAuthUrl ? (
-                    <a className="claude-auth-card__link" href={googleWorkspaceAuthUrl} rel="noreferrer" target="_blank">
-                      <ExternalLink size={16} strokeWidth={2} />
-                      Open Google login URL
-                    </a>
-                  ) : null}
-
-                  <textarea
-                    aria-label="Google Workspace callback URL or credentials JSON"
-                    className="google-workspace-auth-card__input"
-                    onChange={(event) => setGoogleWorkspaceAuthInput(event.target.value)}
-                    placeholder="Optional callback code or exported credentials JSON"
-                    rows={4}
-                    value={googleWorkspaceAuthInput}
-                  />
 
                   {googleWorkspaceAuthMessage ? (
                     <p

@@ -95,31 +95,6 @@ export function buildGoogleWorkspaceAuthUrl(redirectUri?: string | null) {
   };
 }
 
-export function extractGoogleWorkspaceCode(value: string) {
-  const trimmed = value.trim();
-
-  if (!trimmed) {
-    return {
-      code: null,
-      state: null
-    };
-  }
-
-  try {
-    const url = new URL(trimmed);
-
-    return {
-      code: url.searchParams.get("code")?.trim() || null,
-      state: url.searchParams.get("state")?.trim() || null
-    };
-  } catch {
-    return {
-      code: trimmed,
-      state: null
-    };
-  }
-}
-
 export function normalizeGoogleWorkspaceCredentials(value: unknown) {
   let parsed: unknown = value;
 
@@ -148,7 +123,7 @@ export function normalizeGoogleWorkspaceCredentials(value: unknown) {
   const refreshToken = typeof record.refresh_token === "string" ? record.refresh_token.trim() : "";
 
   if (type !== "authorized_user" || !clientId || !clientSecret || !refreshToken) {
-    throw new Error("Paste JSON from `gws auth export --unmasked`; a localhost callback URL by itself is not a credentials file.");
+    throw new Error("Google Workspace token response did not include required authorized_user fields.");
   }
 
   return `${JSON.stringify(
