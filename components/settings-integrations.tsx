@@ -105,6 +105,7 @@ async function saveProfileSettings(payload: SavePayload) {
 
 type GoogleWorkspaceAuthResponse = {
   authUrl?: string | null;
+  message?: string;
   error?: string;
   ok?: boolean;
   redirectUri?: string;
@@ -112,9 +113,10 @@ type GoogleWorkspaceAuthResponse = {
   state?: string;
 };
 
-type GoogleWorkspaceAuthPhase = "idle" | "starting" | "waiting" | "ready" | "failed";
+type GoogleWorkspaceAuthPhase = "idle" | "starting" | "waiting" | "installing" | "ready" | "failed";
 
 type GoogleWorkspaceAuthResultMessage = {
+  code?: string;
   message?: string;
   state?: string;
   status?: string;
@@ -156,7 +158,11 @@ function openGoogleWorkspacePopup() {
     "menubar=no",
     "status=no"
   ].join(",");
-  const loginWindow = window.open("about:blank", "2ndbrain-google-workspace-auth", features);
+  const loginWindow = window.open(
+    "about:blank",
+    `2ndbrain-google-workspace-auth-${Date.now()}`,
+    features
+  );
 
   loginWindow?.focus();
 
@@ -176,6 +182,7 @@ export function SettingsIntegrations({
   const [integrationStatus, setIntegrationStatus] = useState<string | null>(null);
   const [savingIntegration, setSavingIntegration] = useState<string | null>(null);
   const googleWorkspaceAuthState = useRef<string | null>(null);
+  const googleWorkspaceCompletionState = useRef<string | null>(null);
   const promptedGoogleWorkspaceAuth = useRef(false);
 
   const googleWorkspaceEnabled = Boolean(enabled["google-workspace"]);
@@ -194,12 +201,26 @@ export function SettingsIntegrations({
 
       if (data.status === "connected") {
         googleWorkspaceAuthState.current = null;
+        googleWorkspaceCompletionState.current = null;
         setGoogleWorkspaceAuthPhase("ready");
         setGoogleWorkspaceAuthMessage(data.message || "Google Workspace OAuth is installed on OpenClaw.");
         return;
       }
 
+      if (data.status === "authorized") {
+        const state = data.state?.trim() || googleWorkspaceAuthState.current || "";
+
+        if (state && googleWorkspaceCompletionState.current === state) {
+          return;
+        }
+
+        googleWorkspaceCompletionState.current = state || "pending";
+        void completeGoogleWorkspaceAuth(data);
+        return;
+      }
+
       if (data.status === "failed") {
+        googleWorkspaceCompletionState.current = null;
         setGoogleWorkspaceAuthPhase("failed");
         setGoogleWorkspaceAuthMessage(data.message || "Google Workspace auth could not be completed.");
       }
@@ -258,6 +279,7 @@ export function SettingsIntegrations({
       }
 
       googleWorkspaceAuthState.current = data.state?.trim() || null;
+      googleWorkspaceCompletionState.current = null;
       setGoogleWorkspaceAuthPhase("waiting");
       setGoogleWorkspaceAuthMessage("Google login opened. This page will confirm when OpenClaw receives credentials.");
 
@@ -273,6 +295,38 @@ export function SettingsIntegrations({
     }
   }
 
+  async function completeGoogleWorkspaceAuth(result: GoogleWorkspaceAuthResultMessage) {
+    const code = result.code?.trim() || "";
+    const state = result.state?.trim() || googleWorkspaceAuthState.current || "";
+
+    if (!code) {
+      googleWorkspaceCompletionState.current = null;
+      setGoogleWorkspaceAuthPhase("failed");
+      setGoogleWorkspaceAuthMessage("Google Workspace OAuth did not return a code.");
+      return;
+    }
+
+    try {
+      setGoogleWorkspaceAuthPhase("installing");
+      setGoogleWorkspaceAuthMessage("Google authorized. Installing credentials on OpenClaw...");
+
+      const data = await postGoogleWorkspaceAuth("/api/openclaw/gws-auth/complete", {
+        code,
+        state
+      });
+
+      googleWorkspaceAuthState.current = null;
+      googleWorkspaceCompletionState.current = null;
+      setIntegrationStatus("Google Workspace connected.");
+      setGoogleWorkspaceAuthPhase("ready");
+      setGoogleWorkspaceAuthMessage(data.message || "OpenClaw received the Google Workspace credentials.");
+    } catch (error) {
+      googleWorkspaceCompletionState.current = null;
+      setGoogleWorkspaceAuthPhase("failed");
+      setGoogleWorkspaceAuthMessage(error instanceof Error ? error.message : "Google Workspace auth could not be completed.");
+    }
+  }
+
   async function handleToggle(integrationId: string) {
     const nextEnabled = !enabled[integrationId];
     let googleWorkspaceLoginWindow: Window | null = null;
@@ -282,6 +336,18 @@ export function SettingsIntegrations({
         ...current,
         [integrationId]: nextEnabled
       }));
+      return;
+    }
+
+    if (enabled[integrationId]) {
+      googleWorkspaceLoginWindow = openGoogleWorkspacePopup();
+      setIntegrationError(null);
+      setIntegrationStatus(null);
+
+      await startGoogleWorkspaceAuth({
+        loginWindow: googleWorkspaceLoginWindow,
+        redirectCurrent: !googleWorkspaceLoginWindow
+      });
       return;
     }
 
@@ -344,6 +410,15 @@ export function SettingsIntegrations({
           const Icon = integration.icon;
           const isEnabled = Boolean(enabled[integration.id]);
           const isSaving = savingIntegration === integration.id;
+          const isGoogleWorkspaceAuthBusy =
+            integration.id === "google-workspace" &&
+            (googleWorkspaceAuthPhase === "starting" ||
+              googleWorkspaceAuthPhase === "waiting" ||
+              googleWorkspaceAuthPhase === "installing");
+          const switchLabel =
+            integration.id === "google-workspace" && isEnabled
+              ? `Reconnect ${integration.label}`
+              : `${isEnabled ? "Disable" : "Enable"} ${integration.label}`;
 
           return (
             <div className="settings-toggle-card" key={integration.id}>
@@ -358,9 +433,9 @@ export function SettingsIntegrations({
               </div>
               <button
                 aria-checked={isEnabled}
-                aria-label={`${isEnabled ? "Disable" : "Enable"} ${integration.label}`}
+                aria-label={switchLabel}
                 className={`settings-switch${isEnabled ? " is-enabled" : ""}`}
-                disabled={isSaving}
+                disabled={isSaving || isGoogleWorkspaceAuthBusy}
                 onClick={() => handleToggle(integration.id)}
                 role="switch"
                 type="button"
@@ -369,7 +444,9 @@ export function SettingsIntegrations({
               </button>
               {integration.id === "google-workspace" && isEnabled && (googleWorkspaceAuthPhase !== "idle" || googleWorkspaceAuthMessage) ? (
                 <div className="claude-auth-card google-workspace-auth-card">
-                  {googleWorkspaceAuthPhase === "starting" || googleWorkspaceAuthPhase === "waiting" ? (
+                  {googleWorkspaceAuthPhase === "starting" ||
+                  googleWorkspaceAuthPhase === "waiting" ||
+                  googleWorkspaceAuthPhase === "installing" ? (
                     <progress aria-label="Google Workspace auth progress" className="settings-dialog__progress" />
                   ) : null}
 

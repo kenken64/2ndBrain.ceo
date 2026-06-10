@@ -24,9 +24,14 @@ function isCreditLockAllowedPath(pathname: string) {
     pathname === "/dashboard/settings" ||
     pathname === "/dashboard/settings/" ||
     pathname === "/api/account/destroy-workspace" ||
+    pathname.startsWith("/api/openclaw/gws-auth") ||
     pathname.startsWith("/api/billing") ||
     pathname.startsWith("/onboarding")
   );
+}
+
+function isOAuthCodeCallbackPath(pathname: string) {
+  return pathname === "/auth/callback" || pathname === "/api/openclaw/gws-auth/callback";
 }
 
 function getAvailableAiCredits(profile: {
@@ -42,7 +47,7 @@ function getAvailableAiCredits(profile: {
 export async function proxy(request: NextRequest) {
   if (
     request.nextUrl.searchParams.has("code") &&
-    request.nextUrl.pathname !== "/auth/callback"
+    !isOAuthCodeCallbackPath(request.nextUrl.pathname)
   ) {
     const callbackUrl = appUrl(`/auth/callback${request.nextUrl.search}`, request);
     return NextResponse.redirect(callbackUrl);

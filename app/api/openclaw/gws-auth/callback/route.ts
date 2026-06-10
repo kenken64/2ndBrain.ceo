@@ -1,10 +1,4 @@
 import { NextResponse, type NextRequest } from "next/server";
-import { googleWorkspaceCodeLoginConfig } from "@/lib/google-workspace-auth";
-import {
-  getGoogleWorkspaceContext,
-  googleWorkspaceApiError
-} from "@/lib/google-workspace-context";
-import { loginOpenClawGoogleWorkspaceWithCode } from "@/lib/openclaw";
 import { appUrl, getRequestOrigin } from "@/lib/url";
 
 export const runtime = "nodejs";
@@ -14,9 +8,19 @@ function scriptJson(value: unknown) {
   return JSON.stringify(value).replace(/</g, "\\u003c");
 }
 
+function htmlText(value: string) {
+  return value
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;");
+}
+
 function popupResponse(request: NextRequest, payload: Record<string, string>) {
   const origin = getRequestOrigin(request);
   const settingsUrl = appUrl("/dashboard/settings?tab=integrations", request).toString();
+  const completeUrl = appUrl("/api/openclaw/gws-auth/complete", request).toString();
+  const isAuthorized = payload.status === "authorized";
 
   return new NextResponse(
     `<!doctype html>
@@ -62,39 +66,88 @@ function popupResponse(request: NextRequest, payload: Record<string, string>) {
   </head>
   <body>
     <main>
-      <h1>${payload.status === "connected" ? "Google Workspace connected" : "Google Workspace auth failed"}</h1>
-      <p>${payload.message}</p>
+      <h1>${isAuthorized ? "Google Workspace authorized" : "Google Workspace auth failed"}</h1>
+      <p>${htmlText(payload.message)}</p>
       <a href="${settingsUrl}">Return to settings</a>
     </main>
     <script>
       const payload = ${scriptJson(payload)};
-      try {
-        const channel = new BroadcastChannel("2ndbrain:gws-auth");
-        channel.postMessage(payload);
-        channel.close();
-      } catch {}
-      try {
-        window.opener?.postMessage(payload, ${scriptJson(origin)});
-      } catch {}
-      if (payload.status === "connected") {
-        window.setTimeout(() => {
-          if (window.opener && !window.opener.closed) {
-            try {
-              window.opener.focus();
-            } catch {}
-            window.close();
-            return;
+      const settingsUrl = ${scriptJson(settingsUrl)};
+      const completeUrl = ${scriptJson(completeUrl)};
+      const title = document.querySelector("h1");
+      const message = document.querySelector("p");
+
+      function notifyOpener() {
+        try {
+          const channel = new BroadcastChannel("2ndbrain:gws-auth");
+          channel.postMessage(payload);
+          channel.close();
+        } catch {}
+        try {
+          window.opener?.postMessage(payload, ${scriptJson(origin)});
+        } catch {}
+      }
+
+      async function completeWithoutOpener() {
+        if (payload.status !== "authorized") {
+          return;
+        }
+
+        if (message) {
+          message.textContent = "Installing Google Workspace credentials on OpenClaw...";
+        }
+
+        try {
+          const response = await fetch(completeUrl, {
+            body: JSON.stringify({
+              code: payload.code,
+              state: payload.state
+            }),
+            credentials: "same-origin",
+            headers: {
+              "Content-Type": "application/json"
+            },
+            method: "POST"
+          });
+          const data = await response.json().catch(() => null);
+
+          if (!response.ok) {
+            throw new Error(data?.error || "Google Workspace auth failed.");
           }
 
-          window.location.replace(${scriptJson(settingsUrl)});
-        }, 900);
+          window.location.replace(settingsUrl);
+        } catch (error) {
+          if (title) {
+            title.textContent = "Google Workspace auth failed";
+          }
+          if (message) {
+            message.textContent = error instanceof Error ? error.message : "Google Workspace auth failed.";
+          }
+        }
+      }
+
+      const hasOpener = Boolean(window.opener && !window.opener.closed);
+
+      if (hasOpener) {
+        notifyOpener();
+        try {
+          window.opener.focus();
+        } catch {}
+        if (payload.status === "authorized") {
+          window.setTimeout(() => window.close(), 150);
+        }
+      } else {
+        notifyOpener();
+        void completeWithoutOpener();
       }
     </script>
   </body>
 </html>`,
     {
       headers: {
-        "Content-Type": "text/html; charset=utf-8"
+        "Cache-Control": "no-store",
+        "Content-Type": "text/html; charset=utf-8",
+        "Referrer-Policy": "no-referrer"
       }
     }
   );
@@ -118,52 +171,23 @@ export async function GET(request: NextRequest) {
       throw new Error("Google Workspace OAuth did not return a code.");
     }
 
-    if (expectedState && state !== expectedState) {
+    if (!expectedState || !state || state !== expectedState) {
       throw new Error("Google Workspace callback state did not match this browser session.");
     }
 
-    const context = await getGoogleWorkspaceContext();
-    const codeLogin = googleWorkspaceCodeLoginConfig(
-      code,
-      appUrl("/api/openclaw/gws-auth/callback", request).toString()
-    );
-    await loginOpenClawGoogleWorkspaceWithCode({
-      clientId: codeLogin.clientId,
-      clientSecret: codeLogin.clientSecret,
-      code: codeLogin.code,
-      filename: "credentials.json",
-      instance: context.instance,
-      redirectUri: codeLogin.redirectUri
-    });
-
-    console.info(
-      "[openclaw:gws-callback] complete",
-      JSON.stringify({
-        source: "oauth_callback",
-        userId: context.userId
-      })
-    );
-
     response = popupResponse(request, {
-      message: "OpenClaw received the Google Workspace credentials.",
+      code,
+      message: "Google authorized. Returning to settings while OpenClaw installs the credentials.",
       state,
-      status: "connected"
+      status: "authorized"
     });
   } catch (error) {
-    const apiResponse = googleWorkspaceApiError(error);
-
-    if (apiResponse.status >= 500 && !(error instanceof Error)) {
-      return apiResponse;
-    }
-
     response = popupResponse(request, {
       message: error instanceof Error ? error.message : "Google Workspace auth failed.",
       state,
       status: "failed"
     });
   }
-
-  response.cookies.delete("gws_oauth_state");
 
   return response;
 }
