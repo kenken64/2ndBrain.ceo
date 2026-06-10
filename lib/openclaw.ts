@@ -62,6 +62,16 @@ type OpenClawGoogleWorkspaceLoginInput = {
   instance: string;
 };
 
+type OpenClawGoogleWorkspaceCodeLoginInput = {
+  clientId: string;
+  clientSecret: string;
+  code: string;
+  codeVerifier?: string | null;
+  filename?: string | null;
+  instance: string;
+  redirectUri: string;
+};
+
 type OpenClawGatewayUrlInput = {
   instance: string;
 };
@@ -205,7 +215,9 @@ const clawmacdoProcessQueue: Array<() => void> = [];
 const SENSITIVE_ARG_NAMES = new Set([
   "--bearer-token",
   "--bot-token",
+  "--client-secret",
   "--code",
+  "--code-verifier",
   "--open-api-key",
   "--openai-api-key",
   "--telegram-bot-token",
@@ -1979,6 +1991,36 @@ export async function loginOpenClawGoogleWorkspace(input: OpenClawGoogleWorkspac
   } finally {
     await fs.rm(tempDir, { force: true, recursive: true }).catch(() => undefined);
   }
+}
+
+export async function loginOpenClawGoogleWorkspaceWithCode(input: OpenClawGoogleWorkspaceCodeLoginInput) {
+  const awsEnv = getAwsEnv();
+  const instance = await resolveOpenClawSshTarget(input.instance, awsEnv, "gws-login");
+  const args = [
+    "gws-login",
+    "--instance",
+    instance,
+    "--code",
+    input.code,
+    "--client-id",
+    input.clientId,
+    "--client-secret",
+    input.clientSecret,
+    "--redirect-uri",
+    input.redirectUri,
+    "--filename",
+    normalizeGoogleWorkspaceCredentialsFilename(input.filename)
+  ];
+
+  if (input.codeVerifier?.trim()) {
+    args.push("--code-verifier", input.codeVerifier.trim());
+  }
+
+  const output = await runClawmacdo(args, awsEnv);
+
+  return {
+    output: outputSummary(output)
+  };
 }
 
 export async function logoutOpenClawGoogleWorkspace(input: OpenClawGoogleWorkspaceLogoutInput) {

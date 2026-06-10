@@ -1,10 +1,10 @@
 import { NextResponse, type NextRequest } from "next/server";
-import { exchangeGoogleWorkspaceCodeForCredentials } from "@/lib/google-workspace-auth";
+import { googleWorkspaceCodeLoginConfig } from "@/lib/google-workspace-auth";
 import {
   getGoogleWorkspaceContext,
   googleWorkspaceApiError
 } from "@/lib/google-workspace-context";
-import { loginOpenClawGoogleWorkspace } from "@/lib/openclaw";
+import { loginOpenClawGoogleWorkspaceWithCode } from "@/lib/openclaw";
 import { appUrl, getRequestOrigin } from "@/lib/url";
 
 export const runtime = "nodejs";
@@ -79,6 +79,9 @@ function popupResponse(request: NextRequest, payload: Record<string, string>) {
       if (payload.status === "connected") {
         window.setTimeout(() => {
           if (window.opener && !window.opener.closed) {
+            try {
+              window.opener.focus();
+            } catch {}
             window.close();
             return;
           }
@@ -120,14 +123,17 @@ export async function GET(request: NextRequest) {
     }
 
     const context = await getGoogleWorkspaceContext();
-    const credentialsJson = await exchangeGoogleWorkspaceCodeForCredentials(
+    const codeLogin = googleWorkspaceCodeLoginConfig(
       code,
       appUrl("/api/openclaw/gws-auth/callback", request).toString()
     );
-    await loginOpenClawGoogleWorkspace({
-      credentialsJson,
+    await loginOpenClawGoogleWorkspaceWithCode({
+      clientId: codeLogin.clientId,
+      clientSecret: codeLogin.clientSecret,
+      code: codeLogin.code,
       filename: "credentials.json",
-      instance: context.instance
+      instance: context.instance,
+      redirectUri: codeLogin.redirectUri
     });
 
     console.info(

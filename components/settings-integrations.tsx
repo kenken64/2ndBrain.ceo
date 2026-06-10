@@ -139,6 +139,30 @@ async function postGoogleWorkspaceAuth(path: string, payload?: Record<string, un
   return data ?? {};
 }
 
+function openGoogleWorkspacePopup() {
+  const width = 560;
+  const height = 720;
+  const left = Math.max(0, Math.round(window.screenX + (window.outerWidth - width) / 2));
+  const top = Math.max(0, Math.round(window.screenY + (window.outerHeight - height) / 2));
+  const features = [
+    "popup=yes",
+    `width=${width}`,
+    `height=${height}`,
+    `left=${left}`,
+    `top=${top}`,
+    "resizable=yes",
+    "scrollbars=yes",
+    "toolbar=no",
+    "menubar=no",
+    "status=no"
+  ].join(",");
+  const loginWindow = window.open("about:blank", "2ndbrain-google-workspace-auth", features);
+
+  loginWindow?.focus();
+
+  return loginWindow;
+}
+
 export function SettingsIntegrations({
   initialGoogleWorkspaceAuthPrompt = false,
   initialGoogleWorkspaceEnabled = false
@@ -210,17 +234,18 @@ export function SettingsIntegrations({
     }
 
     promptedGoogleWorkspaceAuth.current = true;
-    void startGoogleWorkspaceAuth({ redirectCurrent: true });
+    const loginWindow = openGoogleWorkspacePopup();
+
+    void startGoogleWorkspaceAuth({
+      loginWindow,
+      redirectCurrent: !loginWindow
+    });
   }, [initialGoogleWorkspaceAuthPrompt, googleWorkspaceEnabled]);
 
   async function startGoogleWorkspaceAuth(options: { loginWindow?: Window | null; redirectCurrent?: boolean } = {}) {
     let loginWindow = options.loginWindow ?? null;
 
     try {
-      if (loginWindow) {
-        loginWindow.opener = null;
-      }
-
       setGoogleWorkspaceAuthMessage(null);
       setGoogleWorkspaceAuthPhase("starting");
 
@@ -261,7 +286,7 @@ export function SettingsIntegrations({
     }
 
     if (nextEnabled) {
-      googleWorkspaceLoginWindow = window.open("about:blank", "_blank");
+      googleWorkspaceLoginWindow = openGoogleWorkspacePopup();
     }
 
     setIntegrationError(null);

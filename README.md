@@ -256,7 +256,7 @@ Commit and redeploy after upgrading so Railway rebuilds the Docker image with th
 
 The Settings Google Workspace toggle is persistent user intent. When it is on, a fresh 2ndBrain Google login sends the user to the integrations tab instead of running `gws-logout`.
 
-Set `GWS_OAUTH_CLIENT_ID` and `GWS_OAUTH_CLIENT_SECRET`, then add `/api/openclaw/gws-auth/callback` for the local and production app origins to the Google OAuth client's allowed redirect URIs. The settings toggle requests a Google OAuth URL, opens it for the user, captures the callback automatically, exchanges the code for an `authorized_user` credentials JSON, then runs `clawmacdo gws-login`.
+Set `GWS_OAUTH_CLIENT_ID` and `GWS_OAUTH_CLIENT_SECRET`, then add `/api/openclaw/gws-auth/callback` for the local and production app origins to the Google OAuth client's allowed redirect URIs. The settings toggle requests a Google OAuth URL, opens it in a popup, captures the callback automatically, then passes the OAuth code to `clawmacdo gws-login --code`. After success, the popup closes and the user remains on the integrations settings page.
 
 ## Important Routes
 
