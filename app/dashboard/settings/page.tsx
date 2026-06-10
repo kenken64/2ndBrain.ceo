@@ -42,6 +42,8 @@ type BillingProfileSettings = OptionalProfileSettings & {
 
 type DashboardSettingsPageProps = {
   searchParams?: Promise<{
+    gwsAuth?: string;
+    next?: string;
     tab?: string;
   }>;
 };
@@ -57,6 +59,7 @@ function parseSettingsTab(value: string | undefined): SettingsTabId | undefined 
 export default async function DashboardSettingsPage({ searchParams }: DashboardSettingsPageProps) {
   const params = searchParams ? await searchParams : undefined;
   const requestedTab = parseSettingsTab(params?.tab);
+  const promptGoogleWorkspaceAuth = params?.gwsAuth === "login";
 
   if (!hasSupabaseEnv()) {
     return (
@@ -106,6 +109,8 @@ export default async function DashboardSettingsPage({ searchParams }: DashboardS
   const availableCredits =
     Number(optionalSettings?.llm_token_quota ?? 0) - Number(optionalSettings?.llm_token_used ?? 0);
   const isCreditLocked = availableCredits <= 0;
+  const disabledSettingsTabs: SettingsTabId[] =
+    isCreditLocked && !promptGoogleWorkspaceAuth ? ["integrations"] : [];
 
   return (
     <>
@@ -135,7 +140,7 @@ export default async function DashboardSettingsPage({ searchParams }: DashboardS
 
             <SettingsTabs
               disabledReason="Add AI credits or destroy this instance to continue."
-              disabledTabs={isCreditLocked ? ["integrations"] : []}
+              disabledTabs={disabledSettingsTabs}
               general={
                 <div className="settings-grid settings-grid--general">
                   <SettingsProfileForm
@@ -156,10 +161,15 @@ export default async function DashboardSettingsPage({ searchParams }: DashboardS
                   </article>
                 </div>
               }
-              initialTab={isCreditLocked ? (requestedTab === "general" ? "general" : "payment") : requestedTab}
+              initialTab={
+                disabledSettingsTabs.length > 0
+                  ? (requestedTab === "general" ? "general" : "payment")
+                  : requestedTab
+              }
               integrations={
                 <div className="settings-grid settings-grid--integrations">
                   <SettingsIntegrations
+                    initialGoogleWorkspaceAuthPrompt={promptGoogleWorkspaceAuth}
                     initialGoogleWorkspaceEnabled={Boolean(optionalSettings?.google_workspace_enabled)}
                   />
 

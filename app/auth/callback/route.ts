@@ -1,4 +1,4 @@
-import { after, NextResponse } from "next/server";
+import { NextResponse } from "next/server";
 import { hasSupabaseEnv } from "@/lib/env";
 import {
   getUserIdFromClaims,
@@ -7,32 +7,24 @@ import {
   onboardingProfileSelect,
   type OnboardingProfile
 } from "@/lib/onboarding";
-import { logoutOpenClawGoogleWorkspace } from "@/lib/openclaw";
 import { createClient } from "@/lib/supabase/server";
 import { appUrl, safeNextPath } from "@/lib/url";
 
-function scheduleGoogleWorkspaceLogout(instance: string, userId: string) {
-  after(async () => {
-    try {
-      const result = await logoutOpenClawGoogleWorkspace({ instance });
+type GoogleWorkspaceLoginProfile = OnboardingProfile & {
+  google_workspace_enabled?: boolean | null;
+};
 
-      console.info(
-        "[auth:gws-logout] complete",
-        JSON.stringify({
-          output: result.output,
-          userId
-        })
-      );
-    } catch (error) {
-      console.warn(
-        "[auth:gws-logout] failed",
-        JSON.stringify({
-          message: error instanceof Error ? error.message : "gws_logout_failed",
-          userId
-        })
-      );
-    }
+function googleWorkspaceLoginPath(next: string) {
+  const params = new URLSearchParams({
+    gwsAuth: "login",
+    tab: "integrations"
   });
+
+  if (next && next !== "/dashboard/settings") {
+    params.set("next", next);
+  }
+
+  return `/dashboard/settings?${params.toString()}`;
 }
 
 export async function GET(request: Request) {
@@ -67,19 +59,20 @@ export async function GET(request: Request) {
 
         const { data: profile } = await supabase
           .from("profiles")
-          .select(onboardingProfileSelect)
+          .select(`${onboardingProfileSelect},google_workspace_enabled`)
           .eq("id", userId)
           .maybeSingle();
-        const onboardingProfile = profile as OnboardingProfile | null;
+        const onboardingProfile = profile as GoogleWorkspaceLoginProfile | null;
 
         if (!isOnboardingComplete(onboardingProfile)) {
           return NextResponse.redirect(appUrl(onboardingPath(next), request));
         }
 
         const openClawInstance = onboardingProfile?.openclaw_instance?.trim();
+        const googleWorkspaceEnabled = Boolean(onboardingProfile?.google_workspace_enabled);
 
-        if (openClawInstance) {
-          scheduleGoogleWorkspaceLogout(openClawInstance, userId);
+        if (openClawInstance && googleWorkspaceEnabled) {
+          return NextResponse.redirect(appUrl(googleWorkspaceLoginPath(next), request));
         }
       }
 

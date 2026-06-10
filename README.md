@@ -239,6 +239,7 @@ The app depends on `clawmacdo` for:
 - Telegram setup and pairing.
 - Remotion avatar setup.
 - OpenClaw identity setup.
+- Google Workspace credential installation through `gws-login`.
 - Wiki generation, tree, read, write, export, and delete.
 
 The installed package is managed through `package.json`. To upgrade:
@@ -250,6 +251,15 @@ npm run build
 ```
 
 Commit and redeploy after upgrading so Railway rebuilds the Docker image with the updated platform binary.
+
+### Google Workspace Auth
+
+The Settings Google Workspace toggle is persistent user intent. When it is on, a fresh 2ndBrain Google login sends the user to the integrations tab instead of running `gws-logout`.
+
+The settings card can install GWS credentials on OpenClaw in two ways:
+
+- Set `GWS_OAUTH_CLIENT_ID` and `GWS_OAUTH_CLIENT_SECRET`, then add `/api/openclaw/gws-auth/callback` for the local and production app origins to the Google OAuth client's allowed redirect URIs. The app returns a Google OAuth URL, captures the callback automatically, exchanges the code for an `authorized_user` credentials JSON, then runs `clawmacdo gws-login`.
+- Or run `gws auth login` and `gws auth export --unmasked` on a browser machine, then paste the exported JSON into the settings card. The app writes it to a temporary file, runs `clawmacdo gws-login --credentials`, and removes the temp file.
 
 ## Important Routes
 
@@ -265,6 +275,9 @@ Commit and redeploy after upgrading so Railway rebuilds the Docker image with th
 - `/dashboard/wiki?projectId=...` selected wiki markdown editor
 - `/dashboard/graph` knowledge graph project selector
 - `/dashboard/graph?projectId=...` selected wiki graph
+- `/api/openclaw/gws-auth/start` returns the Google Workspace login URL when GWS OAuth env is configured
+- `/api/openclaw/gws-auth/callback` captures Google Workspace OAuth and installs credentials on OpenClaw
+- `/api/openclaw/gws-auth/login` installs pasted Google Workspace callback/code or exported credentials JSON on OpenClaw
 - `/admin` script-loaded admin console for quotas, access disablement, workspace deletion, and Bedrock bearer-token overwrite
 - `/admin/mfa` Supabase TOTP enrollment and verification for admin sessions
 - `/api/health` deployment health check

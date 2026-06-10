@@ -56,6 +56,12 @@ type OpenClawGoogleWorkspaceLogoutInput = {
   instance: string;
 };
 
+type OpenClawGoogleWorkspaceLoginInput = {
+  credentialsJson: string;
+  filename?: string | null;
+  instance: string;
+};
+
 type OpenClawGatewayUrlInput = {
   instance: string;
 };
@@ -209,6 +215,8 @@ const SENSITIVE_ARG_NAMES = new Set([
 function sanitizeLogText(value: string) {
   return value
     .replace(/https:\/\/claude\.com\/cai\/oauth\/authorize\?[^\s"'<>]+/g, "[claude_oauth_url]")
+    .replace(/("client_secret"\s*:\s*")[^"]+(")/g, "$1[client_secret]$2")
+    .replace(/("refresh_token"\s*:\s*")[^"]+(")/g, "$1[refresh_token]$2")
     .replace(/[0-9]{6,}:[A-Za-z0-9_-]+/g, "[telegram_token]")
     .replace(/(telegram-pair\s+--instance\s+\S+\s+--code\s+)[A-Za-z0-9]{6,}/g, "$1[telegram_pair_code]")
     .replace(/(Approving Telegram pairing code\s+)[A-Za-z0-9]{6,}/g, "$1[telegram_pair_code]")
@@ -1928,6 +1936,49 @@ export async function updateGyneConsumerProfile(input: OpenClawGyneConsumerProfi
   return {
     output
   };
+}
+
+function normalizeGoogleWorkspaceCredentialsFilename(value?: string | null) {
+  const filename = value?.trim() || "credentials.json";
+
+  if (!/^[A-Za-z0-9._-]+\.json$/.test(filename)) {
+    throw new Error("invalid_gws_credentials_filename");
+  }
+
+  return filename;
+}
+
+export async function loginOpenClawGoogleWorkspace(input: OpenClawGoogleWorkspaceLoginInput) {
+  const awsEnv = getAwsEnv();
+  const instance = await resolveOpenClawSshTarget(input.instance, awsEnv, "gws-login");
+  const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "openclaw-gws-"));
+  const credentialsPath = path.join(tempDir, "credentials.json");
+
+  try {
+    await fs.writeFile(credentialsPath, input.credentialsJson, {
+      encoding: "utf8",
+      mode: 0o600
+    });
+
+    const output = await runClawmacdo(
+      [
+        "gws-login",
+        "--instance",
+        instance,
+        "--credentials",
+        credentialsPath,
+        "--filename",
+        normalizeGoogleWorkspaceCredentialsFilename(input.filename)
+      ],
+      awsEnv
+    );
+
+    return {
+      output: outputSummary(output)
+    };
+  } finally {
+    await fs.rm(tempDir, { force: true, recursive: true }).catch(() => undefined);
+  }
 }
 
 export async function logoutOpenClawGoogleWorkspace(input: OpenClawGoogleWorkspaceLogoutInput) {
