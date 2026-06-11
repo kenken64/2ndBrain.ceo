@@ -62,7 +62,7 @@ export async function PATCH(request: Request) {
     return NextResponse.json({ error: "Invalid settings payload." }, { status: 400 });
   }
 
-  const updates: Record<string, boolean | string> = {};
+  const updates: Record<string, boolean | string | null> = {};
 
   if ("profileName" in payload) {
     const validation = validateProfileName(payload.profileName);
@@ -80,6 +80,10 @@ export async function PATCH(request: Request) {
     }
 
     updates.google_workspace_enabled = payload.googleWorkspaceEnabled;
+
+    if (!payload.googleWorkspaceEnabled) {
+      updates.google_workspace_connected_at = null;
+    }
   }
 
   if (Object.keys(updates).length === 0) {

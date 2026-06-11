@@ -66,6 +66,7 @@ function resetProfilePatch(destroyOutput: string | null) {
     bedrock_token_updated_at: null,
     bedrock_token_updated_by: null,
     enrolment_completed_at: null,
+    google_workspace_connected_at: null,
     onboarding_completed_at: null,
     openclaw_gateway_completed_at: null,
     openclaw_gateway_output: null,

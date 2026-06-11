@@ -32,6 +32,7 @@ function resetProfilePatch(destroyOutput: string | null) {
     avaturn_avatar_payload: null,
     avaturn_avatar_url: null,
     enrolment_completed_at: null,
+    google_workspace_connected_at: null,
     onboarding_completed_at: null,
     openclaw_hooks_completed_at: null,
     openclaw_hooks_output: null,

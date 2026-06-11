@@ -255,6 +255,11 @@ export function SettingsIntegrations({
     }
 
     promptedGoogleWorkspaceAuth.current = true;
+
+    const currentUrl = new URL(window.location.href);
+    currentUrl.searchParams.delete("gwsAuth");
+    window.history.replaceState(null, "", currentUrl);
+
     const loginWindow = openGoogleWorkspacePopup();
 
     void startGoogleWorkspaceAuth({

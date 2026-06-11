@@ -11,6 +11,7 @@ import { createClient } from "@/lib/supabase/server";
 import { appUrl, safeNextPath } from "@/lib/url";
 
 type GoogleWorkspaceLoginProfile = OnboardingProfile & {
+  google_workspace_connected_at?: string | null;
   google_workspace_enabled?: boolean | null;
 };
 
@@ -86,7 +87,7 @@ export async function GET(request: Request) {
 
         const { data: profile } = await supabase
           .from("profiles")
-          .select(`${onboardingProfileSelect},google_workspace_enabled`)
+          .select(`${onboardingProfileSelect},google_workspace_enabled,google_workspace_connected_at`)
           .eq("id", userId)
           .maybeSingle();
         const onboardingProfile = profile as GoogleWorkspaceLoginProfile | null;
@@ -97,8 +98,9 @@ export async function GET(request: Request) {
 
         const openClawInstance = onboardingProfile?.openclaw_instance?.trim();
         const googleWorkspaceEnabled = Boolean(onboardingProfile?.google_workspace_enabled);
+        const googleWorkspaceConnected = Boolean(onboardingProfile?.google_workspace_connected_at);
 
-        if (openClawInstance && googleWorkspaceEnabled) {
+        if (openClawInstance && googleWorkspaceEnabled && !googleWorkspaceConnected) {
           return NextResponse.redirect(appUrl(googleWorkspaceLoginPath(next), request));
         }
       }

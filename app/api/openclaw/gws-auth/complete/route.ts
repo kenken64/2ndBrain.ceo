@@ -51,6 +51,18 @@ export async function POST(request: NextRequest) {
       redirectUri: codeLogin.redirectUri
     });
 
+    const { error: connectedError } = await context.supabase
+      .from("profiles")
+      .update({ google_workspace_connected_at: new Date().toISOString() })
+      .eq("id", context.userId);
+
+    if (connectedError) {
+      console.error(
+        "[openclaw:gws-complete] connected_at update failed",
+        JSON.stringify({ error: connectedError.message, userId: context.userId })
+      );
+    }
+
     console.info(
       "[openclaw:gws-complete] complete",
       JSON.stringify({

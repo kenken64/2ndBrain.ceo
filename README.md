@@ -105,6 +105,9 @@ Run migrations in order from `supabase/migrations`:
 0013_profile_settings.sql
 0014_admin_controls.sql
 0015_solana_credit_purchases.sql
+0016_profiles_authenticated_grants.sql
+0017_ai_credit_transfers.sql
+0018_google_workspace_connected.sql
 ```
 
 Auth redirect URLs:
