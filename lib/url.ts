@@ -9,19 +9,18 @@ export function safeNextPath(value: string | null) {
   return value;
 }
 
-export function getRequestOrigin(request: Request | NextRequest) {
-  const configured = getConfiguredSiteUrl();
+export function getIncomingRequestOrigin(request: Request | NextRequest) {
   const requestUrl = new URL(request.url);
-  const forwardedHost = request.headers.get("x-forwarded-host");
+  const forwardedHost = firstHeaderValue(request.headers.get("x-forwarded-host"));
   const forwardedProto =
-    request.headers.get("x-forwarded-proto") ?? requestUrl.protocol.replace(":", "") ?? "http";
-
-  if (configured) {
-    return configured;
-  }
+    firstHeaderValue(request.headers.get("x-forwarded-proto")) ??
+    requestUrl.protocol.replace(":", "") ??
+    "http";
 
   if (forwardedHost && isUsableHost(forwardedHost)) {
-    return `${forwardedProto}://${forwardedHost}`;
+    const protocol = forwardedProto === "http" || forwardedProto === "https" ? forwardedProto : "https";
+
+    return `${protocol}://${forwardedHost}`;
   }
 
   if (isUsableHost(requestUrl.host)) {
@@ -29,6 +28,17 @@ export function getRequestOrigin(request: Request | NextRequest) {
   }
 
   return getSiteUrl();
+}
+
+export function getRequestOrigin(request: Request | NextRequest) {
+  const configured = getConfiguredSiteUrl();
+  const incoming = getIncomingRequestOrigin(request);
+
+  if (configured && (!isLocalOrigin(configured) || isLocalOrigin(incoming))) {
+    return configured;
+  }
+
+  return incoming;
 }
 
 export function appUrl(path: string, request: Request | NextRequest) {
@@ -52,4 +62,21 @@ function isUsableHost(host: string | null) {
     !normalized.startsWith("[::]") &&
     !normalized.startsWith("::")
   );
+}
+
+function firstHeaderValue(value: string | null) {
+  return value
+    ?.split(",")
+    .map((part) => part.trim())
+    .find(Boolean);
+}
+
+function isLocalOrigin(origin: string) {
+  try {
+    const { hostname } = new URL(origin);
+
+    return hostname === "localhost" || hostname === "127.0.0.1" || hostname === "[::1]";
+  } catch {
+    return false;
+  }
 }

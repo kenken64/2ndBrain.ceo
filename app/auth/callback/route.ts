@@ -27,14 +27,41 @@ function googleWorkspaceLoginPath(next: string) {
   return `/dashboard/settings?${params.toString()}`;
 }
 
+function authErrorCode(error: unknown) {
+  if (!error || typeof error !== "object") {
+    return "auth_callback";
+  }
+
+  const code = "code" in error && typeof error.code === "string" ? error.code : null;
+  const name = "name" in error && typeof error.name === "string" ? error.name : null;
+
+  return code ?? name ?? "auth_callback";
+}
+
+function hasCodeVerifierCookie(request: Request) {
+  return /(?:^|;\s*)sb-[^=;]+-auth-token-code-verifier=/.test(
+    request.headers.get("cookie") ?? ""
+  );
+}
+
 export async function GET(request: Request) {
   const requestUrl = new URL(request.url);
   const code = requestUrl.searchParams.get("code");
   const next = safeNextPath(requestUrl.searchParams.get("next"));
+  const oauthError = requestUrl.searchParams.get("error")?.trim();
 
   if (!hasSupabaseEnv()) {
     return NextResponse.redirect(
       appUrl(`/login?error=supabase_config&next=${encodeURIComponent(next)}`, request)
+    );
+  }
+
+  if (oauthError) {
+    return NextResponse.redirect(
+      appUrl(
+        `/login?error=${encodeURIComponent(oauthError)}&next=${encodeURIComponent(next)}`,
+        request
+      )
     );
   }
 
@@ -78,6 +105,21 @@ export async function GET(request: Request) {
 
       return NextResponse.redirect(appUrl(next, request));
     }
+
+    const errorCode = authErrorCode(error);
+
+    console.error("[auth] callback exchange failed", {
+      errorCode,
+      hasCodeVerifierCookie: hasCodeVerifierCookie(request),
+      origin: requestUrl.origin
+    });
+
+    return NextResponse.redirect(
+      appUrl(
+        `/login?error=${encodeURIComponent(errorCode)}&next=${encodeURIComponent(next)}`,
+        request
+      )
+    );
   }
 
   return NextResponse.redirect(appUrl("/login?error=auth_callback", request));

@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { hasSupabaseEnv } from "@/lib/env";
 import { createClient } from "@/lib/supabase/server";
-import { appUrl, getRequestOrigin, safeNextPath } from "@/lib/url";
+import { appUrl, getIncomingRequestOrigin, getRequestOrigin, safeNextPath } from "@/lib/url";
 
 export async function GET(request: Request) {
   const requestUrl = new URL(request.url);
@@ -14,7 +14,15 @@ export async function GET(request: Request) {
     );
   }
 
+  const incomingOrigin = getIncomingRequestOrigin(request);
   const origin = getRequestOrigin(request);
+
+  if (origin !== incomingOrigin) {
+    return NextResponse.redirect(
+      new URL(`/auth/login?next=${encodeURIComponent(next)}`, origin)
+    );
+  }
+
   const supabase = await createClient();
   const { data, error } = await supabase.auth.signInWithOAuth({
     provider: "google",
