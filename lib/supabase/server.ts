@@ -1,12 +1,13 @@
 import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
 import { getSupabaseEnv } from "@/lib/env";
+import { withSafeGetClaims } from "@/lib/supabase/auth";
 
 export async function createClient() {
   const { supabaseUrl, supabasePublishableKey } = getSupabaseEnv();
   const cookieStore = await cookies();
 
-  return createServerClient(supabaseUrl, supabasePublishableKey, {
+  return withSafeGetClaims(createServerClient(supabaseUrl, supabasePublishableKey, {
     cookies: {
       getAll() {
         return cookieStore.getAll();
@@ -21,5 +22,5 @@ export async function createClient() {
         }
       }
     }
-  });
+  }));
 }

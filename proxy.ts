@@ -53,6 +53,13 @@ export async function proxy(request: NextRequest) {
     return NextResponse.redirect(callbackUrl);
   }
 
+  if (
+    request.nextUrl.searchParams.has("code") &&
+    isOAuthCodeCallbackPath(request.nextUrl.pathname)
+  ) {
+    return NextResponse.next({ request });
+  }
+
   return updateSession(request, {
     onAuthenticated: async ({ response, supabase, userId }) => {
       if (!isProtectedAppPath(request.nextUrl.pathname)) {
