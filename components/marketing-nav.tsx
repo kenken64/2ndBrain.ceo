@@ -11,6 +11,7 @@ type MarketingNavProps = {
 
 export function MarketingNav({ supabaseConfigured = true }: MarketingNavProps) {
   const [isLoginOpen, setIsLoginOpen] = useState(false);
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
 
   return (
     <>
@@ -56,11 +57,44 @@ export function MarketingNav({ supabaseConfigured = true }: MarketingNavProps) {
             <button className="btn-primary" onClick={() => setIsLoginOpen(true)} type="button">
               Get started <span className="arrow">-&gt;</span>
             </button>
-            <button aria-label="Open menu" className="mobile-menu-button" type="button">
+            <button
+              aria-controls="site-nav-menu"
+              aria-expanded={isMenuOpen}
+              aria-label="Open menu"
+              className="mobile-menu-button"
+              onClick={() => setIsMenuOpen((open) => !open)}
+              type="button"
+            >
               <Menu size={18} strokeWidth={1.8} />
             </button>
           </div>
         </nav>
+        {isMenuOpen ? (
+          <div className="site-nav__menu" id="site-nav-menu">
+            <a className="nav-link" href="#how-it-works" onClick={() => setIsMenuOpen(false)}>
+              How it works
+            </a>
+            <a className="nav-link" href="#setup" onClick={() => setIsMenuOpen(false)}>
+              Setup
+            </a>
+            <a className="nav-link" href="#workspace" onClick={() => setIsMenuOpen(false)}>
+              Workspace
+            </a>
+            <a className="nav-link" href="/onboarding" onClick={() => setIsMenuOpen(false)}>
+              Onboarding
+            </a>
+            <button
+              className="nav-link"
+              onClick={() => {
+                setIsMenuOpen(false);
+                setIsLoginOpen(true);
+              }}
+              type="button"
+            >
+              Log in
+            </button>
+          </div>
+        ) : null}
       </header>
 
       <LoginDialog

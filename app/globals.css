@@ -372,6 +372,9 @@ svg {
   padding: 4px 14px 4px 4px;
   font-size: 13px;
   font-weight: 600;
+  min-width: 0;
+  max-width: 100%;
+  overflow: hidden;
 }
 
 .announcement-pill__badge {
@@ -381,6 +384,13 @@ svg {
   padding: 4px 10px;
   font-size: 12px;
   font-weight: 700;
+}
+
+.announcement-pill__text {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .hero {
@@ -734,7 +744,9 @@ svg {
 
 .auth-actions {
   display: flex;
+  flex-wrap: wrap;
   justify-content: center;
+  gap: 10px;
   margin-top: 22px;
 }
 
@@ -983,6 +995,7 @@ svg {
   position: relative;
   z-index: 1;
   min-height: 100vh;
+  min-height: 100svh;
   display: grid;
   place-items: center;
   padding: 32px var(--gutter);
@@ -1439,6 +1452,7 @@ svg {
 }
 
 .destroy-workspace__error {
+  overflow-wrap: anywhere;
   color: #b91c1c;
   font-size: 11px;
   line-height: 1.35;
@@ -1712,7 +1726,9 @@ svg {
   grid-template-rows: auto auto minmax(0, 1fr) auto;
   width: min(100%, 1120px);
   height: min(84vh, 820px);
+  height: min(84svh, 820px);
   min-height: 560px;
+  min-height: min(560px, calc(100svh - 48px));
   overflow: hidden;
   border: 1px solid rgba(0, 196, 140, 0.28);
   border-radius: var(--radius-xl);
@@ -2358,6 +2374,7 @@ svg {
 }
 
 .claude-auth-card__message {
+  overflow-wrap: anywhere;
   margin: 0;
   border: 1px solid rgba(0, 167, 255, 0.18);
   border-radius: var(--radius-md);
@@ -3898,6 +3915,7 @@ svg {
 }
 
 .form-error {
+  overflow-wrap: anywhere;
   margin: 0;
   border: 1px solid rgba(255, 111, 61, 0.35);
   border-radius: var(--radius-md);
@@ -4336,6 +4354,31 @@ svg {
     display: inline-flex;
   }
 
+  .site-nav__menu {
+    display: grid;
+    gap: 2px;
+    border-top: 1px solid var(--border-soft);
+    padding: 8px var(--gutter) 14px;
+  }
+
+  .site-nav__menu .nav-link {
+    display: flex;
+    min-height: 44px;
+    align-items: center;
+    border: 0;
+    border-radius: var(--radius-md);
+    background: transparent;
+    cursor: pointer;
+    padding: 0 12px;
+    font-size: 14px;
+    text-align: left;
+  }
+
+  .site-nav__menu .nav-link:hover {
+    background: var(--bg-elevated);
+    opacity: 1;
+  }
+
   .steps-grid,
   .education-grid,
   .workspace-grid,
@@ -4344,6 +4387,18 @@ svg {
   .agent-select-grid,
   .wiki-decision-grid {
     grid-template-columns: 1fr 1fr;
+  }
+
+  .admin-users-table__head {
+    display: none;
+  }
+
+  .admin-user-row {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .admin-user-row__controls {
+    grid-column: 1 / -1;
   }
 
   .dashboard-layout {
@@ -5000,6 +5055,52 @@ svg {
   .footer {
     padding: 52px 0 34px;
   }
+
+  .settings-tabs__list {
+    overflow-x: auto;
+    scrollbar-width: thin;
+  }
+
+  .settings-tabs__tab {
+    flex: 1 0 auto;
+    white-space: nowrap;
+  }
+
+  .solana-credit-card__actions {
+    flex-direction: column;
+  }
+
+  .claude-auth-card__actions > * {
+    width: 100%;
+  }
+
+  .auth-actions > * {
+    flex: 1 1 100%;
+  }
+
+  .sidebar-nav .sidebar-item__label {
+    display: none;
+  }
+
+  .sidebar-nav .sidebar-item {
+    min-width: 44px;
+    justify-content: center;
+  }
+
+  /* Controls under 16px trigger iOS Safari focus auto-zoom */
+  input,
+  select,
+  textarea {
+    font-size: 16px;
+  }
+
+  .chat-input__textarea,
+  .wiki-brain-search input,
+  .graph-search-field input,
+  .wiki-upload-form__prompt textarea,
+  .wiki-markdown-editor {
+    font-size: 16px;
+  }
 }
 
 @media (max-width: 420px) {
@@ -5011,6 +5112,12 @@ svg {
   .btn-ghost {
     padding-inline: 14px;
     font-size: 13px;
+  }
+
+  .settings-tabs__tab {
+    gap: 5px;
+    padding: 8px 10px;
+    font-size: 12px;
   }
 
   .sidebar {
