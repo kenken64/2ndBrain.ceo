@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { AiCreditsPaymentPanel, type AiCreditBalance } from "@/components/ai-credits-payment-panel";
 import { ChangeTelegramBotTokenButton } from "@/components/change-telegram-bot-token-button";
 import { ClaudeAuthReconnectButton } from "@/components/claude-auth-reconnect-button";
@@ -24,6 +24,27 @@ type SettingsPageTabsProps = {
   userEmail: string | null;
 };
 
+type TokenBalanceResponse = {
+  balance?: {
+    llmTokenQuota?: number;
+    llmTokenUsed?: number;
+  };
+};
+
+function readBalance(payload: TokenBalanceResponse | null) {
+  const quota = Number(payload?.balance?.llmTokenQuota);
+  const used = Number(payload?.balance?.llmTokenUsed);
+
+  if (!Number.isFinite(quota) || !Number.isFinite(used)) {
+    return null;
+  }
+
+  return {
+    quota,
+    used
+  };
+}
+
 export function SettingsPageTabs({
   billingConfigured,
   initialGoogleWorkspaceEnabled,
@@ -41,9 +62,52 @@ export function SettingsPageTabs({
     quota: tokenQuota,
     used: tokenUsed
   });
+  const refreshBalance = useCallback(async () => {
+    try {
+      const response = await fetch("/api/settings/token-balance", {
+        cache: "no-store",
+        headers: {
+          Accept: "application/json"
+        }
+      });
+
+      if (!response.ok) {
+        return;
+      }
+
+      const payload = (await response.json().catch(() => null)) as TokenBalanceResponse | null;
+      const nextBalance = readBalance(payload);
+
+      if (nextBalance) {
+        setBalance(nextBalance);
+      }
+    } catch {
+      // Keep the last rendered balance if the background refresh fails.
+    }
+  }, []);
   const isCreditLocked = !isAdmin && balance.quota - balance.used <= 0;
   const disabledSettingsTabs: SettingsTabId[] =
     isCreditLocked && !promptGoogleWorkspaceAuth ? ["integrations"] : [];
+
+  useEffect(() => {
+    void refreshBalance();
+
+    function refreshWhenVisible() {
+      if (document.visibilityState === "visible") {
+        void refreshBalance();
+      }
+    }
+
+    window.addEventListener("focus", refreshBalance);
+    window.addEventListener("pageshow", refreshBalance);
+    document.addEventListener("visibilitychange", refreshWhenVisible);
+
+    return () => {
+      window.removeEventListener("focus", refreshBalance);
+      window.removeEventListener("pageshow", refreshBalance);
+      document.removeEventListener("visibilitychange", refreshWhenVisible);
+    };
+  }, [refreshBalance]);
 
   return (
     <SettingsTabs

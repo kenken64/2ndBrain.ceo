@@ -172,9 +172,11 @@ For external quota listeners such as the tty proxy, set Redis pub/sub variables 
 ```txt
 TOKEN_QUOTA_REDIS_URL=redis://default:password@host:port
 TOKEN_QUOTA_REDIS_CHANNEL=2ndbrain:token-quota
+TOKEN_USAGE_REDIS_URL=redis://default:password@host:port
+TOKEN_USAGE_REDIS_CHANNEL=openclaw:token_usage:v1
 ```
 
-When configured, quota changes publish a JSON `token_quota.updated` event to the channel. If the Redis URL is not set, quota changes still succeed without publishing.
+When configured, quota changes publish a JSON `token_quota.updated` event to the quota channel. The server also listens for tty proxy `openclaw.token_usage.v1` events on the usage channel. Incoming usage is mapped by `openclaw_instance` first, then `profile_id`, then email, and increments `profiles.llm_token_used` before publishing a refreshed quota snapshot. If Redis is not set, quota changes still succeed without publishing and usage events are not consumed.
 
 For Solana credit purchases, Railway must include a treasury wallet public key. The browser connects to Phantom and sends Solana directly from the user wallet to this treasury address. The server verifies the on-chain transaction before incrementing the user's AI credit quota.
 

@@ -30,6 +30,12 @@ type TargetCreditProfile = {
   id: string;
   llm_token_quota: number | string | null;
   llm_token_used: number | string | null;
+  openclaw_instance: string | null;
+};
+
+type OpenClawInstanceRow = {
+  id: string;
+  openclaw_instance: string | null;
 };
 
 function rpcErrorResponse(error: { message?: string }) {
@@ -77,7 +83,7 @@ export async function POST(_request: Request, context: AdminUserRouteContext) {
 
   const { data: target, error: targetError } = await access.adminSupabase
     .from("profiles")
-    .select("id,email,llm_token_quota,llm_token_used")
+    .select("id,email,llm_token_quota,llm_token_used,openclaw_instance")
     .eq("id", userId)
     .maybeSingle();
 
@@ -129,6 +135,18 @@ export async function POST(_request: Request, context: AdminUserRouteContext) {
   }
 
   const drain = data as CreditDrainRow;
+  const { data: instanceRows, error: instanceError } = await access.adminSupabase
+    .from("profiles")
+    .select("id,openclaw_instance")
+    .in("id", [drain.sender_user_id, drain.recipient_user_id]);
+
+  if (instanceError) {
+    console.error("[token-quota-redis] failed to load drain profile instances", instanceError);
+  }
+
+  const instanceByUserId = new Map(
+    ((instanceRows ?? []) as OpenClawInstanceRow[]).map((row) => [row.id, row.openclaw_instance])
+  );
 
   await logAdminAudit(access.adminSupabase, {
     action: "ai_credit_admin_drain",
@@ -152,6 +170,7 @@ export async function POST(_request: Request, context: AdminUserRouteContext) {
       email: drain.sender_email,
       llmTokenQuota: Number(drain.sender_llm_token_quota),
       llmTokenUsed: Number(drain.sender_llm_token_used),
+      openclawInstance: instanceByUserId.get(drain.sender_user_id) ?? targetProfile.openclaw_instance,
       metadata: {
         transferId: drain.transfer_id
       },
@@ -165,6 +184,7 @@ export async function POST(_request: Request, context: AdminUserRouteContext) {
       email: drain.recipient_email,
       llmTokenQuota: Number(drain.recipient_llm_token_quota),
       llmTokenUsed: Number(drain.recipient_llm_token_used),
+      openclawInstance: instanceByUserId.get(drain.recipient_user_id) ?? null,
       metadata: {
         sourceUserId: drain.sender_user_id,
         transferId: drain.transfer_id

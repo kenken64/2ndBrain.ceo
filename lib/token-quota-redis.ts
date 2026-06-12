@@ -11,6 +11,7 @@ export type TokenQuotaEventReason =
   | "admin_credit_drain_from_user"
   | "admin_credit_drain_to_admin"
   | "admin_quota_update"
+  | "bedrock_token_usage"
   | "project_token_usage"
   | "solana_credit_purchase"
   | "transfer_credit_in"
@@ -20,6 +21,7 @@ export type TokenQuotaSnapshot = {
   email?: string | null;
   llmTokenQuota: number;
   llmTokenUsed: number;
+  openclawInstance?: string | null;
   userId: string;
 };
 
@@ -265,6 +267,7 @@ async function publishRedis(channel: string, payload: string) {
 }
 
 export async function publishTokenQuotaUpdate(input: TokenQuotaEventInput) {
+  const openclawInstance = input.openclawInstance?.trim() || null;
   const payload = {
     actor: {
       email: input.actorEmail ?? null,
@@ -277,6 +280,8 @@ export async function publishTokenQuotaUpdate(input: TokenQuotaEventInput) {
     llmTokenQuota: input.llmTokenQuota,
     llmTokenUsed: input.llmTokenUsed,
     metadata: input.metadata ?? {},
+    openclawInstance,
+    openclaw_instance: openclawInstance,
     occurredAt: new Date().toISOString(),
     reason: input.reason,
     source: "2ndBrain.ceo",

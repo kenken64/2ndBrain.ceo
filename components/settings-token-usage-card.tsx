@@ -51,16 +51,16 @@ export function SettingsTokenUsageCard({
 
       <dl className="settings-token-usage-card__metrics">
         <div>
+          <dt>Available</dt>
+          <dd>{formatInteger(remaining)}</dd>
+        </div>
+        <div>
           <dt>Granted</dt>
           <dd>{formatInteger(granted)}</dd>
         </div>
         <div>
           <dt>Used</dt>
           <dd>{formatInteger(used)}</dd>
-        </div>
-        <div>
-          <dt>Remaining</dt>
-          <dd>{formatInteger(remaining)}</dd>
         </div>
       </dl>
 

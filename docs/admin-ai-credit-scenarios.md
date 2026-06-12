@@ -94,7 +94,7 @@ Drain is intentionally separate from normal transfer.
 
 When `TOKEN_QUOTA_REDIS_URL` or `REDIS_URL` is configured, every quota balance mutation publishes a JSON message to `TOKEN_QUOTA_REDIS_CHANNEL`. The default channel is `2ndbrain:token-quota`.
 
-The event name is always `token_quota.updated`.
+The quota event name is always `token_quota.updated`.
 
 ```json
 {
@@ -111,6 +111,8 @@ The event name is always `token_quota.updated`.
   "metadata": {
     "transferId": "optional-transfer-or-payment-id"
   },
+  "openclawInstance": "gyne-agent",
+  "openclaw_instance": "gyne-agent",
   "occurredAt": "2026-06-12T00:00:00.000Z",
   "reason": "admin_quota_update",
   "source": "2ndBrain.ceo",
@@ -130,3 +132,34 @@ Published reasons:
 | `transfer_credit_in` | User received credits from another normal user. |
 | `solana_credit_purchase` | User purchased AI credits with Solana. |
 | `project_token_usage` | User consumed estimated project tokens. |
+| `bedrock_token_usage` | 2ndBrain received an external tty proxy usage event and incremented `llm_token_used`. |
+
+2ndBrain also consumes tty proxy usage events when `TOKEN_USAGE_REDIS_URL`, `TOKEN_QUOTA_REDIS_URL`, or `REDIS_URL` is configured. The default usage channel is `openclaw:token_usage:v1`.
+
+Incoming usage events map to profiles in this order:
+
+| Event field | Profile field |
+| --- | --- |
+| `openclaw_instance` or `openclawInstance` | `profiles.openclaw_instance` |
+| `profile_id` or `profileId` | `profiles.id` |
+| `email`, `user_email`, or `userEmail` | `profiles.email` |
+
+Example inbound usage event:
+
+```json
+{
+  "type": "openclaw.token_usage.v1",
+  "event_id": "usage-event-id",
+  "request_id": "request-id",
+  "provider": "aws_bedrock",
+  "endpoint": "/api/chat",
+  "model": "global.anthropic.claude-sonnet-4-6",
+  "openclaw_instance": "openclaw-bcd56ecb",
+  "email": "user@example.com",
+  "llm_token_used_delta": 26,
+  "total_tokens": 26,
+  "created_at": "2026-06-12T00:00:00.000Z"
+}
+```
+
+For `openclaw-bcd56ecb`, 2ndBrain loads the profile where `profiles.openclaw_instance = 'openclaw-bcd56ecb'`, adds `llm_token_used_delta` to `profiles.llm_token_used`, then publishes a `token_quota.updated` event with reason `bedrock_token_usage`.

@@ -3,6 +3,7 @@ const fs = require("node:fs");
 const path = require("node:path");
 const next = require("next");
 const { attachOpenClawSshServer } = require("./openclaw-ssh");
+const { startTokenUsageListener } = require("./token-usage-listener");
 
 const dir = path.join(__dirname, "..");
 const dev = process.env.NODE_ENV !== "production";
@@ -47,10 +48,19 @@ app.prepare().then(() => {
   });
 
   attachOpenClawSshServer(server);
+  const stopTokenUsageListener = startTokenUsageListener();
 
   server.listen(port, hostname, () => {
     console.info(`[server] ready on http://${hostname}:${port}`);
   });
+
+  function shutdown() {
+    stopTokenUsageListener();
+    server.close(() => process.exit(0));
+  }
+
+  process.once("SIGINT", shutdown);
+  process.once("SIGTERM", shutdown);
 }).catch((error) => {
   console.error("[server] failed to start", error);
   process.exit(1);

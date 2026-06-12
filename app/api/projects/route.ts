@@ -204,7 +204,7 @@ export async function POST(request: Request) {
   const adminSupabase = createAdminClient();
   const { data: quotaProfile, error: quotaProfileError } = await adminSupabase
     .from("profiles")
-    .select("admin_disabled,admin_deleted_at,email,llm_token_quota,llm_token_used")
+    .select("admin_disabled,admin_deleted_at,email,llm_token_quota,llm_token_used,openclaw_instance")
     .eq("id", auth.userId)
     .maybeSingle();
 
@@ -268,6 +268,7 @@ export async function POST(request: Request) {
       email: quotaProfile?.email ?? null,
       llmTokenQuota: quota,
       llmTokenUsed: used + estimatedTokenCost,
+      openclawInstance: typeof quotaProfile?.openclaw_instance === "string" ? quotaProfile.openclaw_instance : openclawInstance,
       metadata: {
         estimatedTokenCost
       },

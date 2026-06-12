@@ -276,7 +276,7 @@ export async function POST(request: Request) {
   const applied = appliedData as AppliedCreditRow;
   const { data: profile } = await adminSupabase
     .from("profiles")
-    .select("email,llm_token_used")
+    .select("email,llm_token_used,openclaw_instance")
     .eq("id", auth.userId)
     .maybeSingle();
   const llmTokenQuota = Number(applied.new_llm_token_quota);
@@ -288,6 +288,7 @@ export async function POST(request: Request) {
     email: profile?.email ?? null,
     llmTokenQuota,
     llmTokenUsed,
+    openclawInstance: profile?.openclaw_instance ?? null,
     metadata: {
       paymentId: applied.payment_id,
       quoteId: quote.id,

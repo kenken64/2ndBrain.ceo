@@ -42,7 +42,7 @@ export async function POST(request: Request, context: AdminUserRouteContext) {
       llm_token_quota: quota
     })
     .eq("id", userId)
-    .select("id,email,llm_token_quota,llm_token_used")
+    .select("id,email,llm_token_quota,llm_token_used,openclaw_instance")
     .single();
 
   if (error) {
@@ -74,6 +74,7 @@ export async function POST(request: Request, context: AdminUserRouteContext) {
     email: updatedProfile.email,
     llmTokenQuota: Number(updatedProfile.llm_token_quota ?? 0),
     llmTokenUsed: Number(updatedProfile.llm_token_used ?? 0),
+    openclawInstance: updatedProfile.openclaw_instance,
     metadata: {
       adminAction: "llm_token_quota_update"
     },

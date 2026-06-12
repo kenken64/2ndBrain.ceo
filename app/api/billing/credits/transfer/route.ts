@@ -24,6 +24,11 @@ type CreditTransferRow = {
   transfer_id: string;
 };
 
+type OpenClawInstanceRow = {
+  id: string;
+  openclaw_instance: string | null;
+};
+
 function normalizeEmail(value: unknown) {
   const email = typeof value === "string" ? value.trim().toLowerCase() : "";
 
@@ -125,7 +130,8 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Admin accounts are exempt from AI credit quotas." }, { status: 409 });
   }
 
-  const { data, error } = await createAdminClient()
+  const adminSupabase = createAdminClient();
+  const { data, error } = await adminSupabase
     .rpc("transfer_ai_credits", {
       p_amount_tokens: amountTokens,
       p_recipient_email: recipientEmail,
@@ -138,6 +144,18 @@ export async function POST(request: Request) {
   }
 
   const transfer = data as CreditTransferRow;
+  const { data: instanceRows, error: instanceError } = await adminSupabase
+    .from("profiles")
+    .select("id,openclaw_instance")
+    .in("id", [transfer.sender_user_id, transfer.recipient_user_id]);
+
+  if (instanceError) {
+    console.error("[token-quota-redis] failed to load transfer profile instances", instanceError);
+  }
+
+  const instanceByUserId = new Map(
+    ((instanceRows ?? []) as OpenClawInstanceRow[]).map((row) => [row.id, row.openclaw_instance])
+  );
 
   await Promise.all([
     publishTokenQuotaUpdate({
@@ -146,6 +164,7 @@ export async function POST(request: Request) {
       email: transfer.sender_email,
       llmTokenQuota: Number(transfer.sender_llm_token_quota),
       llmTokenUsed: Number(transfer.sender_llm_token_used),
+      openclawInstance: instanceByUserId.get(transfer.sender_user_id) ?? null,
       metadata: {
         recipientUserId: transfer.recipient_user_id,
         transferId: transfer.transfer_id
@@ -159,6 +178,7 @@ export async function POST(request: Request) {
       email: transfer.recipient_email,
       llmTokenQuota: Number(transfer.recipient_llm_token_quota),
       llmTokenUsed: Number(transfer.recipient_llm_token_used),
+      openclawInstance: instanceByUserId.get(transfer.recipient_user_id) ?? null,
       metadata: {
         senderUserId: transfer.sender_user_id,
         transferId: transfer.transfer_id
