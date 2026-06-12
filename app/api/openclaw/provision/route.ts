@@ -25,6 +25,14 @@ function redirectToProvision(request: Request, next: string, error?: string) {
   return NextResponse.redirect(url, { status: 303 });
 }
 
+export function GET(request: Request) {
+  const requestUrl = new URL(request.url);
+  const next = safeNextPath(requestUrl.searchParams.get("next") ?? "/dashboard");
+  const error = requestUrl.searchParams.get("error")?.trim() || undefined;
+
+  return redirectToProvision(request, next, error);
+}
+
 function outputSummary(value: string) {
   return value.slice(-4000);
 }

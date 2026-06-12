@@ -11,6 +11,57 @@ type ProvisionFormProps = {
 };
 
 const TARGET_PROVISION_SECONDS = 3 * 60;
+const PROVISION_ERROR_CODES = new Set([
+  "invalid_provision_target",
+  "missing_avatar",
+  "missing_fields",
+  "missing_aws_access_key_id",
+  "missing_aws_region",
+  "missing_aws_secret_access_key",
+  "missing_openclaw_lightsail_snapshot_name",
+  "missing_openai_api_key",
+  "openclaw_instance_not_found",
+  "openclaw_provision_failed",
+  "openclaw_provision_running",
+  "openclaw_snapshot_not_found",
+  "openclaw_snapshot_response_failed",
+  "save_failed"
+]);
+
+function provisionStepUrl(next: string, error?: string) {
+  const params = new URLSearchParams({
+    next,
+    step: "provision"
+  });
+
+  if (error) {
+    params.set("error", error);
+  }
+
+  return `/onboarding?${params.toString()}`;
+}
+
+function isApiUrl(url: string) {
+  try {
+    return new URL(url, window.location.origin).pathname.startsWith("/api/");
+  } catch {
+    return false;
+  }
+}
+
+function errorCodeFromPayload(payload: unknown) {
+  if (!payload || typeof payload !== "object" || !("error" in payload)) {
+    return "openclaw_provision_failed";
+  }
+
+  const error = typeof payload.error === "string" ? payload.error.trim() : "";
+
+  if (PROVISION_ERROR_CODES.has(error) || error.startsWith("missing_")) {
+    return error;
+  }
+
+  return "openclaw_provision_failed";
+}
 
 function formatTimer(totalSeconds: number) {
   const safeSeconds = Math.max(0, Math.floor(totalSeconds));
@@ -80,7 +131,19 @@ export function ProvisionForm({ errorMessage, next, startedAt, status }: Provisi
         method: "POST"
       });
 
-      window.location.assign(response.url || `/onboarding?next=${encodeURIComponent(next)}&step=provision`);
+      if (response.url && response.redirected && !isApiUrl(response.url)) {
+        window.location.assign(response.url);
+        return;
+      }
+
+      if (response.ok && response.url && !isApiUrl(response.url)) {
+        window.location.assign(response.url);
+        return;
+      }
+
+      const payload = await response.json().catch(() => null);
+
+      window.location.assign(provisionStepUrl(next, errorCodeFromPayload(payload)));
     } catch {
       setSubmitError("Provisioning request could not be started. Check the server and try again.");
       setIsSubmitting(false);
