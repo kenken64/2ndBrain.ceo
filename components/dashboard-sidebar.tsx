@@ -1,9 +1,10 @@
 "use client";
 
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, type MouseEvent, type ReactNode } from "react";
 import {
   ChevronDown,
   Clapperboard,
+  Menu,
   ShieldCheck,
   GitBranch,
   PanelLeftClose,
@@ -11,7 +12,8 @@ import {
   Plug,
   Power,
   ScrollText,
-  Settings
+  Settings,
+  X
 } from "lucide-react";
 import { BrandHeart } from "@/components/brand-heart";
 
@@ -72,11 +74,19 @@ export function DashboardSidebar({
 }: DashboardSidebarProps) {
   const sidebarRef = useRef<HTMLElement>(null);
   const [isCollapsed, setIsCollapsed] = useState(false);
+  const [isMobileOpen, setIsMobileOpen] = useState(false);
   const [hasLoadedPreference, setHasLoadedPreference] = useState(false);
   const workspaceOwner = ownerName?.trim() || email?.split("@")[0] || "Personal";
   const workspaceName = `${workspaceOwner}'s workspace`;
   const toggleLabel = isCollapsed ? "Expand sidebar" : "Collapse sidebar";
+  const mobileToggleLabel = isMobileOpen ? "Close menu" : "Open menu";
   const settingsHref = creditLocked ? "/dashboard/settings?tab=payment" : "/dashboard/settings";
+
+  function closeMobileMenuOnLink(event: MouseEvent<HTMLElement>) {
+    if (event.target instanceof Element && event.target.closest("a")) {
+      setIsMobileOpen(false);
+    }
+  }
 
   useEffect(() => {
     setIsCollapsed(readStoredSidebarState());
@@ -106,7 +116,10 @@ export function DashboardSidebar({
   }, [hasLoadedPreference, isCollapsed]);
 
   return (
-    <aside className={`sidebar${isCollapsed ? " is-collapsed" : ""}`} ref={sidebarRef}>
+    <aside
+      className={`sidebar${isCollapsed ? " is-collapsed" : ""}${isMobileOpen ? " is-mobile-open" : ""}`}
+      ref={sidebarRef}
+    >
       <div className="sidebar-header">
         <a className="sidebar-brand" href={creditLocked ? settingsHref : "/dashboard"}>
           <BrandHeart size={50} />
@@ -126,13 +139,29 @@ export function DashboardSidebar({
             <PanelLeftClose size={16} strokeWidth={1.8} />
           )}
         </button>
+        <button
+          aria-controls="dashboard-sidebar-nav"
+          aria-expanded={isMobileOpen}
+          aria-label={mobileToggleLabel}
+          className="btn-icon sidebar-mobile-toggle"
+          onClick={() => setIsMobileOpen((open) => !open)}
+          title={mobileToggleLabel}
+          type="button"
+        >
+          {isMobileOpen ? <X size={18} strokeWidth={1.8} /> : <Menu size={18} strokeWidth={1.8} />}
+        </button>
       </div>
       <button className="workspace-pill" title={workspaceName} type="button">
         <span className="workspace-pill__avatar">{workspaceName.charAt(0).toUpperCase()}</span>
         <span className="workspace-pill__name">{workspaceName}</span>
         <ChevronDown size={15} strokeWidth={1.8} />
       </button>
-      <nav aria-label="Dashboard navigation" className="sidebar-nav" id="dashboard-sidebar-nav">
+      <nav
+        aria-label="Dashboard navigation"
+        className="sidebar-nav"
+        id="dashboard-sidebar-nav"
+        onClick={closeMobileMenuOnLink}
+      >
         <span className="sidebar-section-label">WORKSPACE</span>
         <SidebarNavItem
           active={activeItem === "gateway"}
@@ -168,7 +197,7 @@ export function DashboardSidebar({
         />
       </nav>
       <div className="sidebar-spacer" />
-      <div className="sidebar-footer">
+      <div className="sidebar-footer" onClick={closeMobileMenuOnLink}>
         <SidebarNavItem
           active={activeItem === "settings"}
           href={settingsHref}

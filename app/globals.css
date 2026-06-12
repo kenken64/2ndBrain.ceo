@@ -127,21 +127,41 @@ svg {
   position: fixed;
   inset: 0;
   z-index: 0;
+  overflow: hidden;
   pointer-events: none;
-  background:
-    linear-gradient(rgba(0, 167, 255, 0.1) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(0, 196, 140, 0.08) 1px, transparent 1px),
-    linear-gradient(
-      135deg,
-      var(--atmos-top) 0%,
-      var(--atmos-upper) 30%,
-      var(--atmos-mid) 58%,
-      var(--atmos-lower) 78%,
-      var(--atmos-bottom) 100%
-    );
-  background-size: 44px 44px, 44px 44px, 100% 100%;
+  background: linear-gradient(
+    135deg,
+    var(--atmos-top) 0%,
+    var(--atmos-upper) 30%,
+    var(--atmos-mid) 58%,
+    var(--atmos-lower) 78%,
+    var(--atmos-bottom) 100%
+  );
   filter: saturate(1.05);
   animation: atmos-breathe 14s ease-in-out infinite;
+}
+
+/* circuit grid on its own layer so it can drift; one 44px tile per loop keeps it seamless */
+.atmos-bg::before {
+  content: "";
+  position: absolute;
+  inset: -44px 0 0 -44px;
+  background:
+    linear-gradient(rgba(0, 167, 255, 0.1) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(0, 196, 140, 0.08) 1px, transparent 1px);
+  background-size: 44px 44px;
+  animation: atmos-grid-drift 90s linear infinite;
+}
+
+.atmos-bg::after {
+  content: "";
+  position: absolute;
+  inset: -22%;
+  background:
+    radial-gradient(42% 34% at 18% 24%, rgba(0, 167, 255, 0.14), transparent 70%),
+    radial-gradient(38% 30% at 80% 30%, rgba(0, 196, 140, 0.12), transparent 70%),
+    radial-gradient(46% 38% at 58% 80%, rgba(182, 76, 255, 0.09), transparent 70%);
+  animation: atmos-aurora 38s ease-in-out infinite alternate;
 }
 
 @keyframes atmos-breathe {
@@ -152,6 +172,22 @@ svg {
 
   50% {
     transform: scale(1.02) translateY(-4px);
+  }
+}
+
+@keyframes atmos-grid-drift {
+  to {
+    transform: translate3d(44px, 44px, 0);
+  }
+}
+
+@keyframes atmos-aurora {
+  from {
+    transform: translate3d(-1.5%, -1%, 0) rotate(0deg) scale(1);
+  }
+
+  to {
+    transform: translate3d(1.5%, 2%, 0) rotate(3deg) scale(1.05);
   }
 }
 
@@ -1246,6 +1282,10 @@ svg {
 
 .sidebar-toggle {
   flex: 0 0 auto;
+}
+
+.sidebar-mobile-toggle {
+  display: none;
 }
 
 .workspace-pill {
@@ -4403,6 +4443,7 @@ svg {
 
   .dashboard-layout {
     grid-template-columns: 1fr;
+    grid-template-rows: auto 1fr;
   }
 
   .dashboard-main {
@@ -4428,25 +4469,45 @@ svg {
     overflow: auto;
   }
 
+  /* compact top bar: [logo · workspace pill · hamburger]; nav opens as a drawer below */
   .sidebar {
     position: sticky;
     top: 0;
     z-index: 40;
     height: auto;
+    max-height: 100dvh;
     overflow: visible;
     border-right: 0;
     border-bottom: 1px solid var(--border-soft);
-    padding: 12px;
-    gap: 10px;
+    padding: 10px 12px;
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 0 12px;
     backdrop-filter: blur(14px) saturate(1.2);
   }
 
+  .sidebar.is-mobile-open {
+    overflow-y: auto;
+  }
+
   .sidebar-header {
-    min-height: 44px;
+    display: contents;
+  }
+
+  .sidebar-brand {
+    grid-row: 1;
+    grid-column: 1;
   }
 
   .sidebar-toggle {
     display: none;
+  }
+
+  .sidebar-mobile-toggle {
+    display: inline-grid;
+    grid-row: 1;
+    grid-column: 3;
   }
 
   .sidebar-brand .app-logo {
@@ -4455,40 +4516,39 @@ svg {
   }
 
   .workspace-pill {
-    width: 100%;
+    grid-row: 1;
+    grid-column: 2;
+    justify-self: start;
+    min-width: 0;
+    max-width: 100%;
   }
 
   .sidebar-nav,
   .sidebar-footer {
-    display: flex;
-    gap: 8px;
-    margin-inline: -12px;
-    overflow-x: auto;
-    padding-inline: 12px;
-    scrollbar-width: thin;
+    display: none;
+    grid-column: 1 / -1;
   }
 
-  .sidebar-nav {
-    padding-bottom: 8px;
+  .sidebar.is-mobile-open .sidebar-nav {
+    display: grid;
+    gap: 4px;
+    margin-top: 12px;
   }
 
-  .sidebar-footer {
-    border-top: 0;
-    padding-top: 0;
-    padding-bottom: 4px;
+  .sidebar.is-mobile-open .sidebar-footer {
+    display: grid;
+    gap: 4px;
+    margin-top: 8px;
+    border-top: 1px solid var(--border-soft);
+    padding-top: 10px;
   }
 
-  .sidebar-item,
   .destroy-workspace {
     flex: 0 0 auto;
   }
 
   .destroy-workspace--panel {
     flex: initial;
-  }
-
-  .sidebar-item {
-    white-space: nowrap;
   }
 
   .sidebar-spacer,
@@ -4658,12 +4718,7 @@ svg {
     flex-direction: column;
   }
 
-  .sidebar {
-    position: relative;
-    max-height: none;
-  }
-
-  .sidebar-header .btn-icon {
+  .sidebar-header .sidebar-toggle {
     display: none;
   }
 
@@ -4671,11 +4726,6 @@ svg {
     min-height: 42px;
     padding: 8px 10px;
     font-size: 13px;
-  }
-
-  .sidebar-nav,
-  .sidebar-footer {
-    padding-bottom: 8px;
   }
 
   .destroy-workspace {
@@ -5076,15 +5126,6 @@ svg {
 
   .auth-actions > * {
     flex: 1 1 100%;
-  }
-
-  .sidebar-nav .sidebar-item__label {
-    display: none;
-  }
-
-  .sidebar-nav .sidebar-item {
-    min-width: 44px;
-    justify-content: center;
   }
 
   /* Controls under 16px trigger iOS Safari focus auto-zoom */
