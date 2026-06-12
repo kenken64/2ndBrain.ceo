@@ -295,30 +295,38 @@ export function AdminUsersTable({ adminAvailableTokens, adminUserId, users }: Ad
                 </form>
 
                 <div className="admin-user-row__buttons">
-                  <button
-                    className="btn-ghost"
-                    disabled={isBusy}
-                    onClick={() =>
-                      void runAction(user.id, () =>
-                        postJson(`/api/admin/users/${user.id}/access`, { disabled: !user.disabled })
-                      )
-                    }
-                    type="button"
-                  >
-                    {user.disabled ? "Enable" : "Disable"}
-                  </button>
-                  <button
-                    className="btn-ghost danger-button"
-                    disabled={isBusy}
-                    onClick={() => {
-                      if (window.confirm(`Delete workspace data for ${user.email ?? user.id}?`)) {
-                        void runAction(user.id, () => postJson(`/api/admin/users/${user.id}/delete`, {}));
-                      }
-                    }}
-                    type="button"
-                  >
-                    Delete
-                  </button>
+                  {isSelf ? (
+                    <span className="admin-field-hint">
+                      Self access controls are locked so you cannot disable or delete your own admin account.
+                    </span>
+                  ) : (
+                    <>
+                      <button
+                        className="btn-ghost"
+                        disabled={isBusy}
+                        onClick={() =>
+                          void runAction(user.id, () =>
+                            postJson(`/api/admin/users/${user.id}/access`, { disabled: !user.disabled })
+                          )
+                        }
+                        type="button"
+                      >
+                        {user.disabled ? "Enable" : "Disable"}
+                      </button>
+                      <button
+                        className="btn-ghost danger-button"
+                        disabled={isBusy}
+                        onClick={() => {
+                          if (window.confirm(`Delete workspace data for ${user.email ?? user.id}?`)) {
+                            void runAction(user.id, () => postJson(`/api/admin/users/${user.id}/delete`, {}));
+                          }
+                        }}
+                        type="button"
+                      >
+                        Delete
+                      </button>
+                    </>
+                  )}
                 </div>
               </div>
             </article>

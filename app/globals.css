@@ -1047,6 +1047,44 @@ svg {
   font-size: 12px;
 }
 
+.admin-mfa-panel__totp-progress {
+  display: grid;
+  gap: 8px;
+  text-align: left;
+}
+
+.admin-mfa-panel__totp-meta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  color: var(--fg-secondary);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.admin-mfa-panel__totp-meta strong {
+  color: var(--fg-primary);
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+.admin-mfa-panel__totp-track {
+  position: relative;
+  overflow: hidden;
+  height: 8px;
+  border-radius: var(--radius-pill);
+  background: color-mix(in srgb, var(--fg-primary) 10%, transparent);
+}
+
+.admin-mfa-panel__totp-track span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, var(--action-primary) 0%, var(--accent-brain) 100%);
+  transition: width 0.25s linear;
+}
+
 .footer {
   position: relative;
   z-index: 1;

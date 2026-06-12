@@ -23,6 +23,25 @@ type AdminMfaPanelProps = {
   supabaseUrl: string;
 };
 
+type BusyAction = "enroll" | "verify";
+
+type TotpWindow = {
+  percentRemaining: number;
+  secondsRemaining: number;
+};
+
+const TOTP_PERIOD_SECONDS = 30;
+
+function getTotpWindow(now = Date.now()): TotpWindow {
+  const periodMs = TOTP_PERIOD_SECONDS * 1000;
+  const remainingMs = periodMs - (now % periodMs);
+
+  return {
+    percentRemaining: Math.max(0, Math.min(100, Math.round((remainingMs / periodMs) * 100))),
+    secondsRemaining: Math.max(1, Math.ceil(remainingMs / 1000))
+  };
+}
+
 function qrCodeImageSrc(value: string) {
   const trimmed = value.trim();
 
@@ -59,8 +78,13 @@ export function AdminMfaPanel({ nextPath, supabasePublishableKey, supabaseUrl }:
   const [enrollment, setEnrollment] = useState<Enrollment | null>(null);
   const [factors, setFactors] = useState<TotpFactor[]>([]);
   const [selectedFactorId, setSelectedFactorId] = useState("");
-  const [isBusy, setIsBusy] = useState(false);
+  const [busyAction, setBusyAction] = useState<BusyAction | null>(null);
   const [message, setMessage] = useState<string | null>(null);
+  const [totpWindow, setTotpWindow] = useState<TotpWindow>({
+    percentRemaining: 100,
+    secondsRemaining: TOTP_PERIOD_SECONDS
+  });
+  const isBusy = busyAction !== null;
 
   useEffect(() => {
     let isMounted = true;
@@ -88,30 +112,45 @@ export function AdminMfaPanel({ nextPath, supabasePublishableKey, supabaseUrl }:
     };
   }, [supabase]);
 
-  async function startEnrollment() {
-    setIsBusy(true);
-    setMessage(null);
-
-    const { data, error } = await supabase.auth.mfa.enroll({
-      factorType: "totp",
-      friendlyName: newFriendlyName(),
-      issuer: "2ndBrain.ceo"
-    });
-
-    setIsBusy(false);
-
-    if (error) {
-      setMessage(error.message);
-      return;
+  useEffect(() => {
+    function updateTotpWindow() {
+      setTotpWindow(getTotpWindow());
     }
 
-    setEnrollment({
-      factorId: data.id,
-      qrCode: data.totp.qr_code,
-      secret: data.totp.secret
-    });
-    setSelectedFactorId(data.id);
-    setCode("");
+    updateTotpWindow();
+    const intervalId = window.setInterval(updateTotpWindow, 250);
+
+    return () => window.clearInterval(intervalId);
+  }, []);
+
+  async function startEnrollment() {
+    setBusyAction("enroll");
+    setMessage(null);
+
+    try {
+      const { data, error } = await supabase.auth.mfa.enroll({
+        factorType: "totp",
+        friendlyName: newFriendlyName(),
+        issuer: "2ndBrain.ceo"
+      });
+
+      if (error) {
+        setMessage(error.message);
+        return;
+      }
+
+      setEnrollment({
+        factorId: data.id,
+        qrCode: data.totp.qr_code,
+        secret: data.totp.secret
+      });
+      setSelectedFactorId(data.id);
+      setCode("");
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "TOTP enrollment failed.");
+    } finally {
+      setBusyAction(null);
+    }
   }
 
   async function verify(event: React.FormEvent<HTMLFormElement>) {
@@ -129,30 +168,39 @@ export function AdminMfaPanel({ nextPath, supabasePublishableKey, supabaseUrl }:
       return;
     }
 
-    setIsBusy(true);
+    setBusyAction("verify");
     setMessage(null);
 
-    const { error } = await supabase.auth.mfa.challengeAndVerify({
-      code: code.trim(),
-      factorId
-    });
+    try {
+      const { error } = await supabase.auth.mfa.challengeAndVerify({
+        code: code.trim(),
+        factorId
+      });
 
-    setIsBusy(false);
+      if (error) {
+        setMessage(error.message);
+        return;
+      }
 
-    if (error) {
-      setMessage(error.message);
-      return;
+      const { data: aalData, error: aalError } = await supabase.auth.mfa.getAuthenticatorAssuranceLevel();
+
+      if (aalError) {
+        setMessage(aalError.message);
+        return;
+      }
+
+      if (aalData?.currentLevel !== "aal2") {
+        setMessage("The TOTP code was accepted, but this browser session did not update to aal2. Sign out and sign in again, then verify the code once more.");
+        return;
+      }
+
+      router.replace(nextPath);
+      router.refresh();
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "TOTP verification failed.");
+    } finally {
+      setBusyAction(null);
     }
-
-    const { data: aalData } = await supabase.auth.mfa.getAuthenticatorAssuranceLevel();
-
-    if (aalData?.currentLevel !== "aal2") {
-      setMessage("The TOTP code was accepted, but this browser session did not update to aal2. Sign out and sign in again, then verify the code once more.");
-      return;
-    }
-
-    router.replace(nextPath);
-    router.refresh();
   }
 
   const qrCodeSrc = enrollment ? qrCodeImageSrc(enrollment.qrCode) : null;
@@ -185,6 +233,7 @@ export function AdminMfaPanel({ nextPath, supabasePublishableKey, supabaseUrl }:
               <select
                 id="totp-factor"
                 name="factorId"
+                disabled={isBusy}
                 onChange={(event) => setSelectedFactorId(event.target.value)}
                 value={selectedFactorId}
               >
@@ -199,6 +248,7 @@ export function AdminMfaPanel({ nextPath, supabasePublishableKey, supabaseUrl }:
           <label htmlFor="totp-code">Authenticator code</label>
           <input
             autoComplete="one-time-code"
+            disabled={isBusy}
             id="totp-code"
             inputMode="numeric"
             maxLength={8}
@@ -208,8 +258,25 @@ export function AdminMfaPanel({ nextPath, supabasePublishableKey, supabaseUrl }:
             placeholder="6-digit code"
             value={code}
           />
+          <div
+            aria-label="TOTP code time remaining"
+            aria-valuemax={TOTP_PERIOD_SECONDS}
+            aria-valuemin={0}
+            aria-valuenow={totpWindow.secondsRemaining}
+            aria-valuetext={`${totpWindow.secondsRemaining} seconds remaining`}
+            className="admin-mfa-panel__totp-progress"
+            role="progressbar"
+          >
+            <div className="admin-mfa-panel__totp-meta">
+              <span>{busyAction === "verify" ? "Verifying current code" : "Current code window"}</span>
+              <strong>{totpWindow.secondsRemaining}s remaining</strong>
+            </div>
+            <div className="admin-mfa-panel__totp-track">
+              <span style={{ width: `${totpWindow.percentRemaining}%` }} />
+            </div>
+          </div>
           <button className="btn-primary admin-mfa-panel__button" disabled={isBusy} type="submit">
-            Verify admin access
+            {busyAction === "verify" ? "Verifying..." : "Verify admin access"}
           </button>
         </form>
       ) : null}
@@ -220,7 +287,7 @@ export function AdminMfaPanel({ nextPath, supabasePublishableKey, supabaseUrl }:
         </a>
         {!enrollment && !hasVerifiedFactor ? (
           <button className="btn-primary admin-mfa-panel__button" disabled={isBusy} onClick={startEnrollment} type="button">
-            Set up TOTP
+            {busyAction === "enroll" ? "Setting up..." : "Set up TOTP"}
           </button>
         ) : enrollment && hasVerifiedFactor ? (
           <button
