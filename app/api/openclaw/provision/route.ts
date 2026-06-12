@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { isAdminUser } from "@/lib/admin";
 import { hasSupabaseEnv } from "@/lib/env";
 import {
   getUserIdFromClaims,
@@ -13,6 +14,11 @@ import { appUrl, safeNextPath } from "@/lib/url";
 export const runtime = "nodejs";
 
 const STALE_PROVISION_MS = 30 * 60 * 1000;
+
+type ProvisionProfile = OnboardingProfile & {
+  llm_token_quota?: number | string | null;
+  llm_token_used?: number | string | null;
+};
 
 function redirectToProvision(request: Request, next: string, error?: string) {
   const path = onboardingPath(next, "provision");
@@ -82,6 +88,12 @@ function nextAfterProvision(next: string) {
   return onboardingPath(next, "approval");
 }
 
+function numericTokenValue(value: number | string | null | undefined) {
+  const number = Number(value ?? 0);
+
+  return Number.isFinite(number) ? number : 0;
+}
+
 function isStaleProvision(profile: OnboardingProfile | null) {
   if (profile?.openclaw_provision_status !== "running") {
     return false;
@@ -108,6 +120,7 @@ export async function POST(request: Request) {
   const supabase = await createClient();
   const { data: claimsData, error: claimsError } = await supabase.auth.getClaims();
   const userId = getUserIdFromClaims(claimsData?.claims);
+  const email = typeof claimsData?.claims?.email === "string" ? claimsData.claims.email : null;
 
   if (claimsError || !userId) {
     return NextResponse.redirect(
@@ -118,10 +131,10 @@ export async function POST(request: Request) {
 
   const { data: profile } = await supabase
     .from("profiles")
-    .select(onboardingProfileSelect)
+    .select(`${onboardingProfileSelect},llm_token_quota,llm_token_used`)
     .eq("id", userId)
     .maybeSingle();
-  const onboardingProfile = profile as OnboardingProfile | null;
+  const onboardingProfile = profile as ProvisionProfile | null;
   const ownerName = onboardingProfile?.owner_name?.trim();
   const avatarName = onboardingProfile?.avatar_name?.trim();
   const avatarGender = onboardingProfile?.avatar_gender?.trim();
@@ -145,6 +158,17 @@ export async function POST(request: Request) {
     onboardingProfile.openclaw_provision_completed_at
   ) {
     return NextResponse.redirect(appUrl(nextAfterProvision(next), request), { status: 303 });
+  }
+
+  const isAdmin = await isAdminUser(email, userId);
+  const availableTokens = Math.max(
+    0,
+    numericTokenValue(onboardingProfile?.llm_token_quota) -
+      numericTokenValue(onboardingProfile?.llm_token_used)
+  );
+
+  if (!isAdmin && availableTokens <= 0) {
+    return redirectToProvision(request, next, "insufficient_ai_credits");
   }
 
   if (isStaleProvision(onboardingProfile)) {

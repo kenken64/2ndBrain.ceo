@@ -12,6 +12,7 @@ type ProvisionFormProps = {
 
 const TARGET_PROVISION_SECONDS = 3 * 60;
 const PROVISION_ERROR_CODES = new Set([
+  "insufficient_ai_credits",
   "invalid_provision_target",
   "missing_avatar",
   "missing_fields",

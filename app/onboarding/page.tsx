@@ -41,6 +41,7 @@ const errors: Record<string, string> = {
   avatar_upload_too_large: "The uploaded AI Assistant is too large to store locally.",
   invalid_avatar_url: "Avaturn did not return a valid secure GLB URL yet.",
   missing_avatar_storage_root: "AI Assistant storage is not configured on the server.",
+  insufficient_ai_credits: "You need AI credits before provisioning OpenClaw. Ask an admin to grant credits, then try again.",
   invalid_provision_target: "Select OpenClaw to continue. HermesAgent is coming soon.",
   invalid_telegram_pair_code: "Enter the 8-character approval code from Telegram.",
   missing_avatar: "Create and export your Avaturn AI Assistant to continue.",
