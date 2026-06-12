@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { isAdminUser } from "@/lib/admin";
 import { hasSupabaseEnv } from "@/lib/env";
 import { getUserIdFromClaims } from "@/lib/onboarding";
 import { createAdminClient, hasSupabaseServiceRoleEnv } from "@/lib/supabase/admin";
@@ -117,6 +118,10 @@ export async function POST(request: Request) {
 
   if (!amountTokens) {
     return NextResponse.json({ error: "Enter a positive AI credit amount." }, { status: 400 });
+  }
+
+  if (await isAdminUser(recipientEmail, null)) {
+    return NextResponse.json({ error: "Admin accounts are exempt from AI credit quotas." }, { status: 409 });
   }
 
   const { data, error } = await createAdminClient()

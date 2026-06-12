@@ -1,4 +1,5 @@
 import { after, NextResponse } from "next/server";
+import { isAdminUser } from "@/lib/admin";
 import { hasSupabaseEnv } from "@/lib/env";
 import {
   getUserIdFromClaims,
@@ -70,6 +71,7 @@ async function requireUser() {
   const { data, error } = await supabase.auth.getClaims();
 
   const userId = getUserIdFromClaims(data?.claims);
+  const email = typeof data?.claims?.email === "string" ? data.claims.email.toLowerCase() : null;
 
   if (error || !userId) {
     return {
@@ -79,6 +81,7 @@ async function requireUser() {
   }
 
   return {
+    email,
     supabase,
     userId,
     response: null
@@ -215,6 +218,7 @@ export async function POST(request: Request) {
   const quota = Number(quotaProfile?.llm_token_quota ?? 0);
   const used = Number(quotaProfile?.llm_token_used ?? 0);
   const remaining = quota - used;
+  const isAdmin = await isAdminUser(auth.email, auth.userId);
 
   if (quotaProfile?.admin_disabled || quotaProfile?.admin_deleted_at) {
     if (isFormPost) {
@@ -224,7 +228,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Account access is disabled" }, { status: 403 });
   }
 
-  if (quota <= 0 || remaining < estimatedTokenCost) {
+  if (!isAdmin && (quota <= 0 || remaining < estimatedTokenCost)) {
     if (isFormPost) {
       return redirectWithParams(request, returnTo, { error: "token_quota_exceeded" });
     }
@@ -239,12 +243,14 @@ export async function POST(request: Request) {
     );
   }
 
-  const { error: usageError } = await adminSupabase
-    .from("profiles")
-    .update({
-      llm_token_used: used + estimatedTokenCost
-    })
-    .eq("id", auth.userId);
+  const { error: usageError } = isAdmin
+    ? { error: null }
+    : await adminSupabase
+        .from("profiles")
+        .update({
+          llm_token_used: used + estimatedTokenCost
+        })
+        .eq("id", auth.userId);
 
   if (usageError) {
     if (isFormPost) {

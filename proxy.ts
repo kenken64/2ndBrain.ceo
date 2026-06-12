@@ -1,7 +1,31 @@
 import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
+import { getSupabaseEnv } from "@/lib/env";
 import { updateSession } from "@/lib/supabase/proxy";
 import { appUrl } from "@/lib/url";
+
+const SUPABASE_SERVICE_ROLE_ENV_NAMES = [
+  "SUPABASE_SERVICE_ROLE_KEY",
+  "SUPABASE_SERVICE_KEY",
+  "SERVICE_ROLE_KEY"
+] as const;
+
+function cleanEnvValue(value: string | undefined) {
+  const cleaned = value?.trim().replace(/^['"]|['"]$/g, "");
+  return cleaned || null;
+}
+
+function getSupabaseServiceRoleKey() {
+  for (const name of SUPABASE_SERVICE_ROLE_ENV_NAMES) {
+    const value = cleanEnvValue(process.env[name]);
+
+    if (value) {
+      return value;
+    }
+  }
+
+  return null;
+}
 
 function isProtectedAppPath(pathname: string) {
   return (
@@ -44,6 +68,43 @@ function getAvailableAiCredits(profile: {
   return quota - used;
 }
 
+async function isEnabledAdminUser(input: { email: string | null; userId: string }) {
+  const serviceRoleKey = getSupabaseServiceRoleKey();
+  const normalizedEmail = input.email?.trim().toLowerCase();
+
+  if (!serviceRoleKey || !normalizedEmail) {
+    return false;
+  }
+
+  try {
+    const { supabaseUrl } = getSupabaseEnv();
+    const url = new URL("/rest/v1/admin_users", supabaseUrl);
+
+    url.searchParams.set("select", "id");
+    url.searchParams.set("enabled", "eq.true");
+    url.searchParams.set("or", `(email.eq.${normalizedEmail},user_id.eq.${input.userId})`);
+    url.searchParams.set("limit", "1");
+
+    const response = await fetch(url, {
+      cache: "no-store",
+      headers: {
+        apikey: serviceRoleKey,
+        authorization: `Bearer ${serviceRoleKey}`
+      }
+    });
+
+    if (!response.ok) {
+      return false;
+    }
+
+    const rows = (await response.json().catch(() => [])) as unknown;
+
+    return Array.isArray(rows) && rows.length > 0;
+  } catch {
+    return false;
+  }
+}
+
 export async function proxy(request: NextRequest) {
   if (
     request.nextUrl.searchParams.has("code") &&
@@ -61,7 +122,7 @@ export async function proxy(request: NextRequest) {
   }
 
   return updateSession(request, {
-    onAuthenticated: async ({ response, supabase, userId }) => {
+    onAuthenticated: async ({ email, response, supabase, userId }) => {
       if (!isProtectedAppPath(request.nextUrl.pathname)) {
         return response;
       }
@@ -80,7 +141,8 @@ export async function proxy(request: NextRequest) {
         return NextResponse.redirect(appUrl("/disabled", request));
       }
 
-      const isCreditLocked = Boolean(data) && getAvailableAiCredits(data) <= 0;
+      const isAdmin = await isEnabledAdminUser({ email, userId });
+      const isCreditLocked = !isAdmin && Boolean(data) && getAvailableAiCredits(data) <= 0;
 
       if (isCreditLocked && !isCreditLockAllowedPath(request.nextUrl.pathname)) {
         if (request.nextUrl.pathname.startsWith("/api/")) {

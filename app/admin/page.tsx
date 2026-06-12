@@ -26,6 +26,11 @@ type ProjectRow = {
   user_id: string;
 };
 
+type AdminAllowlistRow = {
+  email: string | null;
+  user_id: string | null;
+};
+
 function formatNumber(value: number) {
   return new Intl.NumberFormat("en").format(value);
 }
@@ -85,40 +90,62 @@ export default async function AdminPage() {
       "id,email,full_name,admin_disabled,admin_deleted_at,llm_token_quota,llm_token_used,openclaw_instance,openclaw_provision_status,openclaw_instance_created_count,bedrock_token_updated_at,bedrock_token_last4"
     )
     .order("created_at", { ascending: false });
+  const { data: adminAllowlistRows } = await access.adminSupabase
+    .from("admin_users")
+    .select("email,user_id")
+    .eq("enabled", true);
   const { data: projectRows } = await access.adminSupabase.from("projects").select("user_id");
   const profiles = (profileRows ?? []) as ProfileRow[];
+  const adminAllowlist = (adminAllowlistRows ?? []) as AdminAllowlistRow[];
   const projects = (projectRows ?? []) as ProjectRow[];
   const projectCounts = new Map<string, number>();
+  const adminEmails = new Set(
+    adminAllowlist
+      .map((admin) => admin.email?.trim().toLowerCase())
+      .filter((email): email is string => Boolean(email))
+  );
+  const adminUserIds = new Set(
+    adminAllowlist
+      .map((admin) => admin.user_id?.trim())
+      .filter((userId): userId is string => Boolean(userId))
+  );
 
   for (const project of projects) {
     projectCounts.set(project.user_id, (projectCounts.get(project.user_id) ?? 0) + 1);
   }
 
-  const users: AdminUserRow[] = profiles.map((profile) => ({
-    adminDeletedAt: profile.admin_deleted_at,
-    bedrockTokenLast4: profile.bedrock_token_last4,
-    bedrockTokenUpdatedAt: profile.bedrock_token_updated_at,
-    disabled: Boolean(profile.admin_disabled || profile.admin_deleted_at),
-    email: profile.email,
-    fullName: profile.full_name,
-    id: profile.id,
-    llmTokenQuota: Number(profile.llm_token_quota ?? 0),
-    llmTokenUsed: Number(profile.llm_token_used ?? 0),
-    openclawInstance: profile.openclaw_instance,
-    openclawProvisionStatus: profile.openclaw_provision_status,
-    projectCount: projectCounts.get(profile.id) ?? 0
-  }));
+  const users: AdminUserRow[] = profiles.map((profile) => {
+    const normalizedEmail = profile.email?.trim().toLowerCase() ?? "";
+
+    return {
+      adminDeletedAt: profile.admin_deleted_at,
+      bedrockTokenLast4: profile.bedrock_token_last4,
+      bedrockTokenUpdatedAt: profile.bedrock_token_updated_at,
+      disabled: Boolean(profile.admin_disabled || profile.admin_deleted_at),
+      email: profile.email,
+      fullName: profile.full_name,
+      id: profile.id,
+      isAdmin: adminUserIds.has(profile.id) || Boolean(normalizedEmail && adminEmails.has(normalizedEmail)),
+      llmTokenQuota: Number(profile.llm_token_quota ?? 0),
+      llmTokenUsed: Number(profile.llm_token_used ?? 0),
+      openclawInstance: profile.openclaw_instance,
+      openclawProvisionStatus: profile.openclaw_provision_status,
+      projectCount: projectCounts.get(profile.id) ?? 0
+    };
+  });
 
   const registeredUsers = users.length;
   const activeUsers = users.filter((user) => !user.disabled).length;
   const disabledUsers = users.filter((user) => user.disabled).length;
   const activeInstances = users.filter((user) => user.openclawInstance).length;
+  const adminAccounts = users.filter((user) => user.isAdmin).length;
   const createdInstances = profiles.reduce(
     (sum, profile) => sum + Number(profile.openclaw_instance_created_count ?? 0),
     0
   );
-  const tokensAssigned = users.reduce((sum, user) => sum + user.llmTokenQuota, 0);
-  const tokensUsed = users.reduce((sum, user) => sum + user.llmTokenUsed, 0);
+  const quotaManagedUsers = users.filter((user) => !user.isAdmin);
+  const tokensAssigned = quotaManagedUsers.reduce((sum, user) => sum + user.llmTokenQuota, 0);
+  const tokensUsed = quotaManagedUsers.reduce((sum, user) => sum + user.llmTokenUsed, 0);
 
   const { data: adminProfileRow } = await access.adminSupabase
     .from("profiles")
@@ -148,13 +175,14 @@ export default async function AdminPage() {
             <div className="settings-workbench__header">
               <p className="workspace-status-card__eyebrow">Admin module</p>
               <h1 id="admin-title">2ndBrain administration</h1>
-              <p>Assign LLM token quotas, send or drain AI credits, disable access, delete workspace data, and overwrite per-user AWS Bedrock bearer tokens.</p>
+              <p>Assign LLM token quotas for non-admin users, send or drain AI credits, disable access, delete workspace data, and overwrite per-user AWS Bedrock bearer tokens.</p>
             </div>
 
             <div className="admin-metrics-grid">
               {metric("registered users", registeredUsers)}
               {metric("active users", activeUsers)}
               {metric("disabled or deleted users", disabledUsers)}
+              {metric("quota-exempt admin accounts", adminAccounts)}
               {metric("AI Agent instances created", createdInstances)}
               {metric("active AI Agent instances", activeInstances)}
               {metric("LLM tokens assigned", tokensAssigned)}

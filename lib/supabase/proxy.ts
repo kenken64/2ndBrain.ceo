@@ -9,6 +9,7 @@ import {
 
 type UpdateSessionOptions = {
   onAuthenticated?: (context: {
+    email: string | null;
     response: NextResponse;
     supabase: ReturnType<typeof createServerClient>;
     userId: string;
@@ -66,9 +67,11 @@ export async function updateSession(request: NextRequest, options: UpdateSession
   }
 
   const userId = typeof data?.claims?.sub === "string" ? data.claims.sub : null;
+  const email = typeof data?.claims?.email === "string" ? data.claims.email.toLowerCase() : null;
 
   if (userId && options.onAuthenticated) {
     return options.onAuthenticated({
+      email,
       response,
       supabase,
       userId

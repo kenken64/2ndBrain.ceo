@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getAdminAccess, logAdminAudit } from "@/lib/admin";
+import { getAdminAccess, isAdminUser, logAdminAudit } from "@/lib/admin";
 
 export const runtime = "nodejs";
 
@@ -89,6 +89,11 @@ export async function POST(_request: Request, context: AdminUserRouteContext) {
   }
 
   const targetProfile = target as TargetCreditProfile;
+
+  if (await isAdminUser(targetProfile.email, userId)) {
+    return NextResponse.json({ error: "Admin accounts are exempt from AI credit quotas." }, { status: 409 });
+  }
+
   const targetQuota = Number(targetProfile.llm_token_quota ?? 0);
   const targetUsed = Number(targetProfile.llm_token_used ?? 0);
   const amountTokens = Math.max(0, targetQuota - targetUsed);

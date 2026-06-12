@@ -108,7 +108,7 @@ export default async function DashboardSettingsPage({ searchParams }: DashboardS
   const profileName = optionalSettings?.profile_name?.trim() || ownerName || "";
   const availableCredits =
     Number(optionalSettings?.llm_token_quota ?? 0) - Number(optionalSettings?.llm_token_used ?? 0);
-  const isCreditLocked = availableCredits <= 0;
+  const isCreditLocked = !showAdmin && availableCredits <= 0;
   const disabledSettingsTabs: SettingsTabId[] =
     isCreditLocked && !promptGoogleWorkspaceAuth ? ["integrations"] : [];
 

@@ -12,6 +12,7 @@ export type AdminUserRow = {
   email: string | null;
   fullName: string | null;
   id: string;
+  isAdmin: boolean;
   llmTokenQuota: number;
   llmTokenUsed: number;
   openclawInstance: string | null;
@@ -75,7 +76,7 @@ export function AdminUsersTable({ adminAvailableTokens, adminUserId, users }: Ad
     }
 
     return users.filter((user) =>
-      [user.email, user.fullName, user.id, user.openclawInstance]
+      [user.email, user.fullName, user.id, user.openclawInstance, user.isAdmin ? "admin" : null]
         .filter(Boolean)
         .some((value) => String(value).toLowerCase().includes(needle))
     );
@@ -169,15 +170,26 @@ export function AdminUsersTable({ adminAvailableTokens, adminUserId, users }: Ad
               <div>
                 <strong>{user.email ?? "No email"}</strong>
                 <span>{user.fullName ?? user.id}</span>
+                {user.isAdmin ? <span className="project-status project-status--running">admin</span> : null}
                 <span className={`project-status${user.disabled ? " project-status--failed" : " project-status--ready"}`}>
                   {user.adminDeletedAt ? "deleted" : user.disabled ? "disabled" : "active"}
                 </span>
               </div>
 
               <div>
-                <strong>{formatNumber(remaining)} remaining</strong>
-                <span>{formatNumber(user.llmTokenUsed)} used</span>
-                <span>{formatNumber(user.llmTokenQuota)} assigned</span>
+                {user.isAdmin ? (
+                  <>
+                    <strong>Quota exempt</strong>
+                    <span>Admin account</span>
+                    <span>No AI credit quota required</span>
+                  </>
+                ) : (
+                  <>
+                    <strong>{formatNumber(remaining)} remaining</strong>
+                    <span>{formatNumber(user.llmTokenUsed)} used</span>
+                    <span>{formatNumber(user.llmTokenQuota)} assigned</span>
+                  </>
+                )}
               </div>
 
               <div>
@@ -187,30 +199,40 @@ export function AdminUsersTable({ adminAvailableTokens, adminUserId, users }: Ad
               </div>
 
               <div className="admin-user-row__controls">
-                <form
-                  onSubmit={(event) => {
-                    event.preventDefault();
-                    const form = new FormData(event.currentTarget);
-                    const quota = Number(form.get("quota") ?? 0);
-                    void runAction(user.id, () => postJson(`/api/admin/users/${user.id}/quota`, { quota }));
-                  }}
-                >
-                  <label htmlFor={`quota-${user.id}`}>Token quota</label>
-                  <input
-                    defaultValue={user.llmTokenQuota}
-                    disabled={isBusy}
-                    id={`quota-${user.id}`}
-                    min={0}
-                    name="quota"
-                    step={1}
-                    type="number"
-                  />
-                  <button className="btn-ghost" disabled={isBusy} type="submit">
-                    Save
-                  </button>
-                </form>
+                {user.isAdmin ? (
+                  <span className="admin-field-hint">
+                    Admin accounts are exempt from AI credit quotas, so no token quota is required.
+                  </span>
+                ) : (
+                  <form
+                    onSubmit={(event) => {
+                      event.preventDefault();
+                      const form = new FormData(event.currentTarget);
+                      const quota = Number(form.get("quota") ?? 0);
+                      void runAction(user.id, () => postJson(`/api/admin/users/${user.id}/quota`, { quota }));
+                    }}
+                  >
+                    <label htmlFor={`quota-${user.id}`}>Token quota</label>
+                    <input
+                      defaultValue={user.llmTokenQuota}
+                      disabled={isBusy}
+                      id={`quota-${user.id}`}
+                      min={0}
+                      name="quota"
+                      step={1}
+                      type="number"
+                    />
+                    <button className="btn-ghost" disabled={isBusy} type="submit">
+                      Save
+                    </button>
+                  </form>
+                )}
 
-                {isSelf ? (
+                {user.isAdmin ? (
+                  <span className="admin-field-hint">
+                    Credit transfers are not required for admin accounts.
+                  </span>
+                ) : isSelf ? (
                   <span className="admin-field-hint">
                     This is your account. Use Settings to transfer your own AI credits.
                   </span>
@@ -313,27 +335,29 @@ export function AdminUsersTable({ adminAvailableTokens, adminUserId, users }: Ad
                       >
                         {user.disabled ? "Enable" : "Disable"}
                       </button>
-                      <button
-                        className="btn-ghost"
-                        disabled={isBusy || remaining <= 0}
-                        onClick={() => {
-                          if (
-                            window.confirm(
-                              `Drain ${formatNumber(remaining)} unused AI credits from ${user.email ?? user.id} back to your admin account?`
-                            )
-                          ) {
-                            void runAction(
-                              user.id,
-                              () => postJson(`/api/admin/users/${user.id}/credits/drain`, {}),
-                              `Drained ${formatNumber(remaining)} AI credits back to your account.`
-                            );
-                          }
-                        }}
-                        title={remaining <= 0 ? "This user has no unused AI credits to drain." : "Drain unused AI credits to your admin account."}
-                        type="button"
-                      >
-                        Drain credits
-                      </button>
+                      {!user.isAdmin ? (
+                        <button
+                          className="btn-ghost"
+                          disabled={isBusy || remaining <= 0}
+                          onClick={() => {
+                            if (
+                              window.confirm(
+                                `Drain ${formatNumber(remaining)} unused AI credits from ${user.email ?? user.id} back to your admin account?`
+                              )
+                            ) {
+                              void runAction(
+                                user.id,
+                                () => postJson(`/api/admin/users/${user.id}/credits/drain`, {}),
+                                `Drained ${formatNumber(remaining)} AI credits back to your account.`
+                              );
+                            }
+                          }}
+                          title={remaining <= 0 ? "This user has no unused AI credits to drain." : "Drain unused AI credits to your admin account."}
+                          type="button"
+                        >
+                          Drain credits
+                        </button>
+                      ) : null}
                       <button
                         className="btn-ghost danger-button"
                         disabled={isBusy}

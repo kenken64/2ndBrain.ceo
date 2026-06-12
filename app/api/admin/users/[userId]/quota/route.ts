@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getAdminAccess, logAdminAudit } from "@/lib/admin";
+import { getAdminAccess, isAdminUser, logAdminAudit } from "@/lib/admin";
 import { getAdminTargetProfile } from "@/lib/admin-workspace";
 
 export const runtime = "nodejs";
@@ -30,6 +30,11 @@ export async function POST(request: Request, context: AdminUserRouteContext) {
   }
 
   const target = await getAdminTargetProfile(access.adminSupabase, userId);
+
+  if (await isAdminUser(target.email, userId)) {
+    return NextResponse.json({ error: "Admin accounts are exempt from token quotas." }, { status: 409 });
+  }
+
   const { error } = await access.adminSupabase
     .from("profiles")
     .update({

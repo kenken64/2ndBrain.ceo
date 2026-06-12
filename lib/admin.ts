@@ -38,20 +38,29 @@ export type AdminAccessResult =
       userId?: string;
     };
 
-async function isAdminEmail(email: string, userId: string) {
-  const normalizedEmail = email.trim().toLowerCase();
+export async function isAdminUser(email: string | null | undefined, userId: string | null | undefined) {
+  const normalizedEmail = email?.trim().toLowerCase() ?? "";
+  const normalizedUserId = userId?.trim() ?? "";
 
-  if (!hasSupabaseServiceRoleEnv()) {
+  if ((!normalizedEmail && !normalizedUserId) || !hasSupabaseServiceRoleEnv()) {
     return false;
   }
 
   const adminSupabase = createAdminClient();
-  const { data, error } = await adminSupabase
+  let query = adminSupabase
     .from("admin_users")
     .select("id")
-    .eq("enabled", true)
-    .or(`email.eq.${normalizedEmail},user_id.eq.${userId}`)
-    .maybeSingle();
+    .eq("enabled", true);
+
+  if (normalizedEmail && normalizedUserId) {
+    query = query.or(`email.eq.${normalizedEmail},user_id.eq.${normalizedUserId}`);
+  } else if (normalizedEmail) {
+    query = query.eq("email", normalizedEmail);
+  } else {
+    query = query.eq("user_id", normalizedUserId);
+  }
+
+  const { data, error } = await query.maybeSingle();
 
   if (error) {
     return false;
@@ -65,7 +74,7 @@ export async function canShowAdminWorkspaceLink(input?: { email?: string | null;
   const userId = input?.userId?.trim();
 
   if (email && userId) {
-    return isAdminEmail(email, userId);
+    return isAdminUser(email, userId);
   }
 
   const access = await getAdminAccess({
@@ -114,7 +123,7 @@ export async function getAdminAccess(options: AdminAccessOptions = {}): Promise<
     };
   }
 
-  if (!(await isAdminEmail(email, userId))) {
+  if (!(await isAdminUser(email, userId))) {
     return {
       email,
       message: "Admin access required.",
