@@ -1,7 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
+import { ChevronLeft, ChevronRight, Search } from "lucide-react";
 
 export type AdminUserRow = {
   adminDeletedAt: string | null;
@@ -19,11 +20,27 @@ export type AdminUserRow = {
 };
 
 type AdminUsersTableProps = {
+  adminAvailableTokens: number;
+  adminUserId: string;
   users: AdminUserRow[];
 };
 
+const PAGE_SIZE = 10;
+
 function formatNumber(value: number) {
   return new Intl.NumberFormat("en").format(value);
+}
+
+function parseTransferAmount(value: FormDataEntryValue | null) {
+  const text = typeof value === "string" ? value.trim() : "";
+
+  if (!/^\d+$/.test(text)) {
+    return null;
+  }
+
+  const amount = Number(text);
+
+  return Number.isSafeInteger(amount) && amount > 0 ? amount : null;
 }
 
 async function postJson(url: string, body: Record<string, unknown>) {
@@ -43,19 +60,39 @@ async function postJson(url: string, body: Record<string, unknown>) {
   return data;
 }
 
-export function AdminUsersTable({ users }: AdminUsersTableProps) {
+export function AdminUsersTable({ adminAvailableTokens, adminUserId, users }: AdminUsersTableProps) {
   const router = useRouter();
   const [busyUserId, setBusyUserId] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
+  const [query, setQuery] = useState("");
+  const [page, setPage] = useState(1);
 
-  async function runAction(userId: string, action: () => Promise<unknown>) {
+  const filteredUsers = useMemo(() => {
+    const needle = query.trim().toLowerCase();
+
+    if (!needle) {
+      return users;
+    }
+
+    return users.filter((user) =>
+      [user.email, user.fullName, user.id, user.openclawInstance]
+        .filter(Boolean)
+        .some((value) => String(value).toLowerCase().includes(needle))
+    );
+  }, [query, users]);
+
+  const pageCount = Math.max(1, Math.ceil(filteredUsers.length / PAGE_SIZE));
+  const currentPage = Math.min(page, pageCount);
+  const pageUsers = filteredUsers.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE);
+
+  async function runAction(userId: string, action: () => Promise<unknown>, successMessage = "Admin action completed.") {
     setBusyUserId(userId);
     setMessage(null);
 
     try {
       await action();
       router.refresh();
-      setMessage("Admin action completed.");
+      setMessage(successMessage);
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "Admin action failed.");
     } finally {
@@ -66,8 +103,50 @@ export function AdminUsersTable({ users }: AdminUsersTableProps) {
   return (
     <section className="admin-table-shell" aria-labelledby="admin-users-title">
       <div className="projects-section__header">
-        <h2 id="admin-users-title">Google users</h2>
+        <h2 id="admin-users-title">2ndBrain users</h2>
         {message ? <p className="login-dialog__message" role="status">{message}</p> : null}
+      </div>
+
+      <div className="admin-users-toolbar">
+        <label className="admin-users-toolbar__search">
+          <Search aria-hidden="true" size={16} strokeWidth={1.8} />
+          <input
+            aria-label="Search users by email, name, or instance"
+            onChange={(event) => {
+              setQuery(event.target.value);
+              setPage(1);
+            }}
+            placeholder="Search by email, name, or instance..."
+            type="search"
+            value={query}
+          />
+        </label>
+        <span className="admin-users-toolbar__count">
+          {formatNumber(filteredUsers.length)} of {formatNumber(users.length)} users
+        </span>
+        <div className="admin-users-pagination">
+          <button
+            aria-label="Previous page"
+            className="btn-ghost"
+            disabled={currentPage <= 1}
+            onClick={() => setPage(currentPage - 1)}
+            type="button"
+          >
+            <ChevronLeft size={16} strokeWidth={1.8} />
+          </button>
+          <span>
+            Page {currentPage} of {pageCount}
+          </span>
+          <button
+            aria-label="Next page"
+            className="btn-ghost"
+            disabled={currentPage >= pageCount}
+            onClick={() => setPage(currentPage + 1)}
+            type="button"
+          >
+            <ChevronRight size={16} strokeWidth={1.8} />
+          </button>
+        </div>
       </div>
 
       <div className="admin-users-table">
@@ -77,9 +156,13 @@ export function AdminUsersTable({ users }: AdminUsersTableProps) {
           <span>AI Agent</span>
           <span>Controls</span>
         </div>
-        {users.map((user) => {
+        {pageUsers.length === 0 ? (
+          <p className="admin-users-empty">No users match your search.</p>
+        ) : null}
+        {pageUsers.map((user) => {
           const remaining = Math.max(0, user.llmTokenQuota - user.llmTokenUsed);
           const isBusy = busyUserId === user.id;
+          const isSelf = user.id === adminUserId;
 
           return (
             <article className="admin-user-row" key={user.id}>
@@ -127,6 +210,62 @@ export function AdminUsersTable({ users }: AdminUsersTableProps) {
                   </button>
                 </form>
 
+                {isSelf ? (
+                  <span className="admin-field-hint">
+                    This is your account. Use Settings to transfer your own AI credits.
+                  </span>
+                ) : user.email ? (
+                  <form
+                    onSubmit={(event) => {
+                      event.preventDefault();
+                      const formElement = event.currentTarget;
+                      const amount = parseTransferAmount(new FormData(formElement).get("transferAmount"));
+
+                      if (!amount) {
+                        setMessage("Enter a positive AI credit amount to send.");
+                        return;
+                      }
+
+                      if (amount > adminAvailableTokens) {
+                        setMessage("Transfer amount exceeds your available AI credits.");
+                        return;
+                      }
+
+                      void runAction(
+                        user.id,
+                        () =>
+                          postJson("/api/billing/credits/transfer", {
+                            amountTokens: amount,
+                            recipientEmail: user.email
+                          }),
+                        `Sent ${formatNumber(amount)} AI credits to ${user.email}.`
+                      );
+                      formElement.reset();
+                    }}
+                  >
+                    <label htmlFor={`transfer-${user.id}`}>Send AI credits</label>
+                    <input
+                      disabled={isBusy || adminAvailableTokens <= 0}
+                      id={`transfer-${user.id}`}
+                      inputMode="numeric"
+                      min={1}
+                      max={adminAvailableTokens || undefined}
+                      name="transferAmount"
+                      placeholder={`Up to ${formatNumber(adminAvailableTokens)}`}
+                      step={1}
+                      type="number"
+                    />
+                    <button className="btn-ghost" disabled={isBusy || adminAvailableTokens <= 0} type="submit">
+                      Send
+                    </button>
+                    {adminAvailableTokens <= 0 ? (
+                      <span className="admin-field-hint">You have no available AI credits to send.</span>
+                    ) : null}
+                  </form>
+                ) : (
+                  <span className="admin-field-hint">No email on file; AI credits cannot be sent.</span>
+                )}
+
                 <form
                   onSubmit={(event) => {
                     event.preventDefault();
@@ -136,7 +275,7 @@ export function AdminUsersTable({ users }: AdminUsersTableProps) {
                     event.currentTarget.reset();
                   }}
                 >
-                  <label htmlFor={`bedrock-${user.id}`}>Bedrock bearer token</label>
+                  <label htmlFor={`bedrock-${user.id}`}>AWS Bedrock bearer token</label>
                   <input
                     autoComplete="off"
                     disabled={isBusy || !user.openclawInstance}
@@ -148,6 +287,11 @@ export function AdminUsersTable({ users }: AdminUsersTableProps) {
                   <button className="btn-ghost" disabled={isBusy || !user.openclawInstance} type="submit">
                     Overwrite
                   </button>
+                  {!user.openclawInstance ? (
+                    <span className="admin-field-hint">
+                      Disabled until this user has a provisioned AI Agent instance to install the token on.
+                    </span>
+                  ) : null}
                 </form>
 
                 <div className="admin-user-row__buttons">

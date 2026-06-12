@@ -120,6 +120,18 @@ export default async function AdminPage() {
   const tokensAssigned = users.reduce((sum, user) => sum + user.llmTokenQuota, 0);
   const tokensUsed = users.reduce((sum, user) => sum + user.llmTokenUsed, 0);
 
+  const { data: adminProfileRow } = await access.adminSupabase
+    .from("profiles")
+    .select("llm_token_quota,llm_token_used")
+    .eq("id", access.userId)
+    .maybeSingle();
+  const adminAvailableTokens = adminProfileRow
+    ? Math.max(
+        0,
+        Number(adminProfileRow.llm_token_quota ?? 0) - Number(adminProfileRow.llm_token_used ?? 0)
+      )
+    : 0;
+
   return (
     <>
       <Atmosphere />
@@ -136,7 +148,7 @@ export default async function AdminPage() {
             <div className="settings-workbench__header">
               <p className="workspace-status-card__eyebrow">Admin module</p>
               <h1 id="admin-title">2ndBrain administration</h1>
-              <p>Assign LLM token quotas, disable access, delete workspace data, and overwrite per-user Bedrock bearer tokens.</p>
+              <p>Assign LLM token quotas, send AI credits from your balance, disable access, delete workspace data, and overwrite per-user AWS Bedrock bearer tokens.</p>
             </div>
 
             <div className="admin-metrics-grid">
@@ -147,9 +159,14 @@ export default async function AdminPage() {
               {metric("active AI Agent instances", activeInstances)}
               {metric("LLM tokens assigned", tokensAssigned)}
               {metric("LLM tokens used", tokensUsed)}
+              {metric("your AI credits available", adminAvailableTokens)}
             </div>
 
-            <AdminUsersTable users={users} />
+            <AdminUsersTable
+              adminAvailableTokens={adminAvailableTokens}
+              adminUserId={access.userId}
+              users={users}
+            />
           </section>
         </main>
       </div>

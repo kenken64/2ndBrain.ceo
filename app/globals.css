@@ -928,6 +928,73 @@ svg {
   gap: 8px;
 }
 
+.admin-users-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px 16px;
+}
+
+.admin-users-toolbar__search {
+  position: relative;
+  display: block;
+  flex: 1 1 260px;
+  min-width: 220px;
+}
+
+.admin-users-toolbar__search svg {
+  position: absolute;
+  left: 13px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--fg-muted);
+  pointer-events: none;
+}
+
+.admin-users-toolbar__search input {
+  width: 100%;
+  min-height: 42px;
+  border: 1px solid var(--border-soft);
+  border-radius: var(--radius-pill);
+  background: var(--bg-elevated);
+  color: var(--fg-primary);
+  padding: 9px 16px 9px 38px;
+}
+
+.admin-users-toolbar__count {
+  color: var(--fg-secondary);
+  font-size: 13px;
+  white-space: nowrap;
+}
+
+.admin-users-pagination {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-left: auto;
+}
+
+.admin-users-pagination span {
+  color: var(--fg-secondary);
+  font-size: 13px;
+  white-space: nowrap;
+}
+
+.admin-user-row .admin-field-hint,
+.admin-field-hint {
+  color: var(--fg-muted);
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.admin-users-empty {
+  border: 1px dashed var(--border-medium);
+  border-radius: var(--radius-lg);
+  padding: 28px;
+  text-align: center;
+  color: var(--fg-secondary);
+}
+
 .danger-button {
   border-color: rgba(220, 38, 38, 0.18);
   color: var(--error-text);
