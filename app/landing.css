@@ -262,7 +262,6 @@
   position: relative;
   display: grid;
   grid-template-columns: repeat(12, minmax(0, 1fr));
-  width: 100%;
 }
 
 .lp-hero__main {
