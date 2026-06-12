@@ -1,15 +1,10 @@
 import { redirect } from "next/navigation";
 import { AnnouncementPill } from "@/components/announcement-pill";
-import { AiCreditsPaymentPanel } from "@/components/ai-credits-payment-panel";
 import { Atmosphere } from "@/components/atmosphere";
-import { ChangeTelegramBotTokenButton } from "@/components/change-telegram-bot-token-button";
-import { ClaudeAuthReconnectButton } from "@/components/claude-auth-reconnect-button";
 import { DashboardSidebar } from "@/components/dashboard-sidebar";
-import { DestroyWorkspaceButton } from "@/components/destroy-workspace-button";
 import { SetupCallout } from "@/components/setup-callout";
-import { SettingsIntegrations } from "@/components/settings-integrations";
-import { SettingsProfileForm } from "@/components/settings-profile-form";
-import { SettingsTabs, type SettingsTabId } from "@/components/settings-tabs";
+import { SettingsPageTabs } from "@/components/settings-page-tabs";
+import { type SettingsTabId } from "@/components/settings-tabs";
 import { canShowAdminWorkspaceLink } from "@/lib/admin";
 import { hasSupabaseEnv } from "@/lib/env";
 import {
@@ -106,11 +101,10 @@ export default async function DashboardSettingsPage({ searchParams }: DashboardS
     : { data: null };
   const optionalSettings = settingsProfile as BillingProfileSettings | null;
   const profileName = optionalSettings?.profile_name?.trim() || ownerName || "";
-  const availableCredits =
-    Number(optionalSettings?.llm_token_quota ?? 0) - Number(optionalSettings?.llm_token_used ?? 0);
+  const llmTokenQuota = Number(optionalSettings?.llm_token_quota ?? 0);
+  const llmTokenUsed = Number(optionalSettings?.llm_token_used ?? 0);
+  const availableCredits = llmTokenQuota - llmTokenUsed;
   const isCreditLocked = !showAdmin && availableCredits <= 0;
-  const disabledSettingsTabs: SettingsTabId[] =
-    isCreditLocked && !promptGoogleWorkspaceAuth ? ["integrations"] : [];
 
   return (
     <>
@@ -138,75 +132,18 @@ export default async function DashboardSettingsPage({ searchParams }: DashboardS
               <p>Manage external integrations and destructive workspace actions from one protected page.</p>
             </div>
 
-            <SettingsTabs
-              disabledReason="Add AI credits or destroy this instance to continue."
-              disabledTabs={disabledSettingsTabs}
-              general={
-                <div className="settings-grid settings-grid--general">
-                  <SettingsProfileForm
-                    disabled={isCreditLocked}
-                    initialProfileName={profileName}
-                    userEmail={email}
-                  />
-
-                  <article className="settings-action-card settings-action-card--danger">
-                    <div>
-                      <p className="workspace-status-card__eyebrow">Danger zone</p>
-                      <h2>Destroy instance</h2>
-                      <p>
-                        Destroy the Lightsail OpenClaw instance, clear generated Nth Brain project history, reset onboarding, and log out.
-                      </p>
-                    </div>
-                    <DestroyWorkspaceButton variant="panel" />
-                  </article>
-                </div>
-              }
-              initialTab={
-                disabledSettingsTabs.length > 0
-                  ? (requestedTab === "general" ? "general" : "payment")
-                  : requestedTab
-              }
-              integrations={
-                <div className="settings-grid settings-grid--integrations">
-                  <SettingsIntegrations
-                    initialGoogleWorkspaceAuthPrompt={promptGoogleWorkspaceAuth}
-                    initialGoogleWorkspaceEnabled={Boolean(optionalSettings?.google_workspace_enabled)}
-                  />
-
-                  <article className="settings-action-card">
-                    <div>
-                      <p className="workspace-status-card__eyebrow">Telegram bot</p>
-                      <h2>Reconfigure Telegram bot</h2>
-                      <p>
-                        Update the Telegram bot token on the current OpenClaw instance and restart the pairing flow for approval.
-                      </p>
-                    </div>
-                    <ChangeTelegramBotTokenButton variant="panel" />
-                  </article>
-
-                  <article className="settings-action-card">
-                    <div>
-                      <p className="workspace-status-card__eyebrow">Claude Code auth</p>
-                      <h2>Reconnect Claude on OpenClaw</h2>
-                      <p>
-                        Start the Claude sign-in flow on the OpenClaw instance, open the returned login URL, and poll until Claude Code auth is restored.
-                      </p>
-                    </div>
-                    <ClaudeAuthReconnectButton />
-                  </article>
-                </div>
-              }
-              payment={
-                <div className="settings-grid settings-grid--payment">
-                  <AiCreditsPaymentPanel
-                    billingConfigured={hasSolanaBillingEnv()}
-                    initialQuota={Number(optionalSettings?.llm_token_quota ?? 0)}
-                    initialUsed={Number(optionalSettings?.llm_token_used ?? 0)}
-                    packageTokens={AI_CREDIT_PACKAGE_TOKENS}
-                    packageUsdCents={AI_CREDIT_PACKAGE_USD_CENTS}
-                  />
-                </div>
-              }
+            <SettingsPageTabs
+              billingConfigured={hasSolanaBillingEnv()}
+              initialGoogleWorkspaceEnabled={Boolean(optionalSettings?.google_workspace_enabled)}
+              initialProfileName={profileName}
+              initialTab={requestedTab}
+              isAdmin={showAdmin}
+              packageTokens={AI_CREDIT_PACKAGE_TOKENS}
+              packageUsdCents={AI_CREDIT_PACKAGE_USD_CENTS}
+              promptGoogleWorkspaceAuth={promptGoogleWorkspaceAuth}
+              tokenQuota={llmTokenQuota}
+              tokenUsed={llmTokenUsed}
+              userEmail={email}
             />
           </section>
         </main>
