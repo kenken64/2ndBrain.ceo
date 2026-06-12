@@ -90,3 +90,43 @@ Drain is intentionally separate from normal transfer.
 | Billing recipient/transfer guard | Rejects normal transfers to admin accounts. |
 | Admin drain route guard | Rejects draining from admin accounts and self-drain attempts. |
 
+## Redis Event Contract
+
+When `TOKEN_QUOTA_REDIS_URL` or `REDIS_URL` is configured, every quota balance mutation publishes a JSON message to `TOKEN_QUOTA_REDIS_CHANNEL`. The default channel is `2ndbrain:token-quota`.
+
+The event name is always `token_quota.updated`.
+
+```json
+{
+  "actor": {
+    "email": "admin@example.com",
+    "userId": "admin-user-id"
+  },
+  "availableTokens": 7500000,
+  "deltaTokens": 7500000,
+  "email": "user@example.com",
+  "event": "token_quota.updated",
+  "llmTokenQuota": 7500000,
+  "llmTokenUsed": 0,
+  "metadata": {
+    "transferId": "optional-transfer-or-payment-id"
+  },
+  "occurredAt": "2026-06-12T00:00:00.000Z",
+  "reason": "admin_quota_update",
+  "source": "2ndBrain.ceo",
+  "userId": "target-user-id",
+  "version": 1
+}
+```
+
+Published reasons:
+
+| Reason | Meaning |
+| --- | --- |
+| `admin_quota_update` | Admin set a normal user's token quota directly. |
+| `admin_credit_drain_from_user` | Admin drained unused credits from a normal user. |
+| `admin_credit_drain_to_admin` | Admin received credits from a drain. |
+| `transfer_credit_out` | User sent credits to another normal user. |
+| `transfer_credit_in` | User received credits from another normal user. |
+| `solana_credit_purchase` | User purchased AI credits with Solana. |
+| `project_token_usage` | User consumed estimated project tokens. |

@@ -10,6 +10,7 @@ import { getUserIdFromClaims } from "@/lib/onboarding";
 import { createSolanaConnection } from "@/lib/solana-billing";
 import { createAdminClient, hasSupabaseServiceRoleEnv } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
+import { publishTokenQuotaUpdate } from "@/lib/token-quota-redis";
 
 export const runtime = "nodejs";
 
@@ -275,15 +276,32 @@ export async function POST(request: Request) {
   const applied = appliedData as AppliedCreditRow;
   const { data: profile } = await adminSupabase
     .from("profiles")
-    .select("llm_token_used")
+    .select("email,llm_token_used")
     .eq("id", auth.userId)
     .maybeSingle();
+  const llmTokenQuota = Number(applied.new_llm_token_quota);
+  const llmTokenUsed = Number(profile?.llm_token_used ?? 0);
+
+  await publishTokenQuotaUpdate({
+    actorUserId: auth.userId,
+    deltaTokens: Number(applied.added_tokens),
+    email: profile?.email ?? null,
+    llmTokenQuota,
+    llmTokenUsed,
+    metadata: {
+      paymentId: applied.payment_id,
+      quoteId: quote.id,
+      signature
+    },
+    reason: "solana_credit_purchase",
+    userId: auth.userId
+  });
 
   return NextResponse.json({
     credit: {
       addedTokens: Number(applied.added_tokens),
-      llmTokenQuota: Number(applied.new_llm_token_quota),
-      llmTokenUsed: Number(profile?.llm_token_used ?? 0),
+      llmTokenQuota,
+      llmTokenUsed,
       paymentId: applied.payment_id
     },
     ok: true

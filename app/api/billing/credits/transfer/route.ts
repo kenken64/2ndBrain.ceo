@@ -4,6 +4,7 @@ import { hasSupabaseEnv } from "@/lib/env";
 import { getUserIdFromClaims } from "@/lib/onboarding";
 import { createAdminClient, hasSupabaseServiceRoleEnv } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
+import { publishTokenQuotaUpdate } from "@/lib/token-quota-redis";
 
 export const runtime = "nodejs";
 
@@ -137,6 +138,35 @@ export async function POST(request: Request) {
   }
 
   const transfer = data as CreditTransferRow;
+
+  await Promise.all([
+    publishTokenQuotaUpdate({
+      actorUserId: auth.userId,
+      deltaTokens: -Number(transfer.amount_tokens),
+      email: transfer.sender_email,
+      llmTokenQuota: Number(transfer.sender_llm_token_quota),
+      llmTokenUsed: Number(transfer.sender_llm_token_used),
+      metadata: {
+        recipientUserId: transfer.recipient_user_id,
+        transferId: transfer.transfer_id
+      },
+      reason: "transfer_credit_out",
+      userId: transfer.sender_user_id
+    }),
+    publishTokenQuotaUpdate({
+      actorUserId: auth.userId,
+      deltaTokens: Number(transfer.amount_tokens),
+      email: transfer.recipient_email,
+      llmTokenQuota: Number(transfer.recipient_llm_token_quota),
+      llmTokenUsed: Number(transfer.recipient_llm_token_used),
+      metadata: {
+        senderUserId: transfer.sender_user_id,
+        transferId: transfer.transfer_id
+      },
+      reason: "transfer_credit_in",
+      userId: transfer.recipient_user_id
+    })
+  ]);
 
   return NextResponse.json({
     transfer: {

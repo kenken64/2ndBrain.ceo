@@ -167,6 +167,15 @@ You can also provide multiple emails with `--emails owner@example.com,ops@exampl
 
 There is no separate admin password or in-app admin registration form. Admin pages and admin APIs require a Supabase Google session with TOTP MFA verified to `aal2`. Enable Supabase Auth MFA/TOTP for the project, load the admin email with `npm run admin:load`, sign in with that same Google account, then visit `/admin`; admins who have not verified MFA are redirected to `/admin/mfa` for authenticator app enrollment.
 
+For external quota listeners such as the tty proxy, set Redis pub/sub variables on Railway:
+
+```txt
+TOKEN_QUOTA_REDIS_URL=redis://default:password@host:port
+TOKEN_QUOTA_REDIS_CHANNEL=2ndbrain:token-quota
+```
+
+When configured, quota changes publish a JSON `token_quota.updated` event to the channel. If the Redis URL is not set, quota changes still succeed without publishing.
+
 For Solana credit purchases, Railway must include a treasury wallet public key. The browser connects to Phantom and sends Solana directly from the user wallet to this treasury address. The server verifies the on-chain transaction before incrementing the user's AI credit quota.
 
 Use devnet first for payment testing. The app defaults to devnet when `SOLANA_PAYMENT_NETWORK` is not set, and selecting `devnet` uses `https://api.devnet.solana.com` unless `SOLANA_RPC_URL` overrides it. Switch Phantom to devnet before paying test quotes.

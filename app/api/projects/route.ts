@@ -11,6 +11,7 @@ import {
 import { generateOpenClawWikiProject } from "@/lib/openclaw";
 import { createAdminClient, hasSupabaseServiceRoleEnv } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
+import { publishTokenQuotaUpdate } from "@/lib/token-quota-redis";
 import { appUrl, safeNextPath } from "@/lib/url";
 import { convertWikiAttachments } from "@/lib/wiki-attachments";
 
@@ -203,7 +204,7 @@ export async function POST(request: Request) {
   const adminSupabase = createAdminClient();
   const { data: quotaProfile, error: quotaProfileError } = await adminSupabase
     .from("profiles")
-    .select("admin_disabled,admin_deleted_at,llm_token_quota,llm_token_used")
+    .select("admin_disabled,admin_deleted_at,email,llm_token_quota,llm_token_used")
     .eq("id", auth.userId)
     .maybeSingle();
 
@@ -258,6 +259,21 @@ export async function POST(request: Request) {
     }
 
     return NextResponse.json({ error: usageError.message }, { status: 500 });
+  }
+
+  if (!isAdmin) {
+    await publishTokenQuotaUpdate({
+      actorUserId: auth.userId,
+      deltaTokens: -estimatedTokenCost,
+      email: quotaProfile?.email ?? null,
+      llmTokenQuota: quota,
+      llmTokenUsed: used + estimatedTokenCost,
+      metadata: {
+        estimatedTokenCost
+      },
+      reason: "project_token_usage",
+      userId: auth.userId
+    });
   }
 
   const { data, error } = await auth.supabase

@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { getAdminAccess, isAdminUser, logAdminAudit } from "@/lib/admin";
 import { getAdminTargetProfile } from "@/lib/admin-workspace";
+import { publishTokenQuotaUpdate } from "@/lib/token-quota-redis";
 
 export const runtime = "nodejs";
 
@@ -35,12 +36,14 @@ export async function POST(request: Request, context: AdminUserRouteContext) {
     return NextResponse.json({ error: "Admin accounts are exempt from token quotas." }, { status: 409 });
   }
 
-  const { error } = await access.adminSupabase
+  const { data: updatedProfile, error } = await access.adminSupabase
     .from("profiles")
     .update({
       llm_token_quota: quota
     })
-    .eq("id", userId);
+    .eq("id", userId)
+    .select("id,email,llm_token_quota,llm_token_used")
+    .single();
 
   if (error) {
     await logAdminAudit(access.adminSupabase, {
@@ -63,6 +66,19 @@ export async function POST(request: Request, context: AdminUserRouteContext) {
     details: { quota },
     targetEmail: target.email,
     targetUserId: userId
+  });
+
+  await publishTokenQuotaUpdate({
+    actorEmail: access.email,
+    actorUserId: access.userId,
+    email: updatedProfile.email,
+    llmTokenQuota: Number(updatedProfile.llm_token_quota ?? 0),
+    llmTokenUsed: Number(updatedProfile.llm_token_used ?? 0),
+    metadata: {
+      adminAction: "llm_token_quota_update"
+    },
+    reason: "admin_quota_update",
+    userId
   });
 
   return NextResponse.json({ ok: true });

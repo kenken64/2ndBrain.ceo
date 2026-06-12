@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { getAdminAccess, isAdminUser, logAdminAudit } from "@/lib/admin";
+import { publishTokenQuotaUpdate } from "@/lib/token-quota-redis";
 
 export const runtime = "nodejs";
 
@@ -142,6 +143,36 @@ export async function POST(_request: Request, context: AdminUserRouteContext) {
     targetEmail: targetProfile.email,
     targetUserId: userId
   });
+
+  await Promise.all([
+    publishTokenQuotaUpdate({
+      actorEmail: access.email,
+      actorUserId: access.userId,
+      deltaTokens: -Number(drain.amount_tokens),
+      email: drain.sender_email,
+      llmTokenQuota: Number(drain.sender_llm_token_quota),
+      llmTokenUsed: Number(drain.sender_llm_token_used),
+      metadata: {
+        transferId: drain.transfer_id
+      },
+      reason: "admin_credit_drain_from_user",
+      userId: drain.sender_user_id
+    }),
+    publishTokenQuotaUpdate({
+      actorEmail: access.email,
+      actorUserId: access.userId,
+      deltaTokens: Number(drain.amount_tokens),
+      email: drain.recipient_email,
+      llmTokenQuota: Number(drain.recipient_llm_token_quota),
+      llmTokenUsed: Number(drain.recipient_llm_token_used),
+      metadata: {
+        sourceUserId: drain.sender_user_id,
+        transferId: drain.transfer_id
+      },
+      reason: "admin_credit_drain_to_admin",
+      userId: drain.recipient_user_id
+    })
+  ]);
 
   return NextResponse.json({
     drain: {
