@@ -1,24 +1,13 @@
 import { NextResponse } from "next/server";
 import { hasSupabaseEnv } from "@/lib/env";
 import { getUserIdFromClaims, onboardingPath } from "@/lib/onboarding";
-import { destroyOpenClawInstance } from "@/lib/openclaw";
+import { destroyOpenClawInstance, isOpenClawInstanceMissingError } from "@/lib/openclaw";
 import { createClient } from "@/lib/supabase/server";
 
 export const runtime = "nodejs";
 
 function outputSummary(value: string) {
   return value.slice(-4000);
-}
-
-function isAlreadyDestroyed(error: unknown) {
-  const message = error instanceof Error ? error.message.toLowerCase() : String(error).toLowerCase();
-
-  return (
-    message.includes("notfound") ||
-    message.includes("not found") ||
-    message.includes("does not exist") ||
-    message.includes("no instance")
-  );
 }
 
 function resetProfilePatch(destroyOutput: string | null) {
@@ -102,7 +91,7 @@ export async function POST(request: Request) {
 
       destroyOutput = destroyed.output;
     } catch (error) {
-      if (!isAlreadyDestroyed(error)) {
+      if (!isOpenClawInstanceMissingError(error)) {
         const message = error instanceof Error ? error.message : "openclaw_destroy_failed";
 
         return NextResponse.json({ error: message }, { status: 500 });

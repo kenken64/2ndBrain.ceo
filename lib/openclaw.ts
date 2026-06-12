@@ -572,6 +572,20 @@ function isNonFatalWikiIngestJsonError(error: unknown) {
   );
 }
 
+export function isOpenClawInstanceMissingError(error: unknown) {
+  const message = error instanceof Error ? error.message : String(error ?? "");
+  const normalized = message.toLowerCase();
+
+  return (
+    normalized.includes("notfound") ||
+    normalized.includes("not found") ||
+    normalized.includes("does not exist") ||
+    normalized.includes("no instance") ||
+    /\bno\b[\s\S]{0,80}\binstance\b[\s\S]{0,80}\bfound\b/.test(normalized) ||
+    /\binstance\b[\s\S]{0,80}\bnot\b[\s\S]{0,80}\bfound\b/.test(normalized)
+  );
+}
+
 async function runClawmacdo(args: string[], extraEnv: Record<string, string>) {
   const binary = getClawmacdoBinaryPath();
   const timeoutMs = clawmacdoTimeout();

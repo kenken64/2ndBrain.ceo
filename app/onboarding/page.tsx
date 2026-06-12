@@ -52,7 +52,7 @@ const errors: Record<string, string> = {
   missing_openclaw_lightsail_snapshot_name: "OpenClaw provisioning template is not configured.",
   missing_openai_api_key: "OpenAI API key is not configured on the server.",
   openclaw_instance_not_found: "OpenClaw provisioning completed but the instance name could not be detected.",
-  openclaw_provision_failed: "OpenClaw provisioning failed. Check AWS Lightsail and clawmacdo output.",
+  openclaw_provision_failed: "OpenClaw provisioning failed. Check AI credits first, then AWS Lightsail and clawmacdo output.",
   openclaw_provision_running: "OpenClaw provisioning is already running. Please wait for the current request to finish.",
   openclaw_snapshot_not_found: "The configured OpenClaw provisioning template could not be used. Check the AWS region and server configuration.",
   openclaw_snapshot_response_failed: "OpenClaw provisioning returned an unexpected response. Check the clawmacdo output and package version.",

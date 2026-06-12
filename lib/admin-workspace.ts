@@ -1,6 +1,6 @@
 import "server-only";
 
-import { destroyOpenClawInstance } from "@/lib/openclaw";
+import { destroyOpenClawInstance, isOpenClawInstanceMissingError } from "@/lib/openclaw";
 import type { createAdminClient } from "@/lib/supabase/admin";
 
 type AdminSupabase = ReturnType<typeof createAdminClient>;
@@ -14,17 +14,6 @@ export type AdminTargetProfile = {
 
 function outputSummary(value: string) {
   return value.slice(-4000);
-}
-
-function isAlreadyDestroyed(error: unknown) {
-  const message = error instanceof Error ? error.message.toLowerCase() : String(error).toLowerCase();
-
-  return (
-    message.includes("notfound") ||
-    message.includes("not found") ||
-    message.includes("does not exist") ||
-    message.includes("no instance")
-  );
 }
 
 export function bedrockTokenLast4(value: string) {
@@ -112,7 +101,7 @@ export async function destroyUserWorkspaceForAdmin(adminSupabase: AdminSupabase,
 
       destroyOutput = destroyed.output;
     } catch (error) {
-      if (!isAlreadyDestroyed(error)) {
+      if (!isOpenClawInstanceMissingError(error)) {
         throw error;
       }
 

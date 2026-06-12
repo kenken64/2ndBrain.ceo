@@ -69,6 +69,22 @@ function provisionErrorCode(error: unknown) {
     return message;
   }
 
+  if (message === "insufficient_ai_credits") {
+    return message;
+  }
+
+  if (
+    lowerMessage.includes("insufficient_ai_credits") ||
+    lowerMessage.includes("ai credit") ||
+    lowerMessage.includes("llm_token") ||
+    lowerMessage.includes("token quota") ||
+    lowerMessage.includes("quota exceeded") ||
+    lowerMessage.includes("insufficient credits") ||
+    lowerMessage.includes("out of credits")
+  ) {
+    return "insufficient_ai_credits";
+  }
+
   if (lowerMessage.includes("snapshot not found")) {
     return "openclaw_snapshot_not_found";
   }
