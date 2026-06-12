@@ -148,7 +148,7 @@ export default async function AdminPage() {
             <div className="settings-workbench__header">
               <p className="workspace-status-card__eyebrow">Admin module</p>
               <h1 id="admin-title">2ndBrain administration</h1>
-              <p>Assign LLM token quotas, send AI credits from your balance, disable access, delete workspace data, and overwrite per-user AWS Bedrock bearer tokens.</p>
+              <p>Assign LLM token quotas, send or drain AI credits, disable access, delete workspace data, and overwrite per-user AWS Bedrock bearer tokens.</p>
             </div>
 
             <div className="admin-metrics-grid">

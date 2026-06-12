@@ -314,6 +314,27 @@ export function AdminUsersTable({ adminAvailableTokens, adminUserId, users }: Ad
                         {user.disabled ? "Enable" : "Disable"}
                       </button>
                       <button
+                        className="btn-ghost"
+                        disabled={isBusy || remaining <= 0}
+                        onClick={() => {
+                          if (
+                            window.confirm(
+                              `Drain ${formatNumber(remaining)} unused AI credits from ${user.email ?? user.id} back to your admin account?`
+                            )
+                          ) {
+                            void runAction(
+                              user.id,
+                              () => postJson(`/api/admin/users/${user.id}/credits/drain`, {}),
+                              `Drained ${formatNumber(remaining)} AI credits back to your account.`
+                            );
+                          }
+                        }}
+                        title={remaining <= 0 ? "This user has no unused AI credits to drain." : "Drain unused AI credits to your admin account."}
+                        type="button"
+                      >
+                        Drain credits
+                      </button>
+                      <button
                         className="btn-ghost danger-button"
                         disabled={isBusy}
                         onClick={() => {
