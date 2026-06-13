@@ -352,6 +352,8 @@ svg {
 
 .nav-actions .btn-primary {
   cursor: pointer;
+  flex: 0 0 auto;
+  white-space: nowrap;
 }
 
 .arrow {
@@ -5374,5 +5376,39 @@ svg {
   .wiki-page-link {
     min-width: 34px;
     height: 34px;
+  }
+}
+
+@media (max-width: 380px) {
+  .site-nav {
+    min-height: 56px;
+  }
+
+  .site-nav__inner {
+    gap: 8px;
+  }
+
+  .site-nav .brand-link .app-logo {
+    height: 44px;
+  }
+
+  .nav-actions {
+    gap: 8px;
+  }
+
+  .mobile-menu-button {
+    width: 36px;
+    height: 36px;
+  }
+
+  .nav-actions .github-link {
+    display: none;
+  }
+
+  .nav-actions .btn-primary {
+    min-height: 36px;
+    padding: 8px 10px;
+    font-size: 12px;
+    gap: 6px;
   }
 }
