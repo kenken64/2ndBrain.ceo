@@ -6,12 +6,14 @@ import { BrandHeart } from "@/components/brand-heart";
 import { LoginDialog } from "@/components/login-dialog";
 
 type MarketingNavProps = {
+  anchorPrefix?: string;
   supabaseConfigured?: boolean;
 };
 
-export function MarketingNav({ supabaseConfigured = true }: MarketingNavProps) {
+export function MarketingNav({ anchorPrefix = "", supabaseConfigured = true }: MarketingNavProps) {
   const [isLoginOpen, setIsLoginOpen] = useState(false);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const sectionHref = (hash: string) => `${anchorPrefix}${hash}`;
 
   return (
     <>
@@ -21,13 +23,13 @@ export function MarketingNav({ supabaseConfigured = true }: MarketingNavProps) {
             <BrandHeart size={56} />
           </a>
           <div className="nav-links">
-            <a className="nav-link" href="#how-it-works">
+            <a className="nav-link" href={sectionHref("#how-it-works")}>
               How it works
             </a>
-            <a className="nav-link" href="#setup">
+            <a className="nav-link" href={sectionHref("#setup")}>
               Setup
             </a>
-            <a className="nav-link" href="#workspace">
+            <a className="nav-link" href={sectionHref("#workspace")}>
               Workspace
             </a>
             <a className="nav-link" href="/onboarding">
@@ -71,13 +73,21 @@ export function MarketingNav({ supabaseConfigured = true }: MarketingNavProps) {
         </nav>
         {isMenuOpen ? (
           <div className="site-nav__menu" id="site-nav-menu">
-            <a className="nav-link" href="#how-it-works" onClick={() => setIsMenuOpen(false)}>
+            <a
+              className="nav-link"
+              href={sectionHref("#how-it-works")}
+              onClick={() => setIsMenuOpen(false)}
+            >
               How it works
             </a>
-            <a className="nav-link" href="#setup" onClick={() => setIsMenuOpen(false)}>
+            <a className="nav-link" href={sectionHref("#setup")} onClick={() => setIsMenuOpen(false)}>
               Setup
             </a>
-            <a className="nav-link" href="#workspace" onClick={() => setIsMenuOpen(false)}>
+            <a
+              className="nav-link"
+              href={sectionHref("#workspace")}
+              onClick={() => setIsMenuOpen(false)}
+            >
               Workspace
             </a>
             <a className="nav-link" href="/onboarding" onClick={() => setIsMenuOpen(false)}>

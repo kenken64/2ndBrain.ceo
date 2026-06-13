@@ -23,7 +23,7 @@ const columns = [
     title: "Project",
     links: [
       ["Source Code", "https://github.com/kenken64/2ndBrain.ceo"],
-      ["Health Check", "/api/health"]
+      ["System Status", "/status"]
     ]
   }
 ];
