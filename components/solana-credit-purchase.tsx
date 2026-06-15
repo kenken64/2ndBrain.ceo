@@ -182,6 +182,7 @@ export function SolanaCreditPurchase({
   const [isQuoting, setIsQuoting] = useState(false);
   const [isRefreshingBlockhash, setIsRefreshingBlockhash] = useState(false);
   const [isPaying, setIsPaying] = useState(false);
+  const [hasCompletedPayment, setHasCompletedPayment] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [transactionBlockhash, setTransactionBlockhash] = useState<SolanaBlockhash | null>(null);
@@ -328,6 +329,7 @@ export function SolanaCreditPurchase({
 
       setWalletAddress(address);
       setQuote(null);
+      setHasCompletedPayment(false);
       setMessage("Phantom connected. Calculating Solana amount...");
       void createQuoteForWallet(address);
     } catch (connectError) {
@@ -351,6 +353,7 @@ export function SolanaCreditPurchase({
 
       setWalletAddress(null);
       setQuote(null);
+      setHasCompletedPayment(false);
       setTransactionBlockhash(null);
       setTransactionBlockhashFetchedAt(null);
       setMessage("Phantom disconnected.");
@@ -365,6 +368,27 @@ export function SolanaCreditPurchase({
     return walletAddress ? disconnectWallet() : connectWallet();
   }
 
+  function handlePrimaryAction() {
+    if (quote) {
+      void payWithPhantom();
+      return;
+    }
+
+    void createQuoteForWallet(walletAddress);
+  }
+
+  function primaryActionLabel() {
+    if (isQuoting && !quote) {
+      return "Calculating...";
+    }
+
+    if (isRefreshingBlockhash) {
+      return "Refreshing...";
+    }
+
+    return quote ? "Pay with Phantom" : hasCompletedPayment ? "Buy again" : "Calculate payment";
+  }
+
   async function createQuoteForWallet(address: string | null, options?: { silent?: boolean }) {
     if (!address) {
       setError("Connect Phantom first.");
@@ -372,6 +396,7 @@ export function SolanaCreditPurchase({
     }
 
     setIsQuoting(true);
+    setHasCompletedPayment(false);
     setError(null);
     setMessage(options?.silent ? null : "Calculating Solana amount...");
 
@@ -527,6 +552,9 @@ export function SolanaCreditPurchase({
         used: payload.credit.llmTokenUsed
       });
       setQuote(null);
+      setTransactionBlockhash(null);
+      setTransactionBlockhashFetchedAt(null);
+      setHasCompletedPayment(true);
       setMessage(`Credited ${formatInteger(payload.credit.addedTokens)} AI credits.`);
     } catch (paymentError) {
       if (/unexpected error/i.test(errorMessage(paymentError) ?? "")) {
@@ -597,12 +625,12 @@ export function SolanaCreditPurchase({
         </button>
         <button
           className="btn-primary"
-          disabled={!billingConfigured || !quote || isQuoting || isRefreshingBlockhash || isPaying}
-          onClick={payWithPhantom}
+          disabled={!billingConfigured || !walletAddress || isQuoting || isRefreshingBlockhash || isPaying}
+          onClick={handlePrimaryAction}
           type="button"
         >
           {isPaying || isQuoting || isRefreshingBlockhash ? <Loader2 size={16} strokeWidth={1.8} /> : null}
-          {isQuoting && !quote ? "Calculating..." : isRefreshingBlockhash ? "Refreshing..." : "Pay with Phantom"}
+          {primaryActionLabel()}
         </button>
       </div>
 
