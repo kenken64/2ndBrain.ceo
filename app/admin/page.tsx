@@ -3,7 +3,9 @@ import { AdminUsersTable, type AdminUserRow } from "@/components/admin-users-tab
 import { AnnouncementPill } from "@/components/announcement-pill";
 import { Atmosphere } from "@/components/atmosphere";
 import { DashboardSidebar } from "@/components/dashboard-sidebar";
+import { SolanaPaymentHistory } from "@/components/solana-payment-history";
 import { requireAdminPage } from "@/lib/admin";
+import { getAdminSolanaPaymentHistory } from "@/lib/solana-payment-history";
 
 export const dynamic = "force-dynamic";
 
@@ -146,6 +148,15 @@ export default async function AdminPage() {
   const quotaManagedUsers = users.filter((user) => !user.isAdmin);
   const tokensAssigned = quotaManagedUsers.reduce((sum, user) => sum + user.llmTokenQuota, 0);
   const tokensUsed = quotaManagedUsers.reduce((sum, user) => sum + user.llmTokenUsed, 0);
+  const solanaPaymentHistory = await getAdminSolanaPaymentHistory(
+    access.adminSupabase,
+    profiles.map((profile) => ({
+      email: profile.email,
+      full_name: profile.full_name,
+      id: profile.id
+    })),
+    40
+  );
 
   const { data: adminProfileRow } = await access.adminSupabase
     .from("profiles")
@@ -194,6 +205,14 @@ export default async function AdminPage() {
               adminAvailableTokens={adminAvailableTokens}
               adminUserId={access.userId}
               users={users}
+            />
+
+            <SolanaPaymentHistory
+              emptyCopy="No confirmed Solana top-ups have been recorded yet."
+              eyebrow="Admin billing"
+              payments={solanaPaymentHistory}
+              showUser
+              title="Solana top-up history"
             />
           </section>
         </main>

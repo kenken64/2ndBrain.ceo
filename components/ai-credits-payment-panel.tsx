@@ -2,7 +2,9 @@
 
 import { useState } from "react";
 import { AiCreditTransfer } from "@/components/ai-credit-transfer";
+import { SolanaPaymentHistory } from "@/components/solana-payment-history";
 import { SolanaCreditPurchase } from "@/components/solana-credit-purchase";
+import type { SolanaPaymentHistoryItem } from "@/types/solana-payment-history";
 
 export type AiCreditBalance = {
   quota: number;
@@ -15,8 +17,10 @@ type AiCreditsPaymentPanelProps = {
   initialQuota: number;
   initialUsed: number;
   onBalanceChange?: (balance: AiCreditBalance) => void;
+  onPaymentConfirmed?: () => void;
   packageTokens: number;
   packageUsdCents: number;
+  paymentHistory?: SolanaPaymentHistoryItem[];
 };
 
 export function AiCreditsPaymentPanel({
@@ -25,8 +29,10 @@ export function AiCreditsPaymentPanel({
   initialQuota,
   initialUsed,
   onBalanceChange,
+  onPaymentConfirmed,
   packageTokens,
-  packageUsdCents
+  packageUsdCents,
+  paymentHistory = []
 }: AiCreditsPaymentPanelProps) {
   const [internalBalance, setInternalBalance] = useState({
     quota: initialQuota,
@@ -45,9 +51,11 @@ export function AiCreditsPaymentPanel({
         balance={activeBalance}
         billingConfigured={billingConfigured}
         onBalanceChange={updateBalance}
+        onPaymentConfirmed={onPaymentConfirmed}
         packageTokens={packageTokens}
         packageUsdCents={packageUsdCents}
       />
+      <SolanaPaymentHistory payments={paymentHistory} />
       <AiCreditTransfer balance={activeBalance} onBalanceChange={updateBalance} />
     </>
   );

@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import { AiCreditsPaymentPanel, type AiCreditBalance } from "@/components/ai-credits-payment-panel";
 import { ChangeTelegramBotTokenButton } from "@/components/change-telegram-bot-token-button";
 import { ClaudeAuthReconnectButton } from "@/components/claude-auth-reconnect-button";
@@ -9,6 +10,7 @@ import { SettingsIntegrations } from "@/components/settings-integrations";
 import { SettingsProfileForm } from "@/components/settings-profile-form";
 import { SettingsTabs, type SettingsTabId } from "@/components/settings-tabs";
 import { SettingsTokenUsageCard } from "@/components/settings-token-usage-card";
+import type { SolanaPaymentHistoryItem } from "@/types/solana-payment-history";
 
 type SettingsPageTabsProps = {
   billingConfigured: boolean;
@@ -19,6 +21,7 @@ type SettingsPageTabsProps = {
   packageTokens: number;
   packageUsdCents: number;
   promptGoogleWorkspaceAuth: boolean;
+  solanaPaymentHistory: SolanaPaymentHistoryItem[];
   tokenQuota: number;
   tokenUsed: number;
   userEmail: string | null;
@@ -54,10 +57,12 @@ export function SettingsPageTabs({
   packageTokens,
   packageUsdCents,
   promptGoogleWorkspaceAuth,
+  solanaPaymentHistory,
   tokenQuota,
   tokenUsed,
   userEmail
 }: SettingsPageTabsProps) {
+  const router = useRouter();
   const [balance, setBalance] = useState<AiCreditBalance>({
     quota: tokenQuota,
     used: tokenUsed
@@ -182,8 +187,10 @@ export function SettingsPageTabs({
             initialQuota={tokenQuota}
             initialUsed={tokenUsed}
             onBalanceChange={setBalance}
+            onPaymentConfirmed={() => router.refresh()}
             packageTokens={packageTokens}
             packageUsdCents={packageUsdCents}
+            paymentHistory={solanaPaymentHistory}
           />
         </div>
       }

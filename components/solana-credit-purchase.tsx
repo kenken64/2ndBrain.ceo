@@ -48,6 +48,7 @@ type SolanaCreditPurchaseProps = {
   balance: CreditBalance;
   billingConfigured: boolean;
   onBalanceChange: (balance: CreditBalance) => void;
+  onPaymentConfirmed?: () => void;
   packageTokens: number;
   packageUsdCents: number;
 };
@@ -171,6 +172,7 @@ export function SolanaCreditPurchase({
   balance,
   billingConfigured,
   onBalanceChange,
+  onPaymentConfirmed,
   packageTokens,
   packageUsdCents
 }: SolanaCreditPurchaseProps) {
@@ -556,6 +558,7 @@ export function SolanaCreditPurchase({
       setTransactionBlockhashFetchedAt(null);
       setHasCompletedPayment(true);
       setMessage(`Credited ${formatInteger(payload.credit.addedTokens)} AI credits.`);
+      onPaymentConfirmed?.();
     } catch (paymentError) {
       if (/unexpected error/i.test(errorMessage(paymentError) ?? "")) {
         void refreshTransactionBlockhash({ silent: true });

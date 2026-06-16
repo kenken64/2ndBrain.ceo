@@ -2293,7 +2293,18 @@ svg {
   grid-column: 1 / -1;
 }
 
+.solana-payment-history {
+  grid-column: 1 / -1;
+}
+
 .solana-credit-card__header {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: start;
+  gap: 14px;
+}
+
+.solana-payment-history__header {
   display: grid;
   grid-template-columns: auto minmax(0, 1fr) auto;
   align-items: start;
@@ -2313,6 +2324,11 @@ svg {
 }
 
 .ai-credit-transfer-card__header .settings-toggle-card__status {
+  grid-column: auto;
+  justify-self: end;
+}
+
+.solana-payment-history__header .settings-toggle-card__status {
   grid-column: auto;
   justify-self: end;
 }
@@ -2375,6 +2391,74 @@ svg {
   color: var(--fg-secondary);
   font-family: var(--font-mono);
   font-size: 12px;
+}
+
+.solana-payment-history__table {
+  display: grid;
+  gap: 8px;
+}
+
+.solana-payment-history__head,
+.solana-payment-history__row {
+  display: grid;
+  grid-template-columns: 0.95fr 1.15fr 1.2fr 1fr;
+  gap: 12px;
+  align-items: start;
+}
+
+.solana-payment-history__table--admin .solana-payment-history__head,
+.solana-payment-history__table--admin .solana-payment-history__row {
+  grid-template-columns: 0.85fr 1.1fr 1fr 1.1fr 1fr;
+}
+
+.solana-payment-history__head {
+  color: var(--fg-muted);
+  font-size: 11px;
+  font-weight: 900;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.solana-payment-history__row {
+  border: 1px solid var(--border-soft);
+  border-radius: var(--radius-md);
+  background: rgba(245, 248, 251, 0.72);
+  padding: 12px;
+}
+
+.solana-payment-history__row > div {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+
+.solana-payment-history__row strong,
+.solana-payment-history__row span,
+.solana-payment-history__row a {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.solana-payment-history__row strong {
+  color: var(--fg-primary);
+  font-size: 13px;
+  line-height: 1.35;
+}
+
+.solana-payment-history__row span {
+  color: var(--fg-secondary);
+  font-size: 12px;
+  line-height: 1.35;
+}
+
+.solana-payment-history__row a {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  color: var(--fg-primary);
+  font-family: var(--font-mono);
+  font-size: 12px;
+  font-weight: 800;
 }
 
 .ai-credit-transfer-card__form {
@@ -4914,6 +4998,7 @@ svg {
   }
 
   .solana-credit-card__header,
+  .solana-payment-history__header,
   .ai-credit-transfer-card__header,
   .settings-token-usage-card__header,
   .solana-credit-card__metrics,
@@ -4923,10 +5008,20 @@ svg {
   }
 
   .solana-credit-card__header .settings-toggle-card__status,
+  .solana-payment-history__header .settings-toggle-card__status,
   .ai-credit-transfer-card__header .settings-toggle-card__status,
   .settings-token-usage-card__header .settings-toggle-card__status {
     grid-column: auto;
     justify-self: start;
+  }
+
+  .solana-payment-history__head {
+    display: none;
+  }
+
+  .solana-payment-history__row,
+  .solana-payment-history__table--admin .solana-payment-history__row {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
   .ai-credit-transfer-card__form,
@@ -5470,6 +5565,11 @@ svg {
 
   .solana-credit-card__actions {
     flex-direction: column;
+  }
+
+  .solana-payment-history__row,
+  .solana-payment-history__table--admin .solana-payment-history__row {
+    grid-template-columns: 1fr;
   }
 
   .claude-auth-card__actions > * {

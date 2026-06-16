@@ -19,6 +19,7 @@ import {
   AI_CREDIT_PACKAGE_USD_CENTS,
   hasSolanaBillingEnv
 } from "@/lib/solana-billing";
+import { getUserSolanaPaymentHistory } from "@/lib/solana-payment-history";
 import { createClient } from "@/lib/supabase/server";
 
 export const dynamic = "force-dynamic";
@@ -105,6 +106,13 @@ export default async function DashboardSettingsPage({ searchParams }: DashboardS
   const llmTokenUsed = Number(optionalSettings?.llm_token_used ?? 0);
   const availableCredits = llmTokenQuota - llmTokenUsed;
   const isCreditLocked = !showAdmin && availableCredits <= 0;
+  const solanaPaymentHistory = userId
+    ? await getUserSolanaPaymentHistory(supabase, userId, {
+        email,
+        full_name: ownerName ?? null,
+        id: userId
+      })
+    : [];
 
   return (
     <>
@@ -141,6 +149,7 @@ export default async function DashboardSettingsPage({ searchParams }: DashboardS
               packageTokens={AI_CREDIT_PACKAGE_TOKENS}
               packageUsdCents={AI_CREDIT_PACKAGE_USD_CENTS}
               promptGoogleWorkspaceAuth={promptGoogleWorkspaceAuth}
+              solanaPaymentHistory={solanaPaymentHistory}
               tokenQuota={llmTokenQuota}
               tokenUsed={llmTokenUsed}
               userEmail={email}
