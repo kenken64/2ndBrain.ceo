@@ -142,6 +142,11 @@ export async function proxy(request: NextRequest) {
       }
 
       const isAdmin = await isEnabledAdminUser({ email, userId });
+      console.log("[auth] admin role", {
+        isAdmin,
+        pathname: request.nextUrl.pathname,
+        userId
+      });
       const isCreditLocked = !isAdmin && Boolean(data) && getAvailableAiCredits(data) <= 0;
 
       if (isCreditLocked && !isCreditLockAllowedPath(request.nextUrl.pathname)) {

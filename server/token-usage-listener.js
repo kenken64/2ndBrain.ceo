@@ -478,6 +478,43 @@ async function findProfileForUsage(supabase, event) {
   return null;
 }
 
+async function isAdminProfile(supabase, profile) {
+  const normalizedEmail = cleanEmail(profile.email);
+  const normalizedUserId = cleanString(profile.id);
+
+  if (!normalizedEmail && !normalizedUserId) {
+    return false;
+  }
+
+  let query = supabase
+    .from("admin_users")
+    .select("id")
+    .eq("enabled", true);
+
+  if (normalizedEmail && normalizedUserId) {
+    query = query.or(`email.eq.${normalizedEmail},user_id.eq.${normalizedUserId}`);
+  } else if (normalizedEmail) {
+    query = query.eq("email", normalizedEmail);
+  } else {
+    query = query.eq("user_id", normalizedUserId);
+  }
+
+  const { data, error } = await query.limit(1);
+
+  if (error) {
+    console.warn(
+      "[token-usage-listener] admin lookup failed",
+      JSON.stringify({
+        error: error.message,
+        userId: normalizedUserId
+      })
+    );
+    return false;
+  }
+
+  return Boolean(data?.length);
+}
+
 async function incrementUsage(supabase, profileId, deltaTokens) {
   for (let attempt = 1; attempt <= MAX_UPDATE_ATTEMPTS; attempt += 1) {
     const { data: currentRows, error: currentError } = await supabase
@@ -603,6 +640,19 @@ async function applyUsageEvent({ channel, quotaRedisChannel, quotaRedisUrlValue,
         hasEmail: Boolean(usageEvent.email),
         hasProfileId: Boolean(usageEvent.profileId),
         openclawInstance: usageEvent.openclawInstance
+      })
+    );
+    return;
+  }
+
+  if (await isAdminProfile(supabase, matched.profile)) {
+    console.info(
+      "[token-usage-listener] admin usage ignored",
+      JSON.stringify({
+        deltaTokens: usageEvent.deltaTokens,
+        match: matched.match,
+        openclawInstance: usageEvent.openclawInstance,
+        userId: matched.profile.id
       })
     );
     return;
