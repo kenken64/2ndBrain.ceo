@@ -112,6 +112,18 @@ export async function GET(request: Request) {
       return NextResponse.redirect(retryUrl);
     }
 
+    if (
+      !codeVerifierCookieFound &&
+      requestUrl.searchParams.get("pkce_retry") !== "1"
+    ) {
+      const retryLoginUrl = new URL("/auth/login", callbackOrigin);
+
+      retryLoginUrl.searchParams.set("next", next);
+      retryLoginUrl.searchParams.set("pkce_retry", "1");
+
+      return NextResponse.redirect(retryLoginUrl);
+    }
+
     const supabase = await createClient();
     const { error } = await supabase.auth.exchangeCodeForSession(code);
 

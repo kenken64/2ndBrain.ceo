@@ -7,6 +7,7 @@ export async function GET(request: Request) {
   const requestUrl = new URL(request.url);
   const next = safeNextPath(requestUrl.searchParams.get("next"));
   const loginHint = requestUrl.searchParams.get("login_hint")?.trim();
+  const pkceRetry = requestUrl.searchParams.get("pkce_retry") === "1";
 
   if (!hasSupabaseEnv()) {
     return NextResponse.redirect(
@@ -28,6 +29,9 @@ export async function GET(request: Request) {
 
   callbackUrl.searchParams.set("next", next);
   callbackUrl.searchParams.set("callback_origin", origin);
+  if (pkceRetry) {
+    callbackUrl.searchParams.set("pkce_retry", "1");
+  }
 
   const { data, error } = await supabase.auth.signInWithOAuth({
     provider: "google",
