@@ -8,7 +8,7 @@ import {
   type OnboardingProfile
 } from "@/lib/onboarding";
 import { createClient } from "@/lib/supabase/server";
-import { appUrl, safeNextPath } from "@/lib/url";
+import { appUrl, getRequestOrigin, safeNextPath } from "@/lib/url";
 
 type GoogleWorkspaceLoginProfile = OnboardingProfile & {
   google_workspace_connected_at?: string | null;
@@ -67,6 +67,21 @@ export async function GET(request: Request) {
   }
 
   if (code) {
+    const origin = getRequestOrigin(request);
+    const codeVerifierCookieFound = hasCodeVerifierCookie(request);
+
+    if (
+      !codeVerifierCookieFound &&
+      origin !== requestUrl.origin &&
+      requestUrl.searchParams.get("origin_retry") !== "1"
+    ) {
+      const retryUrl = new URL(`${requestUrl.pathname}${requestUrl.search}`, origin);
+
+      retryUrl.searchParams.set("origin_retry", "1");
+
+      return NextResponse.redirect(retryUrl);
+    }
+
     const supabase = await createClient();
     const { error } = await supabase.auth.exchangeCodeForSession(code);
 
@@ -112,8 +127,9 @@ export async function GET(request: Request) {
 
     console.error("[auth] callback exchange failed", {
       errorCode,
-      hasCodeVerifierCookie: hasCodeVerifierCookie(request),
-      origin: requestUrl.origin
+      hasCodeVerifierCookie: codeVerifierCookieFound,
+      origin,
+      rawOrigin: requestUrl.origin
     });
 
     return NextResponse.redirect(

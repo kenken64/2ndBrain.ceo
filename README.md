@@ -304,6 +304,12 @@ If login shows `Supabase credentials are required before login can run`, the run
 
 If Google OAuth redirects to `0.0.0.0`, the app is using Railway's internal request host for a browser redirect. Set `NEXT_PUBLIC_SITE_URL` to the real Railway public URL, redeploy, and make sure that URL is allowed in Supabase Auth redirect URLs. `/api/health` reports `env.siteUrlConfigured` and `env.siteUrlSource` to confirm which public-origin setting is active.
 
+If `/auth/callback` logs `pkce_code_verifier_not_found` with `rawOrigin` or
+`origin` containing `0.0.0.0`, remove any `0.0.0.0` value from Railway
+Variables and set `NEXT_PUBLIC_SITE_URL=https://kere.ceo,http://localhost:3000`.
+In Supabase Auth redirect URLs, allow both `https://kere.ceo/auth/callback` and
+`http://localhost:3000/auth/callback`.
+
 If PDF startup logs mention `@napi-rs/canvas`, rebuild with the current Dockerfile. The runtime image must copy `node_modules/@napi-rs`.
 
 If provisioning logs show `spawn /app/node_modules/@clawmacdo/linux-x64/bin/clawmacdo ENOENT` or `GLIBC_2.39 not found`, the container base image is too old for the published clawmacdo Linux binary. Rebuild with the current Debian Trixie slim Dockerfile; it runs `clawmacdo --version` during image build to catch binary/linker issues before deployment.

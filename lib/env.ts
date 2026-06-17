@@ -3,6 +3,17 @@ function cleanEnvValue(value: string | undefined) {
   return cleaned || null;
 }
 
+function isUsableUrlHostname(hostname: string) {
+  const normalized = hostname.trim().toLowerCase();
+
+  return (
+    Boolean(normalized) &&
+    !normalized.startsWith("0.0.0.0") &&
+    !normalized.startsWith("[::]") &&
+    !normalized.startsWith("::")
+  );
+}
+
 const SUPABASE_URL_ENV_NAMES = ["NEXT_PUBLIC_SUPABASE_URL", "SUPABASE_URL"] as const;
 const SUPABASE_KEY_ENV_NAMES = [
   "NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY",
@@ -92,7 +103,11 @@ export function getConfiguredSiteUrls() {
     try {
       const url = new URL(candidate.startsWith("http") ? candidate : `https://${candidate}`);
 
-      if ((url.protocol === "http:" || url.protocol === "https:") && !origins.includes(url.origin)) {
+      if (
+        (url.protocol === "http:" || url.protocol === "https:") &&
+        isUsableUrlHostname(url.hostname) &&
+        !origins.includes(url.origin)
+      ) {
         origins.push(url.origin);
       }
     } catch {
