@@ -12,6 +12,14 @@
 5. Add redirect URLs:
    - `http://localhost:3000/auth/callback`
    - `https://your-railway-domain.up.railway.app/auth/callback`
+   - `https://kere.ceo/auth/callback` if `kere.ceo` is your production DNS
+
+If you use the same env file for production DNS and local login, keep the
+production DNS first:
+
+```txt
+NEXT_PUBLIC_SITE_URL=https://kere.ceo,http://localhost:3000
+```
 
 Do not commit `.env.local`. Google OAuth client ID and client secret belong in
 the Supabase Auth provider settings. The app only needs the Supabase URL,
@@ -27,7 +35,7 @@ Railway service variables:
 ```txt
 NEXT_PUBLIC_SUPABASE_URL=https://your-project.supabase.co
 NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=sb_publishable_your_key
-NEXT_PUBLIC_SITE_URL=https://your-railway-domain.up.railway.app
+NEXT_PUBLIC_SITE_URL=https://kere.ceo
 ```
 
 If your project only shows the legacy anon key, use

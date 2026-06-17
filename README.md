@@ -69,19 +69,24 @@ SUPABASE_URL=https://your-project.supabase.co
 SUPABASE_ANON_KEY=your_legacy_anon_key
 ```
 
-Set `NEXT_PUBLIC_SITE_URL` to the active public app origin:
+Set `NEXT_PUBLIC_SITE_URL` to the active app origin:
 
 ```txt
 NEXT_PUBLIC_SITE_URL=http://localhost:3000
 ```
 
-For Railway production, use the Railway public URL, for example:
+When one Supabase project must support both production and local social login,
+use a comma-separated list with the production DNS first:
 
 ```txt
-NEXT_PUBLIC_SITE_URL=https://your-app.up.railway.app
+NEXT_PUBLIC_SITE_URL=https://kere.ceo,http://localhost:3000
 ```
 
-If `NEXT_PUBLIC_SITE_URL` is not set on Railway, the app falls back to `RAILWAY_PUBLIC_DOMAIN` when Railway provides it. Setting `NEXT_PUBLIC_SITE_URL` explicitly is still preferred because it keeps OAuth redirects independent from proxy/internal host headers.
+For Railway production, keep the canonical DNS first, for example
+`NEXT_PUBLIC_SITE_URL=https://kere.ceo`. If `NEXT_PUBLIC_SITE_URL` is not set
+on Railway, the app falls back to `RAILWAY_PUBLIC_DOMAIN` when Railway provides
+it. Setting `NEXT_PUBLIC_SITE_URL` explicitly is still preferred because it
+keeps OAuth redirects independent from proxy/internal host headers.
 
 Do not expose Supabase service role keys to the browser. Only use a service role key in a local shell or controlled maintenance job for admin scripts such as `npm run wiki:backfill`. Google OAuth credentials belong in Supabase Auth provider settings.
 

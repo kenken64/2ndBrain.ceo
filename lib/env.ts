@@ -77,26 +77,28 @@ export function getSiteUrl() {
 }
 
 export function getConfiguredSiteUrl() {
-  const configured = cleanEnvValue(process.env.NEXT_PUBLIC_SITE_URL)
+  return getConfiguredSiteUrls()[0] ?? null;
+}
+
+export function getConfiguredSiteUrls() {
+  const configuredCandidates = cleanEnvValue(process.env.NEXT_PUBLIC_SITE_URL)
     ?.split(",")
     .map((value) => value.trim())
-    .find(Boolean);
+    .filter(Boolean) ?? [];
   const railwayDomain = cleanEnvValue(process.env.RAILWAY_PUBLIC_DOMAIN);
-  const candidate = configured ?? railwayDomain;
+  const origins: string[] = [];
 
-  if (!candidate) {
-    return null;
-  }
+  for (const candidate of [...configuredCandidates, railwayDomain].filter((value): value is string => Boolean(value))) {
+    try {
+      const url = new URL(candidate.startsWith("http") ? candidate : `https://${candidate}`);
 
-  try {
-    const url = new URL(candidate.startsWith("http") ? candidate : `https://${candidate}`);
-
-    if (url.protocol !== "http:" && url.protocol !== "https:") {
-      return null;
+      if ((url.protocol === "http:" || url.protocol === "https:") && !origins.includes(url.origin)) {
+        origins.push(url.origin);
+      }
+    } catch {
+      // Ignore invalid URL candidates so one bad optional domain does not break boot.
     }
-
-    return url.origin;
-  } catch {
-    return null;
   }
+
+  return origins;
 }

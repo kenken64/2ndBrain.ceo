@@ -1639,6 +1639,10 @@ svg {
   letter-spacing: 0.05em;
 }
 
+.sidebar-section-label--nested {
+  margin-top: 12px;
+}
+
 .sidebar-spacer {
   flex: 1;
 }
@@ -2930,6 +2934,90 @@ svg {
 .workspace-status-card__copy {
   margin-top: 14px;
   color: var(--fg-secondary);
+}
+
+.workflow-workbench {
+  display: grid;
+  gap: 24px;
+}
+
+.workflow-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 18px;
+}
+
+.workflow-card,
+.workflow-empty {
+  display: grid;
+  gap: 16px;
+  border: 1px solid var(--border-soft);
+  border-radius: var(--radius-lg);
+  background: rgba(255, 255, 255, 0.82);
+  box-shadow: var(--shadow-md);
+  padding: 22px;
+}
+
+.workflow-empty {
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+}
+
+.workflow-card__header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 14px;
+}
+
+.workflow-card__header h2,
+.workflow-empty h2 {
+  margin-top: 6px;
+  color: var(--fg-primary);
+  font-size: 22px;
+  line-height: 1.15;
+}
+
+.workflow-card p,
+.workflow-empty p {
+  margin: 0;
+  color: var(--fg-secondary);
+  font-size: 14px;
+  line-height: 1.55;
+}
+
+.workflow-card__steps {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.workflow-card__steps li {
+  border: 1px solid var(--border-soft);
+  border-radius: var(--radius-md);
+  background: rgba(245, 248, 251, 0.72);
+  color: var(--fg-secondary);
+  padding: 9px 11px;
+  font-size: 13px;
+  line-height: 1.35;
+}
+
+.workflow-card__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 2px;
+}
+
+.workflow-card__actions button {
+  cursor: pointer;
+}
+
+.workflow-card__actions button:disabled {
+  cursor: not-allowed;
+  opacity: 0.68;
 }
 
 .workspace-status-card__hint {
@@ -4835,7 +4923,8 @@ svg {
   .admin-metrics-grid,
   .projects-grid,
   .agent-select-grid,
-  .wiki-decision-grid {
+  .wiki-decision-grid,
+  .workflow-grid {
     grid-template-columns: 1fr 1fr;
   }
 
@@ -5228,6 +5317,7 @@ svg {
   .projects-grid,
   .agent-select-grid,
   .wiki-decision-grid,
+  .workflow-grid,
   .status-grid,
   .footer__grid {
     grid-template-columns: 1fr;
@@ -5363,6 +5453,11 @@ svg {
   .graph-workbench {
     width: 100%;
     margin-top: 18px;
+  }
+
+  .workflow-empty {
+    grid-template-columns: 1fr;
+    align-items: stretch;
   }
 
   .wiki-empty-panel {

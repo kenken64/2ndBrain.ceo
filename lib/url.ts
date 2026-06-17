@@ -1,5 +1,5 @@
 import type { NextRequest } from "next/server";
-import { getConfiguredSiteUrl, getSiteUrl } from "@/lib/env";
+import { getConfiguredSiteUrls, getSiteUrl } from "@/lib/env";
 
 export function safeNextPath(value: string | null) {
   if (!value || !value.startsWith("/") || value.startsWith("//")) {
@@ -31,14 +31,15 @@ export function getIncomingRequestOrigin(request: Request | NextRequest) {
 }
 
 export function getRequestOrigin(request: Request | NextRequest) {
-  const configured = getConfiguredSiteUrl();
+  const configuredOrigins = getConfiguredSiteUrls();
   const incoming = getIncomingRequestOrigin(request);
+  const canonicalOrigin = configuredOrigins.find((origin) => !isLocalOrigin(origin));
 
-  if (configured && (!isLocalOrigin(configured) || isLocalOrigin(incoming))) {
-    return configured;
+  if (isLocalOrigin(incoming) || !canonicalOrigin) {
+    return incoming;
   }
 
-  return incoming;
+  return canonicalOrigin;
 }
 
 export function appUrl(path: string, request: Request | NextRequest) {

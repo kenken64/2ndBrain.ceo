@@ -7,18 +7,20 @@ import {
   Menu,
   ShieldCheck,
   GitBranch,
+  ListChecks,
   PanelLeftClose,
   PanelLeftOpen,
   Plug,
   Power,
   ScrollText,
   Settings,
+  Store,
   X
 } from "lucide-react";
 import { BrandHeart } from "@/components/brand-heart";
 
 type DashboardSidebarProps = {
-  activeItem?: "admin" | "gateway" | "remotion" | "wiki" | "graph" | "settings";
+  activeItem?: "admin" | "gateway" | "marketplace" | "remotion" | "wiki" | "graph" | "settings" | "workflows";
   avatarName?: string | null;
   creditLocked?: boolean;
   email?: string | null;
@@ -194,6 +196,23 @@ export function DashboardSidebar({
           icon={<GitBranch size={18} strokeWidth={1.7} />}
           label="Knowledge Graph"
           title="Knowledge Graph"
+        />
+        <span className="sidebar-section-label sidebar-section-label--nested">WORKFLOW</span>
+        <SidebarNavItem
+          active={activeItem === "marketplace"}
+          disabled={creditLocked}
+          href="/dashboard/marketplace"
+          icon={<Store size={18} strokeWidth={1.7} />}
+          label="Marketplace"
+          title="Marketplace"
+        />
+        <SidebarNavItem
+          active={activeItem === "workflows"}
+          disabled={creditLocked}
+          href="/dashboard/workflows"
+          icon={<ListChecks size={18} strokeWidth={1.7} />}
+          label="My Workflows"
+          title="My Workflows"
         />
       </nav>
       <div className="sidebar-spacer" />
