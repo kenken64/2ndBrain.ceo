@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { hasSupabaseEnv } from "@/lib/env";
+import { getConfiguredSiteUrls, hasSupabaseEnv } from "@/lib/env";
 import {
   getUserIdFromClaims,
   isOnboardingComplete,
@@ -45,6 +45,32 @@ function hasCodeVerifierCookie(request: Request) {
   );
 }
 
+function getAllowedCallbackOrigin(value: string | null, fallbackOrigin: string) {
+  if (!value) {
+    return fallbackOrigin;
+  }
+
+  try {
+    const origin = new URL(value).origin;
+    const allowedOrigins = new Set([fallbackOrigin, ...getConfiguredSiteUrls()]);
+
+    return allowedOrigins.has(origin) || isLocalDevCallbackOrigin(origin) ? origin : fallbackOrigin;
+  } catch {
+    return fallbackOrigin;
+  }
+}
+
+function isLocalDevCallbackOrigin(origin: string) {
+  try {
+    const url = new URL(origin);
+    const isLoopbackHost = url.hostname === "localhost" || url.hostname === "127.0.0.1" || url.hostname === "[::1]";
+
+    return isLoopbackHost && url.port === "3000";
+  } catch {
+    return false;
+  }
+}
+
 export async function GET(request: Request) {
   const requestUrl = new URL(request.url);
   const code = requestUrl.searchParams.get("code");
@@ -69,13 +95,17 @@ export async function GET(request: Request) {
   if (code) {
     const origin = getRequestOrigin(request);
     const codeVerifierCookieFound = hasCodeVerifierCookie(request);
+    const callbackOrigin = getAllowedCallbackOrigin(
+      requestUrl.searchParams.get("callback_origin"),
+      origin
+    );
 
     if (
       !codeVerifierCookieFound &&
-      origin !== requestUrl.origin &&
+      callbackOrigin !== requestUrl.origin &&
       requestUrl.searchParams.get("origin_retry") !== "1"
     ) {
-      const retryUrl = new URL(`${requestUrl.pathname}${requestUrl.search}`, origin);
+      const retryUrl = new URL(`${requestUrl.pathname}${requestUrl.search}`, callbackOrigin);
 
       retryUrl.searchParams.set("origin_retry", "1");
 
@@ -126,6 +156,7 @@ export async function GET(request: Request) {
     const errorCode = authErrorCode(error);
 
     console.error("[auth] callback exchange failed", {
+      callbackOrigin,
       errorCode,
       hasCodeVerifierCookie: codeVerifierCookieFound,
       origin,

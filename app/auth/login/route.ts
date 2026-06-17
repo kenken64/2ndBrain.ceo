@@ -24,10 +24,15 @@ export async function GET(request: Request) {
   }
 
   const supabase = await createClient();
+  const callbackUrl = new URL("/auth/callback", origin);
+
+  callbackUrl.searchParams.set("next", next);
+  callbackUrl.searchParams.set("callback_origin", origin);
+
   const { data, error } = await supabase.auth.signInWithOAuth({
     provider: "google",
     options: {
-      redirectTo: `${origin}/auth/callback?next=${encodeURIComponent(next)}`,
+      redirectTo: callbackUrl.toString(),
       queryParams: {
         access_type: "offline",
         ...(loginHint ? { login_hint: loginHint } : {}),
