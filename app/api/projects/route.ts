@@ -204,7 +204,7 @@ export async function POST(request: Request) {
   const adminSupabase = createAdminClient();
   const { data: quotaProfile, error: quotaProfileError } = await adminSupabase
     .from("profiles")
-    .select("admin_disabled,admin_deleted_at,email,llm_token_quota,llm_token_used,openclaw_instance")
+    .select("admin_disabled,admin_deleted_at,email,llm_token_quota,llm_token_used,openclaw_instance,openclaw_tokens_paused")
     .eq("id", auth.userId)
     .maybeSingle();
 
@@ -227,6 +227,17 @@ export async function POST(request: Request) {
     }
 
     return NextResponse.json({ error: "Account access is disabled" }, { status: 403 });
+  }
+
+  if (quotaProfile?.openclaw_tokens_paused) {
+    if (isFormPost) {
+      return redirectWithParams(request, returnTo, { error: "openclaw_tokens_paused" });
+    }
+
+    return NextResponse.json(
+      { error: "OpenClaw AI usage is paused. Resume AI usage in Settings before creating projects." },
+      { status: 423 }
+    );
   }
 
   if (!isAdmin && (quota <= 0 || remaining < estimatedTokenCost)) {

@@ -22,6 +22,10 @@ type SettingsPageTabsProps = {
   packageUsdCents: number;
   promptGoogleWorkspaceAuth: boolean;
   solanaPaymentHistory: SolanaPaymentHistoryItem[];
+  tokensPauseReason: string | null;
+  tokensPaused: boolean;
+  tokensPausedAt: string | null;
+  tokensResumedAt: string | null;
   tokenQuota: number;
   tokenUsed: number;
   userEmail: string | null;
@@ -32,9 +36,17 @@ type TokenBalanceResponse = {
     llmTokenQuota?: number;
     llmTokenUsed?: number;
   };
+  pause?: TokenPauseState;
 };
 
-function readBalance(payload: TokenBalanceResponse | null) {
+type TokenPauseState = {
+  openclawTokensPauseReason: string | null;
+  openclawTokensPaused: boolean;
+  openclawTokensPausedAt: string | null;
+  openclawTokensResumedAt: string | null;
+};
+
+function readTokenState(payload: TokenBalanceResponse | null) {
   const quota = Number(payload?.balance?.llmTokenQuota);
   const used = Number(payload?.balance?.llmTokenUsed);
 
@@ -43,8 +55,18 @@ function readBalance(payload: TokenBalanceResponse | null) {
   }
 
   return {
-    quota,
-    used
+    balance: {
+      quota,
+      used
+    },
+    pause: payload?.pause
+      ? {
+          openclawTokensPauseReason: payload.pause.openclawTokensPauseReason ?? null,
+          openclawTokensPaused: Boolean(payload.pause.openclawTokensPaused),
+          openclawTokensPausedAt: payload.pause.openclawTokensPausedAt ?? null,
+          openclawTokensResumedAt: payload.pause.openclawTokensResumedAt ?? null
+        }
+      : null
   };
 }
 
@@ -58,6 +80,10 @@ export function SettingsPageTabs({
   packageUsdCents,
   promptGoogleWorkspaceAuth,
   solanaPaymentHistory,
+  tokensPauseReason,
+  tokensPaused,
+  tokensPausedAt,
+  tokensResumedAt,
   tokenQuota,
   tokenUsed,
   userEmail
@@ -66,6 +92,12 @@ export function SettingsPageTabs({
   const [balance, setBalance] = useState<AiCreditBalance>({
     quota: tokenQuota,
     used: tokenUsed
+  });
+  const [pause, setPause] = useState<TokenPauseState>({
+    openclawTokensPauseReason: tokensPauseReason,
+    openclawTokensPaused: tokensPaused,
+    openclawTokensPausedAt: tokensPausedAt,
+    openclawTokensResumedAt: tokensResumedAt
   });
   const refreshBalance = useCallback(async () => {
     try {
@@ -81,10 +113,14 @@ export function SettingsPageTabs({
       }
 
       const payload = (await response.json().catch(() => null)) as TokenBalanceResponse | null;
-      const nextBalance = readBalance(payload);
+      const nextTokenState = readTokenState(payload);
 
-      if (nextBalance) {
-        setBalance(nextBalance);
+      if (nextTokenState) {
+        setBalance(nextTokenState.balance);
+
+        if (nextTokenState.pause) {
+          setPause(nextTokenState.pause);
+        }
       }
     } catch {
       // Keep the last rendered balance if the background refresh fails.
@@ -128,6 +164,17 @@ export function SettingsPageTabs({
 
           <SettingsTokenUsageCard
             isAdmin={isAdmin}
+            onPauseChange={(nextPause, nextBalance) => {
+              setPause(nextPause);
+
+              if (nextBalance) {
+                setBalance(nextBalance);
+              }
+            }}
+            tokensPauseReason={pause.openclawTokensPauseReason}
+            tokensPaused={pause.openclawTokensPaused}
+            tokensPausedAt={pause.openclawTokensPausedAt}
+            tokensResumedAt={pause.openclawTokensResumedAt}
             tokenQuota={balance.quota}
             tokenUsed={balance.used}
           />

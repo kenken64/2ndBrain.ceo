@@ -21,6 +21,11 @@ type ProfileRow = {
   llm_token_used: number | null;
   openclaw_instance: string | null;
   openclaw_instance_created_count: number | null;
+  openclaw_tokens_pause_actor_email: string | null;
+  openclaw_tokens_pause_reason: string | null;
+  openclaw_tokens_paused: boolean | null;
+  openclaw_tokens_paused_at: string | null;
+  openclaw_tokens_resumed_at: string | null;
   openclaw_provision_status: string | null;
 };
 
@@ -89,7 +94,7 @@ export default async function AdminPage() {
   const { data: profileRows } = await access.adminSupabase
     .from("profiles")
     .select(
-      "id,email,full_name,admin_disabled,admin_deleted_at,llm_token_quota,llm_token_used,openclaw_instance,openclaw_provision_status,openclaw_instance_created_count,bedrock_token_updated_at,bedrock_token_last4"
+      "id,email,full_name,admin_disabled,admin_deleted_at,llm_token_quota,llm_token_used,openclaw_instance,openclaw_provision_status,openclaw_instance_created_count,openclaw_tokens_paused,openclaw_tokens_paused_at,openclaw_tokens_resumed_at,openclaw_tokens_pause_reason,openclaw_tokens_pause_actor_email,bedrock_token_updated_at,bedrock_token_last4"
     )
     .order("created_at", { ascending: false });
   const { data: adminAllowlistRows } = await access.adminSupabase
@@ -131,6 +136,11 @@ export default async function AdminPage() {
       llmTokenQuota: Number(profile.llm_token_quota ?? 0),
       llmTokenUsed: Number(profile.llm_token_used ?? 0),
       openclawInstance: profile.openclaw_instance,
+      openclawTokensPauseActorEmail: profile.openclaw_tokens_pause_actor_email,
+      openclawTokensPauseReason: profile.openclaw_tokens_pause_reason,
+      openclawTokensPaused: Boolean(profile.openclaw_tokens_paused),
+      openclawTokensPausedAt: profile.openclaw_tokens_paused_at,
+      openclawTokensResumedAt: profile.openclaw_tokens_resumed_at,
       openclawProvisionStatus: profile.openclaw_provision_status,
       projectCount: projectCounts.get(profile.id) ?? 0
     };

@@ -34,6 +34,10 @@ type OptionalProfileSettings = Pick<ProfileSettings, "google_workspace_enabled" 
 type BillingProfileSettings = OptionalProfileSettings & {
   llm_token_quota: number | null;
   llm_token_used: number | null;
+  openclaw_tokens_pause_reason: string | null;
+  openclaw_tokens_paused: boolean | null;
+  openclaw_tokens_paused_at: string | null;
+  openclaw_tokens_resumed_at: string | null;
 };
 
 type DashboardSettingsPageProps = {
@@ -96,7 +100,7 @@ export default async function DashboardSettingsPage({ searchParams }: DashboardS
   const { data: settingsProfile } = userId
     ? await supabase
         .from("profiles")
-        .select("profile_name,google_workspace_enabled,llm_token_quota,llm_token_used")
+        .select("profile_name,google_workspace_enabled,llm_token_quota,llm_token_used,openclaw_tokens_paused,openclaw_tokens_paused_at,openclaw_tokens_resumed_at,openclaw_tokens_pause_reason")
         .eq("id", userId)
         .maybeSingle()
     : { data: null };
@@ -150,6 +154,10 @@ export default async function DashboardSettingsPage({ searchParams }: DashboardS
               packageUsdCents={AI_CREDIT_PACKAGE_USD_CENTS}
               promptGoogleWorkspaceAuth={promptGoogleWorkspaceAuth}
               solanaPaymentHistory={solanaPaymentHistory}
+              tokensPauseReason={optionalSettings?.openclaw_tokens_pause_reason ?? null}
+              tokensPaused={Boolean(optionalSettings?.openclaw_tokens_paused)}
+              tokensPausedAt={optionalSettings?.openclaw_tokens_paused_at ?? null}
+              tokensResumedAt={optionalSettings?.openclaw_tokens_resumed_at ?? null}
               tokenQuota={llmTokenQuota}
               tokenUsed={llmTokenUsed}
               userEmail={email}

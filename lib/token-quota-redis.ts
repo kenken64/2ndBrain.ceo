@@ -15,6 +15,8 @@ export type TokenQuotaEventReason =
   | "marketplace_tool_purchase"
   | "marketplace_tool_refund"
   | "marketplace_tool_renewal"
+  | "openclaw_tokens_paused"
+  | "openclaw_tokens_resumed"
   | "project_token_usage"
   | "solana_credit_purchase"
   | "transfer_credit_in"
@@ -25,6 +27,10 @@ export type TokenQuotaSnapshot = {
   llmTokenQuota: number;
   llmTokenUsed: number;
   openclawInstance?: string | null;
+  openclawTokensPaused?: boolean;
+  openclawTokensPausedAt?: string | null;
+  openclawTokensPauseReason?: string | null;
+  openclawTokensResumedAt?: string | null;
   userId: string;
 };
 
@@ -271,6 +277,11 @@ async function publishRedis(channel: string, payload: string) {
 
 export async function publishTokenQuotaUpdate(input: TokenQuotaEventInput) {
   const openclawInstance = input.openclawInstance?.trim() || null;
+  const hasOpenClawPauseState = input.openclawTokensPaused !== undefined;
+  const openclawTokensPaused = Boolean(input.openclawTokensPaused);
+  const openclawTokensPausedAt = input.openclawTokensPausedAt ?? null;
+  const openclawTokensPauseReason = input.openclawTokensPauseReason ?? null;
+  const openclawTokensResumedAt = input.openclawTokensResumedAt ?? null;
   const payload = {
     actor: {
       email: input.actorEmail ?? null,
@@ -285,6 +296,18 @@ export async function publishTokenQuotaUpdate(input: TokenQuotaEventInput) {
     metadata: input.metadata ?? {},
     openclawInstance,
     openclaw_instance: openclawInstance,
+    ...(hasOpenClawPauseState
+      ? {
+          openclawTokensPaused,
+          openclawTokensPausedAt,
+          openclawTokensPauseReason,
+          openclawTokensResumedAt,
+          openclaw_tokens_paused: openclawTokensPaused,
+          openclaw_tokens_paused_at: openclawTokensPausedAt,
+          openclaw_tokens_pause_reason: openclawTokensPauseReason,
+          openclaw_tokens_resumed_at: openclawTokensResumedAt
+        }
+      : {}),
     occurredAt: new Date().toISOString(),
     reason: input.reason,
     source: "2ndBrain.ceo",

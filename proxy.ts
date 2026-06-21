@@ -54,6 +54,24 @@ function isCreditLockAllowedPath(pathname: string) {
   );
 }
 
+function isOpenClawPauseAllowedPath(pathname: string) {
+  return (
+    pathname === "/dashboard/settings" ||
+    pathname === "/dashboard/settings/" ||
+    pathname === "/api/account/destroy-workspace" ||
+    pathname === "/api/settings/token-balance" ||
+    pathname === "/api/settings/token-usage-pause" ||
+    pathname.startsWith("/api/openclaw/gws-auth") ||
+    pathname.startsWith("/api/billing") ||
+    pathname.startsWith("/auth") ||
+    pathname.startsWith("/onboarding")
+  );
+}
+
+function isOpenClawAiUsagePath(pathname: string) {
+  return pathname.startsWith("/api/openclaw") || pathname.startsWith("/api/projects") || pathname.startsWith("/api/wiki");
+}
+
 function isOAuthCodeCallbackPath(pathname: string) {
   return pathname === "/auth/callback" || pathname === "/api/openclaw/gws-auth/callback";
 }
@@ -129,7 +147,7 @@ export async function proxy(request: NextRequest) {
 
       const { data } = await supabase
         .from("profiles")
-        .select("admin_disabled,admin_deleted_at,llm_token_quota,llm_token_used")
+        .select("admin_disabled,admin_deleted_at,llm_token_quota,llm_token_used,openclaw_tokens_paused")
         .eq("id", userId)
         .maybeSingle();
 
@@ -163,6 +181,24 @@ export async function proxy(request: NextRequest) {
         return NextResponse.redirect(
           appUrl("/dashboard/settings?tab=payment&creditStatus=empty", request)
         );
+      }
+
+      if (
+        data?.openclaw_tokens_paused &&
+        isOpenClawAiUsagePath(request.nextUrl.pathname) &&
+        !isOpenClawPauseAllowedPath(request.nextUrl.pathname)
+      ) {
+        if (request.nextUrl.pathname.startsWith("/api/")) {
+          return NextResponse.json(
+            {
+              code: "openclaw_tokens_paused",
+              error: "OpenClaw AI usage is paused. Resume AI usage in Settings before continuing."
+            },
+            { status: 423 }
+          );
+        }
+
+        return NextResponse.redirect(appUrl("/dashboard/settings?tab=general&openclawAi=paused", request));
       }
 
       return response;

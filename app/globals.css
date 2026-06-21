@@ -2616,6 +2616,41 @@ svg {
   background: linear-gradient(90deg, var(--action-primary), var(--action-secondary));
 }
 
+.settings-token-usage-card__pause {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+  margin: 0;
+}
+
+.settings-token-usage-card__pause div {
+  min-width: 0;
+  border-left: 3px solid rgba(0, 167, 255, 0.26);
+  padding-left: 10px;
+}
+
+.settings-token-usage-card__pause dt {
+  color: var(--fg-muted);
+  font-size: 11px;
+  font-weight: 900;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.settings-token-usage-card__pause dd {
+  margin: 5px 0 0;
+  color: var(--fg-primary);
+  font-size: 13px;
+  font-weight: 800;
+  overflow-wrap: anywhere;
+}
+
+.settings-token-usage-card__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
 .settings-profile-card__fields {
   display: grid;
   gap: 12px;
@@ -5216,7 +5251,8 @@ svg {
   .settings-token-usage-card__header,
   .solana-credit-card__metrics,
   .solana-credit-card__quote,
-  .settings-token-usage-card__metrics {
+  .settings-token-usage-card__metrics,
+  .settings-token-usage-card__pause {
     grid-template-columns: 1fr;
   }
 

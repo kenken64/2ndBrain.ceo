@@ -16,6 +16,11 @@ export type AdminUserRow = {
   llmTokenQuota: number;
   llmTokenUsed: number;
   openclawInstance: string | null;
+  openclawTokensPauseActorEmail: string | null;
+  openclawTokensPauseReason: string | null;
+  openclawTokensPaused: boolean;
+  openclawTokensPausedAt: string | null;
+  openclawTokensResumedAt: string | null;
   openclawProvisionStatus: string | null;
   projectCount: number;
 };
@@ -30,6 +35,26 @@ const PAGE_SIZE = 10;
 
 function formatNumber(value: number) {
   return new Intl.NumberFormat("en").format(value);
+}
+
+function formatDateTime(value: string | null) {
+  if (!value) {
+    return "Not recorded";
+  }
+
+  const date = new Date(value);
+
+  if (Number.isNaN(date.getTime())) {
+    return "Not recorded";
+  }
+
+  return new Intl.DateTimeFormat("en", {
+    day: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+    month: "short",
+    year: "numeric"
+  }).format(date);
 }
 
 function parseTransferAmount(value: FormDataEntryValue | null) {
@@ -76,7 +101,14 @@ export function AdminUsersTable({ adminAvailableTokens, adminUserId, users }: Ad
     }
 
     return users.filter((user) =>
-      [user.email, user.fullName, user.id, user.openclawInstance, user.isAdmin ? "admin" : null]
+      [
+        user.email,
+        user.fullName,
+        user.id,
+        user.openclawInstance,
+        user.openclawTokensPaused ? "paused" : "active",
+        user.isAdmin ? "admin" : null
+      ]
         .filter(Boolean)
         .some((value) => String(value).toLowerCase().includes(needle))
     );
@@ -195,6 +227,17 @@ export function AdminUsersTable({ adminAvailableTokens, adminUserId, users }: Ad
               <div>
                 <strong>{user.openclawInstance ?? "No instance"}</strong>
                 <span>{user.openclawProvisionStatus ?? "not provisioned"}</span>
+                <span className={`project-status${user.openclawTokensPaused ? " project-status--failed" : " project-status--ready"}`}>
+                  {user.openclawTokensPaused ? "AI paused" : "AI active"}
+                </span>
+                <span>Paused: {formatDateTime(user.openclawTokensPausedAt)}</span>
+                <span>Resumed: {formatDateTime(user.openclawTokensResumedAt)}</span>
+                {user.openclawTokensPaused ? (
+                  <span>
+                    Reason: {user.openclawTokensPauseReason ?? "paused"}
+                    {user.openclawTokensPauseActorEmail ? ` by ${user.openclawTokensPauseActorEmail}` : ""}
+                  </span>
+                ) : null}
                 <span>{user.projectCount} projects</span>
               </div>
 

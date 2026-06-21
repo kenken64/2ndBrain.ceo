@@ -21,7 +21,7 @@ export async function GET() {
 
   const { data, error } = await supabase
     .from("profiles")
-    .select("llm_token_quota,llm_token_used")
+    .select("llm_token_quota,llm_token_used,openclaw_tokens_paused,openclaw_tokens_paused_at,openclaw_tokens_resumed_at,openclaw_tokens_pause_reason")
     .eq("id", userId)
     .maybeSingle();
 
@@ -42,6 +42,12 @@ export async function GET() {
         availableTokens: Math.max(0, llmTokenQuota - llmTokenUsed),
         llmTokenQuota,
         llmTokenUsed
+      },
+      pause: {
+        openclawTokensPauseReason: data.openclaw_tokens_pause_reason ?? null,
+        openclawTokensPaused: Boolean(data.openclaw_tokens_paused),
+        openclawTokensPausedAt: data.openclaw_tokens_paused_at ?? null,
+        openclawTokensResumedAt: data.openclaw_tokens_resumed_at ?? null
       }
     },
     {
