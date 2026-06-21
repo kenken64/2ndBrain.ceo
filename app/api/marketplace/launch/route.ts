@@ -198,6 +198,13 @@ export async function POST(request: Request) {
   });
 
   launchUrl.searchParams.set("launch_token", token);
+  for (const queryParam of launchConfig.queryParams ?? []) {
+    const value = cleanEnvValue(process.env[queryParam.env]);
+
+    if (value) {
+      launchUrl.searchParams.set(queryParam.name, value);
+    }
+  }
 
   return NextResponse.json(
     {

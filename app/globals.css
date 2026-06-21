@@ -3202,13 +3202,24 @@ svg {
 .workflow-card__actions {
   display: flex;
   flex-wrap: wrap;
+  align-items: center;
   gap: 10px;
   margin-top: 2px;
 }
 
 .workflow-card__actions a,
 .workflow-card__actions button {
+  min-width: 124px;
+  min-height: 44px;
+  padding: 10px 16px;
   cursor: pointer;
+  font-size: 13px;
+  font-weight: 800;
+  line-height: 1;
+}
+
+.workflow-card__actions svg {
+  flex: 0 0 auto;
 }
 
 .workflow-card__actions button:disabled {

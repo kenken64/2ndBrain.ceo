@@ -24,6 +24,7 @@ export const WORKFLOW_TEMPLATES: WorkflowTemplate[] = [
     description: "Install the Gyne Agent Redis task pipeline with Kanban task publishing, OpenClaw workers, and optional Telegram updates.",
     id: "gyne-agent",
     itemType: "agent-app",
+    launchLabel: "Launch agent",
     priceTokens: WORKFLOW_TOOL_PRICE_TOKENS,
     repoUrl: "https://github.com/kenken64/gyne-agent",
     sourceLabel: "GitHub",
