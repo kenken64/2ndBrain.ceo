@@ -39,6 +39,28 @@ export const WORKFLOW_TEMPLATES: WorkflowTemplate[] = [
     sourceLabel: "GitHub",
     steps: ["Browse PSLE paper pages", "Review markdown beside images", "Snip visuals into study notes"],
     title: "PSLE English Tutor"
+  },
+  {
+    category: "Media Intelligence",
+    description: "Passkey-secured news monitoring workspace with first-run agent setup, messaging-channel pairing, and category-driven dashboards.",
+    id: "news-intelligence-desk",
+    itemType: "agent-app",
+    priceTokens: WORKFLOW_TOOL_PRICE_TOKENS,
+    repoUrl: "https://github.com/kenken64/newsclaw",
+    sourceLabel: "GitHub",
+    steps: ["Create passkey access", "Restore news workspace", "Track selected categories"],
+    title: "News Intelligence Desk"
+  },
+  {
+    category: "Device Automation",
+    description: "Browser-based Android screen mirroring, touch control, AI-guided task execution, and playback review for mobile workflows.",
+    id: "mobile-device-operator",
+    itemType: "agent-app",
+    priceTokens: WORKFLOW_TOOL_PRICE_TOKENS,
+    repoUrl: "https://github.com/kenken64/mobiClaw",
+    sourceLabel: "GitHub",
+    steps: ["Mirror Android screens", "Run natural-language tasks", "Replay recorded workflows"],
+    title: "Mobile Device Operator"
   }
 ];
 
