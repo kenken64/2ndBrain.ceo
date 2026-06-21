@@ -2978,6 +2978,42 @@ svg {
   gap: 18px;
 }
 
+.workflow-marketplace-pagination {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  border: 1px solid var(--border-soft);
+  border-radius: var(--radius-lg);
+  background: rgba(255, 255, 255, 0.74);
+  padding: 12px;
+}
+
+.workflow-marketplace-pagination span,
+.workflow-marketplace-pagination label {
+  color: var(--fg-secondary);
+  font-size: 13px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.workflow-marketplace-pagination label {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.workflow-marketplace-pagination select {
+  min-height: 36px;
+  border: 1px solid var(--border-medium);
+  border-radius: var(--radius-md);
+  background: var(--bg-elevated);
+  color: var(--fg-primary);
+  padding: 7px 28px 7px 10px;
+  font: inherit;
+  font-weight: 800;
+}
+
 .workflow-card,
 .workflow-empty {
   display: grid;
@@ -3058,6 +3094,13 @@ svg {
   font-size: 13px;
   font-weight: 800;
   overflow-wrap: anywhere;
+}
+
+.workflow-card__billing {
+  border-left: 3px solid rgba(0, 167, 255, 0.28);
+  padding-left: 10px;
+  font-size: 13px;
+  font-weight: 700;
 }
 
 .workflow-card__steps {

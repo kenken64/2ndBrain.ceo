@@ -1,8 +1,10 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { Check, Coins, ExternalLink, Plus, RefreshCw } from "lucide-react";
+import { AlertTriangle, Check, ChevronLeft, ChevronRight, Coins, ExternalLink, Plus, RefreshCw } from "lucide-react";
 import { WORKFLOW_TEMPLATES } from "@/lib/workflow-templates";
+
+const PAGE_SIZE_OPTIONS = [3, 6, 12] as const;
 
 type MarketplaceBalance = {
   availableTokens: number;
@@ -18,11 +20,17 @@ type MarketplaceInstall = {
     usedTokens: number;
   } | null;
   chargedTokens: number;
+  currentPeriodStartedAt?: string | null;
+  disabledAt?: string | null;
+  disabledReason?: string | null;
   installedAt?: string | null;
   itemId: string;
   itemType: string;
+  lastChargedAt?: string | null;
+  nextChargeAt?: string | null;
   priceTokens: number;
   status: string;
+  unsubscribedAt?: string | null;
 };
 
 type MarketplaceState = {
@@ -57,6 +65,24 @@ function formatTokens(value: number | null | undefined) {
   return new Intl.NumberFormat("en").format(Math.max(0, Math.trunc(value)));
 }
 
+function formatDate(value: string | null | undefined) {
+  if (!value) {
+    return null;
+  }
+
+  const date = new Date(value);
+
+  if (Number.isNaN(date.getTime())) {
+    return null;
+  }
+
+  return new Intl.DateTimeFormat("en", {
+    day: "numeric",
+    month: "short",
+    year: "numeric"
+  }).format(date);
+}
+
 async function readJson<T>(response: Response) {
   const payload = (await response.json().catch(() => null)) as (T & { error?: string }) | null;
 
@@ -77,10 +103,21 @@ export function WorkflowMarketplace() {
   const [message, setMessage] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [installingId, setInstallingId] = useState<string | null>(null);
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState<(typeof PAGE_SIZE_OPTIONS)[number]>(PAGE_SIZE_OPTIONS[0]);
   const installByItemId = useMemo(
     () => new Map(marketplace.installs.map((install) => [install.itemId, install])),
     [marketplace.installs]
   );
+  const pageCount = Math.max(1, Math.ceil(WORKFLOW_TEMPLATES.length / pageSize));
+  const currentPage = Math.min(page, pageCount);
+  const pageStart = (currentPage - 1) * pageSize;
+  const pageEnd = Math.min(pageStart + pageSize, WORKFLOW_TEMPLATES.length);
+  const pageTemplates = WORKFLOW_TEMPLATES.slice(pageStart, pageEnd);
+
+  useEffect(() => {
+    setPage((current) => Math.min(current, pageCount));
+  }, [pageCount]);
 
   async function refreshMarketplace() {
     setLoading(true);
@@ -137,6 +174,7 @@ export function WorkflowMarketplace() {
             ? "Workflow tool installed with admin quota exemption."
             : `Workflow tool installed and ${formatTokens(payload.install.chargedTokens)} AI credits allocated.`
       );
+      await refreshMarketplace();
     } catch (installError) {
       setError(installError instanceof Error ? installError.message : "Workflow tool could not be installed.");
     } finally {
@@ -165,19 +203,74 @@ export function WorkflowMarketplace() {
       {error ? <p className="form-error" role="alert">{error}</p> : null}
       {message ? <p className="form-success" role="status">{message}</p> : null}
 
+      <div className="workflow-marketplace-pagination" aria-label="Marketplace pagination">
+        <span>
+          Showing {pageStart + 1}-{pageEnd} of {WORKFLOW_TEMPLATES.length}
+        </span>
+        <label>
+          Per page
+          <select
+            aria-label="Marketplace tools per page"
+            onChange={(event) => {
+              setPageSize(Number(event.target.value) as (typeof PAGE_SIZE_OPTIONS)[number]);
+              setPage(1);
+            }}
+            value={pageSize}
+          >
+            {PAGE_SIZE_OPTIONS.map((option) => (
+              <option key={option} value={option}>
+                {option}
+              </option>
+            ))}
+          </select>
+        </label>
+        <button
+          aria-label="Previous marketplace page"
+          className="btn-ghost"
+          disabled={currentPage <= 1}
+          onClick={() => setPage((current) => Math.max(1, current - 1))}
+          type="button"
+        >
+          <ChevronLeft size={16} strokeWidth={1.9} />
+        </button>
+        <span>
+          Page {currentPage} of {pageCount}
+        </span>
+        <button
+          aria-label="Next marketplace page"
+          className="btn-ghost"
+          disabled={currentPage >= pageCount}
+          onClick={() => setPage((current) => Math.min(pageCount, current + 1))}
+          type="button"
+        >
+          <ChevronRight size={16} strokeWidth={1.9} />
+        </button>
+      </div>
+
       <div className="workflow-grid">
-        {WORKFLOW_TEMPLATES.map((template) => {
+        {pageTemplates.map((template) => {
           const install = installByItemId.get(template.id);
+          const isDisabled = install?.status === "disabled";
           const isInstalled = Boolean(install);
           const isInstalling = installingId === template.id;
           const hasEnoughCredits = loading || marketplace.balance.availableTokens >= template.priceTokens;
+          const missingTokens = Math.max(0, template.priceTokens - marketplace.balance.availableTokens);
           const canInstall = !loading && !isInstalled && !isInstalling && (marketplace.isAdmin || hasEnoughCredits);
-          const statusClass = isInstalled
+          const statusClass = isDisabled
+            ? " project-status--failed"
+            : isInstalled
             ? " project-status--ready"
             : !loading && !marketplace.isAdmin && !hasEnoughCredits
               ? " project-status--failed"
               : " project-status--running";
-          const priceCopy = marketplace.isAdmin ? "Admin: free install" : `${formatTokens(template.priceTokens)} AI credits`;
+          const priceCopy = marketplace.isAdmin ? "Admin: free install" : `Requires ${formatTokens(template.priceTokens)} AI credits`;
+          const installedDate = formatDate(install?.installedAt);
+          const nextChargeDate = formatDate(install?.nextChargeAt);
+          const billingCopy = install?.allocation?.quotaExempt
+            ? "Admin exempt from recurring AI credit charges."
+            : nextChargeDate
+              ? `Next charge: ${nextChargeDate}`
+              : "Monthly renewal active.";
 
           return (
             <article className="workflow-card" key={template.id}>
@@ -187,7 +280,13 @@ export function WorkflowMarketplace() {
                   <h2>{template.title}</h2>
                 </div>
                 <span className={`project-status${statusClass}`}>
-                  {isInstalled ? "installed" : !loading && !marketplace.isAdmin && !hasEnoughCredits ? "locked" : "available"}
+                  {isDisabled
+                    ? "disabled"
+                    : isInstalled
+                      ? "installed"
+                      : !loading && !marketplace.isAdmin && !hasEnoughCredits
+                        ? "locked"
+                        : "available"}
                 </span>
               </div>
               <p>{template.description}</p>
@@ -195,6 +294,14 @@ export function WorkflowMarketplace() {
                 <Coins size={16} strokeWidth={1.9} />
                 <span>{priceCopy}</span>
               </div>
+              {!marketplace.isAdmin && !install ? (
+                <p className="workflow-card__billing">
+                  Need {formatTokens(template.priceTokens)} AI credits to install.{" "}
+                  {hasEnoughCredits
+                    ? `${formatTokens(marketplace.balance.availableTokens)} available now.`
+                    : `${formatTokens(missingTokens)} more needed.`}
+                </p>
+              ) : null}
               {install?.allocation ? (
                 <dl className="workflow-card__allocation">
                   <div>
@@ -211,6 +318,12 @@ export function WorkflowMarketplace() {
                   </div>
                 </dl>
               ) : null}
+              {install ? (
+                <p className="workflow-card__billing">
+                  {installedDate ? `Installed: ${installedDate}. ` : null}
+                  {billingCopy}
+                </p>
+              ) : null}
               <ol className="workflow-card__steps">
                 {template.steps.map((step) => (
                   <li key={step}>{step}</li>
@@ -223,14 +336,16 @@ export function WorkflowMarketplace() {
                   onClick={() => installWorkflow(template.id)}
                   type="button"
                 >
-                  {isInstalled ? (
+                  {isDisabled ? (
+                    <AlertTriangle size={16} strokeWidth={1.9} />
+                  ) : isInstalled ? (
                     <Check size={16} strokeWidth={1.9} />
                   ) : isInstalling ? (
                     <RefreshCw size={16} strokeWidth={1.9} />
                   ) : (
                     <Plus size={16} strokeWidth={1.9} />
                   )}
-                  {isInstalled ? "Installed" : isInstalling ? "Installing..." : "Install"}
+                  {isDisabled ? "Disabled" : isInstalled ? "Installed" : isInstalling ? "Installing..." : "Install"}
                 </button>
                 {template.repoUrl ? (
                   <a className="btn-ghost" href={template.repoUrl} rel="noreferrer" target="_blank">
@@ -240,7 +355,14 @@ export function WorkflowMarketplace() {
                 ) : null}
               </div>
               {!loading && !marketplace.isAdmin && !isInstalled && !hasEnoughCredits ? (
-                <p className="workflow-card__hint">Add AI credits to install this workflow tool.</p>
+                <p className="workflow-card__hint">
+                  Add {formatTokens(missingTokens)} more AI credits to install this workflow tool.
+                </p>
+              ) : null}
+              {isDisabled ? (
+                <p className="workflow-card__hint">
+                  Add AI credits, then refresh Marketplace to reactivate this workflow tool.
+                </p>
               ) : null}
             </article>
           );
