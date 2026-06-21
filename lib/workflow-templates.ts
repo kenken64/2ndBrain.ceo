@@ -8,6 +8,7 @@ export type WorkflowTemplate = {
   description: string;
   id: string;
   itemType: "agent-app" | "workflow";
+  launchLabel?: string;
   repoUrl?: string;
   sourceLabel?: string;
   steps: string[];
@@ -34,6 +35,7 @@ export const WORKFLOW_TEMPLATES: WorkflowTemplate[] = [
     description: "Review PSLE English practice papers as page images, rendered markdown, visual snapshots, and snipped study notes.",
     id: "psle-eng-tutor-brain",
     itemType: "agent-app",
+    launchLabel: "Launch tutor",
     priceTokens: PSLE_ENGLISH_TUTOR_PRICE_TOKENS,
     repoUrl: "https://github.com/kenken64/psle-eng-tutor-brain",
     sourceLabel: "GitHub",

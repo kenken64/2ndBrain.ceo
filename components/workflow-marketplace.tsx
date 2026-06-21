@@ -263,7 +263,9 @@ export function WorkflowMarketplace() {
             : !loading && !marketplace.isAdmin && !hasEnoughCredits
               ? " project-status--failed"
               : " project-status--running";
-          const priceCopy = marketplace.isAdmin ? "Admin: free install" : `Requires ${formatTokens(template.priceTokens)} AI credits`;
+          const priceCopy = marketplace.isAdmin
+            ? `Listed price: ${formatTokens(template.priceTokens)} AI credits. Admin install: free`
+            : `Requires ${formatTokens(template.priceTokens)} AI credits`;
           const installedDate = formatDate(install?.installedAt);
           const nextChargeDate = formatDate(install?.nextChargeAt);
           const billingCopy = install?.allocation?.quotaExempt

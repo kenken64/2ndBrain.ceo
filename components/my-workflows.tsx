@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { AlertTriangle, ExternalLink, RefreshCw, Store, Trash2 } from "lucide-react";
+import { AlertTriangle, ExternalLink, RefreshCw, Rocket, Store, Trash2 } from "lucide-react";
 import {
   WORKFLOW_TEMPLATES,
   workflowTemplateById,
@@ -45,6 +45,10 @@ type UnsubscribeResponse = {
     refundedTokens?: number;
   };
   isAdmin: boolean;
+};
+
+type LaunchResponse = {
+  launchUrl: string;
 };
 
 function formatTokens(value: number | null | undefined) {
@@ -105,6 +109,7 @@ export function MyWorkflows() {
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [launchingId, setLaunchingId] = useState<string | null>(null);
   const [unsubscribingId, setUnsubscribingId] = useState<string | null>(null);
   const workflows = useMemo(
     () =>
@@ -175,6 +180,28 @@ export function MyWorkflows() {
     }
   }
 
+  async function launchWorkflow(itemId: string) {
+    setLaunchingId(itemId);
+    setError(null);
+    setMessage(null);
+
+    try {
+      const response = await fetch("/api/marketplace/launch", {
+        body: JSON.stringify({ itemId }),
+        headers: {
+          "Content-Type": "application/json"
+        },
+        method: "POST"
+      });
+      const payload = await readJson<LaunchResponse>(response);
+
+      window.location.assign(payload.launchUrl);
+    } catch (launchError) {
+      setError(launchError instanceof Error ? launchError.message : "Workflow tool could not be launched.");
+      setLaunchingId(null);
+    }
+  }
+
   if (!loading && workflows.length === 0) {
     return (
       <article className="workflow-empty">
@@ -213,6 +240,7 @@ export function MyWorkflows() {
       <div className="workflow-grid">
         {workflows.map(({ install, item }) => {
           const isDisabled = install.status === "disabled";
+          const isLaunching = launchingId === item.id;
           const isUnsubscribing = unsubscribingId === item.id;
           const installedDate = formatDate(install.installedAt);
           const nextChargeDate = formatDate(install.nextChargeAt);
@@ -267,7 +295,18 @@ export function MyWorkflows() {
                 ))}
               </ol>
               <div className="workflow-card__actions">
-                <a className="btn-primary" href="/dashboard/marketplace">
+                {item.launchLabel ? (
+                  <button
+                    className="btn-primary"
+                    disabled={isDisabled || isLaunching}
+                    onClick={() => launchWorkflow(item.id)}
+                    type="button"
+                  >
+                    {isLaunching ? <RefreshCw size={16} strokeWidth={1.8} /> : <Rocket size={16} strokeWidth={1.8} />}
+                    {isLaunching ? "Launching..." : item.launchLabel}
+                  </button>
+                ) : null}
+                <a className={item.launchLabel ? "btn-ghost" : "btn-primary"} href="/dashboard/marketplace">
                   <Store size={16} strokeWidth={1.8} />
                   Marketplace
                 </a>
