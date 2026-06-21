@@ -2,6 +2,7 @@ import "server-only";
 
 export type WorkflowLaunchConfig = {
   appUrlEnv: string;
+  itemId: string;
   queryParams?: Array<{
     env: string;
     name: string;
@@ -13,6 +14,7 @@ export type WorkflowLaunchConfig = {
 const WORKFLOW_LAUNCH_CONFIGS: Record<string, WorkflowLaunchConfig> = {
   "gyne-agent": {
     appUrlEnv: "GYNE_AGENT_URL",
+    itemId: "gyne-agent",
     queryParams: [
       {
         env: "GYNE_AGENT_WS_URL",
@@ -24,6 +26,7 @@ const WORKFLOW_LAUNCH_CONFIGS: Record<string, WorkflowLaunchConfig> = {
   },
   "psle-eng-tutor-brain": {
     appUrlEnv: "PSLE_ENG_TUTOR_URL",
+    itemId: "psle-eng-tutor-brain",
     secretEnv: "PSLE_ENG_TUTOR_SESSION_SECRET",
     toolId: "psle-eng-tutor-brain"
   }
@@ -31,4 +34,8 @@ const WORKFLOW_LAUNCH_CONFIGS: Record<string, WorkflowLaunchConfig> = {
 
 export function workflowLaunchConfigById(itemId: string) {
   return WORKFLOW_LAUNCH_CONFIGS[itemId] ?? null;
+}
+
+export function workflowLaunchConfigByToolId(toolId: string) {
+  return Object.values(WORKFLOW_LAUNCH_CONFIGS).find((config) => config.toolId === toolId) ?? null;
 }

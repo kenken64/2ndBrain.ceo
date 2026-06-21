@@ -90,6 +90,8 @@ keeps OAuth redirects independent from proxy/internal host headers.
 
 Do not expose Supabase service role keys to the browser. Only use a service role key in a local shell or controlled maintenance job for admin scripts such as `npm run wiki:backfill`. Google OAuth credentials belong in Supabase Auth provider settings.
 
+Marketplace workflow launches use short-lived signed URLs. To also revoke already-open workflow tool tabs when a user logs out, set `MARKETPLACE_LAUNCH_VERIFY_SECRET` in 2ndBrain and set the same value plus `MARKETPLACE_LAUNCH_VERIFY_URL=https://your-2ndbrain-domain/api/marketplace/launch-session/verify` in each deployed workflow tool.
+
 ## Supabase
 
 Run migrations in order from `supabase/migrations`:
