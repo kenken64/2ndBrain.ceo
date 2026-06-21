@@ -195,7 +195,8 @@ export function MyWorkflows() {
       });
       const payload = await readJson<LaunchResponse>(response);
 
-      window.location.assign(payload.launchUrl);
+      window.open(payload.launchUrl, "_blank", "noopener,noreferrer");
+      setLaunchingId(null);
     } catch (launchError) {
       setError(launchError instanceof Error ? launchError.message : "Workflow tool could not be launched.");
       setLaunchingId(null);
