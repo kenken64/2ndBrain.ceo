@@ -2941,6 +2941,37 @@ svg {
   gap: 24px;
 }
 
+.workflow-marketplace-stack {
+  display: grid;
+  gap: 18px;
+}
+
+.workflow-marketplace-summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  border: 1px solid var(--border-soft);
+  border-radius: var(--radius-lg);
+  background: rgba(255, 255, 255, 0.82);
+  box-shadow: var(--shadow-md);
+  padding: 18px 20px;
+}
+
+.workflow-marketplace-summary h2 {
+  margin-top: 5px;
+  color: var(--fg-primary);
+  font-size: 22px;
+  line-height: 1.15;
+}
+
+.workflow-marketplace-summary p {
+  margin: 6px 0 0;
+  color: var(--fg-secondary);
+  font-size: 14px;
+  line-height: 1.5;
+}
+
 .workflow-grid {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -2986,6 +3017,49 @@ svg {
   line-height: 1.55;
 }
 
+.workflow-card__price {
+  display: inline-flex;
+  align-items: center;
+  width: fit-content;
+  gap: 8px;
+  border: 1px solid rgba(0, 167, 255, 0.22);
+  border-radius: var(--radius-md);
+  background: rgba(0, 167, 255, 0.08);
+  color: var(--brand-blue-dark);
+  padding: 8px 10px;
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.workflow-card__allocation {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+  margin: 0;
+}
+
+.workflow-card__allocation div {
+  border: 1px solid var(--border-soft);
+  border-radius: var(--radius-md);
+  background: rgba(245, 248, 251, 0.72);
+  padding: 9px 10px;
+}
+
+.workflow-card__allocation dt {
+  color: var(--fg-tertiary);
+  font-size: 11px;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.workflow-card__allocation dd {
+  margin: 4px 0 0;
+  color: var(--fg-primary);
+  font-size: 13px;
+  font-weight: 800;
+  overflow-wrap: anywhere;
+}
+
 .workflow-card__steps {
   display: grid;
   gap: 8px;
@@ -3011,6 +3085,7 @@ svg {
   margin-top: 2px;
 }
 
+.workflow-card__actions a,
 .workflow-card__actions button {
   cursor: pointer;
 }
@@ -3018,6 +3093,12 @@ svg {
 .workflow-card__actions button:disabled {
   cursor: not-allowed;
   opacity: 0.68;
+}
+
+.workflow-card__hint {
+  color: var(--error-text);
+  font-size: 12px;
+  font-weight: 700;
 }
 
 .workspace-status-card__hint {
@@ -5458,6 +5539,15 @@ svg {
   .workflow-empty {
     grid-template-columns: 1fr;
     align-items: stretch;
+  }
+
+  .workflow-marketplace-summary {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .workflow-card__allocation {
+    grid-template-columns: 1fr;
   }
 
   .wiki-empty-panel {

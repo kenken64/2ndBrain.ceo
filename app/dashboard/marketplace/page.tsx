@@ -77,7 +77,7 @@ export default async function WorkflowMarketplacePage() {
             <div className="settings-workbench__header">
               <p className="workspace-status-card__eyebrow">Workflow</p>
               <h1 id="workflow-marketplace-title">Marketplace</h1>
-              <p>Add workflow templates to your workspace and keep them available under My Workflows.</p>
+              <p>Install workflow tools, allocate AI credits to each tool, and keep them available under My Workflows.</p>
             </div>
 
             <WorkflowMarketplace />

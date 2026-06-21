@@ -77,7 +77,7 @@ export default async function MyWorkflowsPage() {
             <div className="settings-workbench__header">
               <p className="workspace-status-card__eyebrow">Workflow</p>
               <h1 id="my-workflows-title">My Workflows</h1>
-              <p>Manage the workflow templates saved from Marketplace.</p>
+              <p>Manage workflow tools installed from Marketplace and review their AI credit allocations.</p>
             </div>
 
             <MyWorkflows />

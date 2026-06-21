@@ -12,6 +12,7 @@ export type TokenQuotaEventReason =
   | "admin_credit_drain_to_admin"
   | "admin_quota_update"
   | "bedrock_token_usage"
+  | "marketplace_tool_purchase"
   | "project_token_usage"
   | "solana_credit_purchase"
   | "transfer_credit_in"
