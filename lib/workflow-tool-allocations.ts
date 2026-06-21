@@ -1,4 +1,5 @@
 export const WORKFLOW_TOOL_PRICE_TOKENS = 10_000;
+export const PSLE_ENGLISH_TUTOR_PRICE_TOKENS = 20_000;
 
 export type WorkflowToolAllocation = {
   allocatedTokens: number;

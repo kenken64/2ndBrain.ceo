@@ -52,7 +52,11 @@ async function requireUser() {
   };
 }
 
-function installErrorResponse(error: { message?: string }) {
+function formatTokens(value: number) {
+  return new Intl.NumberFormat("en").format(Math.max(0, Math.trunc(value)));
+}
+
+function installErrorResponse(error: { message?: string }, requiredTokens: number) {
   const message = error.message ?? "marketplace_install_failed";
 
   if (message.includes("invalid_marketplace_item") || message.includes("invalid_price_tokens")) {
@@ -68,7 +72,10 @@ function installErrorResponse(error: { message?: string }) {
   }
 
   if (message.includes("insufficient_ai_credits")) {
-    return NextResponse.json({ error: "You need 10,000 available AI credits to install this workflow tool." }, { status: 402 });
+    return NextResponse.json(
+      { error: `You need ${formatTokens(requiredTokens)} available AI credits to install this workflow tool.` },
+      { status: 402 }
+    );
   }
 
   return NextResponse.json({ error: "Marketplace install failed." }, { status: 500 });
@@ -122,7 +129,7 @@ export async function POST(request: Request) {
     .single();
 
   if (error) {
-    return installErrorResponse(error);
+    return installErrorResponse(error, item.priceTokens);
   }
 
   const install = data as InstallMarketplaceToolRow;
