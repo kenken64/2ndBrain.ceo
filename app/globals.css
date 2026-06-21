@@ -3054,6 +3054,33 @@ svg {
   gap: 8px;
 }
 
+.workflow-marketplace-search {
+  flex: 1 1 280px;
+  min-width: min(100%, 260px);
+  min-height: 38px;
+  border: 1px solid var(--border-medium);
+  border-radius: var(--radius-md);
+  background: var(--bg-elevated);
+  color: var(--fg-muted);
+  padding: 0 12px;
+}
+
+.workflow-marketplace-search:focus-within {
+  border-color: rgba(0, 167, 255, 0.44);
+  box-shadow: 0 0 0 3px rgba(0, 167, 255, 0.12);
+}
+
+.workflow-marketplace-search input {
+  width: 100%;
+  min-width: 0;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  color: var(--fg-primary);
+  font: inherit;
+  font-weight: 800;
+}
+
 .workflow-marketplace-pagination select {
   min-height: 36px;
   border: 1px solid var(--border-medium);

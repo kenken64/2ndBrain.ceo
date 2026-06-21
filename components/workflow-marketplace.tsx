@@ -1,10 +1,10 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { AlertTriangle, Check, ChevronLeft, ChevronRight, Coins, ExternalLink, Plus, RefreshCw } from "lucide-react";
+import { AlertTriangle, Check, ChevronLeft, ChevronRight, Coins, ExternalLink, Plus, RefreshCw, Search } from "lucide-react";
 import { WORKFLOW_TEMPLATES } from "@/lib/workflow-templates";
 
-const PAGE_SIZE_OPTIONS = [3, 6, 12] as const;
+const PAGE_SIZE_OPTIONS = [6, 12] as const;
 
 type MarketplaceBalance = {
   availableTokens: number;
@@ -105,15 +105,29 @@ export function WorkflowMarketplace() {
   const [installingId, setInstallingId] = useState<string | null>(null);
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState<(typeof PAGE_SIZE_OPTIONS)[number]>(PAGE_SIZE_OPTIONS[0]);
+  const [searchTerm, setSearchTerm] = useState("");
   const installByItemId = useMemo(
     () => new Map(marketplace.installs.map((install) => [install.itemId, install])),
     [marketplace.installs]
   );
-  const pageCount = Math.max(1, Math.ceil(WORKFLOW_TEMPLATES.length / pageSize));
+  const filteredTemplates = useMemo(() => {
+    const needle = searchTerm.trim().toLowerCase();
+
+    if (!needle) {
+      return WORKFLOW_TEMPLATES;
+    }
+
+    return WORKFLOW_TEMPLATES.filter((template) =>
+      [template.category, template.title].some((value) => value.toLowerCase().includes(needle))
+    );
+  }, [searchTerm]);
+  const totalTemplates = filteredTemplates.length;
+  const pageCount = Math.max(1, Math.ceil(totalTemplates / pageSize));
   const currentPage = Math.min(page, pageCount);
   const pageStart = (currentPage - 1) * pageSize;
-  const pageEnd = Math.min(pageStart + pageSize, WORKFLOW_TEMPLATES.length);
-  const pageTemplates = WORKFLOW_TEMPLATES.slice(pageStart, pageEnd);
+  const pageEnd = Math.min(pageStart + pageSize, totalTemplates);
+  const pageTemplates = filteredTemplates.slice(pageStart, pageEnd);
+  const showingStart = totalTemplates > 0 ? pageStart + 1 : 0;
 
   useEffect(() => {
     setPage((current) => Math.min(current, pageCount));
@@ -204,8 +218,21 @@ export function WorkflowMarketplace() {
       {message ? <p className="form-success" role="status">{message}</p> : null}
 
       <div className="workflow-marketplace-pagination" aria-label="Marketplace pagination">
+        <label className="workflow-marketplace-search">
+          <Search size={16} strokeWidth={1.9} />
+          <input
+            aria-label="Search marketplace tools by category or tool name"
+            onChange={(event) => {
+              setSearchTerm(event.target.value);
+              setPage(1);
+            }}
+            placeholder="Search category or tool"
+            type="search"
+            value={searchTerm}
+          />
+        </label>
         <span>
-          Showing {pageStart + 1}-{pageEnd} of {WORKFLOW_TEMPLATES.length}
+          Showing {showingStart}-{pageEnd} of {totalTemplates}
         </span>
         <label>
           Per page
@@ -246,6 +273,16 @@ export function WorkflowMarketplace() {
           <ChevronRight size={16} strokeWidth={1.9} />
         </button>
       </div>
+
+      {totalTemplates === 0 ? (
+        <article className="workflow-empty">
+          <div>
+            <p className="workspace-status-card__eyebrow">Marketplace</p>
+            <h2>No matching workflow tools</h2>
+            <p>Search by category or workflow tool name.</p>
+          </div>
+        </article>
+      ) : null}
 
       <div className="workflow-grid">
         {pageTemplates.map((template) => {
