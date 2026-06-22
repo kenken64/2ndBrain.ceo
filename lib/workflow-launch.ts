@@ -29,6 +29,12 @@ const WORKFLOW_LAUNCH_CONFIGS: Record<string, WorkflowLaunchConfig> = {
     itemId: "psle-eng-tutor-brain",
     secretEnv: "PSLE_ENG_TUTOR_SESSION_SECRET",
     toolId: "psle-eng-tutor-brain"
+  },
+  "mobile-device-operator": {
+    appUrlEnv: "MOBILE_DEVICE_OPERATOR_URL",
+    itemId: "mobile-device-operator",
+    secretEnv: "MOBILE_DEVICE_OPERATOR_SESSION_SECRET",
+    toolId: "mobile-device-operator"
   }
 };
 

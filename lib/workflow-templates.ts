@@ -59,6 +59,7 @@ export const WORKFLOW_TEMPLATES: WorkflowTemplate[] = [
     description: "Browser-based Android screen mirroring, touch control, AI-guided task execution, and playback review for mobile workflows.",
     id: "mobile-device-operator",
     itemType: "agent-app",
+    launchLabel: "Launch",
     priceTokens: WORKFLOW_TOOL_PRICE_TOKENS,
     repoUrl: "https://github.com/kenken64/mobiClaw",
     sourceLabel: "GitHub",
