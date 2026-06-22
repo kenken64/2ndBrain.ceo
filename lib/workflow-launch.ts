@@ -35,6 +35,12 @@ const WORKFLOW_LAUNCH_CONFIGS: Record<string, WorkflowLaunchConfig> = {
     itemId: "mobile-device-operator",
     secretEnv: "MOBILE_DEVICE_OPERATOR_SESSION_SECRET",
     toolId: "mobile-device-operator"
+  },
+  "news-intelligence-desk": {
+    appUrlEnv: "NEWS_INTELLIGENCE_DESK_URL",
+    itemId: "news-intelligence-desk",
+    secretEnv: "NEWS_INTELLIGENCE_DESK_SESSION_SECRET",
+    toolId: "news-intelligence-desk"
   }
 };
 

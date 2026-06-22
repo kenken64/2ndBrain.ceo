@@ -48,6 +48,7 @@ export const WORKFLOW_TEMPLATES: WorkflowTemplate[] = [
     description: "Passkey-secured news monitoring workspace with first-run agent setup, messaging-channel pairing, and category-driven dashboards.",
     id: "news-intelligence-desk",
     itemType: "agent-app",
+    launchLabel: "Launch",
     priceTokens: WORKFLOW_TOOL_PRICE_TOKENS,
     repoUrl: "https://github.com/kenken64/newsclaw",
     sourceLabel: "GitHub",
