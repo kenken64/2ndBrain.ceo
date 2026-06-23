@@ -78,7 +78,7 @@ export const RECORD = {
   consoleRun: [
     "$ clawmacdo ls-restore-fast",
     "[ok] snapshot found: openclaw-base",
-    "[ok] runtime restored on lightsail",
+    "[ok] runtime restored in cloud",
     "[..] telegram pairing: waiting for approval"
   ],
   consoleApproved: [

@@ -184,7 +184,7 @@ export function SettingsPageTabs({
               <p className="workspace-status-card__eyebrow">Danger zone</p>
               <h2>Destroy instance</h2>
               <p>
-                Destroy the Lightsail OpenClaw instance, clear generated Nth Brain project history, reset onboarding, and log out.
+                Destroy the Cloud OpenClaw instance, clear generated Nth Brain project history, reset onboarding, and log out.
               </p>
             </div>
             <DestroyWorkspaceButton variant="panel" />

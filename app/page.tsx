@@ -32,7 +32,7 @@ const manrope = Manrope({
   weight: ["400", "500", "600", "700", "800"]
 });
 
-const runsOn = ["AWS LIGHTSAIL", "SUPABASE", "TELEGRAM", "GOOGLE WORKSPACE", "SOLANA"];
+const runsOn = ["CLOUD", "SUPABASE", "TELEGRAM", "GOOGLE WORKSPACE", "SOLANA"];
 
 const ownershipRows = [
   {
@@ -105,7 +105,7 @@ export default function Home() {
                   </span>
                 </h1>
                 <p className="lp-hero__sub">
-                  2ndBrain.ceo provisions a dedicated AI agent on AWS Lightsail, then writes
+                  2ndBrain.ceo provisions a dedicated AI agent in the Cloud, then writes
                   everything it learns into editable markdown — wiki pages, a per-project
                   knowledge graph, and a Telegram approval gate you hold. Read it. Edit it.
                   Export it. It&rsquo;s yours.
@@ -158,7 +158,7 @@ export default function Home() {
                 </div>
               </div>
               <span aria-hidden="true" className="lp-hero__annot">
-                MEMORY: MARKDOWN · RUNTIME: AWS LIGHTSAIL · GATE: TELEGRAM
+                MEMORY: MARKDOWN · RUNTIME: CLOUD · GATE: TELEGRAM
               </span>
             </div>
           </section>

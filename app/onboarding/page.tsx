@@ -46,15 +46,15 @@ const errors: Record<string, string> = {
   invalid_telegram_pair_code: "Enter the 8-character approval code from Telegram.",
   missing_avatar: "Create and export your Avaturn AI Assistant to continue.",
   missing_fields: "Add the required field to continue.",
-  missing_aws_access_key_id: "AWS access key is not configured on the server.",
-  missing_aws_region: "AWS region is not configured on the server.",
-  missing_aws_secret_access_key: "AWS secret access key is not configured on the server.",
+  missing_aws_access_key_id: "Cloud access key is not configured on the server.",
+  missing_aws_region: "Cloud region is not configured on the server.",
+  missing_aws_secret_access_key: "Cloud secret access key is not configured on the server.",
   missing_openclaw_lightsail_snapshot_name: "OpenClaw provisioning template is not configured.",
   missing_openai_api_key: "OpenAI API key is not configured on the server.",
   openclaw_instance_not_found: "OpenClaw provisioning completed but the instance name could not be detected.",
-  openclaw_provision_failed: "OpenClaw provisioning failed. Check AI credits first, then AWS Lightsail and clawmacdo output.",
+  openclaw_provision_failed: "OpenClaw provisioning failed. Check AI credits first, then Cloud provisioning and clawmacdo output.",
   openclaw_provision_running: "OpenClaw provisioning is already running. Please wait for the current request to finish.",
-  openclaw_snapshot_not_found: "The configured OpenClaw provisioning template could not be used. Check the AWS region and server configuration.",
+  openclaw_snapshot_not_found: "The configured OpenClaw provisioning template could not be used. Check the Cloud region and server configuration.",
   openclaw_snapshot_response_failed: "OpenClaw provisioning returned an unexpected response. Check the clawmacdo output and package version.",
   openclaw_telegram_pair_failed: "Telegram approval failed. Check the code from Telegram and try again.",
   openclaw_telegram_pair_required: "Provision OpenClaw before approving the Telegram pairing code.",
@@ -83,8 +83,8 @@ const stepMeta: Record<OnboardingStep, { index: number; kicker: string; title: s
   provision: {
     index: 3,
     kicker: "Step 4 of 5",
-    title: "Provision OpenClaw on AWS",
-    copy: "Provision the AWS environment quickly and prepare Telegram, OpenClaw identity, and Remotion environment settings."
+    title: "Provision OpenClaw in the Cloud",
+    copy: "Provision the Cloud environment quickly and prepare Telegram, OpenClaw identity, and Remotion environment settings."
   },
   approval: {
     index: 4,

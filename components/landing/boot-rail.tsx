@@ -35,7 +35,7 @@ const STEPS: readonly BootStep[] = [
     index: "03",
     icon: Server,
     title: "Provision the runtime",
-    body: "A ready-made agent snapshot is restored onto a dedicated AWS Lightsail instance. Your own machine, not a shared pool."
+    body: "A ready-made agent snapshot is restored onto a dedicated Cloud instance. Your own machine, not a shared pool."
   },
   {
     index: "04",
@@ -54,7 +54,7 @@ const STEPS: readonly BootStep[] = [
 const RECEIPT_ROWS: readonly string[] = [
   "google sign-in ....... verified",
   "identity ............. owner + avatar set",
-  "lightsail restore .... dedicated instance",
+  "cloud restore ........ dedicated instance",
   "telegram pairing ..... approved by you"
 ];
 

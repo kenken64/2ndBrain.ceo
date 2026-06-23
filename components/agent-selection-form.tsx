@@ -16,7 +16,7 @@ export function AgentSelectionForm({ errorMessage, next }: AgentSelectionFormPro
           </span>
           <span className="agent-option__body">
             <strong>OpenClaw</strong>
-            <span>Provision the OpenClaw workspace on AWS Lightsail.</span>
+            <span>Provision the OpenClaw workspace in the Cloud.</span>
           </span>
           <span className="agent-option__cta">Select OpenClaw -&gt;</span>
         </button>

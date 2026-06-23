@@ -887,7 +887,7 @@ export function OperatingRoom() {
         <div className="lp-tg">
           <p aria-hidden="true" className="lp-tg__head">2ndBrain Agent · 09:42</p>
           <p aria-hidden="true" className="lp-tg__msg">
-            Requesting approval: restore the workspace snapshot on AWS Lightsail. Reply to
+            Requesting approval: restore the workspace snapshot in the Cloud. Reply to
             continue.
           </p>
           <span aria-hidden="true" className="lp-anchor lp-anchor--gate" ref={gateAnchorRef} />
@@ -940,7 +940,7 @@ export function OperatingRoom() {
       </svg>
 
       <p className="lp-vh">
-        Demo replay: the agent restores a workspace snapshot on AWS Lightsail, converts five
+        Demo replay: the agent restores a workspace snapshot in the Cloud, converts five
         source files into 14 markdown wiki pages, syncs them into a knowledge graph, then pauses
         at a Telegram approval gate. Approving adds one page and one graph node; rejecting halts
         the run with nothing executed.

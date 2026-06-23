@@ -82,7 +82,7 @@ export function DestroyWorkspaceButton({ variant = "sidebar" }: DestroyWorkspace
             <p className="workspace-status-card__eyebrow">Danger zone</p>
             <h2 id="destroy-dialog-title">Destroy this workspace?</h2>
             <p>
-              This will destroy the current Lightsail OpenClaw instance, clear generated Nth Brain project history for this account, reset onboarding, and log you out.
+              This will destroy the current Cloud OpenClaw instance, clear generated Nth Brain project history for this account, reset onboarding, and log you out.
             </p>
             <div className="destroy-dialog__warning">
               This action is destructive. Use it only when you want this account to return to enrolment and provision a fresh workspace.
