@@ -2,7 +2,7 @@ import { randomUUID } from "node:crypto";
 import { after, NextResponse } from "next/server";
 import { ingestOpenClawWikiAttachments, readOpenClawWikiTree } from "@/lib/openclaw";
 import { getWikiContext, wikiApiError } from "@/lib/wiki-server";
-import { convertWikiAttachments } from "@/lib/wiki-attachments";
+import { convertWikiAttachments, type ConvertedWikiAttachment } from "@/lib/wiki-attachments";
 
 export const runtime = "nodejs";
 export const maxDuration = 900;
@@ -14,6 +14,72 @@ function outputSummary(value: string) {
 function uploadNamespace() {
   const stamp = new Date().toISOString().replace(/[^0-9]/g, "").slice(0, 14);
   return `raw/uploads/${stamp}-${randomUUID().slice(0, 8)}`;
+}
+
+function compactText(value: string | null | undefined) {
+  return (value ?? "").trim().replace(/\s+/g, " ");
+}
+
+const DEFAULT_WIKI_CONTEXT_PATTERNS = [
+  /^default$/i,
+  /^llm wiki$/i,
+  /^new nth brain$/i,
+  /^no user intent was provided\.?$/i,
+  /^nth brain$/i,
+  /^untitled project$/i,
+  /^wiki llm$/i,
+  /^ingest the uploaded documents into this wiki\.?$/i
+];
+
+function isDefaultWikiContext(value: string | null | undefined) {
+  const normalized = compactText(value);
+
+  return !normalized || DEFAULT_WIKI_CONTEXT_PATTERNS.some((pattern) => pattern.test(normalized));
+}
+
+function markdownExcerpt(value: string, limit = 700) {
+  const withoutFrontmatter = value.trimStart().startsWith("---")
+    ? value.trimStart().replace(/^---[\s\S]*?\n---\s*/, "")
+    : value;
+  const normalized = withoutFrontmatter
+    .replace(/!\[[^\]]*]\([^)]+\)/g, "")
+    .replace(/\[([^\]]+)]\([^)]+\)/g, "$1")
+    .replace(/[`*_>#|~-]+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+
+  return normalized.length > limit ? `${normalized.slice(0, limit - 3)}...` : normalized;
+}
+
+function buildFirstIngestProjectContext(prompt: string, attachments: ConvertedWikiAttachment[]) {
+  const promptContext = compactText(prompt);
+
+  if (promptContext && !isDefaultWikiContext(promptContext)) {
+    return promptContext.slice(0, 3000);
+  }
+
+  const sourceList = attachments
+    .map((attachment) => attachment.fileName.trim())
+    .filter(Boolean)
+    .slice(0, 8)
+    .join(", ");
+  const excerpts = attachments
+    .map((attachment) => {
+      const excerpt = markdownExcerpt(attachment.markdown);
+
+      return excerpt ? `- ${attachment.fileName}: ${excerpt}` : null;
+    })
+    .filter((value): value is string => Boolean(value))
+    .slice(0, 3);
+
+  return [
+    "Create this Nth Brain from the first uploaded source document(s).",
+    sourceList ? `Uploaded source(s): ${sourceList}.` : null,
+    excerpts.length > 0 ? `Source excerpt(s):\n${excerpts.join("\n")}` : null
+  ]
+    .filter((line): line is string => Boolean(line))
+    .join("\n")
+    .slice(0, 3000);
 }
 
 export async function GET(request: Request) {
@@ -82,6 +148,20 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "OpenClaw profile is incomplete" }, { status: 409 });
     }
 
+    const { count: readyIngestCount, error: readyIngestCountError } = await context.supabase
+      .from("wiki_sync_jobs")
+      .select("id", { count: "exact", head: true })
+      .eq("user_id", context.userId)
+      .eq("project_id", project.id)
+      .eq("job_type", "ingest")
+      .eq("status", "ready");
+
+    if (readyIngestCountError) {
+      return NextResponse.json({ error: readyIngestCountError.message }, { status: 500 });
+    }
+
+    const shouldRefreshDefaultContext = (readyIngestCount ?? 0) === 0 && isDefaultWikiContext(project.prompt);
+
     const { data: job, error: jobError } = await context.supabase
       .from("wiki_sync_jobs")
       .insert({
@@ -119,15 +199,36 @@ export async function POST(request: Request) {
           throw new Error("attachments_required");
         }
 
+        const projectContext = shouldRefreshDefaultContext
+          ? buildFirstIngestProjectContext(prompt, attachments)
+          : compactText(project.prompt);
+        const shouldUpdateDefaultContext = shouldRefreshDefaultContext && Boolean(projectContext);
+
+        if (shouldUpdateDefaultContext) {
+          const { error: projectContextError } = await context.supabase
+            .from("projects")
+            .update({
+              prompt: projectContext
+            })
+            .eq("id", project.id)
+            .eq("user_id", context.userId);
+
+          if (projectContextError) {
+            throw new Error(projectContextError.message);
+          }
+        }
+
         const ingested = await ingestOpenClawWikiAttachments({
           attachments,
           avatarName,
           instance: context.instance,
           ownerName,
+          projectContext,
           projectId: project.id,
           projectSlug,
           projectTitle: project.title,
           prompt,
+          updateDefaultContext: shouldUpdateDefaultContext,
           userId: context.userId
         });
 

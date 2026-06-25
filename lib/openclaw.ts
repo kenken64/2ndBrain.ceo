@@ -100,10 +100,12 @@ type OpenClawWikiIngestInput = {
   avatarName: string;
   instance: string;
   ownerName: string;
+  projectContext?: string | null;
   projectId: string;
   projectSlug: string;
   prompt: string;
   projectTitle?: string | null;
+  updateDefaultContext?: boolean;
   writeAttachments?: boolean;
   userId: string;
 };
@@ -114,6 +116,7 @@ type OpenClawWikiIngestBackfillInput = {
   ownerName: string;
   projectId: string;
   projectSlug: string;
+  projectContext?: string | null;
   prompt?: string | null;
   projectTitle?: string | null;
   userId: string;
@@ -1229,6 +1232,7 @@ function buildWikiIngestPrompt(input: OpenClawWikiIngestInput) {
   const projectRoot = requireEnv("OPENCLAW_PROJECT_ROOT");
   const projectPath = `${projectRoot.replace(/\/$/, "")}/${input.projectSlug}`;
   const attachmentContext = buildAttachmentPromptContext(input.attachments);
+  const projectContext = input.projectContext?.trim();
 
   return [
     "Augment an existing 2ndBrain LLM wiki from uploaded source documents.",
@@ -1239,6 +1243,13 @@ function buildWikiIngestPrompt(input: OpenClawWikiIngestInput) {
     `Project id: ${input.projectId}`,
     `Project title: ${input.projectTitle?.trim() || input.projectSlug}`,
     `Project directory: ${projectPath}`,
+    projectContext ? "" : null,
+    projectContext ? "Current Nth Brain context:" : null,
+    projectContext || null,
+    input.updateDefaultContext ? "" : null,
+    input.updateDefaultContext
+      ? "Context refresh: this wiki still has a default or placeholder context. Treat the current upload as the authoritative initial context. Replace generic/default README, index, log, and maintainer-instruction language when it no longer matches the uploaded source."
+      : null,
     "",
     "User instruction:",
     input.prompt.trim() || "Ingest the uploaded documents into this wiki.",
@@ -2523,6 +2534,7 @@ export async function backfillOpenClawWikiIngest(input: OpenClawWikiIngestBackfi
     avatarName: input.avatarName,
     instance: input.instance,
     ownerName: input.ownerName,
+    projectContext: input.projectContext ?? input.prompt ?? null,
     projectId: input.projectId,
     projectSlug: input.projectSlug,
     projectTitle: input.projectTitle,
