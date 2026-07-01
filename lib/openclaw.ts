@@ -21,6 +21,7 @@ const DEFAULT_CLAWMACDO_SPAWN_RETRY_DELAY_MS = 1500;
 const DEFAULT_CLAWMACDO_WORKER_THREADS = "1";
 
 type OpenClawProvisionInput = {
+  consumerName?: string | null;
   existingInstance?: string | null;
   onInstanceRestored?: (details: {
     instance: string;
@@ -1821,6 +1822,17 @@ async function attachmentsFromLatestUploadedSources(input: OpenClawWikiIngestBac
   return attachments;
 }
 
+/**
+ * Generates a unique, unguessable, label-safe gyne CONSUMER_NAME for a user's OpenClaw instance. The
+ * random suffix prevents another user from guessing (and squatting) a name in the shared registry.
+ */
+export function generateConsumerName(userId: string) {
+  const shortUser = userId.replace(/[^a-zA-Z0-9]/g, "").slice(0, 8).toLowerCase() || "user";
+  const suffix = randomUUID().replace(/-/g, "").slice(0, 10);
+
+  return `oc-${shortUser}-${suffix}`;
+}
+
 export async function provisionOpenClaw(input: OpenClawProvisionInput) {
   const region = requireEnv("AWS_REGION");
   const snapshotName = requireEnv("OPENCLAW_LIGHTSAIL_SNAPSHOT_NAME");
@@ -1916,6 +1928,16 @@ export async function provisionOpenClaw(input: OpenClawProvisionInput) {
     throw new Error("openclaw_instance_not_found");
   }
 
+  // Bind the co-located gyne consumer to a caller-chosen name so 2ndBrain can map it to an owner in
+  // Redis (openclaw:owners:{user_id}). Without this the consumer would register under its default name
+  // and the publisher could not scope it to the launching user.
+  const consumerName = input.consumerName?.trim() || null;
+  if (consumerName) {
+    consoleClawmacdo("bind_consumer_name", { consumerName, instance });
+    const { output } = await updateGyneConsumerProfile({ instance, name: consumerName });
+    restoreOutput = `${restoreOutput}\n${output}`;
+  }
+
   await input.onInstanceRestored?.({
     instance,
     region,
@@ -1924,6 +1946,7 @@ export async function provisionOpenClaw(input: OpenClawProvisionInput) {
   });
 
   return {
+    consumerName,
     instance,
     region,
     restoreOutput,

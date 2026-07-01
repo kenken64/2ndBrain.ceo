@@ -7,6 +7,7 @@ import {
   workflowTemplateById,
   type WorkflowTemplate
 } from "@/lib/workflow-templates";
+import { OpenClawInstancesPanel } from "@/components/openclaw-instances-panel";
 
 type MarketplaceInstall = {
   allocation: {
@@ -117,6 +118,10 @@ export function MyWorkflows() {
         .filter((install) => WORKFLOW_TEMPLATES.some((template) => template.id === install.itemId))
         .map(workflowFromInstall)
         .filter((workflow): workflow is { install: MarketplaceInstall; item: WorkflowTemplate } => Boolean(workflow)),
+    [installs]
+  );
+  const hasGyneAgent = useMemo(
+    () => installs.some((install) => install.itemId === "gyne-agent" && install.status !== "uninstalled"),
     [installs]
   );
 
@@ -331,6 +336,8 @@ export function MyWorkflows() {
           );
         })}
       </div>
+
+      {hasGyneAgent ? <OpenClawInstancesPanel /> : null}
     </div>
   );
 }

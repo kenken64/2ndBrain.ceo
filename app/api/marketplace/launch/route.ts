@@ -1,6 +1,7 @@
 import { createHmac } from "node:crypto";
 import { NextResponse } from "next/server";
 import { hasSupabaseEnv } from "@/lib/env";
+import { syncConsumerOwners } from "@/lib/gyne-consumer-registry";
 import { getUserIdFromClaims } from "@/lib/onboarding";
 import { createAdminClient, hasSupabaseServiceRoleEnv } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
@@ -63,6 +64,50 @@ function signLaunchToken(secret: string, claims: LaunchClaims) {
   const signature = base64Url(createHmac("sha256", secret).update(`${header}.${payload}`).digest());
 
   return `${header}.${payload}.${signature}`;
+}
+
+async function reconcileGyneConsumerOwners(
+  adminSupabase: ReturnType<typeof createAdminClient>,
+  userId: string
+) {
+  try {
+    const names = new Set<string>();
+
+    const { data: rows } = await adminSupabase
+      .from("openclaw_instances")
+      .select("consumer_name")
+      .eq("user_id", userId)
+      .eq("provision_status", "ready");
+
+    for (const row of (rows ?? []) as Array<{ consumer_name: string | null }>) {
+      const name = row.consumer_name?.trim();
+
+      if (name) {
+        names.add(name);
+      }
+    }
+
+    // Legacy single onboarding instance: the co-located consumer registers under the profile display
+    // name (set via settings), so map that name too when an onboarding instance exists.
+    const { data: legacy } = await adminSupabase
+      .from("profiles")
+      .select("openclaw_instance,profile_name")
+      .eq("id", userId)
+      .maybeSingle();
+    const legacyInstance =
+      typeof legacy?.openclaw_instance === "string" ? legacy.openclaw_instance.trim() : "";
+    const legacyName = typeof legacy?.profile_name === "string" ? legacy.profile_name.trim() : "";
+
+    if (legacyInstance && legacyName) {
+      names.add(legacyName);
+    }
+
+    if (names.size > 0) {
+      await syncConsumerOwners(userId, Array.from(names));
+    }
+  } catch (error) {
+    console.error("[marketplace:launch] failed to reconcile gyne consumer owners", error);
+  }
 }
 
 async function requireUser() {
@@ -183,6 +228,13 @@ export async function POST(request: Request) {
 
   if (install.status !== "installed") {
     return NextResponse.json({ error: "This workflow tool is not available to launch." }, { status: 409 });
+  }
+
+  // Best-effort: re-assert this user's owner→consumer map in Redis so the Gyne Agent lists their
+  // instances even if the map was lost (e.g. Redis flush) and to cover instances provisioned before
+  // the owner map existed. Never blocks the launch.
+  if (launchConfig.toolId === "gyne-agent") {
+    await reconcileGyneConsumerOwners(adminSupabase, auth.userId);
   }
 
   const issuedAt = Math.floor(Date.now() / 1000);
