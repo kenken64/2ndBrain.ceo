@@ -40,6 +40,10 @@ function maxInstancesPerUser() {
   return Number.isFinite(raw) && raw > 0 ? Math.floor(raw) : DEFAULT_MAX_INSTANCES;
 }
 
+function isValidTelegramBotToken(value: string) {
+  return value.length <= 256 && /^\d{6,}:[A-Za-z0-9_-]{20,}$/.test(value);
+}
+
 function numericTokenValue(value: number | string | null | undefined) {
   const number = Number(value ?? 0);
 
@@ -132,8 +136,13 @@ export async function POST(request: Request) {
     );
   }
 
-  const body = (await request.json().catch(() => ({}))) as { label?: unknown };
+  const body = (await request.json().catch(() => ({}))) as { label?: unknown; telegramBotToken?: unknown };
   const label = typeof body.label === "string" ? body.label.trim().slice(0, 120) || null : null;
+  const bodyTelegramBotToken = typeof body.telegramBotToken === "string" ? body.telegramBotToken.trim() : "";
+
+  if (bodyTelegramBotToken && !isValidTelegramBotToken(bodyTelegramBotToken)) {
+    return NextResponse.json({ error: "invalid_telegram_bot_token" }, { status: 400 });
+  }
 
   const adminSupabase = createAdminClient();
   const { data: profile, error: profileError } = await adminSupabase
@@ -159,7 +168,9 @@ export async function POST(request: Request) {
   const ownerName = provisionProfile.owner_name?.trim();
   const avatarName = provisionProfile.avatar_name?.trim();
   const avatarGender = provisionProfile.avatar_gender?.trim();
-  const telegramBotToken = provisionProfile.telegram_bot_token?.trim();
+  // Each instance can pair with its own Telegram bot: a token supplied with the request wins over the
+  // profile token captured during onboarding.
+  const telegramBotToken = bodyTelegramBotToken || provisionProfile.telegram_bot_token?.trim();
 
   if (
     !ownerName ||
