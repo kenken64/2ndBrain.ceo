@@ -10,6 +10,7 @@ import {
   FolderOpen,
   GitBranch,
   ListChecks,
+  Loader2,
   RefreshCw,
   Save,
   Search,
@@ -130,11 +131,13 @@ function displayTree(items: WikiTreeItem[]) {
 function TreeNode({
   item,
   level,
+  loadingPath,
   onSelect,
   selectedPath
 }: {
   item: WikiTreeItem;
   level: number;
+  loadingPath: string;
   onSelect: (path: string) => void;
   selectedPath: string;
 }) {
@@ -156,6 +159,7 @@ function TreeNode({
             item={child}
             key={child.path}
             level={level + 1}
+            loadingPath={loadingPath}
             onSelect={onSelect}
             selectedPath={selectedPath}
           />
@@ -164,15 +168,22 @@ function TreeNode({
     );
   }
 
+  const isLoading = item.path === loadingPath;
+
   return (
     <button
+      aria-busy={isLoading}
       className={`wiki-tree-item${item.path === selectedPath ? " is-active" : ""}`}
       onClick={() => onSelect(item.path)}
       style={{ paddingLeft: indent }}
       title={item.path}
       type="button"
     >
-      <FileText size={15} strokeWidth={1.7} />
+      {isLoading ? (
+        <Loader2 className="spin-icon" size={15} strokeWidth={1.7} />
+      ) : (
+        <FileText size={15} strokeWidth={1.7} />
+      )}
       <span>{item.name}</span>
     </button>
   );
@@ -577,6 +588,7 @@ export function WikiEditor({
   const [isPending, startTransition] = useTransition();
   const canUploadDocuments = Boolean(projectId);
   const isBusy = isPending || isUploading;
+  const isPageLoading = isPending && status === "Loading";
 
   function graphUrl(pathValue?: string) {
     if (graphHref) {
@@ -617,18 +629,26 @@ export function WikiEditor({
     setError("");
     setStatus("Loading");
     startTransition(async () => {
-      const response = await fetch(wikiUrl(`${apiBase}/page`, pathValue));
-      const payload = await response.json();
+      try {
+        const response = await fetch(wikiUrl(`${apiBase}/page`, pathValue));
+        const payload = (await response.json().catch(() => null)) as {
+          error?: string;
+          page?: WikiPage;
+        } | null;
 
-      if (!response.ok) {
-        setError(payload.error ?? "Page could not be loaded");
+        if (!response.ok || !payload?.page) {
+          setError(payload?.error ?? `Page could not be loaded (${response.status})`);
+          setStatus("Failed");
+          return;
+        }
+
+        setPage(payload.page);
+        setContent(payload.page.content ?? "");
+        setStatus("Loaded");
+      } catch {
+        setError("Page could not be loaded — the request failed or timed out.");
         setStatus("Failed");
-        return;
       }
-
-      setPage(payload.page);
-      setContent(payload.page.content ?? "");
-      setStatus("Loaded");
     });
   }
 
@@ -1079,6 +1099,7 @@ export function WikiEditor({
                 item={item}
                 key={item.path}
                 level={0}
+                loadingPath={isPageLoading ? selectedPath : ""}
                 onSelect={loadPage}
                 selectedPath={selectedPath}
               />
@@ -1125,7 +1146,10 @@ export function WikiEditor({
         </header>
 
         <div className="wiki-sync-strip">
-          <span>{status}</span>
+          <span className="wiki-sync-strip__status">
+            {isPending ? <Loader2 className="spin-icon" size={14} strokeWidth={1.8} /> : null}
+            {status}
+          </span>
           {graphHref !== null ? (
             <div className="wiki-sync-strip__actions">
               {selectedPath ? (
@@ -1149,7 +1173,12 @@ export function WikiEditor({
 
         {error ? <p className="form-error">{error}</p> : null}
 
-        {mode === "edit" ? (
+        {isPageLoading ? (
+          <div className="wiki-loading-panel" role="status">
+            <Loader2 className="spin-icon" size={18} strokeWidth={1.8} />
+            <span>Loading {selectedPath || "page"}…</span>
+          </div>
+        ) : mode === "edit" ? (
           <textarea
             className="wiki-markdown-editor"
             disabled={!selectedPath || isPending}

@@ -3787,12 +3787,30 @@ svg {
   font-weight: 800;
 }
 
+.wiki-sync-strip__status {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+}
+
 .wiki-sync-strip__actions {
   display: inline-flex;
   align-items: center;
   flex-wrap: wrap;
   gap: 14px;
   justify-content: flex-end;
+}
+
+.wiki-loading-panel {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  min-height: 320px;
+  color: var(--fg-secondary);
+  font-size: 14px;
+  font-weight: 600;
+  padding: 22px;
 }
 
 .wiki-graph-action:disabled {
