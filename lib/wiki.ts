@@ -331,6 +331,27 @@ function extractSemanticBodyRelations(body: string) {
   return relations;
 }
 
+const WIKI_PLAIN_TEXT_MAX_CHARS = 200_000;
+
+/** Markdown stripped to plain text for full-text search (wiki_pages.content_text). */
+export function wikiPlainText(markdown: string): string {
+  const { body } = parseFrontmatter(markdown);
+  const normalized = body
+    .replace(/```[\s\S]*?```/g, " ")
+    .replace(/!\[[^\]]*]\([^)]+\)/g, "")
+    .replace(/\[\[([^\]|#]+)(?:#[^\]|]+)?(?:\|([^\]]+))?\]\]/g, (_match, target, label) =>
+      String(label ?? target)
+    )
+    .replace(/\[([^\]]+)]\([^)]+\)/g, "$1")
+    .replace(/[`*_>#|~]+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+
+  return normalized.length > WIKI_PLAIN_TEXT_MAX_CHARS
+    ? normalized.slice(0, WIKI_PLAIN_TEXT_MAX_CHARS)
+    : normalized;
+}
+
 export function parseWikiMarkdown(markdown: string, filePath: string): ParsedWikiGraph {
   const normalizedPath = normalizeWikiPath(filePath);
   const { body, frontmatter } = parseFrontmatter(markdown);

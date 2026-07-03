@@ -1,5 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
-import { parseWikiMarkdown, type ParsedWikiGraph, type WikiPage } from "@/lib/wiki";
+import { parseWikiMarkdown, wikiPlainText, type ParsedWikiGraph, type WikiPage } from "@/lib/wiki";
 
 type SupabaseServerClient = Awaited<ReturnType<typeof createClient>>;
 
@@ -45,6 +45,7 @@ export async function syncWikiPageGraph({
     .from("wiki_pages")
     .upsert(
       {
+        content_text: wikiPlainText(page.content),
         file_path: page.filePath,
         file_sha: page.sha ?? null,
         last_synced_at: syncedAt,

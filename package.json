@@ -10,7 +10,8 @@
     "start:next": "next start",
     "typecheck": "tsc --noEmit",
     "admin:load": "node scripts/load-admin-users.mjs",
-    "wiki:backfill": "node scripts/backfill-wiki-graph.mjs"
+    "wiki:backfill": "node scripts/backfill-wiki-graph.mjs",
+    "wiki:backfill-content": "node scripts/backfill-wiki-content.mjs"
   },
   "dependencies": {
     "@solana/web3.js": "^1.98.4",
