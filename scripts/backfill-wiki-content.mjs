@@ -18,6 +18,7 @@ function parseArgs(argv) {
     email: "",
     instance: "",
     limit: 0,
+    localRoot: "",
     project: "",
     userId: ""
   };
@@ -34,6 +35,8 @@ function parseArgs(argv) {
       flags.dryRun = true;
     } else if (arg === "--instance") {
       flags.instance = argv[++index] ?? "";
+    } else if (arg === "--local-root") {
+      flags.localRoot = argv[++index] ?? "";
     } else if (arg === "--email") {
       flags.email = argv[++index] ?? "";
     } else if (arg === "--user-id") {
@@ -59,13 +62,16 @@ rate-limited). Pages that already have content_text are skipped unless --all is 
 
 Usage:
   node scripts/backfill-wiki-content.mjs --instance <name-or-ip> --email bunnyppl@gmail.com
+  node scripts/backfill-wiki-content.mjs --local-root /path/to/workspace-mirror --email ...
 
 Required env:
   DATABASE_URL
-  AWS_REGION + AWS credentials (only when --instance is a Lightsail name, not an IP)
 
 Options:
-  --instance <name|ip>     OpenClaw instance to read pages from (required).
+  --instance <name|ip>     OpenClaw instance to read pages from via clawmacdo (its deploy
+                           registry must know the instance).
+  --local-root <dir>       Read pages from a local directory mirror of the OpenClaw
+                           workspace instead of over SSH (file_path is resolved under it).
   --email <email>          Scope to the profile with this email.
   --user-id <uuid>         Scope to this user id.
   --project <slug>         Pass a project slug to clawmacdo wiki-read.
@@ -215,39 +221,6 @@ async function runClawmacdo(args) {
   return `${stdout ?? ""}${stderr ? `\n${stderr}` : ""}`.trim();
 }
 
-function isIpAddress(value) {
-  return /^\d{1,3}(?:\.\d{1,3}){3}$/.test(value);
-}
-
-async function resolveInstanceTarget(instance) {
-  if (!instance || isIpAddress(instance)) {
-    return instance;
-  }
-
-  const region = requireEnv("AWS_REGION", "AWS_DEFAULT_REGION");
-  const { stdout } = await execFileAsync(
-    "aws",
-    ["lightsail", "get-instance", "--instance-name", instance, "--region", region, "--output", "json"],
-    {
-      env: {
-        ...process.env,
-        AWS_ACCESS_KEY_ID: requireEnv("AWS_ACCESS_KEY_ID"),
-        AWS_SECRET_ACCESS_KEY: requireEnv("AWS_SECRET_ACCESS_KEY"),
-        AWS_DEFAULT_REGION: region,
-        AWS_REGION: region
-      },
-      maxBuffer: 1024 * 1024 * 4
-    }
-  );
-  const publicIp = JSON.parse(stdout)?.instance?.publicIpAddress;
-
-  if (!publicIp) {
-    throw new Error(`No public IP found for Lightsail instance: ${instance}`);
-  }
-
-  return publicIp;
-}
-
 async function readWikiPage({ filePath, projectSlug, target }) {
   const args = [
     "wiki-read",
@@ -304,8 +277,8 @@ async function main() {
   await loadEnvFile(".env.local");
   await loadEnvFile(".env");
 
-  if (!flags.instance) {
-    throw new Error("--instance is required (OpenClaw instance name or IP)");
+  if (!flags.instance && !flags.localRoot) {
+    throw new Error("--instance or --local-root is required");
   }
 
   const databaseUrl = requireEnv("DATABASE_URL");
@@ -347,17 +320,21 @@ async function main() {
   }
 
   console.log(`Backfilling content_text for ${pages.length} page(s)...`);
-  const target = await resolveInstanceTarget(flags.instance);
+  // clawmacdo resolves --instance against its own deploy registry (deploy ID, hostname, or
+  // instance name) — pass the value through untouched.
+  const target = flags.instance;
   let updated = 0;
   let failed = 0;
 
   for (const page of pages) {
     try {
-      const markdown = await readWikiPage({
-        filePath: page.file_path,
-        projectSlug: flags.project,
-        target
-      });
+      const markdown = flags.localRoot
+        ? await fs.readFile(path.join(flags.localRoot, page.file_path), "utf8")
+        : await readWikiPage({
+            filePath: page.file_path,
+            projectSlug: flags.project,
+            target
+          });
       const text = wikiPlainText(markdown);
 
       if (flags.dryRun) {
