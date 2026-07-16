@@ -21,3 +21,6 @@ pnpm-debug.log*
 
 storage/avatars
 supabase/.temp
+
+# Docker secrets — raw secret values, never commit.
+secrets/

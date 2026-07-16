@@ -43,6 +43,9 @@ npm run start
 
 There is no `lint` script currently.
 
+Prefer containers? See [Docker Compose](#docker-compose) to run the app with the
+same image used in production, including a Docker-secrets workflow.
+
 ## Wiki Graph Backfill
 
 If an existing LLM Wiki has markdown pages but `/dashboard/graph` shows zero points, backfill the Supabase graph tables from OpenClaw:
@@ -125,6 +128,103 @@ https://your-railway-domain.up.railway.app/auth/callback
 ```
 
 Deployment notes are also in `docs/supabase-railway.md`.
+
+## Docker Compose
+
+Run the whole app in a container with the same `Dockerfile` used on Railway. The
+app is a single service; Supabase, AWS, Solana, and OpenClaw instances are
+external. An optional Redis service is included for the token quota/usage pub-sub.
+
+**Prerequisites:** Docker Engine 25+ and the Compose v2 plugin (`docker compose version`).
+
+> `NEXT_PUBLIC_*` values are inlined into the browser bundle at **build time**, so
+> Compose passes them as build args (substituted from `.env`). Compose reads `.env`
+> (not `.env.local`), so the values must live there. If you change any
+> `NEXT_PUBLIC_*` value, rebuild with `--build`.
+
+### Option A — plain env file
+
+1. Create `.env` from the template and fill in real values:
+
+   ```sh
+   cp .env.example .env
+   ```
+
+2. Build and start the app:
+
+   ```sh
+   docker compose up --build
+   ```
+
+3. Open `http://localhost:3000`. Check health at `http://localhost:3000/api/health`.
+
+4. (Optional) Start the local Redis service for the token quota/usage listener,
+   then point the app at it by setting `REDIS_URL=redis://redis:6379` in `.env`:
+
+   ```sh
+   docker compose --profile redis up --build
+   ```
+
+### Option B — with Docker secrets (recommended)
+
+Keeps server-side secrets out of `.env`. Files live in `./secrets/` (git-ignored),
+are mounted read-only at `/run/secrets/<NAME>`, and the image entrypoint
+(`scripts/docker-entrypoint.sh`) exports each non-empty one as an env var, taking
+precedence over the same key in `.env`. The entrypoint is a no-op passthrough when
+no secrets are mounted, so the same image still runs on Railway. The managed
+secrets are defined in `scripts/secrets.list`:
+
+- **Generated** (random 32-byte hex if not already in `.env`): the `*_SESSION_SECRET`
+  pairing secrets, `OPENCLAW_SSH_TOKEN_SECRET`, `MARKETPLACE_LAUNCH_VERIFY_SECRET`,
+  `MARKETPLACE_RENEWAL_SECRET`.
+- **Provide**: `SUPABASE_SERVICE_ROLE_KEY`, `AWS_ACCESS_KEY_ID`,
+  `AWS_SECRET_ACCESS_KEY`, `OPENAI_API_KEY`.
+- **Optional**: `GWS_OAUTH_CLIENT_SECRET`, `TOKEN_QUOTA_REDIS_URL`, `SOLANA_RPC_URL`.
+
+1. Complete Option A step 1 (you still need `.env` for non-secret and
+   `NEXT_PUBLIC_*` values).
+
+2. Scaffold `./secrets/*` — generates random secrets and imports any existing
+   values from `.env`. Safe to re-run; existing files are kept:
+
+   ```sh
+   ./scripts/init-secrets.sh
+   ```
+
+3. Fill any secret the previous step reported as `MISSING` (inline value, hidden
+   prompt, or piped from stdin):
+
+   ```sh
+   ./scripts/set-secret.sh SUPABASE_SERVICE_ROLE_KEY "your_service_role_key"
+   ./scripts/set-secret.sh AWS_SECRET_ACCESS_KEY            # prompts, input hidden
+   printf '%s' "$VALUE" | ./scripts/set-secret.sh OPENAI_API_KEY -
+   ```
+
+4. Start the app with the secrets override layered on top of the base file:
+
+   ```sh
+   docker compose -f docker-compose.yml -f docker-compose.secrets.yml up --build
+   ```
+
+   To avoid repeating the `-f` flags, export once per shell instead:
+
+   ```sh
+   export COMPOSE_FILE=docker-compose.yml:docker-compose.secrets.yml
+   docker compose up --build
+   ```
+
+5. (Optional) Once secrets are working, delete those keys from `.env` — the secret
+   value wins either way. If you add or remove a secret, update both
+   `scripts/secrets.list` and `docker-compose.secrets.yml`. Never commit
+   `./secrets/` (it is git-ignored and excluded from the Docker build context).
+
+### Common commands
+
+```sh
+docker compose logs -f web        # tail app logs
+docker compose ps                 # service + health status
+docker compose down               # stop (add -v to also drop the named volumes)
+```
 
 ## Railway
 

@@ -1,0 +1,71 @@
+# Docker Compose for 2ndBrain.ceo
+#
+# Quick start:
+#   1. cp .env.example .env   (then fill in real values)
+#   2. docker compose up --build
+#   3. open http://localhost:3000
+#
+# Optional local Redis (token quota / usage pub-sub):
+#   docker compose --profile redis up --build
+#   ...and set REDIS_URL=redis://redis:6379 in your .env
+#
+# NOTE: NEXT_PUBLIC_* values are inlined into the browser bundle at BUILD time.
+# They are passed as build args below (substituted from .env by Compose). If you
+# change any NEXT_PUBLIC_* value you must rebuild: `docker compose up --build`.
+
+services:
+  web:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        # Substituted from ./.env at build time (baked into the client bundle).
+        NEXT_PUBLIC_SUPABASE_URL: "${NEXT_PUBLIC_SUPABASE_URL:-}"
+        NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: "${NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY:-}"
+        NEXT_PUBLIC_SUPABASE_ANON_KEY: "${NEXT_PUBLIC_SUPABASE_ANON_KEY:-}"
+        SUPABASE_URL: "${SUPABASE_URL:-}"
+        NEXT_PUBLIC_SITE_URL: "${NEXT_PUBLIC_SITE_URL:-http://localhost:3000}"
+        NEXT_PUBLIC_AVATURN_URL: "${NEXT_PUBLIC_AVATURN_URL:-https://2ndbrainceo.avaturn.dev}"
+    image: 2ndbrain-ceo:latest
+    restart: unless-stopped
+    ports:
+      - "${PORT:-3000}:3000"
+    # All server-side secrets (Supabase service role, AWS, Solana, OpenClaw, etc.)
+    # are injected at runtime from .env — nothing secret is baked into the image.
+    env_file:
+      - .env
+    environment:
+      NODE_ENV: production
+      PORT: "3000"
+      HOSTNAME: 0.0.0.0
+    volumes:
+      # Persist downloaded Avaturn GLB staging across container restarts.
+      - avatar-storage:/app/storage/avatars
+    healthcheck:
+      # Node 22 has global fetch; the runner image has no curl/wget.
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3000/api/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+
+  # Optional. Only started with `--profile redis`. Point the app at it by setting
+  # REDIS_URL=redis://redis:6379 (or TOKEN_USAGE_REDIS_URL / TOKEN_QUOTA_REDIS_URL) in .env.
+  redis:
+    image: redis:7-alpine
+    profiles: ["redis"]
+    restart: unless-stopped
+    command: ["redis-server", "--appendonly", "yes"]
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  avatar-storage:
+  redis-data:

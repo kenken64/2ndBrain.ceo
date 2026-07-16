@@ -14,3 +14,7 @@ pnpm-debug.log*
 .DS_Store
 coverage
 *.tsbuildinfo
+
+# Never send raw secret values into the build context.
+secrets/
+docker-compose*.yml

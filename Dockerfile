@@ -74,6 +74,8 @@ COPY --from=deps --chown=nextjs:nodejs /app/node_modules/tweetnacl ./node_module
 COPY --from=deps --chown=nextjs:nodejs /app/node_modules/tslib ./node_modules/tslib
 COPY --from=deps --chown=nextjs:nodejs /app/node_modules/ws ./node_modules/ws
 
+COPY --chmod=0755 scripts/docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
+
 RUN chown -R nextjs:nodejs /app
 
 USER nextjs
@@ -81,5 +83,9 @@ USER nextjs
 RUN if [ "$(uname -m)" = "x86_64" ]; then ./node_modules/@clawmacdo/linux-x64/bin/clawmacdo --version; fi
 
 EXPOSE 3000
+
+# Loads any mounted Docker secrets (/run/secrets/*) into env vars, then runs CMD.
+# No-op passthrough when no secrets are mounted (e.g. Railway).
+ENTRYPOINT ["/usr/local/bin/docker-entrypoint.sh"]
 
 CMD ["node", "server/custom-server.js"]
