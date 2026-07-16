@@ -2898,6 +2898,12 @@ svg {
   grid-column: 1 / -1;
 }
 
+.settings-integrations__disconnect {
+  grid-column: 2 / -1;
+  justify-self: start;
+  margin-top: 4px;
+}
+
 .destroy-workspace--panel {
   gap: 8px;
 }

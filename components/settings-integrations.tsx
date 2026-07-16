@@ -395,6 +395,36 @@ export function SettingsIntegrations({
     }
   }
 
+  async function handleGoogleWorkspaceDisconnect() {
+    setIntegrationError(null);
+    setIntegrationStatus(null);
+    setSavingIntegration("google-workspace");
+
+    try {
+      const saved = await saveProfileSettings({ googleWorkspaceEnabled: false });
+      const stillEnabled = Boolean(saved?.googleWorkspaceEnabled);
+
+      setEnabled((current) => ({
+        ...current,
+        "google-workspace": stillEnabled
+      }));
+
+      if (!stillEnabled) {
+        googleWorkspaceAuthState.current = null;
+        googleWorkspaceCompletionState.current = null;
+        setGoogleWorkspaceAuthPhase("idle");
+        setGoogleWorkspaceAuthMessage(null);
+        setIntegrationStatus("Google Workspace disconnected.");
+      }
+    } catch (error) {
+      setIntegrationError(
+        error instanceof Error ? error.message : "Google Workspace could not be disconnected."
+      );
+    } finally {
+      setSavingIntegration(null);
+    }
+  }
+
   return (
     <section className="settings-integrations" aria-labelledby="settings-integrations-title">
       <div className="settings-integrations__header">
@@ -447,6 +477,16 @@ export function SettingsIntegrations({
               >
                 <span />
               </button>
+              {integration.id === "google-workspace" && isEnabled ? (
+                <button
+                  className="btn-ghost btn-ghost--compact settings-integrations__disconnect"
+                  disabled={isSaving || isGoogleWorkspaceAuthBusy}
+                  onClick={handleGoogleWorkspaceDisconnect}
+                  type="button"
+                >
+                  {isSaving ? "Disconnecting..." : "Disconnect"}
+                </button>
+              ) : null}
               {integration.id === "google-workspace" && isEnabled && (googleWorkspaceAuthPhase !== "idle" || googleWorkspaceAuthMessage) ? (
                 <div className="claude-auth-card google-workspace-auth-card">
                   {googleWorkspaceAuthPhase === "starting" ||

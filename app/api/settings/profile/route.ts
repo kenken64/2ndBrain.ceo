@@ -1,7 +1,11 @@
 import { NextResponse } from "next/server";
 import { hasSupabaseEnv } from "@/lib/env";
 import { getUserIdFromClaims } from "@/lib/onboarding";
-import { updateGyneConsumerProfile } from "@/lib/openclaw";
+import {
+  isOpenClawInstanceMissingError,
+  logoutOpenClawGoogleWorkspace,
+  updateGyneConsumerProfile
+} from "@/lib/openclaw";
 import { createClient } from "@/lib/supabase/server";
 
 export const runtime = "nodejs";
@@ -63,6 +67,7 @@ export async function PATCH(request: Request) {
   }
 
   const updates: Record<string, boolean | string | null> = {};
+  let disablingGoogleWorkspace = false;
 
   if ("profileName" in payload) {
     const validation = validateProfileName(payload.profileName);
@@ -83,6 +88,7 @@ export async function PATCH(request: Request) {
 
     if (!payload.googleWorkspaceEnabled) {
       updates.google_workspace_connected_at = null;
+      disablingGoogleWorkspace = true;
     }
   }
 
@@ -135,6 +141,38 @@ export async function PATCH(request: Request) {
         { error: `Gyne consumer profile could not be updated: ${outputSummary(message)}` },
         { status: 502 }
       );
+    }
+  }
+
+  if (disablingGoogleWorkspace) {
+    const { data: gwsProfile, error: gwsProfileError } = await supabase
+      .from("profiles")
+      .select("openclaw_instance")
+      .eq("id", userId)
+      .maybeSingle();
+
+    if (gwsProfileError) {
+      return NextResponse.json({ error: gwsProfileError.message }, { status: 500 });
+    }
+
+    const openClawInstance =
+      typeof gwsProfile?.openclaw_instance === "string"
+        ? gwsProfile.openclaw_instance.trim()
+        : "";
+
+    if (openClawInstance) {
+      try {
+        await logoutOpenClawGoogleWorkspace({ instance: openClawInstance });
+      } catch (error) {
+        if (!isOpenClawInstanceMissingError(error)) {
+          const message = error instanceof Error ? error.message : "gws_logout_failed";
+
+          return NextResponse.json(
+            { error: `Google Workspace could not be disconnected from OpenClaw: ${outputSummary(message)}` },
+            { status: 502 }
+          );
+        }
+      }
     }
   }
 
