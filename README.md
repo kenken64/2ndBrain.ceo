@@ -97,27 +97,17 @@ Marketplace workflow launches use short-lived signed URLs. To also revoke alread
 
 ## Supabase
 
-Run migrations in order from `supabase/migrations`:
+Run every file in `supabase/migrations` in filename order, in the Supabase SQL
+Editor. They are idempotent, so re-running a file is safe.
 
-```txt
-0001_app_schema.sql
-0002_onboarding_profile.sql
-0003_avaturn_profile.sql
-0004_enrolment_profile.sql
-0005_openclaw_provision.sql
-0006_full_openclaw_flow.sql
-0007_telegram_pairing.sql
-0008_wiki_graph.sql
-0009_openclaw_identity_async.sql
-0010_projects_multi_wiki_registry.sql
-0011_agent_provision_target.sql
-0012_openclaw_gateway_url.sql
-0013_profile_settings.sql
-0014_admin_controls.sql
-0015_solana_credit_purchases.sql
-0016_profiles_authenticated_grants.sql
-0017_ai_credit_transfers.sql
-0018_google_workspace_connected.sql
+Because they are applied by hand, a skipped file stays invisible until a write
+fails at runtime — PostgREST rejects an entire `PATCH` when a single column is
+unknown, so one missing column breaks a whole endpoint. To compare the
+migrations against a live database:
+
+```bash
+DATABASE_URL=… npm run schema:check        # exits 1 on drift
+DATABASE_URL=… npm run schema:check -- --sql   # SQL to paste for whatever is missing
 ```
 
 Auth redirect URLs:
