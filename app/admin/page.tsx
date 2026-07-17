@@ -1,4 +1,5 @@
 import { redirect } from "next/navigation";
+import { AdminTabs, isAdminTabId } from "@/components/admin-tabs";
 import { AdminUsersTable, type AdminUserRow } from "@/components/admin-users-table";
 import { AnnouncementPill } from "@/components/announcement-pill";
 import { Atmosphere } from "@/components/atmosphere";
@@ -51,7 +52,15 @@ function metric(label: string, value: number) {
   );
 }
 
-export default async function AdminPage() {
+type AdminPageProps = {
+  searchParams?: Promise<{
+    tab?: string;
+  }>;
+};
+
+export default async function AdminPage({ searchParams }: AdminPageProps) {
+  const resolvedSearchParams = await searchParams;
+  const requestedTab = isAdminTabId(resolvedSearchParams?.tab) ? resolvedSearchParams.tab : undefined;
   const access = await requireAdminPage({
     next: "/admin",
     requireMfa: true,
@@ -211,18 +220,24 @@ export default async function AdminPage() {
               {metric("your AI credits available", adminAvailableTokens)}
             </div>
 
-            <AdminUsersTable
-              adminAvailableTokens={adminAvailableTokens}
-              adminUserId={access.userId}
-              users={users}
-            />
-
-            <SolanaPaymentHistory
-              emptyCopy="No confirmed Solana top-ups have been recorded yet."
-              eyebrow="Admin billing"
-              payments={solanaPaymentHistory}
-              showUser
-              title="Solana top-up history"
+            <AdminTabs
+              billing={
+                <SolanaPaymentHistory
+                  emptyCopy="No confirmed Solana top-ups have been recorded yet."
+                  eyebrow="Admin billing"
+                  payments={solanaPaymentHistory}
+                  showUser
+                  title="Solana top-up history"
+                />
+              }
+              initialTab={requestedTab}
+              users={
+                <AdminUsersTable
+                  adminAvailableTokens={adminAvailableTokens}
+                  adminUserId={access.userId}
+                  users={users}
+                />
+              }
             />
           </section>
         </main>
