@@ -6,6 +6,7 @@ import { AiCreditsPaymentPanel, type AiCreditBalance } from "@/components/ai-cre
 import { ChangeTelegramBotTokenButton } from "@/components/change-telegram-bot-token-button";
 import { ClaudeAuthReconnectButton } from "@/components/claude-auth-reconnect-button";
 import { DestroyWorkspaceButton } from "@/components/destroy-workspace-button";
+import { OpenClawInstancesPanel } from "@/components/openclaw-instances-panel";
 import { SettingsIntegrations } from "@/components/settings-integrations";
 import { SettingsProfileForm } from "@/components/settings-profile-form";
 import { SettingsTabs, type SettingsTabId } from "@/components/settings-tabs";
@@ -155,40 +156,44 @@ export function SettingsPageTabs({
       disabledReason="Add AI credits or destroy this instance to continue."
       disabledTabs={disabledSettingsTabs}
       general={
-        <div className="settings-grid settings-grid--general">
-          <SettingsProfileForm
-            disabled={isCreditLocked}
-            initialProfileName={initialProfileName}
-            userEmail={userEmail}
-          />
+        <div className="settings-general-stack">
+          <div className="settings-grid settings-grid--general">
+            <SettingsProfileForm
+              disabled={isCreditLocked}
+              initialProfileName={initialProfileName}
+              userEmail={userEmail}
+            />
 
-          <SettingsTokenUsageCard
-            isAdmin={isAdmin}
-            onPauseChange={(nextPause, nextBalance) => {
-              setPause(nextPause);
+            <SettingsTokenUsageCard
+              isAdmin={isAdmin}
+              onPauseChange={(nextPause, nextBalance) => {
+                setPause(nextPause);
 
-              if (nextBalance) {
-                setBalance(nextBalance);
-              }
-            }}
-            tokensPauseReason={pause.openclawTokensPauseReason}
-            tokensPaused={pause.openclawTokensPaused}
-            tokensPausedAt={pause.openclawTokensPausedAt}
-            tokensResumedAt={pause.openclawTokensResumedAt}
-            tokenQuota={balance.quota}
-            tokenUsed={balance.used}
-          />
+                if (nextBalance) {
+                  setBalance(nextBalance);
+                }
+              }}
+              tokensPauseReason={pause.openclawTokensPauseReason}
+              tokensPaused={pause.openclawTokensPaused}
+              tokensPausedAt={pause.openclawTokensPausedAt}
+              tokensResumedAt={pause.openclawTokensResumedAt}
+              tokenQuota={balance.quota}
+              tokenUsed={balance.used}
+            />
 
-          <article className="settings-action-card settings-action-card--danger">
-            <div>
-              <p className="workspace-status-card__eyebrow">Danger zone</p>
-              <h2>Destroy instance</h2>
-              <p>
-                Destroy the Cloud OpenClaw instance, clear generated Nth Brain project history, reset onboarding, and log out.
-              </p>
-            </div>
-            <DestroyWorkspaceButton variant="panel" />
-          </article>
+            <article className="settings-action-card settings-action-card--danger">
+              <div>
+                <p className="workspace-status-card__eyebrow">Danger zone</p>
+                <h2>Destroy instance</h2>
+                <p>
+                  Destroy the Cloud OpenClaw instance, clear generated Nth Brain project history, reset onboarding, and log out.
+                </p>
+              </div>
+              <DestroyWorkspaceButton variant="panel" />
+            </article>
+          </div>
+
+          <OpenClawInstancesPanel />
         </div>
       }
       initialTab={

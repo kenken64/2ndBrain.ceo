@@ -977,6 +977,49 @@ async function getExistingLightsailInstance(
   }
 }
 
+export type OpenClawInstancePresence = "present" | "missing" | "unknown";
+
+/**
+ * Cheap Lightsail existence probe used to reconcile stored instance references against reality. Returns
+ * "unknown" for transient AWS errors (auth/network/throttling) so callers never flip a healthy instance
+ * to failed on a false negative — only a definitive NotFound maps to "missing".
+ */
+export async function checkOpenClawInstancePresence(
+  instance: string | null | undefined,
+  region?: string | null
+): Promise<OpenClawInstancePresence> {
+  const name = instance?.trim();
+
+  if (!name) {
+    return "missing";
+  }
+
+  // Bare-IP hosts are not Lightsail-managed, so their existence cannot be verified here.
+  if (isIpAddress(name)) {
+    return "present";
+  }
+
+  const resolvedRegion = region?.trim() || optionalEnv("AWS_REGION");
+
+  if (!resolvedRegion) {
+    return "unknown";
+  }
+
+  try {
+    const existing = await getExistingLightsailInstance(name, resolvedRegion, getAwsEnv());
+
+    return existing ? "present" : "missing";
+  } catch (error) {
+    consoleClawmacdo("instance_presence_unknown", {
+      error: error instanceof Error ? error.message : String(error),
+      instance: name,
+      region: resolvedRegion
+    });
+
+    return "unknown";
+  }
+}
+
 function parseJsonRecordOutput(output: string) {
   try {
     const parsed = parseJsonOutput<unknown>(output);

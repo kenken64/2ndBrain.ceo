@@ -2193,6 +2193,12 @@ svg {
   gap: 18px;
 }
 
+.settings-general-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
 .settings-grid--general .settings-profile-card {
   grid-column: 1;
   grid-row: 1;

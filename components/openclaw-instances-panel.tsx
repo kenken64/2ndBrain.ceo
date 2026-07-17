@@ -11,6 +11,7 @@ import {
   LoaderCircle,
   Plus,
   RefreshCw,
+  RotateCcw,
   Send,
   Trash2,
   X
@@ -105,8 +106,10 @@ export function OpenClawInstancesPanel() {
   const [instances, setInstances] = useState<OpenClawInstance[]>([]);
   const [maxInstances, setMaxInstances] = useState(0);
   const [loading, setLoading] = useState(true);
+  const [reconciling, setReconciling] = useState(false);
   const [provisioning, setProvisioning] = useState(false);
   const [removingId, setRemovingId] = useState<string | null>(null);
+  const [reprovisioningId, setReprovisioningId] = useState<string | null>(null);
   const [pendingRemoval, setPendingRemoval] = useState<{ id: string; name: string } | null>(null);
   const [isProvisionDialogOpen, setIsProvisionDialogOpen] = useState(false);
   const [isTokenVisible, setIsTokenVisible] = useState(false);
@@ -142,8 +145,36 @@ export function OpenClawInstancesPanel() {
     }
   }
 
+  // Reconcile stored rows against Lightsail so instances whose host was deleted show as "failed" (with a
+  // Re-provision prompt) instead of silently timing out on the next SSH call.
+  async function reconcile() {
+    setReconciling(true);
+
+    try {
+      const response = await fetch("/api/openclaw/instances/reconcile", {
+        cache: "no-store",
+        method: "POST"
+      });
+      const payload = (await response.json().catch(() => null)) as
+        | (InstancesResponse & { error?: string })
+        | null;
+
+      if (response.ok && payload) {
+        setInstances(payload.instances);
+        setMaxInstances(payload.maxInstances);
+      }
+    } catch {
+      // Best-effort: keep the last loaded list if the health check fails.
+    } finally {
+      setReconciling(false);
+    }
+  }
+
   useEffect(() => {
-    void refresh();
+    void (async () => {
+      await refresh();
+      await reconcile();
+    })();
   }, []);
 
   function closeProvisionDialog() {
@@ -286,9 +317,56 @@ export function OpenClawInstancesPanel() {
     }
   }
 
+  async function reprovisionInstance(id: string) {
+    if (reprovisioningId) {
+      return;
+    }
+
+    setReprovisioningId(id);
+    setError(null);
+    setMessage(null);
+
+    try {
+      const response = await fetch(`/api/openclaw/instances/${id}/reprovision`, { method: "POST" });
+      const payload = (await response.json().catch(() => null)) as
+        | { error?: string; instance?: OpenClawInstance; restored?: boolean }
+        | null;
+
+      if (!response.ok) {
+        throw new Error(friendlyError(payload?.error, "The OpenClaw instance could not be re-provisioned."));
+      }
+
+      await refresh();
+
+      if (payload?.restored) {
+        // A fresh snapshot restore resets Telegram pairing, so hand off to the approval step.
+        setMessage(
+          "OpenClaw instance restored from the snapshot. Open your Telegram bot, copy the 8-character approval code, and approve it to finish pairing."
+        );
+
+        if (payload.instance) {
+          setPairTarget({
+            id: payload.instance.id,
+            name: payload.instance.label || payload.instance.consumerName
+          });
+        }
+      } else {
+        setMessage("OpenClaw instance reconnected. The Lightsail host was healthy, so no restore was needed.");
+      }
+    } catch (reprovisionError) {
+      setError(
+        reprovisionError instanceof Error
+          ? reprovisionError.message
+          : "The OpenClaw instance could not be re-provisioned."
+      );
+    } finally {
+      setReprovisioningId(null);
+    }
+  }
+
   const activeCount = instances.filter((instance) => instance.status !== "failed" && instance.status !== "stopped").length;
   const atLimit = maxInstances > 0 && activeCount >= maxInstances;
-  const provisionDisabled = provisioning || atLimit;
+  const provisionDisabled = provisioning || atLimit || reprovisioningId !== null;
 
   return (
     <section className="workflow-marketplace-stack">
@@ -305,7 +383,12 @@ export function OpenClawInstancesPanel() {
           <p>Each instance is a private OpenClaw worker that only you can see and use in the Gyne Agent.</p>
         </div>
         <div className="workflow-card__actions">
-          <button className="btn-ghost" disabled={loading || provisioning} onClick={refresh} type="button">
+          <button
+            className="btn-ghost"
+            disabled={loading || provisioning || reprovisioningId !== null}
+            onClick={refresh}
+            type="button"
+          >
             <RefreshCw size={16} strokeWidth={1.8} />
             Refresh
           </button>
@@ -329,6 +412,12 @@ export function OpenClawInstancesPanel() {
       {provisioning ? (
         <p className="workflow-card__hint">Provisioning a new instance can take a few minutes. Keep this tab open.</p>
       ) : null}
+      {reprovisioningId ? (
+        <p className="workflow-card__hint">
+          Re-provisioning restores the instance from the snapshot. This can take a few minutes. Keep this tab open.
+        </p>
+      ) : null}
+      {reconciling && !loading ? <p className="workflow-card__hint">Checking instance health…</p> : null}
       {error ? <p className="form-error" role="alert">{error}</p> : null}
       {message ? <p className="form-success" role="status">{message}</p> : null}
 
@@ -347,6 +436,9 @@ export function OpenClawInstancesPanel() {
           {instances.map((instance) => {
             const createdDate = formatDate(instance.createdAt);
             const isRemoving = removingId === instance.id;
+            const isReprovisioning = reprovisioningId === instance.id;
+            const isTransient = instance.status === "provisioning" || instance.status === "deprovisioning";
+            const canReprovision = !isTransient;
             const canPair = instance.status === "ready" && Boolean(instance.instance);
 
             return (
@@ -382,7 +474,7 @@ export function OpenClawInstancesPanel() {
                   {canPair ? (
                     <button
                       className="btn-ghost"
-                      disabled={isRemoving || pairing}
+                      disabled={isRemoving || isReprovisioning || pairing}
                       onClick={() =>
                         setPairTarget({ id: instance.id, name: instance.label || instance.consumerName })
                       }
@@ -392,9 +484,25 @@ export function OpenClawInstancesPanel() {
                       Pair Telegram
                     </button>
                   ) : null}
+                  {canReprovision ? (
+                    <button
+                      className="btn-ghost"
+                      disabled={isRemoving || isReprovisioning || reprovisioningId !== null}
+                      onClick={() => reprovisionInstance(instance.id)}
+                      title="Recreate this instance from the snapshot if the Lightsail host was deleted or is unresponsive."
+                      type="button"
+                    >
+                      {isReprovisioning ? (
+                        <LoaderCircle className="spin-icon" size={16} strokeWidth={1.8} />
+                      ) : (
+                        <RotateCcw size={16} strokeWidth={1.8} />
+                      )}
+                      {isReprovisioning ? "Re-provisioning..." : "Re-provision"}
+                    </button>
+                  ) : null}
                   <button
                     className="btn-ghost danger-button"
-                    disabled={isRemoving}
+                    disabled={isRemoving || isReprovisioning}
                     onClick={() =>
                       setPendingRemoval({ id: instance.id, name: instance.label || instance.consumerName })
                     }
