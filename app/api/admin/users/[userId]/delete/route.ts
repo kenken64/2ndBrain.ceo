@@ -33,16 +33,23 @@ export async function POST(_request: Request, context: AdminUserRouteContext) {
   try {
     const result = await destroyUserWorkspaceForAdmin(access.adminSupabase, target);
 
+    // targetUserId is deliberately null: the auth user no longer exists, and
+    // admin_audit_events.target_user_id has a foreign key back to it. Passing
+    // the id here would fail the insert — silently, since logAdminAudit does
+    // not surface insert errors — and lose the record of the deletion.
+    // target_email carries the identity instead.
     await logAdminAudit(access.adminSupabase, {
       action: "user_workspace_delete",
       adminEmail: access.email,
       adminUserId: access.userId,
       details: {
+        avatarsDeleted: result.avatarsDeleted,
+        deletedUserId: userId,
         destroyOutputLength: result.destroyOutput?.length ?? 0,
         hadInstance: Boolean(target.openclaw_instance)
       },
       targetEmail: target.email,
-      targetUserId: userId
+      targetUserId: null
     });
 
     return NextResponse.json({ ok: true });

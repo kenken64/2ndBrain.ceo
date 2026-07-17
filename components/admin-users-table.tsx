@@ -162,7 +162,7 @@ export function AdminUsersTable({ adminAvailableTokens, adminUserId, users }: Ad
     const failure = await runAction(
       pendingDelete.id,
       () => postJson(`/api/admin/users/${pendingDelete.id}/delete`, {}),
-      `Deleted workspace data for ${describeUser(pendingDelete)}.`
+      `Deleted the account for ${describeUser(pendingDelete)}.`
     );
 
     if (failure) {
@@ -470,25 +470,27 @@ export function AdminUsersTable({ adminAvailableTokens, adminUserId, users }: Ad
         busy={busyUserId === pendingDelete?.id}
         busyLabel="Deleting..."
         closeLabel="Close delete user dialog"
-        confirmLabel="Delete user"
+        confirmLabel="Delete account"
         confirmWord="DELETE"
         description={
           <p>
-            This permanently removes the workspace data for <strong>{pendingDelete ? describeUser(pendingDelete) : ""}</strong> and
-            tears down their AI Agent instance
-            {pendingDelete?.openclawInstance ? <> (<strong>{pendingDelete.openclawInstance}</strong>)</> : null}.
+            This deletes the account for <strong>{pendingDelete ? describeUser(pendingDelete) : ""}</strong>, tears down their AI
+            Agent instance
+            {pendingDelete?.openclawInstance ? <> (<strong>{pendingDelete.openclawInstance}</strong>)</> : null}, and erases their
+            Nth Brains, wiki, and AI credits.
           </p>
         }
         error={dialogError}
-        eyebrow="Delete user"
+        eyebrow="Delete account"
         onCancel={() => setPendingDelete(null)}
         onConfirm={() => void confirmDelete()}
         open={pendingDelete !== null}
-        title="Delete this user?"
+        title="Delete this account?"
         warning={
           <>
             This cannot be undone. {formatNumber(pendingDelete?.projectCount ?? 0)}{" "}
-            {pendingDelete?.projectCount === 1 ? "Nth Brain project" : "Nth Brain projects"} will be destroyed.
+            {pendingDelete?.projectCount === 1 ? "Nth Brain project" : "Nth Brain projects"} will be destroyed. They can sign up
+            again with the same Google account as a new user.
           </>
         }
       />
