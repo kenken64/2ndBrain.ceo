@@ -3,6 +3,7 @@ const fs = require("node:fs");
 const path = require("node:path");
 const next = require("next");
 const { attachOpenClawSshServer } = require("./openclaw-ssh");
+const { startInstanceReaper } = require("./instance-reaper");
 const { startTokenUsageListener } = require("./token-usage-listener");
 
 const dir = path.join(__dirname, "..");
@@ -49,6 +50,7 @@ app.prepare().then(() => {
 
   attachOpenClawSshServer(server);
   const stopTokenUsageListener = startTokenUsageListener();
+  const stopInstanceReaper = startInstanceReaper();
 
   server.listen(port, hostname, () => {
     console.info(`[server] ready on http://${hostname}:${port}`);
@@ -56,6 +58,7 @@ app.prepare().then(() => {
 
   function shutdown() {
     stopTokenUsageListener();
+    stopInstanceReaper();
     server.close(() => process.exit(0));
   }
 
