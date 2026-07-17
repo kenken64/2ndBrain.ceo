@@ -1,5 +1,5 @@
 import { redirect } from "next/navigation";
-import { AdminTabs, isAdminTabId } from "@/components/admin-tabs";
+import { AdminTabs, type AdminTabId } from "@/components/admin-tabs";
 import { AdminUsersTable, type AdminUserRow } from "@/components/admin-users-table";
 import { AnnouncementPill } from "@/components/announcement-pill";
 import { Atmosphere } from "@/components/atmosphere";
@@ -58,9 +58,19 @@ type AdminPageProps = {
   }>;
 };
 
+// Validated here rather than via a helper exported from admin-tabs: that module
+// is "use client", and a server component cannot call into it.
+function resolveTab(value: string | undefined): AdminTabId | undefined {
+  if (value === "users" || value === "billing") {
+    return value;
+  }
+
+  return undefined;
+}
+
 export default async function AdminPage({ searchParams }: AdminPageProps) {
   const resolvedSearchParams = await searchParams;
-  const requestedTab = isAdminTabId(resolvedSearchParams?.tab) ? resolvedSearchParams.tab : undefined;
+  const requestedTab = resolveTab(resolvedSearchParams?.tab);
   const access = await requireAdminPage({
     next: "/admin",
     requireMfa: true,
