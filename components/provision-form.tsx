@@ -29,6 +29,13 @@ const PROVISION_ERROR_CODES = new Set([
   "save_failed"
 ]);
 
+// Same condition, two names: the middleware credit gate in proxy.ts answers
+// with ai_credits_required, while the onboarding step and the provision route
+// call it insufficient_ai_credits. Normalise so there is one message for it.
+const ERROR_CODE_ALIASES: Record<string, string> = {
+  ai_credits_required: "insufficient_ai_credits"
+};
+
 function provisionStepUrl(next: string, error?: string) {
   const params = new URLSearchParams({
     next,
@@ -51,14 +58,26 @@ function isApiUrl(url: string) {
 }
 
 function errorCodeFromPayload(payload: unknown) {
-  if (!payload || typeof payload !== "object" || !("error" in payload)) {
+  if (!payload || typeof payload !== "object") {
     return "openclaw_provision_failed";
   }
 
-  const error = typeof payload.error === "string" ? payload.error.trim() : "";
+  // The provision route puts its code in `error`, but middleware gates answer
+  // with prose in `error` and the machine-readable value in `code`. Reading
+  // only `error` threw the precise reason away and fell back to the generic
+  // "provisioning failed", which sends people to check clawmacdo output when
+  // the real cause is a gate they can act on.
+  const candidates = [
+    "code" in payload && typeof payload.code === "string" ? payload.code.trim() : "",
+    "error" in payload && typeof payload.error === "string" ? payload.error.trim() : ""
+  ];
 
-  if (PROVISION_ERROR_CODES.has(error) || error.startsWith("missing_")) {
-    return error;
+  for (const candidate of candidates) {
+    const normalized = ERROR_CODE_ALIASES[candidate] ?? candidate;
+
+    if (PROVISION_ERROR_CODES.has(normalized) || normalized.startsWith("missing_")) {
+      return normalized;
+    }
   }
 
   return "openclaw_provision_failed";

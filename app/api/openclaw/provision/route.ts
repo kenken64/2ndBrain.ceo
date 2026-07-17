@@ -1,19 +1,103 @@
 import { NextResponse } from "next/server";
 import { isAdminUser } from "@/lib/admin";
 import { hasSupabaseEnv } from "@/lib/env";
+import { addConsumerOwner } from "@/lib/gyne-consumer-registry";
 import {
   getUserIdFromClaims,
   onboardingPath,
   onboardingProfileSelect,
   type OnboardingProfile
 } from "@/lib/onboarding";
-import { provisionOpenClaw } from "@/lib/openclaw";
+import { generateConsumerName, provisionOpenClaw } from "@/lib/openclaw";
+import { createAdminClient, hasSupabaseServiceRoleEnv } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 import { appUrl, safeNextPath } from "@/lib/url";
 
 export const runtime = "nodejs";
 
 const STALE_PROVISION_MS = 30 * 60 * 1000;
+
+/**
+ * Reuses the consumer name already registered for this user's instance, so a
+ * re-provision keeps the same Redis owner mapping instead of stranding the old
+ * name. Returns a fresh name when there is nothing to reuse.
+ *
+ * openclaw_instances is RLS-protected with a select-only policy, so this needs
+ * the service-role client the same way the instances panel does.
+ */
+async function resolveConsumerName(userId: string) {
+  if (!hasSupabaseServiceRoleEnv()) {
+    return generateConsumerName(userId);
+  }
+
+  const { data } = await createAdminClient()
+    .from("openclaw_instances")
+    .select("consumer_name")
+    .eq("user_id", userId)
+    .limit(1)
+    .maybeSingle();
+
+  const existing = (data as { consumer_name: string } | null)?.consumer_name?.trim();
+
+  return existing || generateConsumerName(userId);
+}
+
+/**
+ * Records the provisioned instance the way the instances panel does: a row in
+ * openclaw_instances plus the Redis ownership mapping.
+ *
+ * Onboarding used to write only profiles.openclaw_instance, which left the
+ * instance invisible to the instances panel and — because no consumer name was
+ * bound — unattributable for token usage, so the user's credits never moved.
+ *
+ * Best effort: the instance is already live by the time this runs, so a failure
+ * here is logged rather than failing an otherwise successful provision.
+ */
+async function registerProvisionedInstance(input: {
+  consumerName: string;
+  instance: string;
+  region: string;
+  restoreOutput: string;
+  snapshotName: string;
+  userId: string;
+}) {
+  if (!hasSupabaseServiceRoleEnv()) {
+    console.warn("[openclaw:provision] service role missing; instance not registered for usage tracking", {
+      instance: input.instance
+    });
+    return;
+  }
+
+  try {
+    const adminSupabase = createAdminClient();
+    const completedAt = new Date().toISOString();
+
+    await adminSupabase.from("openclaw_instances").upsert(
+      {
+        consumer_name: input.consumerName,
+        instance: input.instance,
+        label: "Onboarding workspace",
+        provision_completed_at: completedAt,
+        provision_error: null,
+        provision_output: outputSummary(input.restoreOutput),
+        provision_status: "ready",
+        region: input.region,
+        snapshot_name: input.snapshotName,
+        user_id: input.userId
+      },
+      // Matches openclaw_instances_user_id_consumer_name_key; consumer_name
+      // alone is not unique, so a re-provision must conflict on both columns.
+      { onConflict: "user_id,consumer_name" }
+    );
+
+    await addConsumerOwner(input.userId, input.consumerName);
+  } catch (error) {
+    console.error("[openclaw:provision] instance registration failed", {
+      error: error instanceof Error ? error.message : "unknown",
+      instance: input.instance
+    });
+  }
+}
 
 type ProvisionProfile = OnboardingProfile & {
   llm_token_quota?: number | string | null;
@@ -247,9 +331,15 @@ export async function POST(request: Request) {
       userId
     });
 
+    // Binds the co-located gyne consumer to a known name. Without it the
+    // consumer registers under its default name and token usage cannot be
+    // scoped back to this user.
+    const consumerName = await resolveConsumerName(userId);
+
     const provisioned = await provisionOpenClaw({
       avatarGender,
       avatarName,
+      consumerName,
       existingInstance,
       onInstanceRestored: async (details) => {
         await supabase
@@ -294,6 +384,15 @@ export async function POST(request: Request) {
       });
       return redirectToProvision(request, next, "save_failed");
     }
+
+    await registerProvisionedInstance({
+      consumerName,
+      instance: provisioned.instance,
+      region: provisioned.region,
+      restoreOutput: provisioned.restoreOutput,
+      snapshotName: provisioned.snapshotName,
+      userId
+    });
 
     logProvision("ready", {
       instance: provisioned.instance,
