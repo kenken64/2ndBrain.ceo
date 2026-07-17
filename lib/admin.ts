@@ -192,7 +192,8 @@ export async function logAdminAudit(
   input: {
     action: string;
     adminEmail: string;
-    adminUserId: string;
+    /** Null for system actors such as the instance reaper, which act without an admin. */
+    adminUserId: string | null;
     details?: Record<string, unknown>;
     status?: "success" | "failed";
     targetEmail?: string | null;

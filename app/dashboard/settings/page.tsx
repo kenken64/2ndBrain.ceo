@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { AnnouncementPill } from "@/components/announcement-pill";
 import { Atmosphere } from "@/components/atmosphere";
 import { DashboardSidebar } from "@/components/dashboard-sidebar";
+import { ReapWarningBanner } from "@/components/reap-warning-banner";
 import { SetupCallout } from "@/components/setup-callout";
 import { SettingsPageTabs } from "@/components/settings-page-tabs";
 import { type SettingsTabId } from "@/components/settings-tabs";
@@ -32,8 +33,10 @@ type ProfileSettings = OnboardingProfile & {
 type OptionalProfileSettings = Pick<ProfileSettings, "google_workspace_enabled" | "profile_name">;
 
 type BillingProfileSettings = OptionalProfileSettings & {
+  ai_credits_exhausted_at: string | null;
   llm_token_quota: number | null;
   llm_token_used: number | null;
+  openclaw_instance: string | null;
   openclaw_tokens_pause_reason: string | null;
   openclaw_tokens_paused: boolean | null;
   openclaw_tokens_paused_at: string | null;
@@ -100,7 +103,7 @@ export default async function DashboardSettingsPage({ searchParams }: DashboardS
   const { data: settingsProfile } = userId
     ? await supabase
         .from("profiles")
-        .select("profile_name,google_workspace_enabled,llm_token_quota,llm_token_used,openclaw_tokens_paused,openclaw_tokens_paused_at,openclaw_tokens_resumed_at,openclaw_tokens_pause_reason")
+        .select("profile_name,google_workspace_enabled,llm_token_quota,llm_token_used,openclaw_tokens_paused,openclaw_tokens_paused_at,openclaw_tokens_resumed_at,openclaw_tokens_pause_reason,ai_credits_exhausted_at,openclaw_instance")
         .eq("id", userId)
         .maybeSingle()
     : { data: null };
@@ -143,6 +146,13 @@ export default async function DashboardSettingsPage({ searchParams }: DashboardS
               <h1 id="settings-title">Workspace settings</h1>
               <p>Manage external integrations and destructive workspace actions from one protected page.</p>
             </div>
+
+            {isCreditLocked && optionalSettings?.ai_credits_exhausted_at && optionalSettings.openclaw_instance ? (
+              <ReapWarningBanner
+                exhaustedAt={optionalSettings.ai_credits_exhausted_at}
+                instance={optionalSettings.openclaw_instance}
+              />
+            ) : null}
 
             <SettingsPageTabs
               billingConfigured={hasSolanaBillingEnv()}
