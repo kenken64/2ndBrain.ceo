@@ -1,5 +1,5 @@
 import { createHash } from "node:crypto";
-import { mkdir, writeFile } from "node:fs/promises";
+import { mkdir, rm, writeFile } from "node:fs/promises";
 import path from "node:path";
 
 const MAX_GLB_BYTES = 50 * 1024 * 1024;
@@ -119,6 +119,35 @@ async function storeAvatarBuffer(buffer: Buffer, userId: string): Promise<Stored
     byteLength: buffer.byteLength,
     relativePath
   };
+}
+
+/**
+ * Removes the user's avatar directory. Used when an account is deleted for
+ * good — the GLB is personal data, and the directory is keyed by user id, so
+ * nothing would ever reclaim it otherwise.
+ *
+ * Resolves to false when no storage root is configured or the directory was
+ * already gone; deleting an account should not fail over a missing file.
+ */
+export async function deleteStoredAvatars(userId: string) {
+  if (!process.env.AVATAR_STORAGE_ROOT?.trim()) {
+    return false;
+  }
+
+  const userDirectory = path.join(getStorageRoot(), safeSegment(userId));
+  const absolutePath = path.join(/* turbopackIgnore: true */ process.cwd(), userDirectory);
+
+  try {
+    await rm(absolutePath, { force: true, recursive: true });
+    avatarDebug("avatar_directory_deleted", { userId: redactUserId(userId) });
+    return true;
+  } catch (error) {
+    avatarDebug("avatar_directory_delete_failed", {
+      error: error instanceof Error ? error.message : "unknown",
+      userId: redactUserId(userId)
+    });
+    return false;
+  }
 }
 
 async function fetchDownload(url: URL, redirectsRemaining = 4): Promise<Response> {
