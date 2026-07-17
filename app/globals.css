@@ -1856,6 +1856,10 @@ svg {
   line-height: 1.45;
 }
 
+.destroy-dialog__panel .field-stack {
+  margin-top: 18px;
+}
+
 .destroy-dialog__actions {
   display: flex;
   justify-content: flex-end;
@@ -1884,12 +1888,20 @@ svg {
   font-size: 12px;
 }
 
-.btn-danger:hover {
+.btn-danger:hover:not(:disabled) {
   background: #b91c1c;
   box-shadow: var(--shadow-md);
 }
 
-.btn-danger:disabled,
+/* Reads as unavailable rather than a dimmed red, so a pending typed
+   confirmation is not mistaken for an unresponsive button. */
+.btn-danger:disabled {
+  background: var(--bg-subtle);
+  box-shadow: none;
+  color: var(--fg-muted);
+  cursor: not-allowed;
+}
+
 .destroy-dialog__close:disabled,
 .destroy-dialog__scrim:disabled {
   cursor: not-allowed;
