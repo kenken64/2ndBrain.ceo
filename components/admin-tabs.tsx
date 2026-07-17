@@ -20,10 +20,6 @@ const tabs: Array<{
   { icon: CreditCard, id: "billing", label: "Billing" }
 ];
 
-export function isAdminTabId(value: string | undefined): value is AdminTabId {
-  return value === "users" || value === "billing";
-}
-
 /**
  * Splits the admin workbench into tabs. Panels are rendered server-side and
  * passed in, so switching tabs costs no refetch. Styling reuses the
