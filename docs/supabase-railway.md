@@ -8,6 +8,7 @@
    - `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`, or `NEXT_PUBLIC_SUPABASE_ANON_KEY` if your project only shows the legacy anon key
    - `NEXT_PUBLIC_SITE_URL=http://localhost:3000`
 3. In Supabase SQL Editor, run the SQL files in `supabase/migrations` in order.
+   Afterwards, verify none were skipped with `DATABASE_URL=… npm run schema:check`.
 4. In Supabase Auth, enable Google as a provider.
 5. Add redirect URLs:
    - `http://localhost:3000/auth/callback`
