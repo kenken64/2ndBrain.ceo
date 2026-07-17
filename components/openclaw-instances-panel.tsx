@@ -2,7 +2,6 @@
 
 import { FormEvent, useEffect, useId, useState } from "react";
 import {
-  AlertTriangle,
   Bot,
   Cpu,
   Eye,
@@ -16,6 +15,7 @@ import {
   Trash2,
   X
 } from "lucide-react";
+import { ConfirmDialog } from "@/components/confirm-dialog";
 
 type OpenClawInstance = {
   consumerName: string;
@@ -702,47 +702,24 @@ export function OpenClawInstancesPanel() {
         </div>
       ) : null}
 
-      {pendingRemoval ? (
-        <div className="destroy-dialog" role="presentation">
-          <button
-            aria-label="Close remove instance dialog"
-            className="destroy-dialog__scrim"
-            disabled={removingId !== null}
-            onClick={() => setPendingRemoval(null)}
-            type="button"
-          />
-          <section aria-labelledby="remove-instance-dialog-title" aria-modal="true" className="destroy-dialog__panel" role="dialog">
-            <button
-              aria-label="Close remove instance dialog"
-              className="destroy-dialog__close"
-              disabled={removingId !== null}
-              onClick={() => setPendingRemoval(null)}
-              type="button"
-            >
-              <X size={18} strokeWidth={1.8} />
-            </button>
-            <div className="destroy-dialog__icon" aria-hidden="true">
-              <AlertTriangle size={28} strokeWidth={1.9} />
-            </div>
-            <p className="workspace-status-card__eyebrow">Danger zone</p>
-            <h2 id="remove-instance-dialog-title">Remove {pendingRemoval.name}?</h2>
-            <p>This tears down the OpenClaw instance and removes it from the Gyne Agent.</p>
-            <div className="destroy-dialog__warning">
-              This action is destructive. Tasks routed to this consumer will stop until you provision a replacement.
-            </div>
-            {error ? <p className="form-error">{error}</p> : null}
-            <div className="destroy-dialog__actions">
-              <button className="btn-ghost" disabled={removingId !== null} onClick={() => setPendingRemoval(null)} type="button">
-                Cancel
-              </button>
-              <button className="btn-danger" disabled={removingId !== null} onClick={() => removeInstance(pendingRemoval.id)} type="button">
-                {removingId !== null ? <LoaderCircle className="spin-icon" size={17} strokeWidth={1.8} /> : <Trash2 size={17} strokeWidth={1.8} />}
-                {removingId !== null ? "Removing..." : "Remove instance"}
-              </button>
-            </div>
-          </section>
-        </div>
-      ) : null}
+      <ConfirmDialog
+        busy={removingId !== null}
+        busyLabel="Removing..."
+        closeLabel="Close remove instance dialog"
+        confirmLabel="Remove instance"
+        description="This tears down the OpenClaw instance and removes it from the Gyne Agent."
+        error={error}
+        eyebrow="Danger zone"
+        onCancel={() => setPendingRemoval(null)}
+        onConfirm={() => {
+          if (pendingRemoval) {
+            void removeInstance(pendingRemoval.id);
+          }
+        }}
+        open={pendingRemoval !== null}
+        title={pendingRemoval ? `Remove ${pendingRemoval.name}?` : "Remove instance?"}
+        warning="This action is destructive. Tasks routed to this consumer will stop until you provision a replacement."
+      />
     </section>
   );
 }

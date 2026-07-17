@@ -2,7 +2,8 @@
 
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { ChevronLeft, ChevronRight, Search } from "lucide-react";
+import { ChevronLeft, ChevronRight, Coins, Search } from "lucide-react";
+import { ConfirmDialog } from "@/components/confirm-dialog";
 
 export type AdminUserRow = {
   adminDeletedAt: string | null;
@@ -57,6 +58,14 @@ function formatDateTime(value: string | null) {
   }).format(date);
 }
 
+function describeUser(user: AdminUserRow) {
+  return user.email ?? user.id;
+}
+
+function remainingCredits(user: AdminUserRow) {
+  return Math.max(0, user.llmTokenQuota - user.llmTokenUsed);
+}
+
 function parseTransferAmount(value: FormDataEntryValue | null) {
   const text = typeof value === "string" ? value.trim() : "";
 
@@ -92,6 +101,9 @@ export function AdminUsersTable({ adminAvailableTokens, adminUserId, users }: Ad
   const [message, setMessage] = useState<string | null>(null);
   const [query, setQuery] = useState("");
   const [page, setPage] = useState(1);
+  const [pendingDelete, setPendingDelete] = useState<AdminUserRow | null>(null);
+  const [pendingDrain, setPendingDrain] = useState<AdminUserRow | null>(null);
+  const [dialogError, setDialogError] = useState("");
 
   const filteredUsers = useMemo(() => {
     const needle = query.trim().toLowerCase();
@@ -118,6 +130,7 @@ export function AdminUsersTable({ adminAvailableTokens, adminUserId, users }: Ad
   const currentPage = Math.min(page, pageCount);
   const pageUsers = filteredUsers.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE);
 
+  /** Resolves to an error message on failure, or null once the action succeeds. */
   async function runAction(userId: string, action: () => Promise<unknown>, successMessage = "Admin action completed.") {
     setBusyUserId(userId);
     setMessage(null);
@@ -126,11 +139,58 @@ export function AdminUsersTable({ adminAvailableTokens, adminUserId, users }: Ad
       await action();
       router.refresh();
       setMessage(successMessage);
+      return null;
     } catch (error) {
-      setMessage(error instanceof Error ? error.message : "Admin action failed.");
+      const failure = error instanceof Error ? error.message : "Admin action failed.";
+      setMessage(failure);
+      return failure;
     } finally {
       setBusyUserId(null);
     }
+  }
+
+  function openDialog(open: () => void) {
+    setDialogError("");
+    open();
+  }
+
+  async function confirmDelete() {
+    if (!pendingDelete) {
+      return;
+    }
+
+    const failure = await runAction(
+      pendingDelete.id,
+      () => postJson(`/api/admin/users/${pendingDelete.id}/delete`, {}),
+      `Deleted workspace data for ${describeUser(pendingDelete)}.`
+    );
+
+    if (failure) {
+      setDialogError(failure);
+      return;
+    }
+
+    setPendingDelete(null);
+  }
+
+  async function confirmDrain() {
+    if (!pendingDrain) {
+      return;
+    }
+
+    const drained = remainingCredits(pendingDrain);
+    const failure = await runAction(
+      pendingDrain.id,
+      () => postJson(`/api/admin/users/${pendingDrain.id}/credits/drain`, {}),
+      `Drained ${formatNumber(drained)} AI credits back to your account.`
+    );
+
+    if (failure) {
+      setDialogError(failure);
+      return;
+    }
+
+    setPendingDrain(null);
   }
 
   return (
@@ -193,7 +253,7 @@ export function AdminUsersTable({ adminAvailableTokens, adminUserId, users }: Ad
           <p className="admin-users-empty">No users match your search.</p>
         ) : null}
         {pageUsers.map((user) => {
-          const remaining = Math.max(0, user.llmTokenQuota - user.llmTokenUsed);
+          const remaining = remainingCredits(user);
           const isBusy = busyUserId === user.id;
           const isSelf = user.id === adminUserId;
 
@@ -382,19 +442,7 @@ export function AdminUsersTable({ adminAvailableTokens, adminUserId, users }: Ad
                         <button
                           className="btn-ghost"
                           disabled={isBusy || remaining <= 0}
-                          onClick={() => {
-                            if (
-                              window.confirm(
-                                `Drain ${formatNumber(remaining)} unused AI credits from ${user.email ?? user.id} back to your admin account?`
-                              )
-                            ) {
-                              void runAction(
-                                user.id,
-                                () => postJson(`/api/admin/users/${user.id}/credits/drain`, {}),
-                                `Drained ${formatNumber(remaining)} AI credits back to your account.`
-                              );
-                            }
-                          }}
+                          onClick={() => openDialog(() => setPendingDrain(user))}
                           title={remaining <= 0 ? "This user has no unused AI credits to drain." : "Drain unused AI credits to your admin account."}
                           type="button"
                         >
@@ -404,11 +452,7 @@ export function AdminUsersTable({ adminAvailableTokens, adminUserId, users }: Ad
                       <button
                         className="btn-ghost danger-button"
                         disabled={isBusy}
-                        onClick={() => {
-                          if (window.confirm(`Delete workspace data for ${user.email ?? user.id}?`)) {
-                            void runAction(user.id, () => postJson(`/api/admin/users/${user.id}/delete`, {}));
-                          }
-                        }}
+                        onClick={() => openDialog(() => setPendingDelete(user))}
                         type="button"
                       >
                         Delete
@@ -421,6 +465,54 @@ export function AdminUsersTable({ adminAvailableTokens, adminUserId, users }: Ad
           );
         })}
       </div>
+
+      <ConfirmDialog
+        busy={busyUserId === pendingDelete?.id}
+        busyLabel="Deleting..."
+        closeLabel="Close delete user dialog"
+        confirmLabel="Delete user"
+        confirmWord="DELETE"
+        description={
+          <p>
+            This permanently removes the workspace data for <strong>{pendingDelete ? describeUser(pendingDelete) : ""}</strong> and
+            tears down their AI Agent instance
+            {pendingDelete?.openclawInstance ? <> (<strong>{pendingDelete.openclawInstance}</strong>)</> : null}.
+          </p>
+        }
+        error={dialogError}
+        eyebrow="Delete user"
+        onCancel={() => setPendingDelete(null)}
+        onConfirm={() => void confirmDelete()}
+        open={pendingDelete !== null}
+        title="Delete this user?"
+        warning={
+          <>
+            This cannot be undone. {formatNumber(pendingDelete?.projectCount ?? 0)}{" "}
+            {pendingDelete?.projectCount === 1 ? "Nth Brain project" : "Nth Brain projects"} will be destroyed.
+          </>
+        }
+      />
+
+      <ConfirmDialog
+        busy={busyUserId === pendingDrain?.id}
+        busyLabel="Draining..."
+        closeLabel="Close drain credits dialog"
+        confirmIcon={<Coins size={17} strokeWidth={1.8} />}
+        confirmLabel="Drain credits"
+        description={
+          <p>
+            This moves <strong>{formatNumber(pendingDrain ? remainingCredits(pendingDrain) : 0)}</strong> unused AI credits from{" "}
+            <strong>{pendingDrain ? describeUser(pendingDrain) : ""}</strong> back to your admin account.
+          </p>
+        }
+        error={dialogError}
+        eyebrow="Drain credits"
+        onCancel={() => setPendingDrain(null)}
+        onConfirm={() => void confirmDrain()}
+        open={pendingDrain !== null}
+        title="Drain unused credits?"
+        warning="The user keeps credits they have already spent, but loses the unused balance immediately."
+      />
     </section>
   );
 }
