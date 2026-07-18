@@ -90,7 +90,7 @@ const stepMeta: Record<OnboardingStep, { index: number; kicker: string; title: s
     index: 4,
     kicker: "Step 5 of 5",
     title: "Approve Telegram pairing",
-    copy: "Enter the approval code sent by your Telegram bot before generating your first 2ndBrain."
+    copy: "Send your Telegram bot a message like “hi” — it replies with the approval code. Enter that code before generating your first 2ndBrain."
   }
 };
 

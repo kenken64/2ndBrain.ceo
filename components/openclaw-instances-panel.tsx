@@ -233,7 +233,9 @@ export function OpenClawInstancesPanel() {
 
       setIsProvisionDialogOpen(false);
       setIsTokenVisible(false);
-      setMessage("OpenClaw instance provisioned. Open your Telegram bot, copy the 8-character approval code, and approve it to finish pairing.");
+      setMessage(
+        "OpenClaw instance provisioned. Send your Telegram bot a message like “hi” — it replies with the 8-character approval code. Approve it to finish pairing."
+      );
       await refresh();
 
       // Same flow as onboarding: provisioning hands straight off to the Telegram approval step.
@@ -341,7 +343,7 @@ export function OpenClawInstancesPanel() {
       if (payload?.restored) {
         // A fresh snapshot restore resets Telegram pairing, so hand off to the approval step.
         setMessage(
-          "OpenClaw instance restored from the snapshot. Open your Telegram bot, copy the 8-character approval code, and approve it to finish pairing."
+          "OpenClaw instance restored from the snapshot. Send your Telegram bot a message like “hi” — it replies with the 8-character approval code. Approve it to finish pairing."
         );
 
         if (payload.instance) {
@@ -644,7 +646,9 @@ export function OpenClawInstancesPanel() {
             <p className="workspace-status-card__eyebrow">Telegram approval</p>
             <h2 id="pair-telegram-dialog-title">Approve Telegram on {pairTarget.name}</h2>
             <p>
-              Open your Telegram bot, copy the 8-character approval code, and submit it here to pair the bot with this instance.
+              Open your Telegram bot and send it any message, like &ldquo;hi&rdquo; (or tap Start) &mdash; the bot cannot
+              message you first. It replies with the 8-character approval code; submit it here to pair the bot with this
+              instance.
             </p>
             <form className="settings-dialog__form" noValidate onSubmit={handlePairSubmit}>
               <label className="field-stack">
