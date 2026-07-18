@@ -6,7 +6,12 @@ import {
   onboardingProfileSelect,
   type OnboardingProfile
 } from "@/lib/onboarding";
-import { pairOpenClawTelegram, setupOpenClawAvatar, setupOpenClawIdentity } from "@/lib/openclaw";
+import {
+  pairOpenClawTelegram,
+  setOpenClawTtyProxyInstance,
+  setupOpenClawAvatar,
+  setupOpenClawIdentity
+} from "@/lib/openclaw";
 import { createClient } from "@/lib/supabase/server";
 import { appUrl, safeNextPath } from "@/lib/url";
 
@@ -136,6 +141,27 @@ export async function POST(request: Request) {
     if (error) {
       return redirectToApproval(request, next, "save_failed");
     }
+
+    // Re-assert the tty proxy's OPENCLAW_INSTANCE (the Lightsail hostname)
+    // after pairing in case the instance still carries the snapshot default.
+    // Best effort in the background — pairing already succeeded.
+    void setOpenClawTtyProxyInstance({
+      instance,
+      openclawInstance: instance
+    })
+      .then(() => {
+        logPair("ttyproxy_instance_set_ready", {
+          instance,
+          userId
+        });
+      })
+      .catch((error) => {
+        logPair("ttyproxy_instance_set_failed", {
+          instance,
+          message: error instanceof Error ? error.message : "ttyproxy_instance_set_failed",
+          userId
+        });
+      });
 
     const shouldSetupIdentity = Boolean(avatarName && ownerName && !onboardingProfile?.openclaw_identity_completed_at);
     const shouldSetupAvatar = Boolean(
