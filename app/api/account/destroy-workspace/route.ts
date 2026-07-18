@@ -1,7 +1,9 @@
 import { NextResponse } from "next/server";
 import { hasSupabaseEnv } from "@/lib/env";
+import { removeConsumerOwner } from "@/lib/gyne-consumer-registry";
 import { getUserIdFromClaims, onboardingPath } from "@/lib/onboarding";
 import { destroyOpenClawInstance, isOpenClawInstanceMissingError } from "@/lib/openclaw";
+import { createAdminClient, hasSupabaseServiceRoleEnv } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 
 export const runtime = "nodejs";
@@ -54,6 +56,40 @@ function resetProfilePatch(destroyOutput: string | null) {
   };
 }
 
+/**
+ * Removes the openclaw_instances row and Redis owner mapping for a VM this
+ * route just destroyed. Without this the panel keeps showing a "ready" ghost
+ * and the Gyne Agent keeps listing a dead consumer.
+ *
+ * Only rows matching the destroyed instance are touched — panel-managed VMs
+ * are separate machines and survive a workspace reset. Best effort: the VM is
+ * already gone, so a failure here should not fail the reset.
+ */
+async function deregisterDestroyedInstance(userId: string, instance: string) {
+  if (!hasSupabaseServiceRoleEnv()) {
+    return;
+  }
+
+  try {
+    const adminSupabase = createAdminClient();
+    const { data } = await adminSupabase
+      .from("openclaw_instances")
+      .select("id,consumer_name")
+      .eq("user_id", userId)
+      .eq("instance", instance);
+
+    for (const row of (data ?? []) as { consumer_name: string; id: string }[]) {
+      await removeConsumerOwner(userId, row.consumer_name);
+      await adminSupabase.from("openclaw_instances").delete().eq("id", row.id);
+    }
+  } catch (error) {
+    console.error("[account:destroy-workspace] instance deregistration failed", {
+      error: error instanceof Error ? error.message : "unknown",
+      instance
+    });
+  }
+}
+
 export async function POST(request: Request) {
   if (!hasSupabaseEnv()) {
     return NextResponse.json({ error: "Supabase is not configured" }, { status: 503 });
@@ -99,6 +135,10 @@ export async function POST(request: Request) {
 
       destroyOutput = `Stored instance ${instance} was already missing during workspace reset.`;
     }
+  }
+
+  if (instance) {
+    await deregisterDestroyedInstance(userId, instance);
   }
 
   await supabase.from("wiki_edges").delete().eq("user_id", userId);
