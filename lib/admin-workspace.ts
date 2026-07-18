@@ -1,6 +1,7 @@
 import "server-only";
 
 import { deleteStoredAvatars } from "@/lib/avaturn";
+import { removeConsumerOwner } from "@/lib/gyne-consumer-registry";
 import { destroyOpenClawInstance, isOpenClawInstanceMissingError } from "@/lib/openclaw";
 import type { createAdminClient } from "@/lib/supabase/admin";
 
@@ -50,29 +51,61 @@ export async function getAdminTargetProfile(adminSupabase: AdminSupabase, userId
  * deliberately on-delete-set-null instead, which keeps the audit trail intact
  * with target_email standing in for the removed id.
  *
- * The instance is torn down first: if that fails we abort with the account
- * still present, because an orphaned Lightsail instance nobody is billed for
- * and nobody can find is worse than a delete the admin can retry.
+ * Instances are torn down first — every VM the account owns, not just the
+ * onboarding one, since the cascade erases the openclaw_instances rows and an
+ * unrecorded Lightsail instance would bill forever with nothing left pointing
+ * at it. If a teardown fails we abort with the account still present, so the
+ * admin can retry.
  */
 export async function destroyUserWorkspaceForAdmin(adminSupabase: AdminSupabase, profile: AdminTargetProfile) {
-  const instance = profile.openclaw_instance?.trim() ?? "";
+  const { data: instanceRows } = await adminSupabase
+    .from("openclaw_instances")
+    .select("consumer_name,instance,region")
+    .eq("user_id", profile.id);
+  const rows = (instanceRows ?? []) as Array<{
+    consumer_name: string;
+    instance: string | null;
+    region: string | null;
+  }>;
+
+  const targets = new Map<string, string | null>();
+  const profileInstance = profile.openclaw_instance?.trim();
+
+  if (profileInstance) {
+    targets.set(profileInstance, profile.openclaw_region);
+  }
+
+  for (const row of rows) {
+    const name = row.instance?.trim();
+
+    if (name && !targets.has(name)) {
+      targets.set(name, row.region);
+    }
+  }
+
   let destroyOutput: string | null = null;
 
-  if (instance) {
-    try {
-      const destroyed = await destroyOpenClawInstance({
-        instance,
-        region: profile.openclaw_region
-      });
+  const appendOutput = (chunk: string) => {
+    destroyOutput = destroyOutput ? `${destroyOutput}\n${chunk}` : chunk;
+  };
 
-      destroyOutput = destroyed.output;
+  for (const [name, region] of targets) {
+    try {
+      const destroyed = await destroyOpenClawInstance({ instance: name, region });
+      appendOutput(destroyed.output);
     } catch (error) {
       if (!isOpenClawInstanceMissingError(error)) {
         throw error;
       }
 
-      destroyOutput = `Stored instance ${instance} was already missing during admin workspace delete.`;
+      appendOutput(`Stored instance ${name} was already missing during admin workspace delete.`);
     }
+  }
+
+  // The auth.users cascade cannot reach Redis: without this the Gyne owner
+  // sets keep listing consumers whose account and VMs no longer exist.
+  for (const row of rows) {
+    await removeConsumerOwner(profile.id, row.consumer_name);
   }
 
   const { error } = await adminSupabase.auth.admin.deleteUser(profile.id);

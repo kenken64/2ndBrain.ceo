@@ -30,10 +30,14 @@ async function resolveConsumerName(userId: string) {
     return generateConsumerName(userId);
   }
 
+  // Only rows this route created are candidates for reuse. Panel-managed
+  // instances are live machines with their own identity; reusing one of their
+  // consumer names here would rebind it to the new VM and hijack it.
   const { data } = await createAdminClient()
     .from("openclaw_instances")
     .select("consumer_name")
     .eq("user_id", userId)
+    .eq("label", "Onboarding workspace")
     .limit(1)
     .maybeSingle();
 
