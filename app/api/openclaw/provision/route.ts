@@ -8,7 +8,7 @@ import {
   onboardingProfileSelect,
   type OnboardingProfile
 } from "@/lib/onboarding";
-import { generateConsumerName, provisionOpenClaw } from "@/lib/openclaw";
+import { generateConsumerName, provisionOpenClaw, setOpenClawTtyProxyInstance } from "@/lib/openclaw";
 import { createAdminClient, hasSupabaseServiceRoleEnv } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 import { appUrl, safeNextPath } from "@/lib/url";
@@ -403,6 +403,27 @@ export async function POST(request: Request) {
       region: provisioned.region,
       userId
     });
+
+    // The snapshot's tty proxy still carries the image's OPENCLAW_INSTANCE;
+    // repoint it at this instance's Lightsail hostname. Best effort in the
+    // background — a proxy fix must not fail an otherwise ready provision.
+    void setOpenClawTtyProxyInstance({
+      instance: provisioned.instance,
+      openclawInstance: provisioned.instance
+    })
+      .then(() => {
+        logProvision("ttyproxy_instance_set_ready", {
+          instance: provisioned.instance,
+          userId
+        });
+      })
+      .catch((error) => {
+        logProvision("ttyproxy_instance_set_failed", {
+          instance: provisioned.instance,
+          message: error instanceof Error ? error.message : "ttyproxy_instance_set_failed",
+          userId
+        });
+      });
 
     return NextResponse.redirect(appUrl(nextAfterProvision(next), request), { status: 303 });
   } catch (error) {

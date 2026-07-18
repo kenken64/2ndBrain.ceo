@@ -142,6 +142,12 @@ type OpenClawTelegramSetupInput = {
   telegramBotToken: string;
 };
 
+type OpenClawTtyProxyInstanceInput = {
+  envFile?: string | null;
+  instance: string;
+  openclawInstance: string;
+};
+
 type OpenClawWikiInput = {
   instance: string;
   projectSlug?: string | null;
@@ -2647,6 +2653,37 @@ export async function setupOpenClawTelegramBot(input: OpenClawTelegramSetupInput
     ["telegram-setup", "--instance", instance, "--bot-token", input.telegramBotToken, "--reset"],
     awsEnv
   );
+
+  return {
+    output
+  };
+}
+
+export async function setOpenClawTtyProxyInstance(input: OpenClawTtyProxyInstanceInput) {
+  const awsEnv = getAwsEnv();
+  const openclawInstance = input.openclawInstance.trim();
+
+  // The tty proxy is keyed by the Lightsail hostname; an IP-only host has no
+  // hostname to write, so surface that instead of poisoning the proxy .env.
+  if (!openclawInstance || isIpAddress(openclawInstance)) {
+    throw new Error("openclaw_ttyproxy_hostname_required");
+  }
+
+  const instance = await resolveOpenClawSshTarget(input.instance, awsEnv, "ttyproxy-instance-set");
+
+  consoleClawmacdo("ttyproxy_instance_set_input", {
+    instance: input.instance,
+    openclawInstance
+  });
+
+  const args = ["ttyproxy-instance-set", "--instance", instance, "--openclaw-instance", openclawInstance];
+  const envFile = input.envFile?.trim() || optionalEnv("OPENCLAW_TTYPROXY_ENV_FILE");
+
+  if (envFile) {
+    args.push("--env-file", envFile);
+  }
+
+  const output = await runClawmacdo(args, awsEnv);
 
   return {
     output
