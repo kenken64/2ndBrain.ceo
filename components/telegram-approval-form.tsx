@@ -156,7 +156,10 @@ export function TelegramApprovalForm({ errorMessage, next, status }: TelegramApp
       </label>
       <div className="provision-summary">
         <strong>Telegram approval required</strong>
-        <span>Open your Telegram bot, copy the 8-character approval code, and submit it here before creating the Nth Brain.</span>
+        <span>
+          Open your Telegram bot and send it any message, like &ldquo;hi&rdquo; (or tap Start) &mdash; the bot cannot message
+          you first. It replies with the 8-character approval code; enter it here before creating the Nth Brain.
+        </span>
       </div>
       {errorMessage ? <p className="form-error">{errorMessage}</p> : null}
       {submitError ? (
