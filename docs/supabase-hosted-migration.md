@@ -293,19 +293,33 @@ These match what `app/auth/login/route.ts:28` builds and
 
 ### The step that will bite you
 
-In the **Google Cloud console**, on whichever OAuth client Supabase Auth uses,
-add this authorized redirect URI:
+In the **Google Cloud console**, on the OAuth client Supabase Auth uses, add
+this authorized redirect URI:
 
 ```
 https://hiwyqusgejorhyvueadq.supabase.co/auth/v1/callback
 ```
 
-The old one pointed at the Kong domain. Miss this and login fails with
-`redirect_uri_mismatch` *after* every environment variable looks correct — the
-most expensive kind of mistake to diagnose.
+The old one pointed at the Kong domain. Miss this and Google blocks the request
+with `Access blocked: This app's request is invalid` (`redirect_uri_mismatch`)
+*after* every environment variable looks correct — the most expensive kind of
+mistake to diagnose. It fails on Google's own page, before Supabase is reached,
+so nothing shows up in Supabase auth logs.
 
-This is a different OAuth client from `GWS_OAUTH_CLIENT_ID`, which is the app's
-own Google Workspace integration and does not change.
+Supabase Auth and `GWS_OAUTH_CLIENT_ID` share **one** OAuth client here, not
+two. Confirm rather than assume — ask the authorize endpoint which client it
+actually sends:
+
+```bash
+curl -sD - -o /dev/null \
+  "https://<ref>.supabase.co/auth/v1/authorize?provider=google" \
+  -H "apikey: <publishable key>" | grep -i '^location:'
+```
+
+The `client_id` in that redirect is the one to edit. As of the cutover it is
+`157457248746-vpcal7f90if9oato9qt29cefahnqqn0l.apps.googleusercontent.com`,
+the same value as `GWS_OAUTH_CLIENT_ID`. If the two are ever split apart, this
+is the check that tells you.
 
 ### Extensions
 
