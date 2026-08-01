@@ -24,3 +24,6 @@ supabase/.temp
 
 # Docker secrets — raw secret values, never commit.
 secrets/
+
+# supabase dumps contain user data - never commit
+backup-restore/*/

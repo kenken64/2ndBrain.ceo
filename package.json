@@ -10,6 +10,7 @@
     "start:next": "next start",
     "typecheck": "tsc --noEmit",
     "admin:load": "node scripts/load-admin-users.mjs",
+    "db:migrate": "bash scripts/apply-migrations.sh",
     "schema:check": "node scripts/check-schema-drift.mjs",
     "wiki:backfill": "node scripts/backfill-wiki-graph.mjs",
     "wiki:backfill-content": "node scripts/backfill-wiki-content.mjs"
