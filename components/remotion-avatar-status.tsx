@@ -1,9 +1,10 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { RefreshCw } from "lucide-react";
+import { AlertTriangle, RefreshCw } from "lucide-react";
 
 type RemotionUrlPayload = {
+  code?: string;
   error?: string;
   remotionUrl?: string | null;
   source?: string;
@@ -24,6 +25,7 @@ export function RemotionAvatarStatus({
   const [remotionUrl, setRemotionUrl] = useState(initialRemotionUrl?.trim() || "");
   const [status, setStatus] = useState<"pending" | "ready" | "stale">(remotionUrl ? "ready" : "pending");
   const [lastError, setLastError] = useState("");
+  const [isPaused, setIsPaused] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const isReady = Boolean(remotionUrl) && status !== "stale";
 
@@ -33,6 +35,14 @@ export function RemotionAvatarStatus({
       credentials: "same-origin"
     });
     const payload = (await response.json().catch(() => null)) as RemotionUrlPayload | null;
+
+    if (response.status === 423 || payload?.code === "openclaw_tokens_paused") {
+      setIsPaused(true);
+      setLastError("");
+      return;
+    }
+
+    setIsPaused(false);
 
     if (payload?.remotionUrl) {
       setRemotionUrl(payload.remotionUrl);
@@ -123,7 +133,16 @@ export function RemotionAvatarStatus({
           <dd>{remotionUrl || "Still waiting for Remotion to publish a URL"}</dd>
         </div>
       </dl>
-      {lastError ? <p className="workspace-status-card__hint">Remotion URL check: {lastError}</p> : null}
+      {isPaused ? (
+        <p className="workspace-status-card__paused" role="alert">
+          <AlertTriangle aria-hidden="true" size={16} strokeWidth={1.9} />
+          <span>
+            OpenClaw AI usage is paused, so the Remotion URL check is skipped.{" "}
+            <a href="/dashboard/settings?tab=general&openclawAi=paused">Resume AI usage in Settings</a> to continue.
+          </span>
+        </p>
+      ) : null}
+      {lastError && !isPaused ? <p className="workspace-status-card__hint">Remotion URL check: {lastError}</p> : null}
       <div className="workspace-status-actions">
         {remotionUrl ? (
           <a className="btn-primary" href={remotionUrl} rel="noreferrer" target="_blank">

@@ -3306,6 +3306,33 @@ svg {
   overflow-wrap: anywhere;
 }
 
+.workspace-status-card__paused {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  margin: 14px 0 0;
+  border: 1px solid rgba(217, 119, 6, 0.3);
+  border-radius: var(--radius-md);
+  background: rgba(217, 119, 6, 0.08);
+  color: var(--fg-secondary);
+  padding: 10px 12px;
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.workspace-status-card__paused svg {
+  flex: none;
+  margin-top: 1px;
+  color: rgb(217, 119, 6);
+}
+
+.workspace-status-card__paused a {
+  color: inherit;
+  font-weight: 700;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
 .workspace-status-list {
   display: grid;
   gap: 12px;

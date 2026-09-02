@@ -1,14 +1,17 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { AlertTriangle } from "lucide-react";
 
 type GatewayPayload = {
+  code?: string;
   error?: string;
   gatewayUrl?: string | null;
   status?: string;
 };
 
 type PublicIpPayload = {
+  code?: string;
   error?: string;
   publicIp?: string | null;
   source?: string;
@@ -36,6 +39,7 @@ export function OpenClawGatewayStatus({
   const [publicIp, setPublicIp] = useState(isIpAddress(instanceAddress) ? instanceAddress : "");
   const [publicIpError, setPublicIpError] = useState("");
   const [isPublicIpVisible, setIsPublicIpVisible] = useState(false);
+  const [isPaused, setIsPaused] = useState(false);
   const hasInstance = Boolean(instanceAddress);
   const isReady = Boolean(gatewayUrl);
   const hiddenPublicIpValue = publicIp ? "**** **** ****" : hasInstance ? "Resolving public IP" : "Not available yet";
@@ -68,6 +72,13 @@ export function OpenClawGatewayStatus({
 
         if (response.ok && payload?.publicIp) {
           setPublicIp(payload.publicIp);
+          setPublicIpError("");
+          setIsPaused(false);
+          return;
+        }
+
+        if (response.status === 423 || payload?.code === "openclaw_tokens_paused") {
+          setIsPaused(true);
           setPublicIpError("");
           return;
         }
@@ -121,6 +132,13 @@ export function OpenClawGatewayStatus({
 
         if (response.ok && payload?.gatewayUrl) {
           setGatewayUrl(payload.gatewayUrl);
+          setLastError("");
+          setIsPaused(false);
+          return;
+        }
+
+        if (response.status === 423 || payload?.code === "openclaw_tokens_paused") {
+          setIsPaused(true);
           setLastError("");
           return;
         }
@@ -186,8 +204,17 @@ export function OpenClawGatewayStatus({
           <dd>{gatewayUrl ? "Tailscale Funnel public HTTPS URL" : "Polling every 10 seconds until available"}</dd>
         </div>
       </dl>
-      {publicIpError && !publicIp ? <p className="workspace-status-card__hint">IP check: {publicIpError}</p> : null}
-      {lastError && !gatewayUrl ? <p className="workspace-status-card__hint">Last check: {lastError}</p> : null}
+      {isPaused ? (
+        <p className="workspace-status-card__paused" role="alert">
+          <AlertTriangle aria-hidden="true" size={16} strokeWidth={1.9} />
+          <span>
+            OpenClaw AI usage is paused, so gateway checks are skipped.{" "}
+            <a href="/dashboard/settings?tab=general&openclawAi=paused">Resume AI usage in Settings</a> to continue.
+          </span>
+        </p>
+      ) : null}
+      {publicIpError && !publicIp && !isPaused ? <p className="workspace-status-card__hint">IP check: {publicIpError}</p> : null}
+      {lastError && !gatewayUrl && !isPaused ? <p className="workspace-status-card__hint">Last check: {lastError}</p> : null}
       <div className="workspace-status-actions">
         <a className="btn-primary" href="/dashboard/openclaw">
           Open OpenClaw section <span className="arrow">-&gt;</span>
