@@ -28,7 +28,7 @@ export default async function ChatPage() {
     <>
       <Atmosphere />
       <div className="dashboard-layout">
-        <DashboardSidebar activeItem="chat" avatarName={onboardingProfile?.avatar_name} email={email} ownerName={onboardingProfile?.owner_name} showAdmin={showAdmin} />
+        <DashboardSidebar activeItem="chat" avatarName={onboardingProfile?.avatar_name} email={email} ownerName={onboardingProfile?.owner_name} showAdmin={showAdmin} showChatActions />
         <main className="dashboard-main">
           <div className="dashboard-topbar"><AnnouncementPill>AI Chat</AnnouncementPill><a className="text-link" href="/dashboard/settings?tab=payment">AI credits</a></div>
           <WorkspaceChat userId={userId} configured={chatConfigured} />

@@ -1,7 +1,8 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState, type FormEvent, type KeyboardEvent } from "react";
-import { ArrowUp, Bot, MessageSquarePlus } from "lucide-react";
+import { createPortal } from "react-dom";
+import { ArrowUp, Bot } from "lucide-react";
 import { CHAT_MAX_MESSAGE_CHARS, CHAT_MAX_MESSAGES, CHAT_MAX_TOTAL_BYTES, CHAT_MODELS, isChatModel, type ChatMessage, type ChatModelId } from "@/lib/chat-models";
 import type { ChatConversation, ChatSummary, HistoryMessage } from "@/lib/chat-history";
 
@@ -39,9 +40,11 @@ export function WorkspaceChat({ userId, configured }: { userId: string; configur
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
   const [busy, setBusy] = useState(false);
+  const [historyTarget, setHistoryTarget] = useState<HTMLElement | null>(null);
   const apiRef = useRef<HistoryApi | null>(null);
   const memoryRef = useRef(new Map<string, ChatConversation>());
   const busyRef = useRef(false);
+  const newChatRef = useRef<() => void>(() => undefined);
   const scrollRef = useRef<HTMLDivElement>(null);
   const channelRef = useRef<BroadcastChannel | null>(null);
 
@@ -84,6 +87,13 @@ export function WorkspaceChat({ userId, configured }: { userId: string; configur
     })();
     return () => { disposed = true; apiRef.current = null; };
   }, [userId]);
+
+  useEffect(() => {
+    setHistoryTarget(document.getElementById("sidebar-chat-history-slot"));
+    const handleNewChat = () => newChatRef.current();
+    window.addEventListener("ai-cuber:new-chat", handleNewChat);
+    return () => window.removeEventListener("ai-cuber:new-chat", handleNewChat);
+  }, []);
 
   useEffect(() => {
     if (cacheState !== "ready" || typeof BroadcastChannel === "undefined") return;
@@ -200,20 +210,14 @@ export function WorkspaceChat({ userId, configured }: { userId: string; configur
     setError("");
     setNotice("");
   }
+  newChatRef.current = newChat;
 
   return (
     <section aria-labelledby="workspace-chat-title" className="dashboard-workbench workspace-chat">
       <div className="workspace-chat__header">
         <div><p className="workspace-status-card__eyebrow">YOUR AI WORKSPACE</p><h1 id="workspace-chat-title">Chat with AI</h1><p>Choose a model and ask a question. An estimated amount of AI credits is reserved first; actual usage determines the final charge.</p></div>
-        <button className="btn-ghost workspace-chat__new" disabled={busy || selecting || cacheState === "loading"} onClick={newChat} type="button"><MessageSquarePlus size={17} /> New chat</button>
       </div>
       <div className="workspace-chat__layout">
-        <aside aria-label="Chat history" className="workspace-chat-history">
-          <div className="workspace-chat-history__header"><h2>Chat history</h2><span>Recent</span></div>
-          {cacheState === "loading" ? <p className="workspace-chat-history__empty">Loading your chats…</p> : chats.length === 0 ? <p className="workspace-chat-history__empty">Your conversations will appear here.</p> : null}
-          <div className="workspace-chat-history__list">{chats.map((item) => <button aria-current={chat?.id === item.id ? "true" : undefined} className={`workspace-chat-history__item${chat?.id === item.id ? " is-active" : ""}`} disabled={busy || selecting} key={item.id} onClick={() => void selectChat(item.id)} type="button"><strong>{item.title}</strong><span>{CHAT_MODELS.find((model) => model.id === item.model)?.label ?? "AI"}</span></button>)}</div>
-          {hasMore ? <button className="workspace-chat-history__more" disabled={busy || selecting} onClick={() => void loadMore()} type="button">Show more</button> : null}
-        </aside>
         <div className="workspace-chat__main">
           <div className="workspace-chat__options"><label htmlFor="workspace-chat-model">AI model</label><select disabled={busy || selecting || !chat} id="workspace-chat-model" onChange={(event) => { if (chat && isChatModel(event.target.value)) setChat({ ...chat, model: event.target.value }); }} value={chat?.model ?? CHAT_MODELS[0].id}>{CHAT_MODELS.map((item) => <option key={item.id} value={item.id}>{item.label}</option>)}</select><span>Recent messages are included for context.</span></div>
           {!configured ? <p className="workspace-chat__warning" role="status">Chat is not configured yet. Contact the administrator to enable it.</p> : null}
@@ -227,6 +231,12 @@ export function WorkspaceChat({ userId, configured }: { userId: string; configur
           <form className="workspace-chat__form" onSubmit={send}><textarea aria-label="Your message" disabled={!configured || busy || selecting || cacheState === "loading"} maxLength={CHAT_MAX_MESSAGE_CHARS} onChange={(event) => setPrompt(event.target.value)} onKeyDown={handleKeyDown} placeholder="Ask anything…" rows={3} value={prompt} /><div className="workspace-chat__form-footer"><span>Enter to send · Shift+Enter for a new line</span><button aria-label="Send message" className="chat-input__send" disabled={!configured || busy || selecting || cacheState === "loading" || !prompt.trim()} type="submit"><ArrowUp size={18} /></button></div></form>
           <p className="workspace-chat__privacy">Chat history is stored in this browser on this device. Clearing browser data removes it.</p>
         </div>
+        {historyTarget ? createPortal(<aside aria-label="Chat history" className="workspace-chat-history">
+          <div className="workspace-chat-history__header"><h2>Chat history</h2><span>Recent</span></div>
+          {cacheState === "loading" ? <p className="workspace-chat-history__empty">Loading your chats…</p> : chats.length === 0 ? <p className="workspace-chat-history__empty">Your conversations will appear here.</p> : null}
+          <div className="workspace-chat-history__list">{chats.map((item) => <button aria-current={chat?.id === item.id ? "true" : undefined} className={`workspace-chat-history__item${chat?.id === item.id ? " is-active" : ""}`} disabled={busy || selecting} key={item.id} onClick={() => void selectChat(item.id)} type="button"><strong>{item.title}</strong><span>{CHAT_MODELS.find((model) => model.id === item.model)?.label ?? "AI"}</span></button>)}</div>
+          {hasMore ? <button className="workspace-chat-history__more" disabled={busy || selecting} onClick={() => void loadMore()} type="button">Show more</button> : null}
+        </aside>, historyTarget) : null}
       </div>
     </section>
   );

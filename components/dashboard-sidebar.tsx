@@ -11,6 +11,7 @@ import {
   ListChecks,
   PanelLeftClose,
   PanelLeftOpen,
+  Plus,
   Plug,
   Power,
   ScrollText,
@@ -27,6 +28,7 @@ type DashboardSidebarProps = {
   email?: string | null;
   ownerName?: string | null;
   showAdmin?: boolean;
+  showChatActions?: boolean;
 };
 
 const sidebarCollapsedStorageKey = "2ndbrain.sidebarCollapsed";
@@ -73,7 +75,8 @@ export function DashboardSidebar({
   creditLocked = false,
   email,
   ownerName,
-  showAdmin = false
+  showAdmin = false,
+  showChatActions = false
 }: DashboardSidebarProps) {
   const sidebarRef = useRef<HTMLElement>(null);
   const [isCollapsed, setIsCollapsed] = useState(false);
@@ -127,21 +130,24 @@ export function DashboardSidebar({
         <a className="sidebar-brand" href={creditLocked ? settingsHref : "/dashboard"}>
           <BrandLogo size={50} />
         </a>
-        <button
-          aria-controls="dashboard-sidebar-nav"
-          aria-expanded={!isCollapsed}
-          aria-label={toggleLabel}
-          className="btn-icon sidebar-toggle"
-          onClick={() => setIsCollapsed((collapsed) => !collapsed)}
-          title={toggleLabel}
-          type="button"
-        >
-          {isCollapsed ? (
-            <PanelLeftOpen size={16} strokeWidth={1.8} />
-          ) : (
-            <PanelLeftClose size={16} strokeWidth={1.8} />
-          )}
-        </button>
+        <div className="sidebar-header__actions">
+          {showChatActions ? <button aria-label="New chat" className="btn-icon sidebar-new-chat" disabled={!hasLoadedPreference} onClick={() => window.dispatchEvent(new CustomEvent("ai-cuber:new-chat"))} title="New chat" type="button"><Plus size={18} strokeWidth={2} /></button> : null}
+          <button
+            aria-controls="dashboard-sidebar-nav"
+            aria-expanded={!isCollapsed}
+            aria-label={toggleLabel}
+            className="btn-icon sidebar-toggle"
+            onClick={() => setIsCollapsed((collapsed) => !collapsed)}
+            title={toggleLabel}
+            type="button"
+          >
+            {isCollapsed ? (
+              <PanelLeftOpen size={16} strokeWidth={1.8} />
+            ) : (
+              <PanelLeftClose size={16} strokeWidth={1.8} />
+            )}
+          </button>
+        </div>
         <button
           aria-controls="dashboard-sidebar-nav"
           aria-expanded={isMobileOpen}
@@ -174,6 +180,7 @@ export function DashboardSidebar({
           label="AI Chat"
           title="AI Chat"
         />
+        {showChatActions ? <div className="sidebar-chat-history-slot" id="sidebar-chat-history-slot" /> : null}
         <SidebarNavItem
           active={activeItem === "gateway"}
           disabled={creditLocked}
