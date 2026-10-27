@@ -12,6 +12,7 @@ type ChatInputProps = {
   pendingCopy?: string;
   pendingTitle?: string;
   returnTo?: string;
+  locale?: "en" | "zh";
 };
 
 const ATTACHMENT_ACCEPT = [
@@ -58,8 +59,10 @@ export function ChatInput({
   method = "post",
   pendingCopy,
   pendingTitle,
-  returnTo = "/dashboard"
+  returnTo = "/dashboard",
+  locale = "en"
 }: ChatInputProps) {
+  const chinese = locale === "zh";
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isListening, setIsListening] = useState(false);
   const [promptValue, setPromptValue] = useState(defaultPrompt ?? "");
@@ -151,7 +154,7 @@ export function ChatInput({
     const Recognition = window.SpeechRecognition ?? window.webkitSpeechRecognition;
 
     if (!Recognition) {
-      setSubmitError("Speech-to-text is not supported in this browser. Try Chrome or Edge on HTTPS/localhost.");
+      setSubmitError(chinese ? "此浏览器不支持语音输入。请在 HTTPS 或本地地址使用 Chrome 或 Edge。" : "Speech-to-text is not supported in this browser. Try Chrome or Edge on HTTPS/localhost.");
       return;
     }
 
@@ -159,7 +162,7 @@ export function ChatInput({
 
     recognition.continuous = false;
     recognition.interimResults = false;
-    recognition.lang = navigator.language || "en-US";
+    recognition.lang = chinese ? "zh-CN" : navigator.language || "en-US";
     recognition.onresult = (event) => {
       const transcript = Array.from(event.results)
         .map((result) => result[0]?.transcript ?? "")
@@ -171,8 +174,8 @@ export function ChatInput({
     recognition.onerror = (event) => {
       setSubmitError(
         event.error === "not-allowed"
-          ? "Microphone permission was denied. Allow microphone access to use speech-to-text."
-          : "Speech-to-text failed. Try again or type the prompt manually."
+          ? (chinese ? "麦克风权限被拒绝，请允许访问麦克风后重试。" : "Microphone permission was denied. Allow microphone access to use speech-to-text.")
+          : (chinese ? "语音输入失败，请重试或手动输入。" : "Speech-to-text failed. Try again or type the prompt manually.")
       );
       setIsListening(false);
     };
@@ -205,7 +208,7 @@ export function ChatInput({
 
     if (!prompt) {
       event.preventDefault();
-      setSubmitError("Enter a prompt to continue.");
+      setSubmitError(chinese ? "请输入您的需求。" : "Enter a prompt to continue.");
       return;
     }
 
@@ -258,7 +261,7 @@ export function ChatInput({
       <textarea
         aria-describedby={submitError ? errorId : undefined}
         aria-invalid={Boolean(submitError)}
-        aria-label="Project prompt"
+        aria-label={chinese ? "项目需求" : "Project prompt"}
         className="chat-input__textarea"
         disabled={isSubmitting}
         name="prompt"
@@ -337,11 +340,11 @@ export function ChatInput({
         </div>
         <div className="chat-input__group">
           <button className="btn-ghost" disabled={isProgressVisible} type="button">
-            Build
+            {chinese ? "创建" : "Build"}
             <ChevronDown size={14} strokeWidth={1.8} />
           </button>
           <button
-            aria-label={isListening ? "Stop voice input" : "Voice input"}
+            aria-label={isListening ? (chinese ? "停止语音输入" : "Stop voice input") : (chinese ? "语音输入" : "Voice input")}
             aria-pressed={isListening}
             className={`btn-icon${isListening ? " is-listening" : ""}`}
             disabled={isProgressVisible}
@@ -351,7 +354,7 @@ export function ChatInput({
             <Mic size={18} strokeWidth={1.8} />
           </button>
           <button
-            aria-label={isProgressVisible ? "Generating Nth Brain" : "Send prompt"}
+            aria-label={isProgressVisible ? (chinese ? "正在创建知识库" : "Generating Nth Brain") : (chinese ? "发送需求" : "Send prompt")}
             className="chat-input__send"
             disabled={isProgressVisible}
             type="submit"

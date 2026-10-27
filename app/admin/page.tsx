@@ -214,7 +214,7 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
           <section className="dashboard-workbench admin-workbench" aria-labelledby="admin-title">
             <div className="settings-workbench__header">
               <p className="workspace-status-card__eyebrow">Admin module</p>
-              <h1 id="admin-title">2ndBrain administration</h1>
+              <h1 id="admin-title">AI CUBER administration</h1>
               <p>Assign LLM token quotas for non-admin users, send or drain AI credits, disable access, delete workspace data, and overwrite per-user AWS Bedrock bearer tokens.</p>
             </div>
 

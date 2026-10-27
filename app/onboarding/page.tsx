@@ -2,7 +2,7 @@ import { redirect } from "next/navigation";
 import { AgentSelectionForm } from "@/components/agent-selection-form";
 import { Atmosphere } from "@/components/atmosphere";
 import { AvaturnStep } from "@/components/avaturn-step";
-import { BrandHeart } from "@/components/brand-heart";
+import { BrandLogo } from "@/components/brand-logo";
 import { EnrolmentForm } from "@/components/enrolment-form";
 import { LoginDialog } from "@/components/login-dialog";
 import { ProvisionForm } from "@/components/provision-form";
@@ -65,7 +65,7 @@ const stepMeta: Record<OnboardingStep, { index: number; kicker: string; title: s
   enrolment: {
     index: 0,
     kicker: "Step 1 of 4",
-    title: "Set up your 2ndBrain profile",
+    title: "Set up your AI CUBER profile",
     copy: "Provide the owner details, AI Assistant identity, and Telegram bot token to prepare your workspace for assistant creation."
   },
   avatar: {
@@ -90,7 +90,7 @@ const stepMeta: Record<OnboardingStep, { index: number; kicker: string; title: s
     index: 4,
     kicker: "Step 5 of 5",
     title: "Approve Telegram pairing",
-    copy: "Send your Telegram bot a message like “hi” — it replies with the approval code. Enter that code before generating your first 2ndBrain."
+    copy: "Send your Telegram bot a message like “hi” — it replies with the approval code. Enter that code before generating your first workspace."
   }
 };
 
@@ -253,7 +253,7 @@ export default async function OnboardingPage({ searchParams }: OnboardingPagePro
       <Atmosphere />
       <main className="onboarding-page">
         <section className={`onboarding-card onboarding-card--${currentStep}`}>
-          <BrandHeart size={currentStep === "avatar" ? 88 : 120} />
+          <BrandLogo size={currentStep === "avatar" ? 88 : 120} />
           <Stepper current={currentStep} />
           <ProgressBar current={currentStep} />
           <p className="wizard-kicker">{meta.kicker}</p>

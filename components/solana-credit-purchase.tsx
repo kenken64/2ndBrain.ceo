@@ -517,7 +517,7 @@ export function SolanaCreditPurchase({
       );
       transaction.add(
         new TransactionInstruction({
-          data: Buffer.from(`2ndBrain quote ${quote.id}`),
+          data: Buffer.from(`AI CUBER quote ${quote.id}`),
           keys: [],
           programId: MEMO_PROGRAM_ID
         })

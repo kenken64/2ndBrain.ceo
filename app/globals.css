@@ -1,30 +1,33 @@
 :root {
-  --bg-canvas: #f5f8fb;
+  --bg-canvas: #f5f8ff;
   --bg-elevated: #ffffff;
   --bg-elevated-hi: #ffffff;
-  --bg-subtle: #e9f0f5;
-  --bg-panel: #edf5f8;
+  --bg-subtle: #eaf1ff;
+  --bg-panel: #f0f5ff;
 
   --fg-primary: #111827;
   --fg-soft: #1f2937;
   --fg-secondary: #52606d;
   --fg-muted: #8a97a6;
 
-  --action-primary: #111827;
-  --action-primary-hover: #050b14;
+  --action-primary: #1263e8;
+  --action-primary-hover: #094bb9;
 
-  --brand-blue: #00a7ff;
-  --brand-blue-deep: #006f9f;
+  --brand-blue: #1263e8;
+  --brand-blue-deep: #084bb8;
+  --brand-blue-dark: #084bb8;
+  --brand-red: #d40920;
+  --brand-red-hover: #ae071a;
   --brand-orange: #ff6f3d;
   --brand-pink: #b64cff;
   --brand-green: #00c48c;
   --error-text: #b91c1c;
 
-  --atmos-top: #f8fbff;
-  --atmos-upper: #dff3ff;
-  --atmos-mid: #d7f7ef;
-  --atmos-lower: #ede9ff;
-  --atmos-bottom: #f7fbff;
+  --atmos-top: #ffffff;
+  --atmos-upper: #eaf2ff;
+  --atmos-mid: #f6f9ff;
+  --atmos-lower: #fff0f2;
+  --atmos-bottom: #f8faff;
 
   --border-soft: rgba(17, 24, 39, 0.07);
   --border-medium: rgba(17, 24, 39, 0.12);
@@ -103,7 +106,7 @@ svg {
 }
 
 ::selection {
-  background: rgba(0, 167, 255, 0.18);
+  background: rgba(18, 99, 232, 0.18);
 }
 
 .skip-link {
@@ -147,8 +150,8 @@ svg {
   position: absolute;
   inset: -44px 0 0 -44px;
   background:
-    linear-gradient(rgba(0, 167, 255, 0.1) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(0, 196, 140, 0.08) 1px, transparent 1px);
+    linear-gradient(rgba(18, 99, 232, 0.1) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(18, 99, 232, 0.06) 1px, transparent 1px);
   background-size: 44px 44px;
   animation: atmos-grid-drift 90s linear infinite;
 }
@@ -158,9 +161,9 @@ svg {
   position: absolute;
   inset: -22%;
   background:
-    radial-gradient(42% 34% at 18% 24%, rgba(0, 167, 255, 0.14), transparent 70%),
-    radial-gradient(38% 30% at 80% 30%, rgba(0, 196, 140, 0.12), transparent 70%),
-    radial-gradient(46% 38% at 58% 80%, rgba(182, 76, 255, 0.09), transparent 70%);
+    radial-gradient(42% 34% at 18% 24%, rgba(18, 99, 232, 0.14), transparent 70%),
+    radial-gradient(38% 30% at 80% 30%, rgba(18, 99, 232, 0.08), transparent 70%),
+    radial-gradient(46% 38% at 58% 80%, rgba(212, 9, 32, 0.06), transparent 70%);
   animation: atmos-aurora 38s ease-in-out infinite alternate;
 }
 
@@ -208,7 +211,7 @@ svg {
   min-height: 76px;
   border-bottom: 1px solid transparent;
   backdrop-filter: blur(12px) saturate(1.35);
-  background: rgba(245, 248, 251, 0.78);
+  background: rgba(245, 248, 255, 0.88);
 }
 
 .site-nav__inner {
@@ -322,12 +325,12 @@ svg {
   padding: 12px 22px;
   font-size: 14px;
   font-weight: 600;
-  box-shadow: 0 4px 12px rgba(0, 167, 255, 0.2);
+  box-shadow: 0 4px 12px rgba(18, 99, 232, 0.2);
 }
 
 .btn-primary:hover {
   background: var(--action-primary-hover);
-  box-shadow: 0 6px 16px rgba(0, 196, 140, 0.22);
+  box-shadow: 0 6px 16px rgba(18, 99, 232, 0.24);
   transform: translateY(-1px);
 }
 
@@ -511,7 +514,7 @@ svg {
 }
 
 .chat-input:focus-within {
-  box-shadow: var(--shadow-xl), 0 0 0 4px rgba(0, 167, 255, 0.14);
+  box-shadow: var(--shadow-xl), 0 0 0 4px rgba(18, 99, 232, 0.14);
 }
 
 .chat-input__textarea {
@@ -606,9 +609,13 @@ svg {
   width: 40px;
   height: 40px;
   border-radius: var(--radius-pill);
-  background: var(--action-primary);
+  background: var(--brand-red);
   color: white;
   cursor: pointer;
+}
+
+.chat-input__send:hover:not(:disabled) {
+  background: var(--brand-red-hover);
 }
 
 .chat-input[aria-busy="true"] .chat-input__bar {
@@ -676,9 +683,9 @@ svg {
   aspect-ratio: 1.9;
   overflow: hidden;
   background:
-    linear-gradient(rgba(0, 167, 255, 0.12) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(0, 196, 140, 0.1) 1px, transparent 1px),
-    linear-gradient(145deg, #f7fbff 0%, #dceff7 48%, #dbf7ef 100%);
+    linear-gradient(rgba(18, 99, 232, 0.12) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(18, 99, 232, 0.08) 1px, transparent 1px),
+    linear-gradient(145deg, #ffffff 0%, #eaf2ff 60%, #fff1f3 100%);
   background-size: 28px 28px, 28px 28px, 100% 100%;
 }
 
@@ -746,8 +753,8 @@ svg {
 }
 
 .project-status--running {
-  border-color: rgba(0, 167, 255, 0.32);
-  background: rgba(0, 167, 255, 0.1);
+  border-color: rgba(18, 99, 232, 0.32);
+  background: rgba(18, 99, 232, 0.1);
   color: var(--fg-primary);
 }
 
@@ -792,9 +799,9 @@ svg {
   display: inline-flex;
   min-height: 26px;
   align-items: center;
-  border: 1px solid rgba(0, 167, 255, 0.24);
+  border: 1px solid rgba(18, 99, 232, 0.24);
   border-radius: var(--radius-pill);
-  background: rgba(0, 167, 255, 0.08);
+  background: rgba(18, 99, 232, 0.08);
   color: var(--fg-primary);
   padding: 4px 10px;
   font-size: 11px;
@@ -1083,7 +1090,7 @@ svg {
   display: block;
   height: 100%;
   border-radius: inherit;
-  background: linear-gradient(90deg, var(--action-primary) 0%, var(--accent-brain) 100%);
+  background: linear-gradient(90deg, var(--brand-blue) 0%, var(--brand-red) 100%);
   transition: width 0.25s linear;
 }
 
@@ -1126,7 +1133,7 @@ svg {
 
 .footer__wordmark {
   margin-top: 54px;
-  color: rgba(0, 167, 255, 0.08);
+  color: rgba(18, 99, 232, 0.08);
   font-size: clamp(58px, 15vw, 180px);
   line-height: 0.85;
   font-weight: 800;
@@ -1527,7 +1534,7 @@ svg {
   height: 100vh;
   overflow: hidden;
   border-right: 1px solid var(--border-soft);
-  background: rgba(245, 248, 251, 0.92);
+  background: rgba(235, 242, 255, 0.96);
   padding: 16px;
   display: flex;
   flex-direction: column;
@@ -1542,6 +1549,11 @@ svg {
   align-items: center;
   justify-content: space-between;
   min-height: 54px;
+}
+
+.sidebar-brand {
+  min-width: 0;
+  max-width: 152px;
 }
 
 .sidebar-toggle {
@@ -1694,8 +1706,8 @@ svg {
 
 .sidebar-item--telegram {
   width: 100%;
-  border: 1px solid rgba(0, 167, 255, 0.22);
-  background: rgba(0, 167, 255, 0.08);
+  border: 1px solid rgba(18, 99, 232, 0.22);
+  background: rgba(18, 99, 232, 0.08);
   color: var(--fg-primary);
   cursor: pointer;
 }
@@ -1965,7 +1977,7 @@ svg {
   width: 100%;
   height: 100%;
   background:
-    radial-gradient(ellipse 70% 50% at 50% 92%, rgba(0, 167, 255, 0.2), transparent 58%),
+    radial-gradient(ellipse 70% 50% at 50% 92%, rgba(18, 99, 232, 0.2), transparent 58%),
     rgba(17, 24, 39, 0.34);
   backdrop-filter: blur(16px);
   cursor: default;
@@ -1975,7 +1987,7 @@ svg {
   position: relative;
   z-index: 1;
   width: min(100%, 520px);
-  border: 1px solid rgba(0, 167, 255, 0.22);
+  border: 1px solid rgba(18, 99, 232, 0.22);
   border-radius: var(--radius-xl);
   background: rgba(255, 255, 255, 0.95);
   box-shadow: 0 28px 90px rgba(14, 116, 144, 0.2);
@@ -2008,7 +2020,7 @@ svg {
   height: 54px;
   place-items: center;
   border-radius: 18px;
-  background: rgba(0, 167, 255, 0.1);
+  background: rgba(18, 99, 232, 0.1);
   color: var(--action-primary);
   margin-bottom: 16px;
 }
@@ -2298,8 +2310,8 @@ svg {
 
 .settings-tabs__tab:hover,
 .settings-tabs__tab.is-active {
-  border-color: rgba(0, 167, 255, 0.24);
-  background: rgba(0, 167, 255, 0.1);
+  border-color: rgba(18, 99, 232, 0.24);
+  background: rgba(18, 99, 232, 0.1);
   color: var(--fg-primary);
 }
 
@@ -2565,7 +2577,7 @@ svg {
   transform: translateY(-50%);
   border: 1px solid var(--border-soft);
   border-radius: var(--radius-pill);
-  background: rgba(0, 167, 255, 0.1);
+  background: rgba(18, 99, 232, 0.1);
   color: var(--fg-primary);
   cursor: pointer;
   font-size: 12px;
@@ -2573,8 +2585,8 @@ svg {
 }
 
 .ai-credit-transfer-card__max:hover:not(:disabled) {
-  border-color: rgba(0, 167, 255, 0.32);
-  background: rgba(0, 167, 255, 0.16);
+  border-color: rgba(18, 99, 232, 0.32);
+  background: rgba(18, 99, 232, 0.16);
 }
 
 .ai-credit-transfer-card__max:disabled {
@@ -2696,7 +2708,7 @@ svg {
 
 .settings-token-usage-card__pause div {
   min-width: 0;
-  border-left: 3px solid rgba(0, 167, 255, 0.26);
+  border-left: 3px solid rgba(18, 99, 232, 0.26);
   padding-left: 10px;
 }
 
@@ -2775,7 +2787,7 @@ svg {
   height: 48px;
   place-items: center;
   border-radius: 18px;
-  background: rgba(0, 167, 255, 0.1);
+  background: rgba(18, 99, 232, 0.1);
   color: var(--action-primary);
 }
 
@@ -2796,9 +2808,9 @@ svg {
 }
 
 .settings-toggle-card__note {
-  border: 1px solid rgba(0, 167, 255, 0.2);
+  border: 1px solid rgba(18, 99, 232, 0.2);
   border-radius: var(--radius-md);
-  background: rgba(0, 167, 255, 0.07);
+  background: rgba(18, 99, 232, 0.07);
   padding: 10px 12px;
 }
 
@@ -2881,8 +2893,8 @@ svg {
 }
 
 .settings-action-button--telegram {
-  border: 1px solid rgba(0, 167, 255, 0.24);
-  background: rgba(0, 167, 255, 0.1);
+  border: 1px solid rgba(18, 99, 232, 0.24);
+  background: rgba(18, 99, 232, 0.1);
   color: var(--fg-primary);
 }
 
@@ -2936,9 +2948,9 @@ svg {
 .claude-auth-card__message {
   overflow-wrap: anywhere;
   margin: 0;
-  border: 1px solid rgba(0, 167, 255, 0.18);
+  border: 1px solid rgba(18, 99, 232, 0.18);
   border-radius: var(--radius-md);
-  background: rgba(0, 167, 255, 0.07);
+  background: rgba(18, 99, 232, 0.07);
   padding: 10px 12px;
 }
 
@@ -3127,8 +3139,8 @@ svg {
 }
 
 .workflow-marketplace-search:focus-within {
-  border-color: rgba(0, 167, 255, 0.44);
-  box-shadow: 0 0 0 3px rgba(0, 167, 255, 0.12);
+  border-color: rgba(18, 99, 232, 0.44);
+  box-shadow: 0 0 0 3px rgba(18, 99, 232, 0.12);
 }
 
 .workflow-marketplace-search input {
@@ -3197,9 +3209,9 @@ svg {
   align-items: center;
   width: fit-content;
   gap: 8px;
-  border: 1px solid rgba(0, 167, 255, 0.22);
+  border: 1px solid rgba(18, 99, 232, 0.22);
   border-radius: var(--radius-md);
-  background: rgba(0, 167, 255, 0.08);
+  background: rgba(18, 99, 232, 0.08);
   color: var(--brand-blue-dark);
   padding: 8px 10px;
   font-size: 13px;
@@ -3236,7 +3248,7 @@ svg {
 }
 
 .workflow-card__billing {
-  border-left: 3px solid rgba(0, 167, 255, 0.28);
+  border-left: 3px solid rgba(18, 99, 232, 0.28);
   padding-left: 10px;
   font-size: 13px;
   font-weight: 700;
@@ -3296,9 +3308,9 @@ svg {
 
 .workspace-status-card__hint {
   margin: 14px 0 0;
-  border: 1px solid rgba(0, 167, 255, 0.24);
+  border: 1px solid rgba(18, 99, 232, 0.24);
   border-radius: var(--radius-md);
-  background: rgba(0, 167, 255, 0.08);
+  background: rgba(18, 99, 232, 0.08);
   color: var(--fg-secondary);
   padding: 10px 12px;
   font-size: 12px;
@@ -3380,7 +3392,7 @@ svg {
   flex: 0 0 auto;
   border: 1px solid rgba(0, 77, 230, 0.2);
   border-radius: 999px;
-  background: rgba(0, 167, 255, 0.08);
+  background: rgba(18, 99, 232, 0.08);
   color: var(--brand-blue);
   cursor: pointer;
   font-family: var(--font-sans);
@@ -3392,7 +3404,7 @@ svg {
 
 .workspace-secret-toggle:hover {
   border-color: rgba(0, 77, 230, 0.35);
-  background: rgba(0, 167, 255, 0.14);
+  background: rgba(18, 99, 232, 0.14);
 }
 
 .workspace-status-actions {
@@ -3473,9 +3485,9 @@ svg {
   display: grid;
   gap: 10px;
   margin-top: 14px;
-  border: 1px solid rgba(0, 167, 255, 0.18);
+  border: 1px solid rgba(18, 99, 232, 0.18);
   border-radius: var(--radius-md);
-  background: rgba(0, 167, 255, 0.06);
+  background: rgba(18, 99, 232, 0.06);
   padding: 12px;
 }
 
@@ -3550,7 +3562,7 @@ svg {
 .wiki-upload-form__prompt textarea:focus {
   border-color: var(--action-primary);
   outline: none;
-  box-shadow: 0 0 0 3px rgba(0, 167, 255, 0.12);
+  box-shadow: 0 0 0 3px rgba(18, 99, 232, 0.12);
 }
 
 .wiki-upload-form .form-error,
@@ -3979,7 +3991,7 @@ svg {
 }
 
 .wiki-preview blockquote {
-  border-left: 3px solid rgba(0, 167, 255, 0.42);
+  border-left: 3px solid rgba(18, 99, 232, 0.42);
   color: var(--fg-secondary);
   margin: 18px 0;
   padding: 8px 0 8px 16px;
@@ -4044,7 +4056,7 @@ svg {
 }
 
 .wiki-preview th {
-  background: rgba(0, 167, 255, 0.08);
+  background: rgba(18, 99, 232, 0.08);
   color: var(--fg-primary);
   font-weight: 850;
 }
@@ -4107,18 +4119,18 @@ svg {
   border: 1px solid var(--border-soft);
   border-radius: var(--radius-md);
   background:
-    linear-gradient(rgba(0, 167, 255, 0.08) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(0, 196, 140, 0.08) 1px, transparent 1px),
+    linear-gradient(rgba(18, 99, 232, 0.08) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(18, 99, 232, 0.06) 1px, transparent 1px),
     var(--bg-elevated);
   background-size: 28px 28px, 28px 28px, 100% 100%;
 }
 
 .knowledge-graph-shell--cytoscape {
   background:
-    radial-gradient(circle at 50% 42%, rgba(0, 167, 255, 0.16), transparent 34%),
-    radial-gradient(circle at 78% 18%, rgba(0, 196, 140, 0.13), transparent 26%),
-    linear-gradient(rgba(0, 167, 255, 0.08) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(0, 196, 140, 0.08) 1px, transparent 1px),
+    radial-gradient(circle at 50% 42%, rgba(18, 99, 232, 0.16), transparent 34%),
+    radial-gradient(circle at 78% 18%, rgba(212, 9, 32, 0.07), transparent 26%),
+    linear-gradient(rgba(18, 99, 232, 0.08) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(18, 99, 232, 0.06) 1px, transparent 1px),
     var(--bg-elevated);
   background-size: 100% 100%, 100% 100%, 28px 28px, 28px 28px, 100% 100%;
 }
@@ -4470,7 +4482,7 @@ svg {
 
 .wiki-projects-search input:focus {
   border-color: var(--action-primary);
-  box-shadow: 0 0 0 4px rgba(0, 167, 255, 0.12);
+  box-shadow: 0 0 0 4px rgba(18, 99, 232, 0.12);
   outline: none;
 }
 
@@ -4504,7 +4516,7 @@ svg {
   border-color: var(--action-primary);
   background: var(--action-primary);
   color: white;
-  box-shadow: 0 8px 18px rgba(0, 167, 255, 0.22);
+  box-shadow: 0 8px 18px rgba(18, 99, 232, 0.22);
 }
 
 .btn-ghost.is-disabled {
@@ -4658,7 +4670,7 @@ svg {
 .field-stack select:focus,
 .field-stack textarea:focus {
   border-color: var(--fg-primary);
-  box-shadow: var(--shadow-sm), 0 0 0 4px rgba(0, 167, 255, 0.14);
+  box-shadow: var(--shadow-sm), 0 0 0 4px rgba(18, 99, 232, 0.14);
 }
 
 .field-stack input[aria-invalid="true"],
@@ -4767,7 +4779,7 @@ svg {
   display: block;
   height: 100%;
   border-radius: inherit;
-  background: linear-gradient(90deg, var(--action-primary), var(--brand-green));
+  background: linear-gradient(90deg, var(--brand-blue), var(--brand-red));
   transition: width 180ms ease;
 }
 
@@ -4836,7 +4848,7 @@ svg {
   border: 1px solid rgba(17, 24, 39, 0.12);
   border-radius: 32px;
   background:
-    radial-gradient(circle at 28% 18%, rgba(0, 167, 255, 0.18), transparent 34%),
+    radial-gradient(circle at 28% 18%, rgba(18, 99, 232, 0.18), transparent 34%),
     linear-gradient(145deg, rgba(255, 255, 255, 0.94), rgba(245, 251, 255, 0.78));
   color: var(--fg-primary);
   padding: 24px;
@@ -4851,8 +4863,8 @@ svg {
 
 .agent-option--active:hover,
 .agent-option--active:focus-visible {
-  border-color: rgba(0, 167, 255, 0.5);
-  box-shadow: 0 28px 70px rgba(0, 167, 255, 0.18);
+  border-color: rgba(18, 99, 232, 0.5);
+  box-shadow: 0 28px 70px rgba(18, 99, 232, 0.18);
   outline: none;
   transform: translateY(-3px);
 }
@@ -4884,7 +4896,7 @@ svg {
   place-items: center;
   border-radius: 24px;
   background:
-    linear-gradient(135deg, rgba(0, 196, 140, 0.12), rgba(0, 167, 255, 0.1)),
+    linear-gradient(135deg, rgba(212, 9, 32, 0.07), rgba(18, 99, 232, 0.1)),
     rgba(255, 255, 255, 0.72);
 }
 
@@ -4930,9 +4942,9 @@ svg {
 .provision-pending {
   display: grid;
   gap: 10px;
-  border: 1px solid rgba(0, 167, 255, 0.28);
+  border: 1px solid rgba(18, 99, 232, 0.28);
   border-radius: var(--radius-md);
-  background: rgba(0, 167, 255, 0.08);
+  background: rgba(18, 99, 232, 0.08);
   color: var(--fg-primary);
   padding: 12px 14px;
   font-size: 13px;
@@ -4951,7 +4963,7 @@ svg {
   width: 42%;
   height: 100%;
   border-radius: inherit;
-  background: linear-gradient(90deg, var(--action-primary), var(--brand-green));
+  background: linear-gradient(90deg, var(--brand-blue), var(--brand-red));
   animation: provision-progress 1.2s ease-in-out infinite alternate;
 }
 
@@ -4993,7 +5005,7 @@ svg {
   min-width: 8px;
   height: 100%;
   border-radius: inherit;
-  background: linear-gradient(90deg, var(--fg-primary), var(--brand-green));
+  background: linear-gradient(90deg, var(--brand-blue), var(--brand-red));
   transition: width 0.4s ease;
 }
 
@@ -5326,6 +5338,10 @@ svg {
     display: inline-grid;
     grid-row: 1;
     grid-column: 3;
+  }
+
+  .sidebar-brand {
+    max-width: 112px;
   }
 
   .sidebar-brand .app-logo {
@@ -6122,4 +6138,75 @@ svg {
     font-size: 12px;
     gap: 6px;
   }
+}
+
+.language-toggle {
+  display: inline-flex;
+  min-height: 36px;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid rgba(18, 99, 232, 0.18);
+  border-radius: var(--radius-pill);
+  background: rgba(255, 255, 255, 0.8);
+  color: var(--brand-blue-deep);
+  padding: 6px 12px;
+  font-size: 13px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.language-toggle:hover {
+  background: var(--bg-subtle);
+}
+
+.language-toggle:focus-visible {
+  outline: 2px solid var(--brand-blue);
+  outline-offset: 3px;
+}
+
+@media (max-width: 600px) {
+  .site-nav--localized .github-link {
+    display: none;
+  }
+}
+
+.workspace-chat {
+  display: grid;
+  gap: 18px;
+  max-width: 1060px;
+  min-height: calc(100vh - 140px);
+}
+
+.workspace-chat__header { display: flex; align-items: flex-start; justify-content: space-between; gap: 20px; }
+.workspace-chat__header h1 { margin: 4px 0; font-size: clamp(26px, 3vw, 38px); line-height: 1.15; }
+.workspace-chat__header p:not(.workspace-status-card__eyebrow) { margin: 8px 0 0; color: var(--fg-secondary); }
+.workspace-chat__new { flex: none; padding: 9px 14px; }
+.workspace-chat__options { display: flex; align-items: center; flex-wrap: wrap; gap: 10px; font-size: 13px; }
+.workspace-chat__options label { font-weight: 700; }
+.workspace-chat__options select { max-width: 100%; border: 1px solid var(--border-medium); border-radius: 10px; background: #fff; color: var(--fg-primary); padding: 9px 34px 9px 12px; font: inherit; }
+.workspace-chat__options > span, .workspace-chat__privacy, .workspace-chat__notice { color: var(--fg-secondary); font-size: 12px; }
+.workspace-chat__warning { margin: 0; padding: 12px 14px; border-radius: 10px; border: 1px solid #f3c693; background: #fff6e8; color: #7c3900; font-size: 14px; }
+.workspace-chat__thread { min-height: 320px; max-height: 60vh; overflow-y: auto; display: flex; flex-direction: column; gap: 16px; padding: 20px; border: 1px solid var(--border-soft); border-radius: var(--radius-md); background: rgba(255,255,255,0.72); }
+.workspace-chat__empty { margin: auto; padding: 36px 8px; text-align: center; color: var(--fg-secondary); }
+.workspace-chat__empty > span { display: inline-grid; place-items: center; width: 54px; height: 54px; margin-bottom: 12px; border-radius: 16px; background: var(--bg-subtle); color: var(--brand-blue); }
+.workspace-chat__empty h2 { margin: 0; color: var(--fg-primary); font-size: 21px; }
+.workspace-chat__empty p { margin: 8px 0 0; font-size: 14px; }
+.workspace-chat__message { max-width: min(84%, 740px); min-width: 0; border: 1px solid var(--border-soft); border-radius: 16px; background: #fff; padding: 13px 16px; }
+.workspace-chat__message--user { align-self: flex-end; background: #eaf1ff; border-color: rgba(18,99,232,0.14); }
+.workspace-chat__message--assistant { align-self: flex-start; }
+.workspace-chat__sender { margin: 0 0 6px; color: var(--brand-blue-deep); font-size: 12px; font-weight: 800; }
+.workspace-chat__content { white-space: pre-wrap; overflow-wrap: anywhere; font-size: 15px; }
+.workspace-chat__thinking { margin: 0; color: var(--fg-secondary); font-size: 14px; }
+.workspace-chat__notice, .workspace-chat__privacy { margin: 0; }
+.workspace-chat__form { border: 1px solid rgba(18,99,232,0.2); border-radius: var(--radius-md); background: #fff; padding: 12px; box-shadow: var(--shadow-sm); }
+.workspace-chat__form:focus-within { box-shadow: 0 0 0 3px rgba(18,99,232,0.12); }
+.workspace-chat__form textarea { display: block; width: 100%; min-height: 80px; resize: vertical; border: 0; outline: 0; background: transparent; color: var(--fg-primary); padding: 4px; }
+.workspace-chat__form-footer { display: flex; align-items: center; justify-content: space-between; gap: 10px; color: var(--fg-secondary); font-size: 12px; }
+.workspace-chat__form-footer button { display: grid; place-items: center; flex: none; }
+.workspace-chat__form-footer button:disabled { background: var(--fg-muted); cursor: not-allowed; }
+@media (max-width: 600px) {
+  .workspace-chat__header { flex-direction: column; }
+  .workspace-chat__thread { min-height: 280px; padding: 14px; }
+  .workspace-chat__message { max-width: 96%; }
+  .workspace-chat__options > span { flex-basis: 100%; }
 }

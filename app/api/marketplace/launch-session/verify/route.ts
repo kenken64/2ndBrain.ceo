@@ -129,7 +129,7 @@ export async function POST(request: Request) {
   const revokedSeconds = revokedAtSeconds(profile.marketplace_launch_revoked_at);
 
   if (revokedSeconds !== null && Math.trunc(issuedAt) <= revokedSeconds) {
-    return inactive("2ndBrain session has been logged out.");
+    return inactive("AI CUBER session has been logged out.");
   }
 
   const { data: installRow, error: installError } = await adminSupabase

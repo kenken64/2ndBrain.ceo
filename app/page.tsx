@@ -1,11 +1,14 @@
 import { Manrope } from "next/font/google";
+import { cookies } from "next/headers";
 import {
   Briefcase,
   Coins,
   Download,
   KeyRound,
+  MessageSquare,
   PencilLine,
   Send,
+  Store,
   Terminal,
   Trash2,
   Video
@@ -21,6 +24,7 @@ import { OperatingRoom } from "@/components/landing/operating-room";
 import { RECORD } from "@/components/landing/record";
 import { Reveal } from "@/components/landing/reveal";
 import { WorkspaceRail } from "@/components/landing/workspace-rail";
+import { ChineseLanding } from "@/components/landing/chinese-landing";
 import "./landing.css";
 
 export const dynamic = "force-dynamic";
@@ -64,7 +68,15 @@ const integrations = [
   { icon: Coins, name: "Solana", sub: "credit top-ups on-chain" }
 ] as const;
 
-export default function Home() {
+export default async function Home({ searchParams }: { searchParams: Promise<{ lang?: string | string[] }> }) {
+  const params = await searchParams;
+  const storedLocale = (await cookies()).get("aicuber_landing_locale")?.value;
+  const locale = params.lang === "en" || params.lang === "zh" ? params.lang : storedLocale;
+
+  if (locale === "zh") {
+    return <ChineseLanding fontClass={manrope.variable} supabaseConfigured={hasSupabaseEnv()} />;
+  }
+
   return (
     <>
       <a className="skip-link" href="#main-content">
@@ -72,24 +84,24 @@ export default function Home() {
       </a>
       <Atmosphere />
       <div className={`page-shell lp-type ${manrope.variable}`}>
-        <MarketingNav supabaseConfigured={hasSupabaseEnv()} />
+        <MarketingNav locale="en" supabaseConfigured={hasSupabaseEnv()} />
         <main id="main-content">
           {/* ---- Hero: the intent console ---- */}
           <section className="lp-hero">
             <div className="container lp-hero__grid">
               <div className="lp-hero__main">
                 <p className="lp-hero__kicker">
-                  YOUR OWN AGENT · YOUR OWN MACHINE · YOUR APPROVAL
+                  AI AGENT · FLEXIBLE CREDITS · WORKFLOW TOOLS
                 </p>
                 <h1 className="lp-hero__h1">
                   <span className="lp-hero__line">
-                    <span className="lp-hero__line-inner">Everything your agent knows.</span>
+                    <span className="lp-hero__line-inner">Your AI workspace.</span>
                   </span>
                   <span className="lp-hero__line">
                     <span className="lp-hero__line-inner lp-hero__line-inner--2">
-                      In a{" "}
+                      Ready{" "}
                       <span className="lp-underline-wrap">
-                        wiki you own
+                        when you are
                         <svg
                           aria-hidden="true"
                           className="lp-underline"
@@ -105,10 +117,9 @@ export default function Home() {
                   </span>
                 </h1>
                 <p className="lp-hero__sub">
-                  2ndBrain.ceo provisions a dedicated AI agent in the Cloud, then writes
-                  everything it learns into editable markdown — wiki pages, a per-project
-                  knowledge graph, and a Telegram approval gate you hold. Read it. Edit it.
-                  Export it. It&rsquo;s yours.
+                  Put AI to work with your own agent, top up credits when you need them,
+                  and find tools in the marketplace. Keep your knowledge in an editable wiki
+                  and explore it with a graph.
                 </p>
                 <svg
                   aria-hidden="true"
@@ -160,6 +171,41 @@ export default function Home() {
               <span aria-hidden="true" className="lp-hero__annot">
                 MEMORY: MARKDOWN · RUNTIME: CLOUD · GATE: TELEGRAM
               </span>
+            </div>
+          </section>
+
+          <section aria-labelledby="lp-h-features" className="lp-section lp-features" id="features">
+            <div className="container">
+              <Reveal as="header" className="lp-sec-head">
+                <p className="lp-kicker">YOUR AI WORKSPACE</p>
+                <h2 className="lp-h2" id="lp-h-features">The right AI tools, when you need them.</h2>
+                <p className="lp-lead">
+                  Bring your agent, AI credits, and workflow tools together in one workspace.
+                </p>
+              </Reveal>
+              <div className="lp-feature-grid">
+                <Reveal as="article" className="lp-feature-card">
+                  <span aria-hidden="true" className="lp-feature-card__icon"><MessageSquare size={22} /></span>
+                  <span className="lp-feature-card__label">AI CHAT</span>
+                  <h3>Chat with different AI models</h3>
+                  <p>Choose a model and chat about the questions and tasks that matter to you.</p>
+                  <a href="/dashboard/chat">Open AI chat <span aria-hidden="true">→</span></a>
+                </Reveal>
+                <Reveal as="article" className="lp-feature-card" delay={60}>
+                  <span aria-hidden="true" className="lp-feature-card__icon"><Coins size={22} /></span>
+                  <span className="lp-feature-card__label">PAY AS YOU GO</span>
+                  <h3>Top up credits as you need them</h3>
+                  <p>Add AI credits, follow your usage, and keep track of your balance. Top-ups use Solana.</p>
+                  <a href="/dashboard/settings?tab=payment">Manage AI credits <span aria-hidden="true">→</span></a>
+                </Reveal>
+                <Reveal as="article" className="lp-feature-card" delay={120}>
+                  <span aria-hidden="true" className="lp-feature-card__icon"><Store size={22} /></span>
+                  <span className="lp-feature-card__label">MARKETPLACE</span>
+                  <h3>Find the right tools</h3>
+                  <p>Browse workflow tools, install the ones you need, and allocate AI credits to each.</p>
+                  <a href="/dashboard/marketplace">Explore marketplace <span aria-hidden="true">→</span></a>
+                </Reveal>
+              </div>
             </div>
           </section>
 

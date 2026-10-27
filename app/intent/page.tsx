@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
 import { Atmosphere } from "@/components/atmosphere";
-import { BrandHeart } from "@/components/brand-heart";
+import { BrandLogo } from "@/components/brand-logo";
 import { ChatInput } from "@/components/chat-input";
 import { LoginDialog } from "@/components/login-dialog";
 import { SetupCallout } from "@/components/setup-callout";
@@ -81,7 +81,7 @@ export default async function IntentPage({ searchParams }: IntentPageProps) {
       <Atmosphere />
       <main className="intent-page">
         <section className="intent-panel">
-          <BrandHeart size={96} />
+          <BrandLogo size={96} />
           <p className="wizard-kicker">Nth Brain intent</p>
           <h1 className="onboarding-title">Describe the Nth Brain you want to build</h1>
           <p className="onboarding-copy">

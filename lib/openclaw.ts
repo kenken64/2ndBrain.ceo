@@ -1258,7 +1258,7 @@ function buildWikiGenerationPrompt(input: OpenClawGenerationInput) {
   const attachmentContext = buildAttachmentPromptContext(input.attachments ?? []);
 
   return [
-    "Generate a new 2ndBrain wiki project scaffold.",
+    "Generate a new AI CUBER wiki project scaffold.",
     "",
     `Owner name: ${input.ownerName}`,
     `AI avatar name: ${input.avatarName}`,
@@ -1285,7 +1285,7 @@ function buildWikiIngestPrompt(input: OpenClawWikiIngestInput) {
   const projectContext = input.projectContext?.trim();
 
   return [
-    "Augment an existing 2ndBrain LLM wiki from uploaded source documents.",
+    "Augment an existing AI CUBER LLM wiki from uploaded source documents.",
     "",
     `Owner name: ${input.ownerName}`,
     `AI avatar name: ${input.avatarName}`,
@@ -1356,7 +1356,7 @@ function treeHasMarkdownFiles(items: WikiTreeItem[]): boolean {
 
 function buildFallbackWikiPages(input: OpenClawGenerationInput): OpenClawFallbackWikiPage[] {
   const createdAt = new Date().toISOString();
-  const projectTitle = `${input.projectSlug} 2ndBrain Wiki`;
+  const projectTitle = `${input.projectSlug} AI CUBER Wiki`;
   const promptBlock = quoteMarkdown(input.prompt || "No user intent was provided.");
 
   return [
@@ -1366,7 +1366,7 @@ function buildFallbackWikiPages(input: OpenClawGenerationInput): OpenClawFallbac
         fallbackFrontmatter(projectTitle, "overview", ["llm-wiki", "workspace"]),
         `# ${projectTitle}`,
         "",
-        "This wiki was scaffolded by 2ndBrain after Claude refinement was unavailable.",
+        "This wiki was scaffolded by AI CUBER after Claude refinement was unavailable.",
         "Use it as the working markdown base for the user's LLM-maintained knowledge system.",
         "",
         "## User Intent",
@@ -2441,7 +2441,7 @@ export async function generateOpenClawWikiProject(input: OpenClawGenerationInput
     "--project",
     input.projectSlug,
     "--title",
-    `${input.projectSlug} 2ndBrain Wiki`,
+    `${input.projectSlug} AI CUBER Wiki`,
     "--prompt",
     prompt,
     "--timeout",

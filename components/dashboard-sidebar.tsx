@@ -5,6 +5,7 @@ import {
   ChevronDown,
   Clapperboard,
   Menu,
+  MessageSquare,
   ShieldCheck,
   GitBranch,
   ListChecks,
@@ -17,10 +18,10 @@ import {
   Store,
   X
 } from "lucide-react";
-import { BrandHeart } from "@/components/brand-heart";
+import { BrandLogo } from "@/components/brand-logo";
 
 type DashboardSidebarProps = {
-  activeItem?: "admin" | "gateway" | "marketplace" | "remotion" | "wiki" | "graph" | "settings" | "workflows";
+  activeItem?: "admin" | "chat" | "gateway" | "marketplace" | "remotion" | "wiki" | "graph" | "settings" | "workflows";
   avatarName?: string | null;
   creditLocked?: boolean;
   email?: string | null;
@@ -124,7 +125,7 @@ export function DashboardSidebar({
     >
       <div className="sidebar-header">
         <a className="sidebar-brand" href={creditLocked ? settingsHref : "/dashboard"}>
-          <BrandHeart size={50} />
+          <BrandLogo size={50} />
         </a>
         <button
           aria-controls="dashboard-sidebar-nav"
@@ -165,6 +166,14 @@ export function DashboardSidebar({
         onClick={closeMobileMenuOnLink}
       >
         <span className="sidebar-section-label">WORKSPACE</span>
+        <SidebarNavItem
+          active={activeItem === "chat"}
+          disabled={creditLocked}
+          href="/dashboard/chat"
+          icon={<MessageSquare size={18} strokeWidth={1.7} />}
+          label="AI Chat"
+          title="AI Chat"
+        />
         <SidebarNavItem
           active={activeItem === "gateway"}
           disabled={creditLocked}

@@ -1,4 +1,4 @@
-import { BrandHeart } from "@/components/brand-heart";
+import { BrandLogo } from "@/components/brand-logo";
 
 const columns = [
   {
@@ -28,21 +28,29 @@ const columns = [
   }
 ];
 
-export function Footer() {
+const chineseColumns = [
+  { title: "工作空间", links: [["控制台", "/dashboard"], ["知识库", "/dashboard/wiki"], ["知识图谱", "/dashboard/graph"], ["AI 助手", "/dashboard/openclaw"]] },
+  { title: "开始使用", links: [["快速入门", "/onboarding"], ["登录", "/login"], ["创建项目", "/intent"], ["设置", "/dashboard/settings"]] },
+  { title: "项目", links: [["源代码", "https://github.com/kenken64/2ndBrain.ceo"], ["系统状态", "/status"]] }
+];
+
+export function Footer({ locale = "en" }: { locale?: "en" | "zh" }) {
+  const chinese = locale === "zh";
   return (
     <footer className="footer">
       <div className="container">
         <div className="footer__grid">
           <div>
-            <a className="brand-link" href="/">
-              <BrandHeart size={58} />
+            <a className="brand-link" href={chinese ? "/?lang=zh" : "/"}>
+              <BrandLogo size={58} />
             </a>
             <p>
-              An educational front door for the 2ndBrain workspace: onboarding, AI Agent,
-              LLM Wiki projects, markdown editing, and knowledge graph exploration.
+              {chinese
+                ? "AI CUBER 工作空间：使用 AI 助手、创建知识库、编辑文档并探索知识图谱。"
+                : "An educational front door for the AI CUBER workspace: onboarding, AI Agent, LLM Wiki projects, markdown editing, and knowledge graph exploration."}
             </p>
           </div>
-          {columns.map((column) => (
+          {(chinese ? chineseColumns : columns).map((column) => (
             <div key={column.title}>
               <h4>{column.title}</h4>
               <ul>
@@ -56,7 +64,7 @@ export function Footer() {
           ))}
         </div>
         <div aria-hidden="true" className="footer__wordmark">
-          2ndBrain
+          AI CUBER
         </div>
       </div>
     </footer>

@@ -4,19 +4,19 @@ import "./globals.css";
 
 export const metadata: Metadata = {
   title: {
-    default: "2ndBrain.ceo",
-    template: "%s | 2ndBrain.ceo"
+    default: "AI CUBER",
+    template: "%s | AI CUBER"
   },
   description: "A warm AI workspace for turning scattered ideas into usable company systems.",
   icons: {
-    icon: "/logo-app.png",
-    apple: "/logo-app.png"
+    icon: "/aicuber-icon.png",
+    apple: "/aicuber-icon.png"
   }
 };
 
 export const viewport: Viewport = {
   initialScale: 1,
-  themeColor: "#fcfbf8",
+  themeColor: "#f5f8ff",
   width: "device-width"
 };
 

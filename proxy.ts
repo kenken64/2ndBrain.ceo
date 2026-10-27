@@ -36,6 +36,7 @@ function isProtectedAppPath(pathname: string) {
     pathname.startsWith("/api/admin") ||
     pathname.startsWith("/api/account") ||
     pathname.startsWith("/api/billing") ||
+    pathname.startsWith("/api/chat") ||
     pathname.startsWith("/api/openclaw") ||
     pathname.startsWith("/api/projects") ||
     pathname.startsWith("/api/settings") ||

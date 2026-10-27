@@ -2,7 +2,7 @@
 
 import { useEffect, useId } from "react";
 import { X } from "lucide-react";
-import { BrandHeart } from "@/components/brand-heart";
+import { BrandLogo } from "@/components/brand-logo";
 
 type LoginDialogProps = {
   error?: string;
@@ -10,6 +10,7 @@ type LoginDialogProps = {
   next?: string;
   onClose?: () => void;
   supabaseConfigured?: boolean;
+  locale?: "en" | "zh";
 };
 
 export function LoginDialog({
@@ -17,8 +18,10 @@ export function LoginDialog({
   isOpen = true,
   next = "/dashboard",
   onClose,
-  supabaseConfigured = true
+  supabaseConfigured = true,
+  locale = "en"
 }: LoginDialogProps) {
+  const chinese = locale === "zh";
   const titleId = useId();
   const descriptionId = useId();
 
@@ -58,13 +61,13 @@ export function LoginDialog({
     <div className="login-modal" role="presentation">
       {onClose ? (
         <button
-          aria-label="Close login dialog"
+          aria-label={chinese ? "关闭登录窗口" : "Close login dialog"}
           className="login-modal__scrim"
           onClick={onClose}
           type="button"
         />
       ) : (
-        <a aria-label="Close login dialog" className="login-modal__scrim" href="/" />
+        <a aria-label={chinese ? "关闭登录窗口" : "Close login dialog"} className="login-modal__scrim" href="/" />
       )}
       <section
         aria-describedby={descriptionId}
@@ -75,7 +78,7 @@ export function LoginDialog({
       >
         {onClose ? (
           <button
-            aria-label="Close login dialog"
+            aria-label={chinese ? "关闭登录窗口" : "Close login dialog"}
             className="login-dialog__close"
             onClick={onClose}
             type="button"
@@ -83,19 +86,19 @@ export function LoginDialog({
             <X size={18} strokeWidth={1.8} />
           </button>
         ) : (
-          <a aria-label="Close login dialog" className="login-dialog__close" href="/">
+          <a aria-label={chinese ? "关闭登录窗口" : "Close login dialog"} className="login-dialog__close" href="/">
             <X size={18} strokeWidth={1.8} />
           </a>
         )}
 
         <div className="login-dialog__brand">
-          <BrandHeart size={82} />
+          <BrandLogo size={82} />
         </div>
 
         <div className="login-dialog__copy">
-          <h1 id={titleId}>Log in to 2ndBrain</h1>
+          <h1 id={titleId}>{chinese ? "登录 AI CUBER" : "Log in to AI CUBER"}</h1>
           <p id={descriptionId}>
-            Continue to your workspace and keep building from where you left off.
+            {chinese ? "进入您的工作空间，继续之前的工作。" : "Continue to your workspace and keep building from where you left off."}
           </p>
         </div>
 
@@ -111,16 +114,16 @@ export function LoginDialog({
               <span aria-hidden="true" className="google-g">
                 G
               </span>
-              Continue with Google
+              {chinese ? "使用 Google 登录" : "Continue with Google"}
             </a>
           ) : (
             <p className="login-dialog__message" role="alert">
-              Supabase credentials are required before login can run.
+              {chinese ? "登录服务尚未配置，请联系管理员。" : "Supabase credentials are required before login can run."}
             </p>
           )}
         </div>
 
-        <p className="login-dialog__footnote">New accounts continue into workspace setup.</p>
+        <p className="login-dialog__footnote">{chinese ? "新用户登录后将进入工作空间设置。" : "New accounts continue into workspace setup."}</p>
       </section>
     </div>
   );

@@ -61,7 +61,7 @@ function qrCodeImageSrc(value: string) {
 }
 
 function newFriendlyName() {
-  return `2ndBrain admin ${new Date().toISOString().replace(/[-:.TZ]/g, "").slice(0, 14)}`;
+  return `AI CUBER admin ${new Date().toISOString().replace(/[-:.TZ]/g, "").slice(0, 14)}`;
 }
 
 function factorLabel(factor: TotpFactor, index: number) {
@@ -131,7 +131,7 @@ export function AdminMfaPanel({ nextPath, supabasePublishableKey, supabaseUrl }:
       const { data, error } = await supabase.auth.mfa.enroll({
         factorType: "totp",
         friendlyName: newFriendlyName(),
-        issuer: "2ndBrain.ceo"
+        issuer: "AI CUBER"
       });
 
       if (error) {

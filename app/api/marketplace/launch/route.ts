@@ -157,7 +157,7 @@ export async function POST(request: Request) {
   const launchConfig = workflowLaunchConfigById(item.id);
 
   if (!launchConfig) {
-    return NextResponse.json({ error: "This workflow tool does not support 2ndBrain launch yet." }, { status: 400 });
+    return NextResponse.json({ error: "This workflow tool does not support AI CUBER launch yet." }, { status: 400 });
   }
 
   const appUrlValue = cleanEnvValue(process.env[launchConfig.appUrlEnv]);

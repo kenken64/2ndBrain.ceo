@@ -2,43 +2,61 @@
 
 import { useState } from "react";
 import { Menu } from "lucide-react";
-import { BrandHeart } from "@/components/brand-heart";
+import { BrandLogo } from "@/components/brand-logo";
 import { LoginDialog } from "@/components/login-dialog";
 
 type MarketingNavProps = {
   anchorPrefix?: string;
   supabaseConfigured?: boolean;
+  locale?: "en" | "zh";
 };
 
-export function MarketingNav({ anchorPrefix = "", supabaseConfigured = true }: MarketingNavProps) {
+export function MarketingNav({ anchorPrefix = "", supabaseConfigured = true, locale }: MarketingNavProps) {
   const [isLoginOpen, setIsLoginOpen] = useState(false);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const sectionHref = (hash: string) => `${anchorPrefix}${hash}`;
+  const chinese = locale === "zh";
 
   return (
     <>
-      <header className="site-nav">
-        <nav aria-label="Primary navigation" className="container site-nav__inner">
-          <a className="brand-link" href="/">
-            <BrandHeart size={56} />
+      <header className={`site-nav${locale ? " site-nav--localized" : ""}`}>
+        <nav aria-label={chinese ? "主导航" : "Primary navigation"} className="container site-nav__inner">
+          <a className="brand-link" href={chinese ? "/?lang=zh" : "/"}>
+            <BrandLogo size={56} />
           </a>
           <div className="nav-links">
+            <a className="nav-link" href={sectionHref("#features")}>
+              {chinese ? "产品功能" : "Features"}
+            </a>
             <a className="nav-link" href={sectionHref("#how-it-works")}>
-              How it works
+              {chinese ? "工作原理" : "How it works"}
             </a>
             <a className="nav-link" href={sectionHref("#setup")}>
-              Setup
+              {chinese ? "开始设置" : "Setup"}
             </a>
             <a className="nav-link" href={sectionHref("#workspace")}>
-              Workspace
+              {chinese ? "工作空间" : "Workspace"}
             </a>
             <a className="nav-link" href="/onboarding">
-              Onboarding
+              {chinese ? "快速入门" : "Onboarding"}
             </a>
           </div>
           <div className="nav-actions">
+            {locale ? (
+              <a
+                aria-label={chinese ? "Switch to English" : "切换到中文"}
+                className="language-toggle"
+                href={chinese ? "/?lang=en" : "/?lang=zh"}
+                hrefLang={chinese ? "en" : "zh-CN"}
+                onClick={() => {
+                  document.cookie = `aicuber_landing_locale=${chinese ? "en" : "zh"}; Path=/; Max-Age=31536000; SameSite=Lax`;
+                }}
+              >
+                {chinese ? "English" : "中文"}
+              </a>
+            ) : null}
             <a
-              aria-label="Open GitHub repository"
+              aria-label={chinese ? "打开 GitHub 代码库" : "Open GitHub repository"}
               className="github-link"
               href="https://github.com/kenken64/2ndBrain.ceo"
               rel="noreferrer"
@@ -54,15 +72,15 @@ export function MarketingNav({ anchorPrefix = "", supabaseConfigured = true }: M
               </svg>
             </a>
             <button className="text-link nav-login-button" onClick={() => setIsLoginOpen(true)} type="button">
-              Log in
+              {chinese ? "登录" : "Log in"}
             </button>
             <button className="btn-primary" onClick={() => setIsLoginOpen(true)} type="button">
-              Get started <span className="arrow">-&gt;</span>
+              {chinese ? "立即开始" : "Get started"} <span className="arrow">-&gt;</span>
             </button>
             <button
               aria-controls="site-nav-menu"
               aria-expanded={isMenuOpen}
-              aria-label="Open menu"
+              aria-label={isMenuOpen ? (chinese ? "关闭菜单" : "Close menu") : (chinese ? "打开菜单" : "Open menu")}
               className="mobile-menu-button"
               onClick={() => setIsMenuOpen((open) => !open)}
               type="button"
@@ -73,25 +91,28 @@ export function MarketingNav({ anchorPrefix = "", supabaseConfigured = true }: M
         </nav>
         {isMenuOpen ? (
           <div className="site-nav__menu" id="site-nav-menu">
+            <a className="nav-link" href={sectionHref("#features")} onClick={() => setIsMenuOpen(false)}>
+              {chinese ? "产品功能" : "Features"}
+            </a>
             <a
               className="nav-link"
               href={sectionHref("#how-it-works")}
               onClick={() => setIsMenuOpen(false)}
             >
-              How it works
+              {chinese ? "工作原理" : "How it works"}
             </a>
             <a className="nav-link" href={sectionHref("#setup")} onClick={() => setIsMenuOpen(false)}>
-              Setup
+              {chinese ? "开始设置" : "Setup"}
             </a>
             <a
               className="nav-link"
               href={sectionHref("#workspace")}
               onClick={() => setIsMenuOpen(false)}
             >
-              Workspace
+              {chinese ? "工作空间" : "Workspace"}
             </a>
             <a className="nav-link" href="/onboarding" onClick={() => setIsMenuOpen(false)}>
-              Onboarding
+              {chinese ? "快速入门" : "Onboarding"}
             </a>
             <button
               className="nav-link"
@@ -101,7 +122,7 @@ export function MarketingNav({ anchorPrefix = "", supabaseConfigured = true }: M
               }}
               type="button"
             >
-              Log in
+              {chinese ? "登录" : "Log in"}
             </button>
           </div>
         ) : null}
@@ -109,6 +130,7 @@ export function MarketingNav({ anchorPrefix = "", supabaseConfigured = true }: M
 
       <LoginDialog
         isOpen={isLoginOpen}
+        locale={locale}
         onClose={() => setIsLoginOpen(false)}
         supabaseConfigured={supabaseConfigured}
       />

@@ -196,7 +196,7 @@ export function AdminUsersTable({ adminAvailableTokens, adminUserId, users }: Ad
   return (
     <section className="admin-table-shell" aria-labelledby="admin-users-title">
       <div className="projects-section__header">
-        <h2 id="admin-users-title">2ndBrain users</h2>
+        <h2 id="admin-users-title">AI CUBER users</h2>
         {message ? <p className="login-dialog__message" role="status">{message}</p> : null}
       </div>
 

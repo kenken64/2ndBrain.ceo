@@ -10,6 +10,8 @@ export type TokenQuotaEventReason =
   | "admin_credit_drain_to_admin"
   | "admin_quota_update"
   | "bedrock_token_usage"
+  | "chat_credit_reservation"
+  | "chat_credit_settlement"
   | "marketplace_tool_purchase"
   | "marketplace_tool_refund"
   | "marketplace_tool_renewal"

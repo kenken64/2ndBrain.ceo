@@ -47,7 +47,8 @@ function indexStyle(index: number) {
   return { "--lp-i": index } as CSSProperties;
 }
 
-export function OperatingRoom() {
+export function OperatingRoom({ locale = "en" }: { locale?: "en" | "zh" }) {
+  const chinese = locale === "zh";
   const [phase, setPhase] = useState<Phase>("idle");
 
   const bentoRef = useRef<HTMLDivElement | null>(null);
@@ -632,16 +633,15 @@ export function OperatingRoom() {
     <div className="lp-bento" data-phase={phase} ref={bentoRef}>
       {/* 01 · INTENT */}
       <article className="lp-cell lp-cell--intent">
-        <span aria-hidden="true" className="lp-cell__tag">01 · INTENT</span>
-        <h3 className="lp-cell__title">One prompt. One owned project.</h3>
+        <span aria-hidden="true" className="lp-cell__tag">{chinese ? "01 · 需求" : "01 · INTENT"}</span>
+        <h3 className="lp-cell__title">{chinese ? "一个需求，创建一个专属项目。" : "One prompt. One owned project."}</h3>
         <p className="lp-cell__sub">
-          Every wiki project gets its own ID, its own workspace folder, and a Ready state —
-          like these three, each generated from a single prompt.
+          {chinese ? "每个知识库项目都有独立的编号、工作空间和状态，以下三个示例分别由一条需求生成。" : "Every wiki project gets its own ID, its own workspace folder, and a Ready state — like these three, each generated from a single prompt."}
         </p>
         <div className="lp-deck">
           <div className="lp-deck__card lp-deck__card--back2">
             <img
-              alt="Generated wiki project card for a Singapore property agent profile"
+              alt={chinese ? "新加坡房地产经纪人知识库项目示例" : "Generated wiki project card for a Singapore property agent profile"}
               height={900}
               loading="lazy"
               src="/landing/3.png"
@@ -650,7 +650,7 @@ export function OperatingRoom() {
           </div>
           <div className="lp-deck__card lp-deck__card--back1">
             <img
-              alt="Generated wiki project card for an academic lecturer profile"
+              alt={chinese ? "大学讲师知识库项目示例" : "Generated wiki project card for an academic lecturer profile"}
               height={900}
               loading="lazy"
               src="/landing/2.png"
@@ -659,7 +659,7 @@ export function OperatingRoom() {
           </div>
           <div className="lp-deck__card lp-deck__card--front">
             <img
-              alt="Generated wiki project card for a senior DevSecOps engineer profile"
+              alt={chinese ? "资深 DevSecOps 工程师知识库项目示例" : "Generated wiki project card for a senior DevSecOps engineer profile"}
               height={900}
               loading="lazy"
               src="/landing/1.png"
@@ -667,13 +667,13 @@ export function OperatingRoom() {
             />
           </div>
         </div>
-        <p className="lp-fig">fig. 01 — three real wiki projects, generated from single prompts.</p>
+        <p className="lp-fig">{chinese ? "图 01 — 根据需求生成的三个知识库项目。" : "fig. 01 — three real wiki projects, generated from single prompts."}</p>
       </article>
 
       {/* 02 · INGEST */}
       <article className="lp-cell lp-cell--ingest" ref={ingestCellRef}>
-        <span aria-hidden="true" className="lp-cell__tag">02 · INGEST</span>
-        <h3 className="lp-cell__title">Feed it real sources.</h3>
+        <span aria-hidden="true" className="lp-cell__tag">{chinese ? "02 · 添加资料" : "02 · INGEST"}</span>
+        <h3 className="lp-cell__title">{chinese ? "添加您的资料。" : "Feed it real sources."}</h3>
         <div aria-hidden="true" className="lp-drop">
           {RECORD.files.map((file, index) => (
             <span className="lp-chip-file" key={file.name} style={indexStyle(index)}>
@@ -684,20 +684,19 @@ export function OperatingRoom() {
             <svg aria-hidden="true" focusable="false" viewBox="0 0 60 10">
               <path d="M1 5 H52 M47 1.5 L53 5 L47 8.5" fill="none" pathLength={1} />
             </svg>
-            converted to markdown
+            {chinese ? "转换为 Markdown" : "converted to markdown"}
           </span>
         </div>
         <p className="lp-cell__sub">
-          PDF, DOCX, TXT, Markdown, images — converted into pages you can read, not embeddings
-          you can&rsquo;t.
+          {chinese ? "支持 PDF、DOCX、TXT、Markdown 和图片，资料会转换为可阅读的页面。" : "PDF, DOCX, TXT, Markdown, images — converted into pages you can read, not embeddings you can’t."}
         </p>
-        <p className="lp-fig">fig. 02 — sources become pages.</p>
+        <p className="lp-fig">{chinese ? "图 02 — 将资料转换为页面。" : "fig. 02 — sources become pages."}</p>
       </article>
 
       {/* 03 · WIKI */}
       <article className="lp-cell lp-cell--editor" ref={editorCellRef}>
-        <span aria-hidden="true" className="lp-cell__tag">03 · WIKI</span>
-        <h3 className="lp-cell__title">Get a wiki, not a vibe.</h3>
+        <span aria-hidden="true" className="lp-cell__tag">{chinese ? "03 · 知识库" : "03 · WIKI"}</span>
+        <h3 className="lp-cell__title">{chinese ? "生成可编辑的知识库。" : "Get a wiki, not a vibe."}</h3>
         <div aria-hidden="true" className="lp-editor" ref={editorBodyRef}>
           <div className="lp-editor__tab">{RECORD.editorTab}</div>
           <div className="lp-editor__body">
@@ -728,13 +727,13 @@ export function OperatingRoom() {
             <span className="lp-caret" ref={caretRef} />
           </div>
         </div>
-        <p className="lp-fig">fig. 03 — markdown you can correct. demo replay.</p>
+        <p className="lp-fig">{chinese ? "图 03 — 可编辑的 Markdown，演示画面。" : "fig. 03 — markdown you can correct. demo replay."}</p>
       </article>
 
       {/* 04 · TREE */}
       <article className="lp-cell lp-cell--tree" ref={treeCellRef}>
-        <span aria-hidden="true" className="lp-cell__tag">04 · TREE</span>
-        <h3 className="lp-cell__title">Every page, accounted for.</h3>
+        <span aria-hidden="true" className="lp-cell__tag">{chinese ? "04 · 页面目录" : "04 · TREE"}</span>
+        <h3 className="lp-cell__title">{chinese ? "清晰管理每个页面。" : "Every page, accounted for."}</h3>
         <div aria-hidden="true" className="lp-tree">
           {RECORD.treeRows.map((row, index) => (
             <span className="lp-tree__row" key={row} style={indexStyle(index)}>
@@ -750,13 +749,13 @@ export function OperatingRoom() {
             ? `${RECORD.pagesAfter} pages (+1)`
             : `${RECORD.pagesBefore} pages indexed`}
         </p>
-        <p className="lp-fig">fig. 04 — the project tree grows.</p>
+        <p className="lp-fig">{chinese ? "图 04 — 项目目录随内容增长。" : "fig. 04 — the project tree grows."}</p>
       </article>
 
       {/* 05 · GRAPH */}
       <article className="lp-cell lp-cell--graph" ref={graphCellRef}>
-        <span aria-hidden="true" className="lp-cell__tag">05 · GRAPH</span>
-        <h3 className="lp-cell__title">Pages become a map.</h3>
+        <span aria-hidden="true" className="lp-cell__tag">{chinese ? "05 · 知识图谱" : "05 · GRAPH"}</span>
+        <h3 className="lp-cell__title">{chinese ? "将页面连接成知识图谱。" : "Pages become a map."}</h3>
         <svg
           aria-hidden="true"
           className="lp-micrograph"
@@ -820,16 +819,15 @@ export function OperatingRoom() {
           </g>
         </svg>
         <p className="lp-cell__sub">
-          Wiki pages sync into a per-project knowledge graph — draggable nodes, semantic edges,
-          scoped so it stays fast.
+          {chinese ? "知识库页面同步到项目专属的知识图谱，您可以拖动节点并探索内容之间的联系。" : "Wiki pages sync into a per-project knowledge graph — draggable nodes, semantic edges, scoped so it stays fast."}
         </p>
-        <p className="lp-fig">fig. 05 — one graph per project. demo replay.</p>
+        <p className="lp-fig">{chinese ? "图 05 — 每个项目都有自己的图谱，演示画面。" : "fig. 05 — one graph per project. demo replay."}</p>
       </article>
 
       {/* 06 · RUN */}
       <article className="lp-cell lp-cell--console">
-        <span aria-hidden="true" className="lp-cell__tag">06 · RUN</span>
-        <h3 className="lp-cell__title">The run, in the open.</h3>
+        <span aria-hidden="true" className="lp-cell__tag">{chinese ? "06 · 运行" : "06 · RUN"}</span>
+        <h3 className="lp-cell__title">{chinese ? "查看运行过程。" : "The run, in the open."}</h3>
         <div aria-hidden="true" className="lp-console" ref={consoleBodyRef}>
           {RECORD.consoleRun.map((line, index) => (
             <span
@@ -877,18 +875,17 @@ export function OperatingRoom() {
             </span>
           ))}
         </div>
-        <p className="lp-fig">fig. 06 — provisioning, replayed from the real flow.</p>
+        <p className="lp-fig">{chinese ? "图 06 — 创建过程演示。" : "fig. 06 — provisioning, replayed from the real flow."}</p>
       </article>
 
       {/* 07 · APPROVE */}
       <article className="lp-cell lp-cell--telegram">
-        <span aria-hidden="true" className="lp-cell__tag">07 · APPROVE</span>
-        <h3 className="lp-cell__title">Nothing sensitive ships without you.</h3>
+        <span aria-hidden="true" className="lp-cell__tag">{chinese ? "07 · 审核" : "07 · APPROVE"}</span>
+        <h3 className="lp-cell__title">{chinese ? "敏感操作需要您的确认。" : "Nothing sensitive ships without you."}</h3>
         <div className="lp-tg">
-          <p aria-hidden="true" className="lp-tg__head">2ndBrain Agent · 09:42</p>
+          <p aria-hidden="true" className="lp-tg__head">AI CUBER Agent · 09:42</p>
           <p aria-hidden="true" className="lp-tg__msg">
-            Requesting approval: restore the workspace snapshot in the Cloud. Reply to
-            continue.
+            {chinese ? "请求确认：在云端恢复工作空间快照。请回复以继续。" : "Requesting approval: restore the workspace snapshot in the Cloud. Reply to continue."}
           </p>
           <span aria-hidden="true" className="lp-anchor lp-anchor--gate" ref={gateAnchorRef} />
           <div className="lp-tg__actions">
@@ -899,7 +896,7 @@ export function OperatingRoom() {
               onClick={handleApprove}
               type="button"
             >
-              Approve
+              {chinese ? "批准" : "Approve"}
             </button>
             <button
               aria-describedby="lp-fig-approve"
@@ -908,28 +905,27 @@ export function OperatingRoom() {
               onClick={handleReject}
               type="button"
             >
-              Reject
+              {chinese ? "拒绝" : "Reject"}
             </button>
           </div>
           {phase === "approved" ? (
             <p aria-hidden="true" className="lp-tg__result lp-tg__result--ok">
-              ✓ Approved · 09:42
+              {chinese ? "✓ 已批准 · 09:42" : "✓ Approved · 09:42"}
             </p>
           ) : null}
           {phase === "rejected" ? (
             <>
               <p aria-hidden="true" className="lp-tg__result lp-tg__result--no">
-                ✗ Rejected — halted.
+                {chinese ? "✗ 已拒绝，运行已停止。" : "✗ Rejected — halted."}
               </p>
               <button className="lp-replay-btn" onClick={handleRunAgain} type="button">
-                Run it again
+                {chinese ? "重新演示" : "Run it again"}
               </button>
             </>
           ) : null}
         </div>
         <p className="lp-fig" id="lp-fig-approve">
-          fig. 07 — human-in-the-loop, by design. demo replay — the real gate arrives in your
-          Telegram.
+          {chinese ? "图 07 — 人工审核演示。实际审核请求会发送至您的 Telegram。" : "fig. 07 — human-in-the-loop, by design. demo replay — the real gate arrives in your Telegram."}
         </p>
       </article>
 
@@ -940,18 +936,15 @@ export function OperatingRoom() {
       </svg>
 
       <p className="lp-vh">
-        Demo replay: the agent restores a workspace snapshot in the Cloud, converts five
-        source files into 14 markdown wiki pages, syncs them into a knowledge graph, then pauses
-        at a Telegram approval gate. Approving adds one page and one graph node; rejecting halts
-        the run with nothing executed.
+        {chinese ? "演示：助手恢复工作空间，将五个文件转换为 14 个 Markdown 页面并同步到知识图谱，然后等待 Telegram 审核。批准会增加一个页面和图谱节点；拒绝会停止运行。" : "Demo replay: the agent restores a workspace snapshot in the Cloud, converts five source files into 14 markdown wiki pages, syncs them into a knowledge graph, then pauses at a Telegram approval gate. Approving adds one page and one graph node; rejecting halts the run with nothing executed."}
       </p>
       <p aria-live="polite" className="lp-vh" role="status">
         {phase === "waiting"
-          ? "Demo gate armed: the run is waiting for approval."
+          ? (chinese ? "演示正在等待审核。" : "Demo gate armed: the run is waiting for approval.")
           : phase === "approved"
-            ? "Demo approved: one page and one graph node were added."
+            ? (chinese ? "演示已批准：增加了一个页面和图谱节点。" : "Demo approved: one page and one graph node were added.")
             : phase === "rejected"
-              ? "Demo rejected: the run halted and nothing executed."
+              ? (chinese ? "演示已拒绝：运行已停止。" : "Demo rejected: the run halted and nothing executed.")
               : ""}
       </p>
     </div>

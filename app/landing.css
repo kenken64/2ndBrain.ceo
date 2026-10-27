@@ -1,5 +1,5 @@
 /* ============================================================
-   2ndBrain.ceo landing — "The Operating Room"
+   AI CUBER landing — "The Operating Room"
    Every class is lp- prefixed. Tokens come from globals.css.
    ============================================================ */
 
@@ -141,15 +141,15 @@
 
 @keyframes lp-halo {
   0% {
-    box-shadow: 0 0 0 0 rgba(0, 167, 255, 0.12);
+    box-shadow: 0 0 0 0 rgba(18, 99, 232, 0.12);
   }
 
   55% {
-    box-shadow: 0 0 0 10px rgba(0, 167, 255, 0.1);
+    box-shadow: 0 0 0 10px rgba(18, 99, 232, 0.1);
   }
 
   100% {
-    box-shadow: 0 0 0 14px rgba(0, 167, 255, 0);
+    box-shadow: 0 0 0 14px rgba(18, 99, 232, 0);
   }
 }
 
@@ -182,11 +182,11 @@
 @keyframes lp-breathe {
   0%,
   100% {
-    box-shadow: 0 0 0 0 rgba(0, 167, 255, 0);
+    box-shadow: 0 0 0 0 rgba(18, 99, 232, 0);
   }
 
   50% {
-    box-shadow: 0 0 0 6px rgba(0, 167, 255, 0.25);
+    box-shadow: 0 0 0 6px rgba(18, 99, 232, 0.25);
   }
 }
 
@@ -197,7 +197,7 @@
   }
 
   50% {
-    border-color: rgba(0, 167, 255, 0.55);
+    border-color: rgba(18, 99, 232, 0.55);
   }
 }
 
@@ -510,7 +510,7 @@
 
 .lp-cell:hover {
   transform: translateY(-3px);
-  border-color: rgba(0, 167, 255, 0.35);
+  border-color: rgba(18, 99, 232, 0.35);
 }
 
 .lp-cell--intent {
@@ -754,7 +754,7 @@
 
 @media (pointer: fine) {
   .lp-editor__line[data-node]:hover {
-    background-color: rgba(0, 167, 255, 0.07);
+    background-color: rgba(18, 99, 232, 0.07);
   }
 }
 
@@ -851,7 +851,7 @@
 }
 
 .lp-edge--semantic {
-  stroke: rgba(0, 167, 255, 0.5);
+  stroke: rgba(18, 99, 232, 0.5);
 }
 
 .lp-cell--graph.is-run .lp-edge:not(.lp-edge--new) {
@@ -881,7 +881,7 @@
 }
 
 .lp-node circle {
-  fill: rgba(0, 167, 255, 0.16);
+  fill: rgba(18, 99, 232, 0.16);
   stroke: var(--brand-blue);
   stroke-width: 1.2;
   transition: fill 200ms ease;
@@ -1082,7 +1082,7 @@
 .lp-tg__btn:focus-visible,
 .lp-replay-btn:focus-visible {
   outline: none;
-  box-shadow: 0 0 0 3px rgba(0, 167, 255, 0.35);
+  box-shadow: 0 0 0 3px rgba(18, 99, 232, 0.35);
 }
 
 .lp-tg__btn[aria-disabled="true"] {
@@ -1474,7 +1474,7 @@
 }
 
 .lp-vignette__accent {
-  fill: rgba(0, 167, 255, 0.55);
+  fill: rgba(18, 99, 232, 0.55);
 }
 
 .lp-vignette__bar {
@@ -1487,7 +1487,7 @@
 }
 
 .lp-vignette__node {
-  fill: rgba(0, 167, 255, 0.7);
+  fill: rgba(18, 99, 232, 0.7);
 }
 
 .lp-vignette__node--alt {
@@ -1620,18 +1620,18 @@
 }
 
 .lp-own-row__icon--blue {
-  background: rgba(0, 167, 255, 0.12);
+  background: rgba(18, 99, 232, 0.12);
   color: var(--brand-blue-deep);
 }
 
 .lp-own-row__icon--green {
-  background: rgba(0, 196, 140, 0.12);
-  color: #007a59;
+  background: rgba(18, 99, 232, 0.1);
+  color: var(--brand-blue-deep);
 }
 
 .lp-own-row__icon--orange {
-  background: rgba(255, 111, 61, 0.12);
-  color: #c2410c;
+  background: rgba(212, 9, 32, 0.1);
+  color: var(--brand-red);
 }
 
 .lp-own-row h3 {
@@ -1780,7 +1780,7 @@
 }
 
 .lp-int-chip:hover {
-  border-color: rgba(0, 167, 255, 0.4);
+  border-color: rgba(18, 99, 232, 0.4);
 }
 
 .lp-int-chip__icon {
@@ -1799,7 +1799,7 @@
 
 .lp-int-chip:hover .lp-int-chip__icon {
   color: var(--brand-blue);
-  background-color: rgba(0, 167, 255, 0.1);
+  background-color: rgba(18, 99, 232, 0.1);
 }
 
 .lp-int-chip__name {
@@ -1853,7 +1853,7 @@
   left: 0;
   right: 0;
   height: 3px;
-  background: linear-gradient(90deg, var(--brand-blue), var(--brand-green));
+  background: linear-gradient(90deg, var(--brand-blue), var(--brand-red));
   background-size: 200% 100%;
 }
 
@@ -2239,4 +2239,127 @@
   .lp-proof__paths line {
     transform: scaleX(1);
   }
+}
+
+/* AI workspace features */
+.lp-features {
+  padding-top: clamp(48px, 7vw, 92px);
+}
+
+.lp-feature-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 18px;
+}
+
+.lp-feature-card {
+  display: flex;
+  min-height: 300px;
+  flex-direction: column;
+  align-items: flex-start;
+  border: 1px solid rgba(18, 99, 232, 0.14);
+  border-radius: var(--radius-lg);
+  background: rgba(255, 255, 255, 0.94);
+  box-shadow: var(--shadow-md);
+  padding: clamp(22px, 2.5vw, 30px);
+}
+
+.lp-feature-card__icon {
+  display: grid;
+  width: 48px;
+  height: 48px;
+  place-items: center;
+  border-radius: 14px;
+  background: #eaf1ff;
+  color: var(--brand-blue);
+}
+
+.lp-feature-card__label {
+  margin-top: 22px;
+  color: var(--brand-blue-deep);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+}
+
+.lp-feature-card h3 {
+  margin: 8px 0 0;
+  color: var(--fg-primary);
+  font-size: 21px;
+  line-height: 1.25;
+}
+
+.lp-feature-card p {
+  margin: 12px 0 24px;
+  color: var(--fg-secondary);
+  font-size: 15px;
+  line-height: 1.6;
+}
+
+.lp-feature-card a {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: auto;
+  color: var(--brand-blue-deep);
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.lp-feature-card a:hover {
+  color: var(--brand-red);
+}
+
+.lp-feature-card a:focus-visible {
+  outline: 2px solid var(--brand-blue);
+  outline-offset: 4px;
+}
+
+@media (max-width: 760px) {
+  .lp-feature-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .lp-feature-card {
+    min-height: 0;
+  }
+}
+
+.lp-zh-steps {
+  display: grid;
+  max-width: 820px;
+  gap: 12px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.lp-zh-steps li {
+  display: flex;
+  gap: 20px;
+  border: 1px solid rgba(18, 99, 232, 0.14);
+  border-radius: var(--radius-md);
+  background: rgba(255, 255, 255, 0.94);
+  padding: 20px 24px;
+}
+
+.lp-zh-steps li > span {
+  color: var(--brand-blue);
+  font-family: var(--font-mono);
+  font-weight: 700;
+}
+
+.lp-zh-steps h3 {
+  margin: 0;
+  font-size: 18px;
+}
+
+.lp-zh-steps p {
+  margin: 6px 0 0;
+  color: var(--fg-secondary);
+}
+
+.lp-zh-centered {
+  margin: 18px auto 0;
 }

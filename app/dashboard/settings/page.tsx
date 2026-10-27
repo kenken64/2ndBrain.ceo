@@ -62,6 +62,7 @@ function parseSettingsTab(value: string | undefined): SettingsTabId | undefined 
 export default async function DashboardSettingsPage({ searchParams }: DashboardSettingsPageProps) {
   const params = searchParams ? await searchParams : undefined;
   const requestedTab = parseSettingsTab(params?.tab);
+  const settingsDestination = requestedTab ? `/dashboard/settings?tab=${requestedTab}` : "/dashboard/settings";
   const promptGoogleWorkspaceAuth = params?.gwsAuth === "login";
 
   if (!hasSupabaseEnv()) {
@@ -79,7 +80,7 @@ export default async function DashboardSettingsPage({ searchParams }: DashboardS
   const { data: claimsData, error: claimsError } = await supabase.auth.getClaims();
 
   if (claimsError || !claimsData?.claims) {
-    redirect("/login?next=/dashboard/settings");
+    redirect(`/login?next=${encodeURIComponent(settingsDestination)}`);
   }
 
   const userId = getUserIdFromClaims(claimsData.claims);
@@ -92,7 +93,7 @@ export default async function DashboardSettingsPage({ searchParams }: DashboardS
     : { data: null };
 
   if (!isOnboardingComplete(profile as OnboardingProfile | null)) {
-    redirect(onboardingPath("/dashboard/settings"));
+    redirect(onboardingPath(settingsDestination));
   }
 
   const email = typeof claimsData.claims.email === "string" ? claimsData.claims.email : null;

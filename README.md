@@ -1,4 +1,4 @@
-# 2ndBrain.ceo
+# AI CUBER
 
 Next.js full-stack app for onboarding a user into an OpenClaw workspace, provisioning an AWS Lightsail instance, pairing Telegram approval, setting up a Remotion avatar, and maintaining multiple LLM Wiki projects with markdown editing and knowledge graphs.
 
@@ -31,10 +31,21 @@ Required local setup:
 - Add `http://localhost:3000/auth/callback` to Supabase Auth redirect URLs.
 - Keep real `.env` files out of Git. `.gitignore` and `.dockerignore` exclude them.
 
+## Workspace AI chat
+
+Set the server-only `OPENROUTER_API_KEY` and `SUPABASE_SERVICE_ROLE_KEY`, then apply migrations through `0028_chat_credits.sql`. Restart the app after changing environment variables. The key must have sufficient OpenRouter credit and access to the selected models. Without either key or the migration, chat cannot send requests. Docker Compose users can alternatively set `OPENROUTER_API_KEY` in the optional Docker secrets workflow.
+
+The chat offers GPT-6.1 Sol, Claude Sonnet 5.5, Kimi K3.1 Pro, DeepSeek V4.1 Flash, and GLM 5.3. Model availability and pricing are checked against the OpenRouter catalog at request time. Conversations are saved in the user's current browser, not on the server; the most recent messages are sent for context. The server never exposes the provider key to the browser.
+
+Chat credits follow the existing $30 / 7.5 million credit rate. Before a request, the app reserves a conservative estimate based on current model pricing, message size and the output limit; it then charges the provider-reported cost and releases any unused reservation. The estimate is not a hard spending cap: the actual charge can exceed it if provider pricing or token use differs from the estimate. Admin accounts retain the existing quota exemption. A timeout or unknown provider result holds the reservation for review rather than assuming the request was free. Each request is recorded in `chat_credit_requests` without storing conversation text. If a server process dies, a stale in-flight request is marked `uncertain` on the user's next request, with its reservation held.
+
+To reconcile an uncertain request, an operator must verify the actual OpenRouter charge (using the recorded provider request ID when available) or establish that the request was not billed. As the service role, call `settle_chat_credits` with the original user and request IDs, `completed` plus `ceil(cost_usd * 250000)` credits and the verified cost, or `failed` plus zero credits for a confirmed unbilled request. The function adjusts the balance and ledger atomically. If Redis quota publishing is enabled, publish the updated profile balance after manual reconciliation so connected services see it. Do not guess or automatically refund a request whose provider status is unknown.
+
 Useful commands:
 
 ```sh
 npm run typecheck
+npm run test:chat
 npm run build
 npm run admin:load -- --email owner@example.com --replace
 npm run wiki:backfill -- --email bunnyppl@gmail.com --dry-run
@@ -93,7 +104,7 @@ keeps OAuth redirects independent from proxy/internal host headers.
 
 Do not expose Supabase service role keys to the browser. Only use a service role key in a local shell or controlled maintenance job for admin scripts such as `npm run wiki:backfill`. Google OAuth credentials belong in Supabase Auth provider settings.
 
-Marketplace workflow launches use short-lived signed URLs. To also revoke already-open workflow tool tabs when a user logs out, set `MARKETPLACE_LAUNCH_VERIFY_SECRET` in 2ndBrain and set the same value plus `MARKETPLACE_LAUNCH_VERIFY_URL=https://your-2ndbrain-domain/api/marketplace/launch-session/verify` in each deployed workflow tool.
+Marketplace workflow launches use short-lived signed URLs. To also revoke already-open workflow tool tabs when a user logs out, set `MARKETPLACE_LAUNCH_VERIFY_SECRET` in AI CUBER and set the same value plus `MARKETPLACE_LAUNCH_VERIFY_URL=https://your-2ndbrain-domain/api/marketplace/launch-session/verify` in each deployed workflow tool.
 
 ## Supabase
 
@@ -365,7 +376,7 @@ Commit and redeploy after upgrading so Railway rebuilds the Docker image with th
 
 ### Google Workspace Auth
 
-The Settings Google Workspace toggle is persistent user intent. When it is on, a fresh 2ndBrain Google login sends the user to the integrations tab instead of running `gws-logout`.
+The Settings Google Workspace toggle is persistent user intent. When it is on, a fresh AI CUBER Google login sends the user to the integrations tab instead of running `gws-logout`.
 
 Set `GWS_OAUTH_CLIENT_ID` and `GWS_OAUTH_CLIENT_SECRET`, then add `/api/openclaw/gws-auth/callback` for the local and production app origins to the Google OAuth client's allowed redirect URIs. The settings toggle requests a Google OAuth URL and opens it in a popup. After Google authorizes, the popup sends the OAuth code back to the settings page and closes; the settings page keeps the progress bar active while `/api/openclaw/gws-auth/complete` passes the code to `clawmacdo gws-login --code`.
 
