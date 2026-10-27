@@ -15,6 +15,14 @@ Next.js full-stack app for onboarding a user into an OpenClaw workspace, provisi
 
 ## Local Development
 
+The app uses Node.js 26.12.1 or a newer 26.x security release. `.nvmrc` pins the version, and the Docker image uses the same release. For Windows, the following starts the app with a project-local copy of Node; if needed, it downloads the official archive and checks its SHA-256 checksum first:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File scripts/dev-local.ps1
+```
+
+With a Node version manager on other platforms, install and select the version in `.nvmrc` before running:
+
 ```sh
 npm install
 cp .env.example .env.local
@@ -35,7 +43,9 @@ Required local setup:
 
 Set the server-only `OPENROUTER_API_KEY` and `SUPABASE_SERVICE_ROLE_KEY`, then apply migrations through `0028_chat_credits.sql`. Restart the app after changing environment variables. The key must have sufficient OpenRouter credit and access to the selected models. Without either key or the migration, chat cannot send requests. Docker Compose users can alternatively set `OPENROUTER_API_KEY` in the optional Docker secrets workflow.
 
-The chat offers GPT-6.1 Sol, Claude Sonnet 5.5, Kimi K3.1 Pro, DeepSeek V4.1 Flash, and GLM 5.3. Model availability and pricing are checked against the OpenRouter catalog at request time. Conversations are saved in the user's current browser, not on the server; the most recent messages are sent for context. The server never exposes the provider key to the browser.
+The chat offers GPT-6.1 Sol, Claude Sonnet 5.5, Kimi K3.1 Pro, DeepSeek V4.1 Flash, and GLM 5.3. Model availability and pricing are checked against the OpenRouter catalog at request time. Conversation history is stored in DuckDB-Wasm in the current browser's origin-private file system, scoped to the signed-in account. Ten recent conversations are shown initially; older ones can be loaded. The previous single browser-saved chat is migrated after the new cache is successfully written. Chat data is not synchronized to the server or other devices and may be removed when browser data is cleared. The most recent messages are sent for context. The server never exposes the provider key to the browser.
+
+Persistent history requires a secure origin (HTTPS or localhost), OPFS, Web Workers, WebAssembly and Web Locks. If browser storage is unavailable, chat can continue for the current page session with a visible warning; previously saved data is not removed. DuckDB 1.32.0 is pinned because a newer published build has a known OPFS durability regression. `predev` and `prebuild` copy the versioned worker and WASM assets into `public/duckdb` for same-origin hosting.
 
 Chat credits follow the existing $30 / 7.5 million credit rate. Before a request, the app reserves a conservative estimate based on current model pricing, message size and the output limit; it then charges the provider-reported cost and releases any unused reservation. The estimate is not a hard spending cap: the actual charge can exceed it if provider pricing or token use differs from the estimate. Admin accounts retain the existing quota exemption. A timeout or unknown provider result holds the reservation for review rather than assuming the request was free. Each request is recorded in `chat_credit_requests` without storing conversation text. If a server process dies, a stale in-flight request is marked `uncertain` on the user's next request, with its reservation held.
 
@@ -46,6 +56,7 @@ Useful commands:
 ```sh
 npm run typecheck
 npm run test:chat
+npm run test:solana
 npm run build
 npm run admin:load -- --email owner@example.com --replace
 npm run wiki:backfill -- --email bunnyppl@gmail.com --dry-run

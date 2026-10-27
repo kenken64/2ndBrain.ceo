@@ -6210,3 +6210,23 @@ svg {
   .workspace-chat__message { max-width: 96%; }
   .workspace-chat__options > span { flex-basis: 100%; }
 }
+
+.workspace-chat__layout { display: grid; grid-template-columns: minmax(190px, 240px) minmax(0, 1fr); gap: 18px; align-items: start; }
+.workspace-chat__main { min-width: 0; display: grid; gap: 18px; }
+.workspace-chat-history { min-width: 0; border: 1px solid var(--border-soft); border-radius: var(--radius-md); background: rgba(255,255,255,0.75); padding: 16px; }
+.workspace-chat-history__header { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.workspace-chat-history__header h2 { margin: 0; font-size: 15px; }
+.workspace-chat-history__header span { color: var(--fg-secondary); font-size: 11px; }
+.workspace-chat-history__empty { color: var(--fg-secondary); font-size: 13px; line-height: 1.5; }
+.workspace-chat-history__list { display: grid; gap: 5px; margin-top: 12px; }
+.workspace-chat-history__item { display: grid; width: 100%; gap: 3px; border: 1px solid transparent; border-radius: 10px; background: transparent; padding: 10px; text-align: left; cursor: pointer; }
+.workspace-chat-history__item:hover, .workspace-chat-history__item.is-active { border-color: rgba(18,99,232,0.16); background: #eaf1ff; }
+.workspace-chat-history__item:disabled { cursor: wait; opacity: 0.65; }
+.workspace-chat-history__item strong { overflow: hidden; color: var(--fg-primary); font-size: 13px; font-weight: 700; text-overflow: ellipsis; white-space: nowrap; }
+.workspace-chat-history__item span { color: var(--fg-secondary); font-size: 11px; }
+.workspace-chat-history__more { margin-top: 10px; border: 0; background: none; padding: 8px 10px; color: var(--brand-blue-deep); font-size: 13px; font-weight: 700; cursor: pointer; }
+.workspace-chat-history__more:disabled { opacity: 0.6; cursor: wait; }
+@media (max-width: 760px) {
+  .workspace-chat__layout { grid-template-columns: 1fr; }
+  .workspace-chat-history__list { grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); max-height: 240px; overflow-y: auto; }
+}

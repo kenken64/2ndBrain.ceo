@@ -3,13 +3,16 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
+    "predev": "node scripts/prepare-duckdb.cjs",
     "dev": "node server/custom-server.js",
+    "prebuild": "node scripts/prepare-duckdb.cjs",
     "build": "next build",
     "start": "node server/custom-server.js",
     "start:standalone": "node .next/standalone/server.js",
     "start:next": "next start",
     "typecheck": "tsc --noEmit",
     "test:chat": "node --test tests/chat-api.test.cjs tests/chat-credits.test.cjs",
+    "test:solana": "node --test tests/solana-rpc.test.cjs",
     "admin:load": "node scripts/load-admin-users.mjs",
     "db:migrate": "bash scripts/apply-migrations.sh",
     "schema:check": "node scripts/check-schema-drift.mjs",
@@ -17,6 +20,7 @@
     "wiki:backfill-content": "node scripts/backfill-wiki-content.mjs"
   },
   "dependencies": {
+    "@duckdb/duckdb-wasm": "1.32.0",
     "@solana/web3.js": "^1.98.4",
     "@supabase/ssr": "latest",
     "@supabase/supabase-js": "latest",
@@ -29,12 +33,12 @@
     "cytoscape-fcose": "^2.2.0",
     "lucide-react": "latest",
     "mammoth": "^1.12.0",
-    "next": "latest",
+    "next": "^16.4.3",
     "pdf-parse": "^2.4.5",
     "react": "latest",
     "react-dom": "latest",
     "ssh2": "^1.17.0",
-    "ws": "^8.20.1"
+    "ws": "^8.22.0"
   },
   "devDependencies": {
     "@electric-sql/pglite": "^0.5.12",
@@ -44,9 +48,10 @@
     "typescript": "latest"
   },
   "overrides": {
-    "postcss": "^8.5.10"
+    "postcss": "^8.5.10",
+    "@solana/web3.js": { "jayson": "5.0.0" }
   },
   "engines": {
-    "node": ">=22"
+    "node": ">=26.12.1 <27"
   }
 }
