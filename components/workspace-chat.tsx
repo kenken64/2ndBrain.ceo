@@ -246,14 +246,16 @@ export function WorkspaceChat({ userId, configured }: { userId: string; configur
       </div>
       <div className="workspace-chat__layout">
         <div className="workspace-chat__main">
-          {!configured ? <p className="workspace-chat__warning" role="status">Chat is not configured yet. Contact the administrator to enable it.</p> : null}
-          {cacheState === "unavailable" ? <p className="workspace-chat__warning" role="status">Chat history could not be saved in this browser. New conversations are available only until you leave this page; your existing saved data has not been removed.</p> : null}
+          <div className="workspace-chat__alerts">
+            {!configured ? <p className="workspace-chat__warning" role="status">Chat is not configured yet. Contact the administrator to enable it.</p> : null}
+            {cacheState === "unavailable" ? <p className="workspace-chat__warning" role="status">Chat history could not be saved in this browser. New conversations are available only until you leave this page; your existing saved data has not been removed.</p> : null}
+            {notice ? <p className="workspace-chat__notice" role="status">{notice}</p> : null}{error ? <p className="form-error" role="alert">{error}</p> : null}
+          </div>
           <div aria-label="Conversation" aria-live="polite" className="workspace-chat__thread" role="log">
             {!chat?.messages.length ? <div className="workspace-chat__empty"><span><Bot size={26} /></span><h2>What would you like to work on?</h2><p>Ask a question, explore an idea, or get help with a task.</p></div> : null}
             {chat?.messages.map((message, index) => <article className={`workspace-chat__message workspace-chat__message--${message.role}`} key={`${index}-${message.role}`}><p className="workspace-chat__sender">{message.role === "user" ? "You" : CHAT_MODELS.find((item) => item.id === message.model)?.label ?? "AI"}</p><div className="workspace-chat__content"><ReactMarkdown remarkPlugins={[remarkGfm]} rehypePlugins={[rehypeHighlight]} components={{ table: ({ children, ...props }) => <div className="workspace-chat__table-wrap"><table {...props}>{children}</table></div> }}>{message.content}</ReactMarkdown></div></article>)}
             {busy ? <p className="workspace-chat__thinking" role="status">Thinking…</p> : null}<div ref={scrollRef} />
           </div>
-          {notice ? <p className="workspace-chat__notice" role="status">{notice}</p> : null}{error ? <p className="form-error" role="alert">{error}</p> : null}
           <form className="workspace-chat__form" onSubmit={send}><textarea aria-label="Your message" disabled={!configured || busy || selecting || cacheState === "loading"} maxLength={CHAT_MAX_MESSAGE_CHARS} onChange={(event) => setPrompt(event.target.value)} onKeyDown={handleKeyDown} placeholder="Ask anything…" rows={3} value={prompt} /><div className="workspace-chat__form-footer"><select aria-label="AI model" className="workspace-chat__model-select" disabled={busy || selecting || !chat} id="workspace-chat-model" onChange={(event) => { if (chat && isChatModel(event.target.value)) setChat({ ...chat, model: event.target.value }); }} value={chat?.model ?? CHAT_MODELS[0].id}>{CHAT_MODELS.map((item) => <option key={item.id} value={item.id}>{item.label}</option>)}</select><button aria-label="Send message" className="chat-input__send" disabled={!configured || busy || selecting || cacheState === "loading" || !prompt.trim()} type="submit"><ArrowUp size={18} /></button></div></form>
           <p className="workspace-chat__privacy">Chat history is stored in this browser on this device. Clearing browser data removes it.</p>
         </div>

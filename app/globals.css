@@ -6248,23 +6248,26 @@ svg {
 
 /* Workspace chat uses the full content area; its history lives in the navigation rail. */
 .dashboard-main:has(.workspace-chat) {
-  display: flex;
-  height: 100vh;
+  display: grid;
+  height: 100dvh;
   min-height: 0;
-  flex-direction: column;
+  grid-template-rows: auto minmax(0, 1fr);
+  gap: 10px;
   overflow: hidden;
   padding: 14px 20px 16px;
 }
 .dashboard-layout:has(.workspace-chat) { height: 100dvh; min-height: 0; overflow: hidden; }
-.dashboard-main:has(.workspace-chat) .dashboard-topbar { flex: none; margin-bottom: 10px; }
-.workspace-chat { width: 100%; max-width: none; min-height: 0; flex: 1; grid-template-rows: auto minmax(0, 1fr); gap: 12px; margin: 0; }
+.dashboard-main:has(.workspace-chat) .dashboard-topbar { min-width: 0; margin: 0; }
+.workspace-chat { display: grid; width: 100%; height: 100%; max-width: none; min-height: 0; grid-template-rows: auto minmax(0, 1fr); gap: 12px; margin: 0; }
 .workspace-chat__header { flex: none; align-items: center; }
 .workspace-chat__header h1 { font-size: 25px; }
 .workspace-chat__header p:not(.workspace-status-card__eyebrow) { margin-top: 4px; font-size: 13px; }
-.workspace-chat__layout { display: flex; min-height: 0; flex: 1; }
-.workspace-chat__main { display: flex; min-height: 0; width: 100%; flex: 1; flex-direction: column; gap: 10px; }
+.workspace-chat__layout { display: flex; height: 100%; min-height: 0; }
+.workspace-chat__main { display: grid; height: 100%; min-height: 0; width: 100%; flex: 1; grid-template-rows: auto minmax(0, 1fr) auto auto; gap: 10px; }
+.workspace-chat__alerts { display: grid; gap: 8px; }
+.workspace-chat__alerts:empty { visibility: hidden; }
+.workspace-chat__alerts > * { margin-block: 0; }
 .workspace-chat__thread { min-height: 0; max-height: none; }
-.workspace-chat__main > .workspace-chat__thread { flex: 1; }
 .workspace-chat__form-footer { justify-content: flex-end; gap: 8px; }
 .workspace-chat__form textarea { min-height: 64px; max-height: 180px; }
 .workspace-chat-history-slot { min-width: 0; }
