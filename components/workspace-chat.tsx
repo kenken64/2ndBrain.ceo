@@ -3,6 +3,9 @@
 import { useCallback, useEffect, useRef, useState, type FormEvent, type KeyboardEvent } from "react";
 import { createPortal } from "react-dom";
 import { ArrowUp, Bot } from "lucide-react";
+import ReactMarkdown from "react-markdown";
+import rehypeHighlight from "rehype-highlight";
+import remarkGfm from "remark-gfm";
 import { CHAT_MAX_MESSAGE_CHARS, CHAT_MAX_MESSAGES, CHAT_MAX_TOTAL_BYTES, CHAT_MODELS, isChatModel, type ChatMessage, type ChatModelId } from "@/lib/chat-models";
 import type { ChatConversation, ChatSummary, HistoryMessage } from "@/lib/chat-history";
 
@@ -105,7 +108,10 @@ export function WorkspaceChat({ userId, configured }: { userId: string; configur
     return () => { channelRef.current = null; channel.close(); };
   }, [cacheState, limit, refreshHistory, userId]);
 
-  useEffect(() => { scrollRef.current?.scrollIntoView({ block: "nearest" }); }, [chat?.messages, busy]);
+  useEffect(() => {
+    const thread = scrollRef.current?.parentElement;
+    if (thread) thread.scrollTo({ top: thread.scrollHeight, behavior: "smooth" });
+  }, [chat?.messages, busy]);
 
   function rememberInMemory(next: ChatConversation) {
     memoryRef.current.set(next.id, next);
@@ -203,12 +209,33 @@ export function WorkspaceChat({ userId, configured }: { userId: string; configur
     }
   }
 
-  function newChat() {
+  async function newChat() {
     if (busyRef.current || selecting) return;
-    setChat(newDraft(chat?.model));
+    const draft = newDraft(chat?.model);
+    setChat(draft);
     setPrompt("");
     setError("");
     setNotice("");
+    const api = apiRef.current;
+    if (!api) return;
+    setSelecting(true);
+    try {
+      const saved = await api.saveChat(userId, draft);
+      memoryRef.current.set(saved.id, saved);
+      setChat(saved);
+      await refreshHistory(limit).catch(() => undefined);
+      channelRef.current?.postMessage({ userId });
+    } catch (reason) {
+      if (reason instanceof api.ChatHistoryConflict) {
+        setError(reason.message);
+      } else {
+        apiRef.current = null;
+        setCacheState("unavailable");
+        rememberInMemory(draft);
+      }
+    } finally {
+      setSelecting(false);
+    }
   }
   newChatRef.current = newChat;
 
@@ -223,7 +250,7 @@ export function WorkspaceChat({ userId, configured }: { userId: string; configur
           {cacheState === "unavailable" ? <p className="workspace-chat__warning" role="status">Chat history could not be saved in this browser. New conversations are available only until you leave this page; your existing saved data has not been removed.</p> : null}
           <div aria-label="Conversation" aria-live="polite" className="workspace-chat__thread" role="log">
             {!chat?.messages.length ? <div className="workspace-chat__empty"><span><Bot size={26} /></span><h2>What would you like to work on?</h2><p>Ask a question, explore an idea, or get help with a task.</p></div> : null}
-            {chat?.messages.map((message, index) => <article className={`workspace-chat__message workspace-chat__message--${message.role}`} key={`${index}-${message.role}`}><p className="workspace-chat__sender">{message.role === "user" ? "You" : CHAT_MODELS.find((item) => item.id === message.model)?.label ?? "AI"}</p><div className="workspace-chat__content">{message.content}</div></article>)}
+            {chat?.messages.map((message, index) => <article className={`workspace-chat__message workspace-chat__message--${message.role}`} key={`${index}-${message.role}`}><p className="workspace-chat__sender">{message.role === "user" ? "You" : CHAT_MODELS.find((item) => item.id === message.model)?.label ?? "AI"}</p><div className="workspace-chat__content"><ReactMarkdown remarkPlugins={[remarkGfm]} rehypePlugins={[rehypeHighlight]} components={{ table: ({ children, ...props }) => <div className="workspace-chat__table-wrap"><table {...props}>{children}</table></div> }}>{message.content}</ReactMarkdown></div></article>)}
             {busy ? <p className="workspace-chat__thinking" role="status">Thinking…</p> : null}<div ref={scrollRef} />
           </div>
           {notice ? <p className="workspace-chat__notice" role="status">{notice}</p> : null}{error ? <p className="form-error" role="alert">{error}</p> : null}

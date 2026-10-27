@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import "@xterm/xterm/css/xterm.css";
+import "highlight.js/styles/github-dark.css";
 import "./globals.css";
 
 export const metadata: Metadata = {
