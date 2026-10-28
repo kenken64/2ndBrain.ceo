@@ -145,7 +145,7 @@ export async function POST(request: Request) {
     const ownerName = context.profile.owner_name?.trim();
 
     if (!avatarName || !ownerName) {
-      return NextResponse.json({ error: "OpenClaw profile is incomplete" }, { status: 409 });
+      return NextResponse.json({ error: "AI Agent profile is incomplete" }, { status: 409 });
     }
 
     const { count: readyIngestCount, error: readyIngestCountError } = await context.supabase

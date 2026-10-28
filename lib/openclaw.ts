@@ -1872,7 +1872,7 @@ async function attachmentsFromLatestUploadedSources(input: OpenClawWikiIngestBac
 }
 
 /**
- * Generates a unique, unguessable, label-safe gyne CONSUMER_NAME for a user's OpenClaw instance. The
+ * Generates a unique, unguessable, label-safe gyne CONSUMER_NAME for a user's AI Agent instance. The
  * random suffix prevents another user from guessing (and squatting) a name in the shared registry.
  */
 export function generateConsumerName(userId: string) {
@@ -1918,14 +1918,14 @@ export async function provisionOpenClaw(input: OpenClawProvisionInput) {
 
   if (instance) {
     if (isIpAddress(instance)) {
-      restoreOutput = `Reusing existing OpenClaw host ${instance}`;
+      restoreOutput = `Reusing existing AI Agent host ${instance}`;
     } else {
       const existingLightsailInstance = await getExistingLightsailInstance(instance, region, awsEnv);
 
       if (existingLightsailInstance) {
-        restoreOutput = `Reusing existing OpenClaw instance ${instance}`;
+        restoreOutput = `Reusing existing AI Agent instance ${instance}`;
       } else {
-        restoreOutput = `Stored OpenClaw instance ${instance} was not found in Lightsail; restoring ${snapshotName}`;
+        restoreOutput = `Stored AI Agent instance ${instance} was not found in Lightsail; restoring ${snapshotName}`;
         instance = "";
       }
     }

@@ -158,7 +158,7 @@ export function SshConsolePanel() {
       terminal.open(terminalHostRef.current);
       terminalRef.current = terminal;
       fitAddonRef.current = fitAddon;
-      terminal.writeln("Opening secure OpenClaw SSH console...");
+      terminal.writeln("Opening secure AI Agent SSH console...");
 
       window.requestAnimationFrame(fitAndSendResize);
 
@@ -325,7 +325,7 @@ export function SshConsolePanel() {
               <div>
                 <span className="ssh-console__eyebrow">
                   <PlugZap size={15} strokeWidth={2} />
-                  OpenClaw secure shell
+                  AI Agent secure shell
                 </span>
                 <h2>SSH Console</h2>
                 <p>{statusText}</p>

@@ -35,10 +35,10 @@ type InstancesResponse = {
 };
 
 const ERROR_COPY: Record<string, string> = {
-  instance_not_found: "The OpenClaw instance could not be found.",
+  instance_not_found: "The AI Agent instance could not be found.",
   instance_not_ready: "The instance is not ready for Telegram pairing yet.",
-  insufficient_ai_credits: "Not enough AI credits to provision a new OpenClaw instance.",
-  instance_limit_reached: "You have reached the maximum number of OpenClaw instances.",
+  insufficient_ai_credits: "Not enough AI credits to provision a new AI Agent instance.",
+  instance_limit_reached: "You have reached the maximum number of AI Agent instances.",
   invalid_telegram_bot_token: "Enter a valid Telegram bot token.",
   invalid_telegram_pair_code: "Enter the 8-character approval code from Telegram.",
   missing_fields: "Finish onboarding (avatar and Telegram bot) before provisioning an instance.",
@@ -133,13 +133,13 @@ export function OpenClawInstancesPanel() {
         | null;
 
       if (!response.ok || !payload) {
-        throw new Error(friendlyError(payload?.error, "OpenClaw instances could not be loaded."));
+        throw new Error(friendlyError(payload?.error, "AI Agent instances could not be loaded."));
       }
 
       setInstances(payload.instances);
       setMaxInstances(payload.maxInstances);
     } catch (refreshError) {
-      setError(refreshError instanceof Error ? refreshError.message : "OpenClaw instances could not be loaded.");
+      setError(refreshError instanceof Error ? refreshError.message : "AI Agent instances could not be loaded.");
     } finally {
       setLoading(false);
     }
@@ -228,13 +228,13 @@ export function OpenClawInstancesPanel() {
         | null;
 
       if (!response.ok) {
-        throw new Error(friendlyError(payload?.error, "The OpenClaw instance could not be provisioned."));
+        throw new Error(friendlyError(payload?.error, "The AI Agent instance could not be provisioned."));
       }
 
       setIsProvisionDialogOpen(false);
       setIsTokenVisible(false);
       setMessage(
-        "OpenClaw instance provisioned. Send your Telegram bot a message like “hi” — it replies with the 8-character approval code. Approve it to finish pairing."
+        "AI Agent instance provisioned. Send your Telegram bot a message like “hi” — it replies with the 8-character approval code. Approve it to finish pairing."
       );
       await refresh();
 
@@ -247,7 +247,7 @@ export function OpenClawInstancesPanel() {
       }
     } catch (provisionError) {
       setProvisionDialogError(
-        provisionError instanceof Error ? provisionError.message : "The OpenClaw instance could not be provisioned."
+        provisionError instanceof Error ? provisionError.message : "The AI Agent instance could not be provisioned."
       );
     } finally {
       setProvisioning(false);
@@ -306,14 +306,14 @@ export function OpenClawInstancesPanel() {
       const payload = (await response.json().catch(() => null)) as { error?: string } | null;
 
       if (!response.ok) {
-        throw new Error(friendlyError(payload?.error, "The OpenClaw instance could not be removed."));
+        throw new Error(friendlyError(payload?.error, "The AI Agent instance could not be removed."));
       }
 
       setInstances((current) => current.filter((instance) => instance.id !== id));
-      setMessage("OpenClaw instance removed.");
+      setMessage("AI Agent instance removed.");
       setPendingRemoval(null);
     } catch (removeError) {
-      setError(removeError instanceof Error ? removeError.message : "The OpenClaw instance could not be removed.");
+      setError(removeError instanceof Error ? removeError.message : "The AI Agent instance could not be removed.");
     } finally {
       setRemovingId(null);
     }
@@ -335,7 +335,7 @@ export function OpenClawInstancesPanel() {
         | null;
 
       if (!response.ok) {
-        throw new Error(friendlyError(payload?.error, "The OpenClaw instance could not be re-provisioned."));
+        throw new Error(friendlyError(payload?.error, "The AI Agent instance could not be re-provisioned."));
       }
 
       await refresh();
@@ -343,7 +343,7 @@ export function OpenClawInstancesPanel() {
       if (payload?.restored) {
         // A fresh snapshot restore resets Telegram pairing, so hand off to the approval step.
         setMessage(
-          "OpenClaw instance restored from the snapshot. Send your Telegram bot a message like “hi” — it replies with the 8-character approval code. Approve it to finish pairing."
+          "AI Agent instance restored from the snapshot. Send your Telegram bot a message like “hi” — it replies with the 8-character approval code. Approve it to finish pairing."
         );
 
         if (payload.instance) {
@@ -353,13 +353,13 @@ export function OpenClawInstancesPanel() {
           });
         }
       } else {
-        setMessage("OpenClaw instance reconnected. The Lightsail host was healthy, so no restore was needed.");
+        setMessage("AI Agent instance reconnected. The Lightsail host was healthy, so no restore was needed.");
       }
     } catch (reprovisionError) {
       setError(
         reprovisionError instanceof Error
           ? reprovisionError.message
-          : "The OpenClaw instance could not be re-provisioned."
+          : "The AI Agent instance could not be re-provisioned."
       );
     } finally {
       setReprovisioningId(null);
@@ -374,15 +374,15 @@ export function OpenClawInstancesPanel() {
     <section className="workflow-marketplace-stack">
       <div className="workflow-marketplace-summary">
         <div>
-          <p className="workspace-status-card__eyebrow">OpenClaw instances</p>
+          <p className="workspace-status-card__eyebrow">AI Agent instances</p>
           <h2>
             {loading
-              ? "Loading OpenClaw instances"
+              ? "Loading AI Agent instances"
               : maxInstances > 0
                 ? `${activeCount} of ${maxInstances} in use`
                 : `${activeCount} in use`}
           </h2>
-          <p>Each instance is a private OpenClaw worker that only you can see and use in the Gyne Agent.</p>
+          <p>Each instance is a private AI Agent worker that only you can see and use in the Gyne Agent.</p>
         </div>
         <div className="workflow-card__actions">
           <button
@@ -408,7 +408,7 @@ export function OpenClawInstancesPanel() {
 
       {atLimit ? (
         <p className="workflow-card__hint">
-          You have reached your OpenClaw instance limit. Remove an instance to provision another.
+          You have reached your AI Agent instance limit. Remove an instance to provision another.
         </p>
       ) : null}
       {provisioning ? (
@@ -427,7 +427,7 @@ export function OpenClawInstancesPanel() {
         <article className="workflow-empty">
           <div>
             <p className="workspace-status-card__eyebrow">No instances yet</p>
-            <h2>Provision your first OpenClaw instance</h2>
+            <h2>Provision your first AI Agent instance</h2>
             <p>Provisioned instances appear in the Gyne Agent so you can route tasks to them.</p>
           </div>
         </article>
@@ -448,7 +448,7 @@ export function OpenClawInstancesPanel() {
                 <div className="workflow-card__header">
                   <div>
                     <span className="workspace-status-card__eyebrow">
-                      <Cpu size={14} strokeWidth={1.8} /> OpenClaw
+                      <Cpu size={14} strokeWidth={1.8} /> AI Agent
                     </span>
                     <h2>{instance.label || instance.consumerName}</h2>
                   </div>
@@ -547,7 +547,7 @@ export function OpenClawInstancesPanel() {
             <div className="settings-dialog__icon" aria-hidden="true">
               <Bot size={28} strokeWidth={1.9} />
             </div>
-            <p className="workspace-status-card__eyebrow">OpenClaw instance</p>
+            <p className="workspace-status-card__eyebrow">AI Agent instance</p>
             <h2 id="provision-instance-dialog-title">Provision a new instance</h2>
             <p>
               Each instance pairs with its own Telegram bot. Create a bot with BotFather and paste its token here. After provisioning, approve the 8-character pairing code from the bot.
@@ -685,7 +685,7 @@ export function OpenClawInstancesPanel() {
                 >
                   <div className="submit-progress__meta">
                     <strong>Approving Telegram</strong>
-                    <span>Pairing the bot with the OpenClaw instance.</span>
+                    <span>Pairing the bot with the AI Agent instance.</span>
                   </div>
                   <div className="submit-progress__track">
                     <span className="submit-progress__bar" />
@@ -711,7 +711,7 @@ export function OpenClawInstancesPanel() {
         busyLabel="Removing..."
         closeLabel="Close remove instance dialog"
         confirmLabel="Remove instance"
-        description="This tears down the OpenClaw instance and removes it from the Gyne Agent."
+        description="This tears down the AI Agent instance and removes it from the Gyne Agent."
         error={error}
         eyebrow="Danger zone"
         onCancel={() => setPendingRemoval(null)}

@@ -72,7 +72,7 @@ export async function POST(request: NextRequest) {
     );
 
     response = NextResponse.json({
-      message: "OpenClaw received the Google Workspace credentials.",
+      message: "AI Agent received the Google Workspace credentials.",
       ok: true,
       status: "connected"
     });

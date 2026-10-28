@@ -27,7 +27,7 @@ const integrations: Integration[] = [
     id: "google-workspace",
     label: "Google Workspace",
     name: "Connect Google Workspace",
-    note: "Installs GWS OAuth credentials onto the current OpenClaw instance."
+    note: "Installs GWS OAuth credentials onto the current AI Agent instance."
   },
   {
     copy: "Prepare Facebook Ads access for campaign reporting, lead intake, and audience performance notes.",
@@ -203,7 +203,7 @@ export function SettingsIntegrations({
         googleWorkspaceAuthState.current = null;
         googleWorkspaceCompletionState.current = null;
         setGoogleWorkspaceAuthPhase("ready");
-        setGoogleWorkspaceAuthMessage(data.message || "Google Workspace OAuth is installed on OpenClaw.");
+        setGoogleWorkspaceAuthMessage(data.message || "Google Workspace OAuth is installed on AI Agent.");
         return;
       }
 
@@ -286,7 +286,7 @@ export function SettingsIntegrations({
       googleWorkspaceAuthState.current = data.state?.trim() || null;
       googleWorkspaceCompletionState.current = null;
       setGoogleWorkspaceAuthPhase("waiting");
-      setGoogleWorkspaceAuthMessage("Google login opened. This page will confirm when OpenClaw receives credentials.");
+      setGoogleWorkspaceAuthMessage("Google login opened. This page will confirm when AI Agent receives credentials.");
 
       if (loginWindow) {
         loginWindow.location.href = nextUrl;
@@ -313,7 +313,7 @@ export function SettingsIntegrations({
 
     try {
       setGoogleWorkspaceAuthPhase("installing");
-      setGoogleWorkspaceAuthMessage("Google authorized. Installing credentials on OpenClaw...");
+      setGoogleWorkspaceAuthMessage("Google authorized. Installing credentials on AI Agent...");
 
       const data = await postGoogleWorkspaceAuth("/api/openclaw/gws-auth/complete", {
         code,
@@ -324,7 +324,7 @@ export function SettingsIntegrations({
       googleWorkspaceCompletionState.current = null;
       setIntegrationStatus("Google Workspace connected.");
       setGoogleWorkspaceAuthPhase("ready");
-      setGoogleWorkspaceAuthMessage(data.message || "OpenClaw received the Google Workspace credentials.");
+      setGoogleWorkspaceAuthMessage(data.message || "AI Agent received the Google Workspace credentials.");
     } catch (error) {
       googleWorkspaceCompletionState.current = null;
       setGoogleWorkspaceAuthPhase("failed");

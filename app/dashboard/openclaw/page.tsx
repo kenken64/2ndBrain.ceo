@@ -94,7 +94,7 @@ export default async function DashboardOpenClawPage() {
         />
         <main className="dashboard-main">
           <div className="dashboard-topbar">
-            <AnnouncementPill>OpenClaw workspace</AnnouncementPill>
+            <AnnouncementPill>AI Agent workspace</AnnouncementPill>
             <div className="dashboard-topbar__actions">
               <SshConsolePanel />
               <OpenClawGatewayButton initialGatewayUrl={gatewayUrl} />
@@ -103,7 +103,7 @@ export default async function DashboardOpenClawPage() {
           <section className="dashboard-workbench">
             <WikiEditor
               apiBase="/api/openclaw/markdown"
-              eyebrow="OpenClaw Settings"
+              eyebrow="AI Agent Settings"
               graphHref={null}
               initialError={initialError}
               initialPage={initialPage}

@@ -150,7 +150,7 @@ export function AvaturnStep({ errorMessage, next }: AvaturnStepProps) {
       </div>
       <p className="avaturn-helper">
         Complete the Avaturn flow and export the AI Assistant as GLB. We will capture the exported
-        AI Assistant automatically and save it for OpenClaw.
+        AI Assistant automatically and save it for AI Agent.
       </p>
       <form
         action="/api/onboarding"
@@ -174,7 +174,7 @@ export function AvaturnStep({ errorMessage, next }: AvaturnStepProps) {
           >
             <div className="submit-progress__meta">
               <strong>Saving AI Assistant</strong>
-              <span>Export received. Downloading the GLB and storing it for OpenClaw.</span>
+              <span>Export received. Downloading the GLB and storing it for AI Agent.</span>
             </div>
             <div className="submit-progress__track">
               <span className="submit-progress__bar" />

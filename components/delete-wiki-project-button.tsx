@@ -66,7 +66,7 @@ export function DeleteWikiProjectButton({
         confirmWord="DELETE"
         description={
           <p>
-            This deletes <strong>{title}</strong> from Supabase and removes its OpenClaw workspace directory.
+            This deletes <strong>{title}</strong> from Supabase and removes its AI Agent workspace directory.
           </p>
         }
         error={error}
@@ -78,7 +78,7 @@ export function DeleteWikiProjectButton({
         onConfirm={() => void handleDelete()}
         open={isDialogOpen}
         title="Delete this Nth Brain?"
-        warning={<>OpenClaw folder: {projectSlug ?? "No folder attached"}. This action cannot be undone.</>}
+        warning={<>AI Agent folder: {projectSlug ?? "No folder attached"}. This action cannot be undone.</>}
       />
     </>
   );

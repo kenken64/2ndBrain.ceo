@@ -1,5 +1,5 @@
 /**
- * How long an account may sit at zero AI credits before its OpenClaw instance
+ * How long an account may sit at zero AI credits before its AI Agent instance
  * is reclaimed.
  *
  * Kept out of lib/instance-reaper.ts (which is server-only) so the warning

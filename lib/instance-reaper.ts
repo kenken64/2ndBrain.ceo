@@ -25,7 +25,7 @@ export type ReapOutcome = {
 };
 
 /**
- * Clears the OpenClaw fields only. Enrolment (owner name, avatar, Telegram
+ * Clears the AI Agent fields only. Enrolment (owner name, avatar, Telegram
  * token) is deliberately preserved: reaping reclaims the VM from an unfunded
  * account, it does not undo who the person is. Once they add credits they can
  * provision again without redoing onboarding.
@@ -66,7 +66,7 @@ async function adminUserIds(adminSupabase: AdminSupabase) {
 }
 
 /**
- * Deletes OpenClaw instances belonging to accounts that have sat at zero AI
+ * Deletes AI Agent instances belonging to accounts that have sat at zero AI
  * credits for longer than the grace window.
  *
  * A Lightsail instance bills its plan whether or not it is running or used, and

@@ -176,7 +176,7 @@ export function ProvisionForm({ errorMessage, next, startedAt, status }: Provisi
       <input name="next" type="hidden" value={next} />
       <div className="provision-summary">
         <strong>Fast Cloud provisioning</strong>
-        <span>Prepares the OpenClaw environment with Telegram, identity, and Remotion settings in one streamlined provisioning flow.</span>
+        <span>Prepares the AI Agent environment with Telegram, identity, and Remotion settings in one streamlined provisioning flow.</span>
       </div>
       {errorMessage ? <p className="form-error">{errorMessage}</p> : null}
       {submitError ? <p className="form-error">{submitError}</p> : null}
@@ -187,7 +187,7 @@ export function ProvisionForm({ errorMessage, next, startedAt, status }: Provisi
       ) : null}
       {showPending ? (
         <div aria-live="polite" className="provision-pending">
-          <span>Fast provisioning OpenClaw. Preparing the Cloud environment and gateway.</span>
+          <span>Fast provisioning AI Agent. Preparing the Cloud environment and gateway.</span>
           <div aria-live="off" className="provision-timer">
             <div className="provision-timer__meta">
               <strong>{remainingSeconds > 0 ? `${formatTimer(remainingSeconds)} target remaining` : `${formatTimer(elapsedSeconds)} elapsed`}</strong>
@@ -214,7 +214,7 @@ export function ProvisionForm({ errorMessage, next, startedAt, status }: Provisi
         </div>
       ) : null}
       <button className="btn-primary onboarding-submit" disabled={isDisabled} type="submit">
-        {isSubmitting || isRunning ? "Provisioning..." : "Fast Provision OpenClaw"}{" "}
+        {isSubmitting || isRunning ? "Provisioning..." : "Fast Provision AI Agent"}{" "}
         <span className="arrow">-&gt;</span>
       </button>
     </form>

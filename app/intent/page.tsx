@@ -85,12 +85,12 @@ export default async function IntentPage({ searchParams }: IntentPageProps) {
           <p className="wizard-kicker">Nth Brain intent</p>
           <h1 className="onboarding-title">Describe the Nth Brain you want to build</h1>
           <p className="onboarding-copy">
-            This prompt seeds the OpenClaw Nth Brain project. The generated markdown will appear in the Nth Brain dashboard after creation.
+            This prompt seeds the AI Agent Nth Brain project. The generated markdown will appear in the Nth Brain dashboard after creation.
           </p>
           <ChatInput
             className="intent-chat"
             defaultPrompt={prompt}
-            pendingCopy="Generating the OpenClaw markdown Nth Brain, project scaffold, and graph-ready page structure."
+            pendingCopy="Generating the AI Agent markdown Nth Brain, project scaffold, and graph-ready page structure."
             pendingTitle="Generating Nth Brain"
             placeholder="Describe the knowledge base, project, or operating system you want the Nth Brain to maintain..."
             returnTo="/dashboard/wiki"

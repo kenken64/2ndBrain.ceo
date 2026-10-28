@@ -12,13 +12,13 @@ export function AgentSelectionForm({ errorMessage, next }: AgentSelectionFormPro
       <div className="agent-select-grid" role="list">
         <button className="agent-option agent-option--active" name="provisionTarget" type="submit" value="openclaw">
           <span className="agent-option__media">
-            <img alt="OpenClaw logo" src="/agent-logos/openclaw.png" />
+            <img alt="AI Agent logo" src="/agent-logos/openclaw.png" />
           </span>
           <span className="agent-option__body">
-            <strong>OpenClaw</strong>
-            <span>Provision the OpenClaw workspace in the Cloud.</span>
+            <strong>AI Agent</strong>
+            <span>Provision the AI Agent workspace in the Cloud.</span>
           </span>
-          <span className="agent-option__cta">Select OpenClaw -&gt;</span>
+          <span className="agent-option__cta">Select AI Agent -&gt;</span>
         </button>
         <button aria-disabled="true" className="agent-option agent-option--disabled" disabled type="button">
           <span className="agent-option__badge">Coming soon</span>

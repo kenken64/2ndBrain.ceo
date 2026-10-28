@@ -73,7 +73,7 @@ export async function PATCH(request: Request) {
   }
 
   if (!hasSupabaseServiceRoleEnv()) {
-    return NextResponse.json({ error: "SUPABASE_SERVICE_ROLE_KEY is required for OpenClaw pause controls" }, { status: 503 });
+    return NextResponse.json({ error: "SUPABASE_SERVICE_ROLE_KEY is required for AI Agent pause controls" }, { status: 503 });
   }
 
   const payload = (await request.json().catch(() => null)) as { paused?: unknown } | null;
@@ -106,7 +106,7 @@ export async function PATCH(request: Request) {
   const openclawInstance = typeof profile.openclaw_instance === "string" ? profile.openclaw_instance.trim() : "";
 
   if (!openclawInstance) {
-    return NextResponse.json({ error: "OpenClaw instance is not available." }, { status: 409 });
+    return NextResponse.json({ error: "AI Agent instance is not available." }, { status: 409 });
   }
 
   if (Boolean(profile.openclaw_tokens_paused) === payload.paused) {

@@ -77,7 +77,7 @@ export const RECORD = {
   treeInsert: "incident-runbook.md",
   consoleRun: [
     "$ clawmacdo ls-restore-fast",
-    "[ok] snapshot found: openclaw-base",
+    "[ok] snapshot found: ai-agent-base",
     "[ok] runtime restored in cloud",
     "[..] telegram pairing: waiting for approval"
   ],

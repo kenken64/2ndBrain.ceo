@@ -124,7 +124,7 @@ export async function PATCH(request: Request) {
 
     if (!openClawInstance) {
       return NextResponse.json(
-        { error: "OpenClaw instance is required before updating the Gyne consumer profile." },
+        { error: "AI Agent instance is required before updating the Gyne consumer profile." },
         { status: 409 }
       );
     }
@@ -168,7 +168,7 @@ export async function PATCH(request: Request) {
           const message = error instanceof Error ? error.message : "gws_logout_failed";
 
           return NextResponse.json(
-            { error: `Google Workspace could not be disconnected from OpenClaw: ${outputSummary(message)}` },
+            { error: `Google Workspace could not be disconnected from AI Agent: ${outputSummary(message)}` },
             { status: 502 }
           );
         }

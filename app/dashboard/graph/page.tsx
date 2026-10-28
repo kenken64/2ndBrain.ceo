@@ -198,7 +198,7 @@ export default async function DashboardGraphPage({ searchParams }: GraphPageProp
                           <dd>{project.id}</dd>
                         </div>
                         <div>
-                          <dt>OpenClaw folder</dt>
+                          <dt>AI Agent folder</dt>
                           <dd>{project.openclaw_project_slug ?? "Pending"}</dd>
                         </div>
                       </dl>

@@ -23,9 +23,9 @@ function secretMatches(provided: string) {
 }
 
 /**
- * Sweeps unfunded OpenClaw instances. Driven by the in-process scheduler in
+ * Sweeps unfunded AI Agent instances. Driven by the in-process scheduler in
  * server/instance-reaper.js; the logic lives here so it can reuse the
- * TypeScript OpenClaw and Supabase helpers rather than duplicating clawmacdo
+ * TypeScript AI Agent and Supabase helpers rather than duplicating clawmacdo
  * and AWS env handling in the CommonJS server.
  *
  * Guarded by a shared secret because the route is reachable like any other.

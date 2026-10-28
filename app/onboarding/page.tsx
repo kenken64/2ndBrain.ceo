@@ -41,23 +41,23 @@ const errors: Record<string, string> = {
   avatar_upload_too_large: "The uploaded AI Assistant is too large to store locally.",
   invalid_avatar_url: "Avaturn did not return a valid secure GLB URL yet.",
   missing_avatar_storage_root: "AI Assistant storage is not configured on the server.",
-  insufficient_ai_credits: "You need AI credits before provisioning OpenClaw. Ask an admin to grant credits, then try again.",
-  invalid_provision_target: "Select OpenClaw to continue. HermesAgent is coming soon.",
+  insufficient_ai_credits: "You need AI credits before provisioning AI Agent. Ask an admin to grant credits, then try again.",
+  invalid_provision_target: "Select AI Agent to continue. HermesAgent is coming soon.",
   invalid_telegram_pair_code: "Enter the 8-character approval code from Telegram.",
   missing_avatar: "Create and export your Avaturn AI Assistant to continue.",
   missing_fields: "Add the required field to continue.",
   missing_aws_access_key_id: "Cloud access key is not configured on the server.",
   missing_aws_region: "Cloud region is not configured on the server.",
   missing_aws_secret_access_key: "Cloud secret access key is not configured on the server.",
-  missing_openclaw_lightsail_snapshot_name: "OpenClaw provisioning template is not configured.",
+  missing_openclaw_lightsail_snapshot_name: "AI Agent provisioning template is not configured.",
   missing_openai_api_key: "OpenAI API key is not configured on the server.",
-  openclaw_instance_not_found: "OpenClaw provisioning completed but the instance name could not be detected.",
-  openclaw_provision_failed: "OpenClaw provisioning failed. Check AI credits first, then Cloud provisioning and clawmacdo output.",
-  openclaw_provision_running: "OpenClaw provisioning is already running. Please wait for the current request to finish.",
-  openclaw_snapshot_not_found: "The configured OpenClaw provisioning template could not be used. Check the Cloud region and server configuration.",
-  openclaw_snapshot_response_failed: "OpenClaw provisioning returned an unexpected response. Check the clawmacdo output and package version.",
+  openclaw_instance_not_found: "AI Agent provisioning completed but the instance name could not be detected.",
+  openclaw_provision_failed: "AI Agent provisioning failed. Check AI credits first, then Cloud provisioning and clawmacdo output.",
+  openclaw_provision_running: "AI Agent provisioning is already running. Please wait for the current request to finish.",
+  openclaw_snapshot_not_found: "The configured AI Agent provisioning template could not be used. Check the Cloud region and server configuration.",
+  openclaw_snapshot_response_failed: "AI Agent provisioning returned an unexpected response. Check the clawmacdo output and package version.",
   openclaw_telegram_pair_failed: "Telegram approval failed. Check the code from Telegram and try again.",
-  openclaw_telegram_pair_required: "Provision OpenClaw before approving the Telegram pairing code.",
+  openclaw_telegram_pair_required: "Provision AI Agent before approving the Telegram pairing code.",
   save_failed: "Profile setup could not be saved. Check that the onboarding migrations have run."
 };
 
@@ -72,19 +72,19 @@ const stepMeta: Record<OnboardingStep, { index: number; kicker: string; title: s
     index: 1,
     kicker: "Step 2 of 4",
     title: "Create your Avaturn AI Assistant",
-    copy: "Build your AI Assistant, export the GLB, and we will save it locally for the OpenClaw upload."
+    copy: "Build your AI Assistant, export the GLB, and we will save it locally for the AI Agent upload."
   },
   agent: {
     index: 2,
     kicker: "Step 3 of 5",
     title: "Choose your agent",
-    copy: "Pick the workspace agent you want to provision. OpenClaw is available now; HermesAgent is queued for a later rollout."
+    copy: "Pick the workspace agent you want to provision. AI Agent is available now; HermesAgent is queued for a later rollout."
   },
   provision: {
     index: 3,
     kicker: "Step 4 of 5",
-    title: "Provision OpenClaw in the Cloud",
-    copy: "Provision the Cloud environment quickly and prepare Telegram, OpenClaw identity, and Remotion environment settings."
+    title: "Provision AI Agent in the Cloud",
+    copy: "Provision the Cloud environment quickly and prepare Telegram, AI Agent identity, and Remotion environment settings."
   },
   approval: {
     index: 4,

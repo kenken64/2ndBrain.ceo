@@ -63,7 +63,7 @@ export function DestroyWorkspaceButton({ variant = "sidebar" }: DestroyWorkspace
         busyLabel="Destroying..."
         closeLabel="Close destroy workspace dialog"
         confirmLabel="Destroy and reset"
-        description="This will destroy the current Cloud OpenClaw instance, clear generated Nth Brain project history for this account, reset onboarding, and log you out."
+        description="This will destroy the current Cloud AI Agent instance, clear generated Nth Brain project history for this account, reset onboarding, and log you out."
         error={error}
         eyebrow="Danger zone"
         onCancel={() => setIsDialogOpen(false)}

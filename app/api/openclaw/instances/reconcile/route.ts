@@ -95,7 +95,7 @@ export async function POST() {
 
   if (!hasSupabaseServiceRoleEnv()) {
     return NextResponse.json(
-      { error: "SUPABASE_SERVICE_ROLE_KEY is required for OpenClaw instances" },
+      { error: "SUPABASE_SERVICE_ROLE_KEY is required for AI Agent instances" },
       { status: 503 }
     );
   }

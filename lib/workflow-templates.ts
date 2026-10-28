@@ -21,14 +21,14 @@ export const WORKFLOW_STORAGE_KEY = "2ndbrain.workflowTemplates";
 export const WORKFLOW_TEMPLATES: WorkflowTemplate[] = [
   {
     category: "Clinical Operations",
-    description: "Install the Gyne Agent Redis task pipeline with Kanban task publishing, OpenClaw workers, and optional Telegram updates.",
+    description: "Install the Gyne Agent Redis task pipeline with Kanban task publishing, AI Agent workers, and optional Telegram updates.",
     id: "gyne-agent",
     itemType: "agent-app",
     launchLabel: "Launch",
     priceTokens: WORKFLOW_TOOL_PRICE_TOKENS,
     repoUrl: "https://github.com/kenken64/gyne-agent",
     sourceLabel: "GitHub",
-    steps: ["Open Kanban tasks", "Route work to Redis Streams", "Run OpenClaw worker responses"],
+    steps: ["Open Kanban tasks", "Route work to Redis Streams", "Run AI Agent worker responses"],
     title: "Gyne Agent"
   },
   {

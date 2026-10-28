@@ -46,7 +46,7 @@ type FailedIngestJob = {
 const WIKI_PROJECTS_PAGE_SIZE = 6;
 const WIKI_GENERATION_STALE_AFTER_MS = 60 * 60 * 1000;
 const WIKI_GENERATION_STALE_MESSAGE =
-  "Generation timed out before OpenClaw returned markdown. This stale job was closed automatically; create a new Nth Brain or delete this one.";
+  "Generation timed out before AI Agent returned markdown. This stale job was closed automatically; create a new Nth Brain or delete this one.";
 
 function formatProjectDate(value: string) {
   return new Intl.DateTimeFormat("en", {
@@ -242,7 +242,7 @@ export default async function DashboardWikiPage({ searchParams }: WikiPageProps)
                 ) : null}
                 <ChatInput
                   className="wiki-empty-panel__chat"
-                  pendingCopy="Generating the OpenClaw markdown Nth Brain, project scaffold, and graph-ready page structure."
+                  pendingCopy="Generating the AI Agent markdown Nth Brain, project scaffold, and graph-ready page structure."
                   pendingTitle="Generating Nth Brain"
                   placeholder="Describe the knowledge base, project, or operating system you want the Nth Brain to maintain..."
                   returnTo="/dashboard/wiki"
@@ -306,7 +306,7 @@ export default async function DashboardWikiPage({ searchParams }: WikiPageProps)
                               <dd>{project.id}</dd>
                             </div>
                             <div>
-                              <dt>OpenClaw folder</dt>
+                              <dt>AI Agent folder</dt>
                               <dd>{project.openclaw_project_slug ?? "Pending"}</dd>
                             </div>
                           </dl>

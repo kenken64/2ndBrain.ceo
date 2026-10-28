@@ -97,7 +97,7 @@ export default async function DashboardPage() {
           <section className="dashboard-center">
             <h1 className="dashboard-heading">{firstName}&apos;s AI CUBER workspace</h1>
             <p className="dashboard-copy">
-              Launch OpenClaw, review the Remotion AI Assistant setup, and decide how the Nth Brain
+              Launch AI Agent, review the Remotion AI Assistant setup, and decide how the Nth Brain
               should be delivered from one dashboard shell.
             </p>
             <div className="workspace-status-grid">
