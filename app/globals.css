@@ -38,7 +38,7 @@
   --shadow-lg: 0 12px 40px rgba(15, 23, 42, 0.09);
   --shadow-xl: 0 24px 80px rgba(15, 23, 42, 0.11);
 
-  --font-sans: "Manrope", "Avenir Next", "Plus Jakarta Sans", system-ui, sans-serif;
+  --font-sans: var(--font-manrope, "Manrope"), "Avenir Next", "Plus Jakarta Sans", system-ui, sans-serif;
   --font-mono: "JetBrains Mono", "IBM Plex Mono", ui-monospace, monospace;
 
   --radius-xs: 6px;

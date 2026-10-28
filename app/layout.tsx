@@ -1,7 +1,16 @@
 import type { Metadata, Viewport } from "next";
+import { Manrope } from "next/font/google";
 import "@xterm/xterm/css/xterm.css";
 import "highlight.js/styles/github-dark.css";
 import "./globals.css";
+
+// Loaded once here so every page renders in the brand face; --font-sans reads this variable.
+const manrope = Manrope({
+  display: "swap",
+  subsets: ["latin"],
+  variable: "--font-manrope",
+  weight: ["400", "500", "600", "700", "800"]
+});
 
 export const metadata: Metadata = {
   title: {
@@ -27,7 +36,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en">
+    <html className={manrope.variable} lang="en">
       <body>{children}</body>
     </html>
   );
