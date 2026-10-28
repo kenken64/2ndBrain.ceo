@@ -442,8 +442,8 @@ export function SettingsIntegrations({
       ) : null}
       {integrationError ? <p className="form-error" role="alert">{integrationError}</p> : null}
 
-      <ZoomConnection />
       <div className="settings-integrations__grid">
+        <ZoomConnection />
         {integrations.map((integration) => {
           const Icon = integration.icon;
           const isEnabled = Boolean(enabled[integration.id]);

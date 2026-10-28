@@ -2995,6 +2995,71 @@ svg {
   margin-top: 4px;
 }
 
+.settings-zoom-card {
+  grid-template-columns: auto minmax(0, 1fr);
+}
+
+.settings-zoom-card .settings-toggle-card__body {
+  min-width: 0;
+}
+
+.settings-zoom-card__status {
+  max-width: 100%;
+  overflow-wrap: anywhere;
+}
+
+.settings-zoom-card__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 14px;
+}
+
+.settings-zoom-card__actions form {
+  margin: 0;
+}
+
+.settings-zoom-card__admin {
+  margin-top: 16px;
+  border-top: 1px solid var(--border-soft);
+  padding-top: 14px;
+}
+
+.settings-zoom-card__admin summary {
+  color: var(--fg-primary);
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 800;
+  line-height: 1.5;
+}
+
+.settings-zoom-card__admin code {
+  overflow-wrap: anywhere;
+  font-size: 12px;
+}
+
+.settings-zoom-card__form {
+  display: grid;
+  gap: 12px;
+  margin-top: 14px;
+}
+
+.settings-zoom-card__form button {
+  justify-self: start;
+}
+
+.settings-zoom-card__checkbox {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--fg-secondary);
+  font-size: 13px;
+}
+
+.settings-zoom-card p.form-error {
+  color: #b91c1c;
+}
+
 .destroy-workspace--panel {
   gap: 8px;
 }
