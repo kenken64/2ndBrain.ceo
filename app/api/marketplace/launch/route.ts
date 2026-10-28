@@ -26,6 +26,7 @@ type InstallRow = {
 
 type LaunchClaims = {
   email?: string;
+  zoom_connection_id?: string;
   exp: number;
   iat: number;
   install_id: string;
@@ -239,8 +240,14 @@ export async function POST(request: Request) {
 
   const issuedAt = Math.floor(Date.now() / 1000);
   const expiresAt = issuedAt + launchTokenTtlSeconds();
+  let zoomConnectionId: string | undefined;
+  if (launchConfig.toolId === "meeting-minutes") {
+    const { data: zoom } = await adminSupabase.from("zoom_accounts").select("id,token_cipher").eq("user_id", auth.userId).maybeSingle();
+    if (zoom?.token_cipher) zoomConnectionId = zoom.id;
+  }
   const token = signLaunchToken(secret, {
     email: auth.email || profile.email || undefined,
+    ...(zoomConnectionId ? { zoom_connection_id: zoomConnectionId } : {}),
     exp: expiresAt,
     iat: issuedAt,
     install_id: install.id,

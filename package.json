@@ -19,7 +19,8 @@
     "schema:check": "node scripts/check-schema-drift.mjs",
     "wiki:backfill": "node scripts/backfill-wiki-graph.mjs",
     "wiki:backfill-content": "node scripts/backfill-wiki-content.mjs",
-    "test:email-auth": "node --test tests/email-auth.test.cjs"
+    "test:email-auth": "node --test tests/email-auth.test.cjs",
+    "test:zoom": "node --test tests/zoom-integration.test.cjs"
   },
   "dependencies": {
     "@duckdb/duckdb-wasm": "1.32.0",

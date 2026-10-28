@@ -1,5 +1,7 @@
 "use client";
 
+import { ZoomConnection } from "@/components/zoom-connection";
+
 import { useEffect, useMemo, useState } from "react";
 import { AlertTriangle, Check, ChevronLeft, ChevronRight, Coins, ExternalLink, Plus, RefreshCw, Search } from "lucide-react";
 import { WORKFLOW_TEMPLATES } from "@/lib/workflow-templates";
@@ -198,6 +200,7 @@ export function WorkflowMarketplace() {
 
   return (
     <div className="workflow-marketplace-stack">
+      <ZoomConnection />
       <div className="workflow-marketplace-summary">
         <div>
           <p className="workspace-status-card__eyebrow">AI credits</p>

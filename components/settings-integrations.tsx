@@ -1,5 +1,6 @@
 "use client";
 
+import { ZoomConnection } from "@/components/zoom-connection";
 import { navigateToPage } from "@/lib/page-navigation";
 import { useEffect, useRef, useState } from "react";
 import {
@@ -441,6 +442,7 @@ export function SettingsIntegrations({
       ) : null}
       {integrationError ? <p className="form-error" role="alert">{integrationError}</p> : null}
 
+      <ZoomConnection />
       <div className="settings-integrations__grid">
         {integrations.map((integration) => {
           const Icon = integration.icon;

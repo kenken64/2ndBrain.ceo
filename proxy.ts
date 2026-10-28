@@ -74,7 +74,7 @@ function isOpenClawAiUsagePath(pathname: string) {
 }
 
 function isOAuthCodeCallbackPath(pathname: string) {
-  return pathname === "/auth/callback" || pathname === "/api/openclaw/gws-auth/callback";
+  return pathname === "/auth/callback" || pathname === "/api/openclaw/gws-auth/callback" || pathname === "/api/integrations/zoom/callback";
 }
 
 function getAvailableAiCredits(profile: {

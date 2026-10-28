@@ -29,3 +29,7 @@ secrets/
 
 # supabase dumps contain user data - never commit
 backup-restore/*/
+
+# Encrypted integration master keys are volume-local.
+storage/integrations/
+zoom-token.key*

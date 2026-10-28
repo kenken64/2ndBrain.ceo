@@ -1,7 +1,7 @@
+import { checkMarketplaceLaunchAccess } from "@/lib/marketplace-session-access";
 import { NextResponse } from "next/server";
 import { hasSupabaseEnv } from "@/lib/env";
-import { createAdminClient, hasSupabaseServiceRoleEnv } from "@/lib/supabase/admin";
-import { workflowLaunchConfigByToolId } from "@/lib/workflow-launch";
+import { hasSupabaseServiceRoleEnv } from "@/lib/supabase/admin";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -11,18 +11,6 @@ type VerifyPayload = {
   issuedAt?: unknown;
   toolId?: unknown;
   userId?: unknown;
-};
-
-type ProfileRow = {
-  admin_deleted_at: string | null;
-  admin_disabled: boolean | null;
-  marketplace_launch_revoked_at: string | null;
-};
-
-type InstallRow = {
-  id: string;
-  item_id: string;
-  status: string;
 };
 
 function cleanEnvValue(value: string | undefined) {
@@ -48,20 +36,6 @@ function unauthorized(message = "Invalid marketplace launch verification secret.
 
 function inactive(message: string, status = 403) {
   return NextResponse.json({ active: false, error: message }, { status });
-}
-
-function revokedAtSeconds(value: string | null) {
-  if (!value) {
-    return null;
-  }
-
-  const timestampMs = Date.parse(value);
-
-  if (!Number.isFinite(timestampMs)) {
-    return null;
-  }
-
-  return Math.floor(timestampMs / 1000);
 }
 
 export async function POST(request: Request) {
@@ -99,59 +73,8 @@ export async function POST(request: Request) {
     return inactive("Invalid marketplace launch session payload.", 400);
   }
 
-  const launchConfig = workflowLaunchConfigByToolId(toolId);
-
-  if (!launchConfig) {
-    return inactive("Unknown workflow tool.", 400);
-  }
-
-  const adminSupabase = createAdminClient();
-  const { data: profileRow, error: profileError } = await adminSupabase
-    .from("profiles")
-    .select("admin_deleted_at,admin_disabled,marketplace_launch_revoked_at")
-    .eq("id", userId)
-    .maybeSingle();
-
-  if (profileError) {
-    return NextResponse.json({ active: false, error: profileError.message }, { status: 500 });
-  }
-
-  if (!profileRow) {
-    return inactive("Profile was not found.", 404);
-  }
-
-  const profile = profileRow as ProfileRow;
-
-  if (profile.admin_disabled || profile.admin_deleted_at) {
-    return inactive("Account access is disabled.");
-  }
-
-  const revokedSeconds = revokedAtSeconds(profile.marketplace_launch_revoked_at);
-
-  if (revokedSeconds !== null && Math.trunc(issuedAt) <= revokedSeconds) {
-    return inactive("AI CUBER session has been logged out.");
-  }
-
-  const { data: installRow, error: installError } = await adminSupabase
-    .from("marketplace_installs")
-    .select("id,item_id,status")
-    .eq("id", installId)
-    .eq("user_id", userId)
-    .maybeSingle();
-
-  if (installError) {
-    return NextResponse.json({ active: false, error: installError.message }, { status: 500 });
-  }
-
-  if (!installRow) {
-    return inactive("Installed workflow tool was not found.", 404);
-  }
-
-  const install = installRow as InstallRow;
-
-  if (install.item_id !== launchConfig.itemId || install.status !== "installed") {
-    return inactive("Workflow tool is not active.");
-  }
+  const access = await checkMarketplaceLaunchAccess({ userId, installId, toolId, issuedAt });
+  if (!access.active) return inactive(access.error, access.status);
 
   return NextResponse.json(
     {

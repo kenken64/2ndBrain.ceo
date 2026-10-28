@@ -55,7 +55,7 @@ RUN apt-get update \
   && rm -rf /var/lib/apt/lists/* \
   && groupadd --system --gid 1001 nodejs \
   && useradd --system --uid 1001 --gid nodejs --home-dir /app --shell /usr/sbin/nologin nextjs \
-  && mkdir -p /app/.cache /app/.clawmacdo /app/.config /app/.openclaw /app/storage/avatars
+  && mkdir -p /app/.cache /app/.clawmacdo /app/.config /app/.openclaw /app/storage/avatars /app/storage/integrations
 
 COPY --from=builder --chown=nextjs:nodejs /app/public ./public
 COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./

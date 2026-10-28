@@ -457,3 +457,7 @@ If provisioning logs show `Permission denied (os error 13)` immediately after st
 If provisioning fails, check Railway logs for sanitized `[clawmacdo]` events, AWS variables, snapshot name, region, and whether the `clawmacdo` version in Railway matches `package-lock.json`.
 
 If logs show `spawn ... EAGAIN`, `Resource temporarily unavailable`, or a Tokio panic saying the OS cannot spawn a worker thread, the container has hit its process/thread limit. Keep `CLAWMACDO_MAX_CONCURRENCY=1`, `CLAWMACDO_TOKIO_WORKER_THREADS=1`, and `CLAWMACDO_RAYON_NUM_THREADS=1`; the app will queue `clawmacdo` calls and retry transient spawn failures.
+
+## Zoom marketplace connection
+
+Users connect Zoom in Marketplace or Settings → Integrations while retaining their existing 2ndBrain login. Meeting Minutes uses an authenticated server-to-server API and receives no Zoom credentials. Apply migration `0038_zoom_connections.sql`, configure the Supabase Zoom provider/manual identity linking and durable encryption-key storage, then complete the admin provider configuration. See [Zoom marketplace setup](docs/ZOOM_MARKETPLACE.md) for deployment steps and the callback allow list.
