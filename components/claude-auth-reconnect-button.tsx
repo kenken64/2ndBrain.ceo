@@ -53,7 +53,7 @@ export function ClaudeAuthReconnectButton() {
 
         if (data.authenticated) {
           setPhase("ready");
-          setMessage("Claude auth is active on the OpenClaw instance.");
+          setMessage("Claude auth is active on the AI Agent instance.");
           return;
         }
 
@@ -125,7 +125,7 @@ export function ClaudeAuthReconnectButton() {
 
       if (data.authenticated) {
         setPhase("ready");
-        setMessage("Claude auth is active on the OpenClaw instance.");
+        setMessage("Claude auth is active on the AI Agent instance.");
         return;
       }
 

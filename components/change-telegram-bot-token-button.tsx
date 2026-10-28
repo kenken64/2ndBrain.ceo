@@ -102,7 +102,7 @@ export function ChangeTelegramBotTokenButton({ variant = "sidebar" }: ChangeTele
             <p className="workspace-status-card__eyebrow">Telegram bot</p>
             <h2 id="telegram-token-dialog-title">Change Telegram bot token</h2>
             <p>
-              This updates the token on your current OpenClaw instance and resets Telegram pairing. After it finishes, approve the new pairing code from the new bot.
+              This updates the token on your current AI Agent instance and resets Telegram pairing. After it finishes, approve the new pairing code from the new bot.
             </p>
             <form action="/api/openclaw/telegram-token" className="settings-dialog__form" method="post" noValidate onSubmit={handleSubmit}>
               <input name="next" type="hidden" value="/dashboard" />
@@ -148,7 +148,7 @@ export function ChangeTelegramBotTokenButton({ variant = "sidebar" }: ChangeTele
                 >
                   <div className="submit-progress__meta">
                     <strong>Updating Telegram bot</strong>
-                    <span>Saving the new token, reconfiguring OpenClaw, and resetting Telegram pairing.</span>
+                    <span>Saving the new token, reconfiguring AI Agent, and resetting Telegram pairing.</span>
                   </div>
                   <div className="submit-progress__track">
                     <span className="submit-progress__bar" />

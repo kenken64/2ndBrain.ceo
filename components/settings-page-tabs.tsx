@@ -186,7 +186,7 @@ export function SettingsPageTabs({
                 <p className="workspace-status-card__eyebrow">Danger zone</p>
                 <h2>Destroy instance</h2>
                 <p>
-                  Destroy the Cloud OpenClaw instance, clear generated Nth Brain project history, reset onboarding, and log out.
+                  Destroy the Cloud AI Agent instance, clear generated Nth Brain project history, reset onboarding, and log out.
                 </p>
               </div>
               <DestroyWorkspaceButton variant="panel" />
@@ -213,7 +213,7 @@ export function SettingsPageTabs({
               <p className="workspace-status-card__eyebrow">Telegram bot</p>
               <h2>Reconfigure Telegram bot</h2>
               <p>
-                Update the Telegram bot token on the current OpenClaw instance and restart the pairing flow for approval.
+                Update the Telegram bot token on the current AI Agent instance and restart the pairing flow for approval.
               </p>
             </div>
             <ChangeTelegramBotTokenButton variant="panel" />
@@ -222,9 +222,9 @@ export function SettingsPageTabs({
           <article className="settings-action-card">
             <div>
               <p className="workspace-status-card__eyebrow">Claude Code auth</p>
-              <h2>Reconnect Claude on OpenClaw</h2>
+              <h2>Reconnect Claude on AI Agent</h2>
               <p>
-                Start the Claude sign-in flow on the OpenClaw instance, open the returned login URL, and poll until Claude Code auth is restored.
+                Start the Claude sign-in flow on the AI Agent instance, open the returned login URL, and poll until Claude Code auth is restored.
               </p>
             </div>
             <ClaudeAuthReconnectButton />

@@ -137,7 +137,7 @@ export function RemotionAvatarStatus({
         <p className="workspace-status-card__paused" role="alert">
           <AlertTriangle aria-hidden="true" size={16} strokeWidth={1.9} />
           <span>
-            OpenClaw AI usage is paused, so the Remotion URL check is skipped.{" "}
+            AI Agent usage is paused, so the Remotion URL check is skipped.{" "}
             <a href="/dashboard/settings?tab=general&openclawAi=paused">Resume AI usage in Settings</a> to continue.
           </span>
         </p>

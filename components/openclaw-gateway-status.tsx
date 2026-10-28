@@ -168,7 +168,7 @@ export function OpenClawGatewayStatus({
     <article className="workspace-status-card" id="gateway-ui">
       <div className="workspace-status-card__header">
         <div>
-          <p className="workspace-status-card__eyebrow">OpenClaw Gateway UI</p>
+          <p className="workspace-status-card__eyebrow">AI Agent Gateway UI</p>
           <h2>Gateway entry point</h2>
         </div>
         <span className={`project-status project-status--${isReady ? "ready" : hasInstance ? "running" : "draft"}`}>
@@ -176,16 +176,16 @@ export function OpenClawGatewayStatus({
         </span>
       </div>
       <p className="workspace-status-card__copy">
-        Launch the OpenClaw workspace through its Tailscale Funnel public HTTPS URL.
+        Launch the AI Agent workspace through its Tailscale Funnel public HTTPS URL.
       </p>
       <dl className="workspace-status-list">
         <div>
-          <dt>OpenClaw IP address</dt>
+          <dt>AI Agent IP address</dt>
           <dd className="workspace-secret-field">
             <span>{isPublicIpVisible ? publicIp : hiddenPublicIpValue}</span>
             {publicIp ? (
               <button
-                aria-label={`${isPublicIpVisible ? "Hide" : "Show"} OpenClaw IP address`}
+                aria-label={`${isPublicIpVisible ? "Hide" : "Show"} AI Agent IP address`}
                 className="workspace-secret-toggle"
                 onClick={() => setIsPublicIpVisible((current) => !current)}
                 type="button"
@@ -208,7 +208,7 @@ export function OpenClawGatewayStatus({
         <p className="workspace-status-card__paused" role="alert">
           <AlertTriangle aria-hidden="true" size={16} strokeWidth={1.9} />
           <span>
-            OpenClaw AI usage is paused, so gateway checks are skipped.{" "}
+            AI Agent usage is paused, so gateway checks are skipped.{" "}
             <a href="/dashboard/settings?tab=general&openclawAi=paused">Resume AI usage in Settings</a> to continue.
           </span>
         </p>
@@ -217,7 +217,7 @@ export function OpenClawGatewayStatus({
       {lastError && !gatewayUrl && !isPaused ? <p className="workspace-status-card__hint">Last check: {lastError}</p> : null}
       <div className="workspace-status-actions">
         <a className="btn-primary" href="/dashboard/openclaw">
-          Open OpenClaw section <span className="arrow">-&gt;</span>
+          Open AI Agent section <span className="arrow">-&gt;</span>
         </a>
         {gatewayUrl ? (
           <a className="text-link" href={gatewayUrl} rel="noreferrer" target="_blank">

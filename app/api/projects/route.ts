@@ -184,7 +184,7 @@ export async function POST(request: Request) {
       return redirectWithParams(request, returnTo, { error: "openclaw_profile" });
     }
 
-    return NextResponse.json({ error: "OpenClaw profile is incomplete" }, { status: 409 });
+    return NextResponse.json({ error: "AI Agent profile is incomplete" }, { status: 409 });
   }
 
   const attachmentInputs =
@@ -235,7 +235,7 @@ export async function POST(request: Request) {
     }
 
     return NextResponse.json(
-      { error: "OpenClaw AI usage is paused. Resume AI usage in Settings before creating projects." },
+      { error: "AI Agent usage is paused. Resume AI usage in Settings before creating projects." },
       { status: 423 }
     );
   }

@@ -909,7 +909,7 @@ export function WikiEditor({
 
       setStatus(`Queued ${uploadedCount} document${uploadedCount === 1 ? "" : "s"} for background ingest`);
       setUploadSuccess(
-        `Queued ${uploadedCount} document${uploadedCount === 1 ? "" : "s"} for background ingest. You can keep working while OpenClaw processes them.`
+        `Queued ${uploadedCount} document${uploadedCount === 1 ? "" : "s"} for background ingest. You can keep working while AI Agent processes them.`
       );
       setUploadJob(nextJob);
       setUploadFiles([]);
@@ -937,7 +937,7 @@ export function WikiEditor({
           <form aria-busy={isUploading} className="wiki-upload-form" encType="multipart/form-data" noValidate onSubmit={ingestDocuments}>
             <div className="wiki-upload-form__header">
               <strong>Upload to this Nth Brain</strong>
-              <span>DOC, DOCX, Excel, CSV, PDF, images, text, and markdown are converted before OpenClaw sees them.</span>
+              <span>DOC, DOCX, Excel, CSV, PDF, images, text, and markdown are converted before AI Agent sees them.</span>
             </div>
             <input
               accept={WIKI_UPLOAD_ACCEPT}

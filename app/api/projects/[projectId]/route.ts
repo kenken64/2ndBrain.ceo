@@ -97,9 +97,9 @@ export async function DELETE(_request: Request, context: ProjectRouteContext) {
   if (projectSlug) {
     if (shouldSkipRemoteWikiDelete(wikiProject)) {
       openclawDeleteOutput =
-        `Skipped OpenClaw cleanup for ${projectSlug} because this project is ${wikiProject.status} or stale.`;
+        `Skipped AI Agent cleanup for ${projectSlug} because this project is ${wikiProject.status} or stale.`;
     } else if (!instance) {
-      return NextResponse.json({ error: "OpenClaw instance is not available" }, { status: 409 });
+      return NextResponse.json({ error: "AI Agent instance is not available" }, { status: 409 });
     } else {
       try {
         const deleted = await deleteOpenClawWikiProject({
@@ -115,7 +115,7 @@ export async function DELETE(_request: Request, context: ProjectRouteContext) {
           return NextResponse.json({ error: outputSummary(message) }, { status: 500 });
         }
 
-        openclawDeleteOutput = `OpenClaw wiki project ${projectSlug} was already missing.`;
+        openclawDeleteOutput = `AI Agent wiki project ${projectSlug} was already missing.`;
       }
     }
   }
@@ -132,7 +132,7 @@ export async function DELETE(_request: Request, context: ProjectRouteContext) {
 
   return NextResponse.json({
     deletedProjectId: wikiProject.id,
-    openclawDeleteOutput: outputSummary(openclawDeleteOutput ?? "No OpenClaw folder was attached to this project."),
+    openclawDeleteOutput: outputSummary(openclawDeleteOutput ?? "No AI Agent folder was attached to this project."),
     ok: true
   });
 }

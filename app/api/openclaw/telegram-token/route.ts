@@ -77,7 +77,7 @@ export async function POST(request: Request) {
   const instance = typeof profile?.openclaw_instance === "string" ? profile.openclaw_instance.trim() : "";
 
   if (!instance || profile?.openclaw_provision_status !== "ready" || !profile.openclaw_provision_completed_at) {
-    return NextResponse.json({ error: "OpenClaw must be provisioned before changing Telegram bot token." }, { status: 409 });
+    return NextResponse.json({ error: "AI Agent must be provisioned before changing Telegram bot token." }, { status: 409 });
   }
 
   logTelegramToken("start", {

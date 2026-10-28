@@ -64,11 +64,11 @@ export async function getWikiContext(
   const instance = onboardingProfile?.openclaw_instance?.trim();
 
   if (!instance) {
-    throw new WikiContextError("OpenClaw instance is not available", 409);
+    throw new WikiContextError("AI Agent instance is not available", 409);
   }
 
   if (onboardingProfile.openclaw_tokens_paused) {
-    throw new WikiContextError("OpenClaw AI usage is paused. Resume AI usage in Settings before continuing.", 423);
+    throw new WikiContextError("AI Agent usage is paused. Resume AI usage in Settings before continuing.", 423);
   }
 
   let project: WikiProject | null = null;

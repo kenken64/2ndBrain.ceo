@@ -53,7 +53,7 @@ export async function getGoogleWorkspaceContext() {
   const instance = onboardingProfile.openclaw_instance?.trim();
 
   if (!instance) {
-    throw new GoogleWorkspaceContextError("OpenClaw instance is not available", 409);
+    throw new GoogleWorkspaceContextError("AI Agent instance is not available", 409);
   }
 
   if (!onboardingProfile.google_workspace_enabled) {

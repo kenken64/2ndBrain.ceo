@@ -94,7 +94,7 @@ function popupResponse(request: NextRequest, payload: Record<string, string>) {
         }
 
         if (message) {
-          message.textContent = "Installing Google Workspace credentials on OpenClaw...";
+          message.textContent = "Installing Google Workspace credentials on AI Agent...";
         }
 
         try {
@@ -177,7 +177,7 @@ export async function GET(request: NextRequest) {
 
     response = popupResponse(request, {
       code,
-      message: "Google authorized. Returning to settings while OpenClaw installs the credentials.",
+      message: "Google authorized. Returning to settings while AI Agent installs the credentials.",
       state,
       status: "authorized"
     });

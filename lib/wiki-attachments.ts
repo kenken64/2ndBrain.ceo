@@ -554,7 +554,7 @@ export function buildAttachmentPromptContext(attachments: ConvertedWikiAttachmen
   }
 
   return [
-    "Attached source files have been converted to markdown and written into the OpenClaw project before generation.",
+    "Attached source files have been converted to markdown and written into the AI Agent project before generation.",
     "Integrate these attachments into the wiki. Link image attachments from relevant generated markdown pages.",
     "",
     ...attachments.map(

@@ -23,7 +23,7 @@ function toStringArray(value: RedisResponse): string[] {
 }
 
 /**
- * Records that `consumerName` (the gyne CONSUMER_NAME of a provisioned OpenClaw instance) is owned by
+ * Records that `consumerName` (the gyne CONSUMER_NAME of a provisioned AI Agent instance) is owned by
  * `userId`, so the Gyne Agent publisher includes it when that user lists consumers. Idempotent.
  * Returns false when no Redis is configured (treated as a soft no-op by callers).
  */

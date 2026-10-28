@@ -102,7 +102,7 @@ export function SettingsTokenUsageCard({
       const payload = (await response.json().catch(() => null)) as PauseResponse | null;
 
       if (!response.ok || !payload?.pause) {
-        throw new Error(payload?.error ?? "OpenClaw AI usage setting could not be updated.");
+        throw new Error(payload?.error ?? "AI Agent usage setting could not be updated.");
       }
 
       const quota = Number(payload.balance?.llmTokenQuota);
@@ -117,9 +117,9 @@ export function SettingsTokenUsageCard({
             }
           : undefined
       );
-      setMessage(nextPaused ? "OpenClaw AI usage paused." : "OpenClaw AI usage resumed.");
+      setMessage(nextPaused ? "AI Agent usage paused." : "AI Agent usage resumed.");
     } catch (pauseError) {
-      setError(pauseError instanceof Error ? pauseError.message : "OpenClaw AI usage setting could not be updated.");
+      setError(pauseError instanceof Error ? pauseError.message : "AI Agent usage setting could not be updated.");
     } finally {
       setBusy(false);
     }
@@ -136,7 +136,7 @@ export function SettingsTokenUsageCard({
           <h2 id="settings-token-usage-title">Token balance</h2>
           <p>
             {tokensPaused
-              ? "OpenClaw AI usage is paused. Existing AI credits remain unchanged until you resume."
+              ? "AI Agent usage is paused. Existing AI credits remain unchanged until you resume."
               : isAdmin
               ? "Admin accounts are quota-exempt; stored credits are still shown for transfers."
               : "Granted tokens, consumed usage, and remaining balance for this account."}
