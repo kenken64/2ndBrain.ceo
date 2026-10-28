@@ -1,5 +1,7 @@
 "use client";
 
+import { navigateToPage } from "@/lib/page-navigation";
+
 import { ChangeEvent, FormEvent, useEffect, useId, useRef, useState } from "react";
 import { ArrowUp, ChevronDown, FileText, Mic, Plus, X } from "lucide-react";
 
@@ -219,7 +221,7 @@ export function ChatInput({
         event.preventDefault();
         const url = new URL(action, window.location.origin);
         url.searchParams.set("prompt", prompt);
-        window.location.assign(`${url.pathname}${url.search}`);
+        navigateToPage(`${url.pathname}${url.search}`);
       }
 
       return;
@@ -240,7 +242,7 @@ export function ChatInput({
         throw new Error(payload?.error ?? "Request failed");
       }
 
-      window.location.assign(response.url || returnTo);
+      navigateToPage(response.url || returnTo);
     } catch (error) {
       setSubmitError(error instanceof Error ? error.message : "Request failed");
       setIsSubmitting(false);

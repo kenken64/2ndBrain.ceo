@@ -1,5 +1,7 @@
 "use client";
 
+import { navigateToPage } from "@/lib/page-navigation";
+
 import { useState } from "react";
 import { LoaderCircle, Trash2 } from "lucide-react";
 import { ConfirmDialog } from "@/components/confirm-dialog";
@@ -37,7 +39,7 @@ export function DestroyWorkspaceButton({ variant = "sidebar" }: DestroyWorkspace
       }
 
       const payload = await response.json().catch(() => null);
-      window.location.assign(
+      navigateToPage(
         payload?.redirectTo ?? "/login?next=%2Fonboarding%3Fnext%3D%252Fdashboard%26step%3Denrolment"
       );
     } catch (destroyError) {

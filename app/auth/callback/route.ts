@@ -57,6 +57,7 @@ export async function GET(request: Request) {
   const code = requestUrl.searchParams.get("code");
   const next = safeNextPath(requestUrl.searchParams.get("next"), "/dashboard/chat");
   const oauthError = requestUrl.searchParams.get("error")?.trim();
+  const emailFlow = requestUrl.searchParams.get("flow") === "email_signup" || requestUrl.searchParams.get("flow") === "recovery";
 
   if (!hasSupabaseEnv()) {
     return NextResponse.redirect(
@@ -97,6 +98,9 @@ export async function GET(request: Request) {
       !codeVerifierCookieFound &&
       requestUrl.searchParams.get("pkce_retry") !== "1"
     ) {
+      if (emailFlow) {
+        return NextResponse.redirect(appUrl(`/login?error=${encodeURIComponent("Open the email link in the same browser where you requested it, or request a new link.")}&next=${encodeURIComponent(next)}`, request));
+      }
       const retryLoginUrl = new URL("/auth/login", callbackOrigin);
 
       retryLoginUrl.searchParams.set("next", next);
@@ -110,6 +114,9 @@ export async function GET(request: Request) {
     const { error } = await supabase.auth.exchangeCodeForSession(code);
 
     if (!error) {
+      if (requestUrl.searchParams.get("flow") === "recovery") {
+        return NextResponse.redirect(appUrl(`/auth/update-password?next=${encodeURIComponent(next)}`, request));
+      }
       const { data: claimsData } = await supabase.auth.getClaims();
       const userId = getUserIdFromClaims(claimsData?.claims);
 

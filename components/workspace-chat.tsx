@@ -42,6 +42,12 @@ export function WorkspaceChat({ userId, configured, initialChatId }: { userId: s
   const [cacheState, setCacheState] = useState<CacheState>("loading");
   const [selecting, setSelecting] = useState(false);
   const [prompt, setPrompt] = useState("");
+  const [generationMode, setGenerationMode] = useState<"chat" | "image" | "video">("chat");
+  const [imageEstimate, setImageEstimate] = useState<{ credits: number; estimatedUsd: number } | null>(null);
+  const [imageEstimateError, setImageEstimateError] = useState(false);
+  const [videoEstimate, setVideoEstimate] = useState<{ credits: number; estimatedUsd: number } | null>(null);
+  const [videoJobs, setVideoJobs] = useState<Array<{ id: string; status: string; output_file_id: string | null }>>([]);
+  const [videoRefresh, setVideoRefresh] = useState(0);
   const [files, setFiles] = useState<SavedChatFile[]>([]);
   const [uploading, setUploading] = useState(false);
   const [panelOpen, setPanelOpen] = useState(true);
@@ -59,6 +65,47 @@ export function WorkspaceChat({ userId, configured, initialChatId }: { userId: s
   const threadRef = useRef<HTMLDivElement>(null);
   const isAtBottomRef = useRef(true);
   const channelRef = useRef<BroadcastChannel | null>(null);
+
+  useEffect(() => {
+    if (generationMode !== "image") return;
+    const controller = new AbortController();
+    setImageEstimate(null); setImageEstimateError(false);
+    fetch("/api/chat/generate-image", { signal: controller.signal, cache: "no-store" }).then(async response => {
+      if (!response.ok) throw new Error("pricing unavailable");
+      const result = await response.json() as { credits?: unknown; estimatedUsd?: unknown };
+      if (typeof result.credits !== "number" || typeof result.estimatedUsd !== "number") throw new Error("pricing unavailable");
+      if (!controller.signal.aborted) setImageEstimate({ credits: result.credits, estimatedUsd: result.estimatedUsd });
+    }).catch(() => { if (!controller.signal.aborted) setImageEstimateError(true); });
+    return () => controller.abort();
+  }, [generationMode]);
+
+  useEffect(() => {
+    if (!configured) return;
+    const controller = new AbortController();
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const refresh = async () => {
+      try {
+        const response = await fetch("/api/chat/generate-video", { signal: controller.signal, cache: "no-store" });
+        if (!response.ok) throw new Error("jobs unavailable");
+        const result = await response.json() as { credits?: unknown; estimatedUsd?: unknown; jobs?: Array<{ id: string; status: string; output_file_id: string | null }> };
+        if (controller.signal.aborted) return;
+        setVideoEstimate(typeof result.credits === "number" && typeof result.estimatedUsd === "number" ? { credits: result.credits, estimatedUsd: result.estimatedUsd } : null);
+        const jobs = Array.isArray(result.jobs) ? result.jobs : [];
+        setVideoJobs(jobs);
+        const pending = jobs.filter(job => job.status === "pending").slice(0, 3);
+        if (pending.length) {
+          await Promise.allSettled(pending.map(job => fetch("/api/chat/generate-video", { method: "PATCH", signal: controller.signal, headers: { "Content-Type": "application/json" }, body: JSON.stringify({ jobId: job.id }) })));
+          if (!controller.signal.aborted) {
+            const updated = await fetch("/api/chat/generate-video", { signal: controller.signal, cache: "no-store" });
+            if (updated.ok) { const data = await updated.json() as { jobs?: typeof jobs }; if (!controller.signal.aborted && Array.isArray(data.jobs)) setVideoJobs(data.jobs); }
+          }
+        }
+      } catch { /* retry an existing job without submitting a new one */ }
+      if (!controller.signal.aborted) timer = setTimeout(refresh, 30_000);
+    };
+    void refresh();
+    return () => { controller.abort(); if (timer) clearTimeout(timer); };
+  }, [configured, videoRefresh]);
 
   const refreshHistory = useCallback(async () => {
     if (!apiRef.current) return;
@@ -199,7 +246,7 @@ export function WorkspaceChat({ userId, configured, initialChatId }: { userId: s
       setPrompt("");
       try {
         const fileContext = !files.length && priorArtifact ? `${priorArtifact.content.length > 6000 ? "PARTIAL EXCERPT: remaining file data is not included. Do not infer statistics for the complete file.\n" : ""}${priorArtifact.content.slice(0, 6000)}` : undefined;
-        const response = await fetch(batch ? "/api/chat/batch-pdf" : "/api/chat", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(batch ? { messages: historyForRequest(pending.messages), fileIds: files.map(item => item.id) } : { model, messages: historyForRequest(pending.messages), fileId: file?.id, fileContext }) });
+        const response = await fetch(generationMode === "image" ? "/api/chat/generate-image" : generationMode === "video" ? "/api/chat/generate-video" : batch ? "/api/chat/batch-pdf" : "/api/chat", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(generationMode !== "chat" ? { prompt: value } : batch ? { messages: historyForRequest(pending.messages), fileIds: files.map(item => item.id) } : { model, messages: historyForRequest(pending.messages), fileId: file?.id, fileContext }) });
         const payload = await response.json().catch(() => null) as { message?: unknown; error?: unknown; model?: unknown; ocr?: { name?: unknown; markdown?: unknown; truncated?: unknown } | null; spreadsheet?: unknown; savedOutput?: { id?: unknown; name?: unknown }; savedOutputs?: Array<{ id?: unknown; name?: unknown }>; batchSaveIncomplete?: boolean; outputSaveFailed?: boolean; usagePending?: boolean; chargedCredits?: unknown; availableCredits?: unknown; quotaExempt?: unknown } | null;
         if (!response.ok || typeof payload?.message !== "string") throw new Error(typeof payload?.error === "string" ? payload.error : "Unable to get a response. Please try again.");
         const responseModel = isChatModel(payload.model) ? payload.model : model;
@@ -208,7 +255,8 @@ export function WorkspaceChat({ userId, configured, initialChatId }: { userId: s
         else if (file && typeof payload.spreadsheet === "string") artifact = { name: file.name, kind: "spreadsheet", content: payload.spreadsheet };
         const outputFile = payload.savedOutput && typeof payload.savedOutput.id === "string" && typeof payload.savedOutput.name === "string" ? { id: payload.savedOutput.id, name: payload.savedOutput.name } : undefined;
         const outputFiles = Array.isArray(payload.savedOutputs) ? payload.savedOutputs.filter((item): item is { id: string; name: string } => typeof item.id === "string" && typeof item.name === "string").slice(0, 100) : [];
-        pending = await persist({ ...pending, messages: [...pending.messages, { role: "assistant", content: payload.message, model: responseModel, ...(artifact ? { artifact } : {}), ...(outputFile ? { fileRef: outputFile } : {}), ...(outputFiles.length ? { fileRefs: outputFiles } : {}) }] });
+        pending = await persist({ ...pending, messages: [...pending.messages, { role: "assistant", content: payload.message, ...(generationMode === "chat" ? { model: responseModel } : {}), ...(artifact ? { artifact } : {}), ...(outputFile ? { fileRef: outputFile } : {}), ...(outputFiles.length ? { fileRefs: outputFiles } : {}) }] });
+        if (generationMode === "video") setVideoRefresh(current => current + 1);
         const missingOcr = !batch && file && !artifact && /\.(pdf|png|jpe?g|webp)$/i.test(file.name);
         setFiles([]);
         if (fileInputRef.current) fileInputRef.current.value = "";
@@ -216,7 +264,7 @@ export function WorkspaceChat({ userId, configured, initialChatId }: { userId: s
         const notices: string[] = [];
         if (payload.outputSaveFailed) notices.push("The response is shown, but its generated file could not be saved. You can still download the extracted data from the side panel.");
         else if (missingOcr) notices.push("The file was processed, but no extracted text was available for the side panel.");
-        if (payload.usagePending) notices.push("PDF usage is unconfirmed. Reserved credits remain held for review; see AI Credits Usage or contact support.");
+        if (payload.usagePending) notices.push("Usage is unconfirmed. Reserved credits remain held for review; see AI Credits Usage or contact support.");
         else if (payload.quotaExempt === true) notices.push("This account is exempt from AI credit charges.");
         else if (typeof payload.chargedCredits === "number" && typeof payload.availableCredits === "number") notices.push(`${payload.chargedCredits.toLocaleString()} credits used · ${payload.availableCredits.toLocaleString()} available`);
         if (notices.length) setNotice(notices.join(" "));
@@ -324,11 +372,15 @@ export function WorkspaceChat({ userId, configured, initialChatId }: { userId: s
             {!configured ? <p className="workspace-chat__warning" role="status">Chat is not configured yet. Contact the administrator to enable it.</p> : null}
             {cacheState === "unavailable" ? <p className="workspace-chat__warning" role="status">Chat history could not be saved in this browser. New conversations are available only until you leave this page; your existing saved data has not been removed.</p> : null}
             {notice ? <p className="workspace-chat__notice" role="status">{notice}</p> : null}{error ? <p className="form-error" role="alert">{error}</p> : null}
+            {videoJobs.some(job => job.status === "pending" || job.status === "submitting") ? <p className="workspace-chat__notice" role="status">Video generation or usage confirmation is in progress. Jobs resume checking when you return to chat.</p> : null}
+            {videoJobs.filter(job => job.output_file_id).slice(0, 3).map(job => <p className="workspace-chat__notice" key={job.id}>Video ready · <button type="button" className="text-link" onClick={() => setPreviewFile({ id: job.output_file_id!, name: "Generated video.mp4" })}>Preview video</button> · saved in My Files</p>)}
+            {videoJobs.some(job => job.status === "uncertain") ? <p className="workspace-chat__warning">A video request could not be confirmed. Check AI Credits Usage or contact support before retrying.</p> : null}
+            {videoJobs.some(job => job.status === "failed") ? <p className="workspace-chat__warning">A video job did not complete. Check AI Credits Usage for its recorded cost.</p> : null}
           </div>
           <div className="workspace-chat__conversation">
             <div aria-label="Conversation" aria-live="polite" className="workspace-chat__thread" onScroll={handleThreadScroll} ref={threadRef} role="log">
               {!chat?.messages.length ? <div className="workspace-chat__empty"><span><Bot size={26} /></span><h2>What would you like to work on?</h2><p>Ask a question, explore an idea, or get help with a task.</p></div> : null}
-              {chat?.messages.map((message, index) => <article className={`workspace-chat__message workspace-chat__message--${message.role}`} key={`${index}-${message.role}`}><p className="workspace-chat__sender">{message.role === "user" ? "You" : CHAT_MODELS.find((item) => item.id === message.model)?.label ?? "AI"}</p><div className="workspace-chat__content"><ReactMarkdown remarkPlugins={[remarkGfm]} rehypePlugins={[rehypeHighlight]} components={{ table: ({ children, ...props }) => <div className="workspace-chat__table-wrap"><table {...props}>{children}</table></div> }}>{message.content}</ReactMarkdown>{[...(message.fileRef ? [message.fileRef] : []), ...(message.fileRefs ?? [])].map(reference => <div className="workspace-chat__file-card" key={reference.id}><FileText size={17} aria-hidden="true" /><button type="button" className="workspace-chat__file-name" onClick={() => setPreviewFile(reference)}>{reference.name}</button><button type="button" className="chat-file-icon" aria-label={`Preview ${reference.name}`} title="Preview" onClick={() => setPreviewFile(reference)}><Eye size={17} /></button><a className="chat-file-icon" aria-label={`Download ${reference.name}`} title="Download" href={`/api/chat/files/${encodeURIComponent(reference.id)}`}><Download size={17} /></a></div>)}</div></article>)}
+              {chat?.messages.map((message, index) => <article className={`workspace-chat__message workspace-chat__message--${message.role}`} key={`${index}-${message.role}`}><p className="workspace-chat__sender">{message.role === "user" ? "You" : CHAT_MODELS.find((item) => item.id === message.model)?.label ?? "AI"}</p><div className="workspace-chat__content"><ReactMarkdown remarkPlugins={[remarkGfm]} rehypePlugins={[rehypeHighlight]} components={{ table: ({ children, ...props }) => <div className="workspace-chat__table-wrap"><table {...props}>{children}</table></div> }}>{message.content}</ReactMarkdown>{[...(message.fileRef ? [message.fileRef] : []), ...(message.fileRefs ?? [])].map(reference => <div key={reference.id}>{message.role === "assistant" && /^generated-image-[0-9a-f]+\.(png|jpg|webp)$/i.test(reference.name) ? <img className="workspace-chat__generated-image" src={`/api/chat/files/${encodeURIComponent(reference.id)}/preview?inline=1`} alt="AI-generated image" /> : null}<div className="workspace-chat__file-card"><FileText size={17} aria-hidden="true" /><button type="button" className="workspace-chat__file-name" onClick={() => setPreviewFile(reference)}>{reference.name}</button><button type="button" className="chat-file-icon" aria-label={`Preview ${reference.name}`} title="Preview" onClick={() => setPreviewFile(reference)}><Eye size={17} /></button><a className="chat-file-icon" aria-label={`Download ${reference.name}`} title="Download" href={`/api/chat/files/${encodeURIComponent(reference.id)}`}><Download size={17} /></a></div></div>)}</div></article>)}
               {busy ? <p className="workspace-chat__thinking" role="status">Thinking…</p> : null}
             </div>
             {showJumpToLatest && chat?.messages.length ? <button aria-label="Jump to latest message" className="workspace-chat__jump-latest" onClick={() => threadRef.current?.scrollTo({ top: threadRef.current.scrollHeight, behavior: "smooth" })} title="Jump to latest message" type="button"><ArrowDown size={18} /></button> : null}
@@ -336,7 +388,9 @@ export function WorkspaceChat({ userId, configured, initialChatId }: { userId: s
           <form className="workspace-chat__form" onSubmit={send}>
             {files.map(item => <div className="workspace-chat__file" key={item.id}><span>{item.name} · saved · Gemini 2.5 Flash{files.length === 1 && item.name.toLowerCase().endsWith(".pdf") ? " · Mistral OCR" : files.length === 1 && /\.(png|jpe?g|webp)$/i.test(item.name) ? " · image OCR" : ""}</span><button type="button" aria-label={`Remove ${item.name}`} disabled={busy} onClick={() => { setFiles(current => current.filter(saved => saved.id !== item.id)); if (fileInputRef.current) fileInputRef.current.value = ""; }}><X size={16} /></button></div>)}
             {files.length === 2 ? <p className="workspace-chat__notice">Batch document mode: one {files.some(item => /\.docx$/i.test(item.name)) ? "DOCX" : "PDF"} will be created per spreadsheet row. {files.some(item => /\.docx$/i.test(item.name)) ? "Use placeholders such as {{Name}} in the DOCX template. " : ""}Review the field mapping and generated files.</p> : null}
-            <textarea aria-label="Your message" disabled={!configured || busy || selecting || uploading || cacheState === "loading"} maxLength={CHAT_MAX_MESSAGE_CHARS} onChange={(event) => setPrompt(event.target.value)} onKeyDown={handleKeyDown} placeholder={files.length === 2 ? "Describe how spreadsheet columns match the PDF fields…" : "Ask anything…"} rows={3} /><div className="workspace-chat__form-footer"><input ref={fileInputRef} type="file" multiple accept=".pdf,.png,.jpg,.jpeg,.webp,.xlsx,.csv,.docx" hidden onChange={(event) => { const selected = Array.from(event.target.files ?? []); if (selected.length) void uploadFiles(selected); }} /><button type="button" className="btn-ghost" disabled={busy || selecting || uploading || files.length >= 2} onClick={() => fileInputRef.current?.click()}><Paperclip size={16} /> {uploading ? "Saving…" : "Attach file"}</button><ChatSavedFiles disabled={busy || selecting || uploading || files.length >= 2} onSelect={addSavedFile} /><select aria-label="AI model" className="workspace-chat__model-select" disabled={busy || selecting || uploading || files.length > 0 || !chat} id="workspace-chat-model" onChange={(event) => { if (chat && isChatModel(event.target.value)) setChat({ ...chat, model: event.target.value }); }} value={files.length || uploading ? FILE_CHAT_MODEL : chat?.model ?? CHAT_MODELS[0].id}>{CHAT_MODELS.map((item) => <option key={item.id} value={item.id}>{item.label}</option>)}</select><button aria-label="Send message" className="workspace-chat__send" disabled={!configured || busy || selecting || uploading || cacheState === "loading" || (!prompt.trim() && !files.length)} type="submit"><ArrowUp size={16} strokeWidth={2.4} /></button></div></form>
+            {generationMode === "image" ? <p className="workspace-chat__notice">Generate one image with Seedream 4.5. {imageEstimate ? `Current reservation: ${imageEstimate.credits.toLocaleString()} credits (estimated provider cost $${imageEstimate.estimatedUsd.toFixed(4)}). ` : imageEstimateError ? "Pricing is temporarily unavailable. " : "Checking current pricing… "}The final provider cost is recorded in AI Credits Usage.</p> : null}
+            {generationMode === "video" ? <p className="workspace-chat__notice">Generate a 3-second, 480p video with Grok Imagine Video 1.5 Lite. {videoEstimate ? `Current reservation: ${videoEstimate.credits.toLocaleString()} credits (estimated provider cost $${videoEstimate.estimatedUsd.toFixed(4)}). ` : "Pricing is unavailable or still loading. "}Final usage is recorded in AI Credits Usage.</p> : null}
+            <textarea aria-label="Your message" disabled={!configured || busy || selecting || uploading || cacheState === "loading"} maxLength={CHAT_MAX_MESSAGE_CHARS} value={prompt} onChange={(event) => setPrompt(event.target.value)} onKeyDown={handleKeyDown} placeholder={generationMode === "image" ? "Describe the image you want to create…" : generationMode === "video" ? "Describe the video you want to create…" : files.length === 2 ? "Describe how spreadsheet columns match the document fields…" : "Ask anything…"} rows={3} /><div className="workspace-chat__form-footer"><input ref={fileInputRef} type="file" multiple accept=".pdf,.png,.jpg,.jpeg,.webp,.xlsx,.csv,.docx" hidden onChange={(event) => { const selected = Array.from(event.target.files ?? []); if (selected.length) void uploadFiles(selected); }} /><button type="button" className="btn-ghost" disabled={generationMode !== "chat" || busy || selecting || uploading || files.length >= 2} onClick={() => fileInputRef.current?.click()}><Paperclip size={16} /> {uploading ? "Saving…" : "Attach file"}</button><ChatSavedFiles disabled={generationMode !== "chat" || busy || selecting || uploading || files.length >= 2} onSelect={addSavedFile} /><select aria-label="Chat mode" className="workspace-chat__model-select" disabled={busy || selecting || uploading || files.length > 0} value={generationMode} onChange={event => setGenerationMode(event.target.value === "image" ? "image" : event.target.value === "video" ? "video" : "chat")}><option value="chat">Chat</option><option value="image">Generate image</option><option value="video">Generate 3s video</option></select>{generationMode === "chat" ? <select aria-label="AI model" className="workspace-chat__model-select" disabled={busy || selecting || uploading || files.length > 0 || !chat} id="workspace-chat-model" onChange={(event) => { if (chat && isChatModel(event.target.value)) setChat({ ...chat, model: event.target.value }); }} value={files.length || uploading ? FILE_CHAT_MODEL : chat?.model ?? CHAT_MODELS[0].id}>{CHAT_MODELS.map((item) => <option key={item.id} value={item.id}>{item.label}</option>)}</select> : null}<button aria-label="Send message" className="workspace-chat__send" disabled={!configured || busy || selecting || uploading || cacheState === "loading" || (!prompt.trim() && !files.length)} type="submit"><ArrowUp size={16} strokeWidth={2.4} /></button></div></form>
           <p className="workspace-chat__privacy">Uploaded files are saved privately to your account. Chat history and extracted data remain on this device. Files are sent for processing; follow-ups include the first 6,000 characters of extracted data.</p>
         </div>
         {activeArtifact && !panelOpen ? <button className="btn-ghost workspace-chat__show-artifact" type="button" onClick={() => setPanelOpen(true)}>Show file</button> : null}

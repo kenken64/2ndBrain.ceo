@@ -39,6 +39,19 @@ export async function saveChatGeneratedDocx(admin: Admin, userId: string, source
   if (!data.length || data.length > 20 * 1024 * 1024 || !data.subarray(0, 4).equals(Buffer.from([0x50, 0x4b, 0x03, 0x04]))) throw new Error("Generated DOCX is invalid or exceeds 20 MB.");
   return saveFile(admin, userId, { name: name.slice(0, 150), data, mime: "application/vnd.openxmlformats-officedocument.wordprocessingml.document" }, "output", sourceId);
 }
+export async function saveChatGeneratedImage(admin: Admin, userId: string, data: Buffer, mime: string) {
+  const extensions: Record<string, string> = { "image/png": "png", "image/jpeg": "jpg", "image/webp": "webp" };
+  const ext = extensions[mime];
+  if (!ext || !data.length || data.length > 20 * 1024 * 1024) throw new Error("Generated image is invalid or exceeds 20 MB.");
+  const name = `generated-image-${randomUUID().slice(0, 8)}.${ext}`;
+  const validated = validateChatFile(name, data);
+  if (validated.type !== "image" || validated.mime !== mime) throw new Error("Generated image has an invalid format.");
+  return saveFile(admin, userId, { name, data, mime }, "output", null);
+}
+export async function saveChatGeneratedVideo(admin: Admin, userId: string, data: Buffer) {
+  if (data.length < 12 || data.length > 20 * 1024 * 1024 || data.subarray(4, 8).toString() !== "ftyp") throw new Error("Generated video is invalid or exceeds 20 MB.");
+  return saveFile(admin, userId, { name: `generated-video-${randomUUID().slice(0, 8)}.mp4`, data, mime: "video/mp4" }, "output", null);
+}
 
 export async function loadChatFile(admin: Admin, userId: string, id: string) {
   if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id)) return null;
@@ -55,7 +68,12 @@ export async function loadChatFile(admin: Admin, userId: string, id: string) {
     ? { name: record.file_name, data: bytes, mime: record.mime_type, type: "output" as const }
     : validateChatFile(record.file_name, bytes);
   const docxMime = "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
-  if (file.mime !== record.mime_type || (file.type === "output" && (!(["text/markdown", "application/json", "application/pdf", docxMime].includes(file.mime)) || (file.mime === "application/pdf" && bytes.subarray(0, 5).toString() !== "%PDF-") || (file.mime === docxMime && !bytes.subarray(0, 4).equals(Buffer.from([0x50, 0x4b, 0x03, 0x04])))))) throw new Error("The saved file has an invalid type.");
+  const isImageOutput = file.type === "output" && ["image/png", "image/jpeg", "image/webp"].includes(file.mime);
+  if (isImageOutput) {
+    const validated = validateChatFile(file.name, bytes);
+    if (validated.type !== "image" || validated.mime !== file.mime) throw new Error("The saved file has an invalid type.");
+  }
+  if (file.mime !== record.mime_type || (file.type === "output" && !isImageOutput && (!(["text/markdown", "application/json", "application/pdf", "video/mp4", docxMime].includes(file.mime)) || (file.mime === "video/mp4" && (bytes.length < 12 || bytes.subarray(4, 8).toString() !== "ftyp")) || (file.mime === "application/pdf" && bytes.subarray(0, 5).toString() !== "%PDF-") || (file.mime === docxMime && !bytes.subarray(0, 4).equals(Buffer.from([0x50, 0x4b, 0x03, 0x04])))))) throw new Error("The saved file has an invalid type.");
   return { file, metadata: publicChatFile(record) };
 }
 

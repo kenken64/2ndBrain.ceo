@@ -11,14 +11,15 @@
     "start:standalone": "node .next/standalone/server.js",
     "start:next": "next start",
     "typecheck": "tsc --noEmit",
-    "test:chat": "node --test tests/chat-api.test.cjs tests/chat-credits.test.cjs tests/chat-attachments.test.cjs tests/chat-usage-api.test.cjs tests/chat-files.test.cjs tests/chat-pdf-batch.test.cjs tests/chat-docx-batch.test.cjs",
+    "test:chat": "node --test tests/chat-api.test.cjs tests/chat-credits.test.cjs tests/chat-attachments.test.cjs tests/chat-usage-api.test.cjs tests/chat-files.test.cjs tests/chat-pdf-batch.test.cjs tests/chat-docx-batch.test.cjs tests/chat-image-generation.test.cjs tests/chat-video-generation.test.cjs",
     "test:wechat-auth": "node --test tests/wechat-auth.test.cjs",
     "test:solana": "node --test tests/solana-rpc.test.cjs",
     "admin:load": "node scripts/load-admin-users.mjs",
     "db:migrate": "bash scripts/apply-migrations.sh",
     "schema:check": "node scripts/check-schema-drift.mjs",
     "wiki:backfill": "node scripts/backfill-wiki-graph.mjs",
-    "wiki:backfill-content": "node scripts/backfill-wiki-content.mjs"
+    "wiki:backfill-content": "node scripts/backfill-wiki-content.mjs",
+    "test:email-auth": "node --test tests/email-auth.test.cjs"
   },
   "dependencies": {
     "@duckdb/duckdb-wasm": "1.32.0",

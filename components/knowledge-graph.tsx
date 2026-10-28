@@ -1,5 +1,7 @@
 "use client";
 
+import { navigateToPage } from "@/lib/page-navigation";
+
 import cytoscape, { type Core, type ElementDefinition, type LayoutOptions } from "cytoscape";
 import fcose from "cytoscape-fcose";
 import { KnowledgeGraph3D } from "@/components/knowledge-graph-3d";
@@ -611,7 +613,7 @@ function KnowledgeGraph2D({ edges, highlightPath, nodes, projectId, rootLabel }:
       const sourcePath = tappedNode.data("sourcePath") as string | undefined;
 
       if (projectId && sourcePath) {
-        window.location.assign(wikiPageHref(projectId, sourcePath));
+        navigateToPage(wikiPageHref(projectId, sourcePath));
         return;
       }
 

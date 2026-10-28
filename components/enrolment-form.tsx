@@ -1,5 +1,7 @@
 "use client";
 
+import { navigateToPage } from "@/lib/page-navigation";
+
 import { FormEvent, useId, useState } from "react";
 import { Bot, Sparkles, UserRound, UsersRound } from "lucide-react";
 import { TelegramTokenInput } from "@/components/telegram-token-input";
@@ -91,7 +93,7 @@ export function EnrolmentForm({
         method: "POST"
       });
 
-      window.location.assign(response.url || `/onboarding?next=${encodeURIComponent(next)}&step=avatar`);
+      navigateToPage(response.url || `/onboarding?next=${encodeURIComponent(next)}&step=avatar`);
     } catch {
       setErrors({ submit: "Profile setup could not be saved. Check the server and try again." });
       setIsSubmitting(false);

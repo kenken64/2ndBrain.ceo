@@ -1,5 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { Manrope } from "next/font/google";
+import { Suspense } from "react";
+import { PageProgress } from "@/components/page-progress";
 import "@xterm/xterm/css/xterm.css";
 import "highlight.js/styles/github-dark.css";
 import "./globals.css";
@@ -37,7 +39,7 @@ export default function RootLayout({
 }>) {
   return (
     <html className={manrope.variable} lang="en">
-      <body>{children}</body>
+      <body><Suspense fallback={null}><PageProgress /></Suspense>{children}</body>
     </html>
   );
 }

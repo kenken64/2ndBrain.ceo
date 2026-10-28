@@ -1,5 +1,7 @@
 "use client";
 
+import { navigateToPage } from "@/lib/page-navigation";
+
 import { useRouter } from "next/navigation";
 import {
   Download,
@@ -793,7 +795,7 @@ export function WikiEditor({
       }
 
       setStatus(`Graph synced from ${payload.sync?.pageCount ?? files.length} pages`);
-      window.location.assign(graphUrl(selectedPath));
+      navigateToPage(graphUrl(selectedPath));
     });
   }
 

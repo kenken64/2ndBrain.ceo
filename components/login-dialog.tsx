@@ -1,7 +1,9 @@
 "use client";
 
-import { useEffect, useId } from "react";
-import { X } from "lucide-react";
+import { navigateToPage } from "@/lib/page-navigation";
+
+import { useEffect, useId, useState, type FormEvent } from "react";
+import { Mail, X } from "lucide-react";
 import { BrandLogo } from "@/components/brand-logo";
 
 type LoginDialogProps = {
@@ -26,6 +28,31 @@ export function LoginDialog({
   const chinese = locale === "zh";
   const titleId = useId();
   const descriptionId = useId();
+  const [emailMode, setEmailMode] = useState<"closed" | "login" | "signup" | "recover">("closed");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [emailError, setEmailError] = useState("");
+  const [emailMessage, setEmailMessage] = useState("");
+  const [emailBusy, setEmailBusy] = useState(false);
+
+  function changeEmailMode(mode: "closed" | "login" | "signup" | "recover") {
+    setEmailMode(mode); setEmailError(""); setEmailMessage(""); setPassword("");
+  }
+
+  async function submitEmail(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (emailMode === "closed" || emailBusy) return;
+    setEmailBusy(true); setEmailError(""); setEmailMessage("");
+    try {
+      const response = await fetch("/api/auth/password", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: emailMode, email, password, next }) });
+      const data = await response.json() as { error?: string; message?: string; redirectTo?: string };
+      if (!response.ok) throw new Error(data.error || "Unable to complete the request.");
+      setPassword("");
+      if (data.redirectTo) navigateToPage(data.redirectTo);
+      else setEmailMessage(chinese ? (emailMode === "recover" ? "如果该邮箱有账户，我们已发送重置密码链接。请在此浏览器中打开链接。" : "如果该邮箱可以注册，请查看确认邮件并在此浏览器中打开链接。") : data.message || "Check your email.");
+    } catch (reason) { setEmailError(reason instanceof Error ? reason.message : "Unable to complete the request."); }
+    finally { setEmailBusy(false); }
+  }
 
   useEffect(() => {
     if (!isOpen || !onClose) {
@@ -125,6 +152,16 @@ export function LoginDialog({
               </svg>
               {chinese ? "使用微信登录" : "Continue with WeChat"}
             </a> : null}
+            {emailMode === "closed" ? <button className="login-provider login-provider--email" type="button" onClick={() => changeEmailMode("login")}><Mail size={19} aria-hidden="true" />{chinese ? "使用邮箱登录" : "Continue with email"}</button> : <form className="login-email" onSubmit={submitEmail}>
+              <div className="login-email__heading"><strong>{emailMode === "signup" ? (chinese ? "创建账户" : "Create your account") : emailMode === "recover" ? (chinese ? "重置密码" : "Reset your password") : (chinese ? "使用邮箱登录" : "Sign in with email")}</strong><button type="button" onClick={() => changeEmailMode("closed")} aria-label={chinese ? "关闭邮箱登录" : "Close email sign-in"}><X size={16} /></button></div>
+              <label htmlFor={`${titleId}-email`}>{chinese ? "邮箱" : "Email"}</label>
+              <input id={`${titleId}-email`} type="email" autoComplete="email" required maxLength={254} value={email} onChange={event => setEmail(event.target.value)} disabled={emailBusy} />
+              {emailMode !== "recover" ? <><label htmlFor={`${titleId}-password`}>{chinese ? "密码" : "Password"}</label><input id={`${titleId}-password`} type="password" autoComplete={emailMode === "signup" ? "new-password" : "current-password"} required minLength={emailMode === "signup" ? 8 : undefined} maxLength={128} value={password} onChange={event => setPassword(event.target.value)} disabled={emailBusy} />{emailMode === "signup" ? <small>{chinese ? "至少 8 个字符。" : "At least 8 characters."}</small> : null}</> : null}
+              {emailError ? <p className="login-email__error" role="alert">{emailError}</p> : null}
+              {emailMessage ? <p className="login-email__message" role="status">{emailMessage}</p> : null}
+              <button className="login-email__submit" type="submit" disabled={emailBusy}>{emailBusy ? (chinese ? "请稍候…" : "Please wait…") : emailMode === "signup" ? (chinese ? "创建账户" : "Create account") : emailMode === "recover" ? (chinese ? "发送重置链接" : "Send reset link") : (chinese ? "登录" : "Sign in")}</button>
+              <div className="login-email__links">{emailMode === "login" ? <><button type="button" onClick={() => changeEmailMode("signup")}>{chinese ? "创建账户" : "Create account"}</button><button type="button" onClick={() => changeEmailMode("recover")}>{chinese ? "忘记密码？" : "Forgot password?"}</button></> : <button type="button" onClick={() => changeEmailMode("login")}>{chinese ? "返回登录" : "Back to sign in"}</button>}</div>
+            </form>}
           </> : (
             <p className="login-dialog__message" role="alert">
               {chinese ? "登录服务尚未配置，请联系管理员。" : "Supabase credentials are required before login can run."}

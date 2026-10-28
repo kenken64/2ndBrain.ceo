@@ -22,11 +22,13 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
     if (!saved) return NextResponse.json({ error: "File not found." }, { status: 404 });
     const { file } = saved;
     const isPdf = file.type === "pdf" || (file.type === "output" && file.mime === "application/pdf");
+    const isImage = file.type === "image" || (file.type === "output" && ["image/png", "image/jpeg", "image/webp"].includes(file.mime));
+    const isVideo = file.type === "output" && file.mime === "video/mp4";
     if (new URL(request.url).searchParams.get("inline") === "1") {
-      if (file.type !== "image" && !isPdf) return NextResponse.json({ error: "This file cannot be displayed inline." }, { status: 400, headers });
+      if (!isImage && !isPdf && !isVideo) return NextResponse.json({ error: "This file cannot be displayed inline." }, { status: 400, headers });
       return new Response(new Uint8Array(file.data), { headers: { ...headers, "Content-Type": file.mime, "Content-Disposition": "inline", "Content-Security-Policy": "default-src 'none'; sandbox", "Cross-Origin-Resource-Policy": "same-origin" } });
     }
-    if (file.type === "image" || isPdf) return NextResponse.json({ kind: isPdf ? "pdf" : "image", name: file.name }, { headers });
+    if (isImage || isPdf || isVideo) return NextResponse.json({ kind: isPdf ? "pdf" : isVideo ? "video" : "image", name: file.name }, { headers });
     if (file.type === "spreadsheet") return NextResponse.json({ kind: "spreadsheet", name: file.name, ...await spreadsheetPreview(file) }, { headers });
     const isDocx = file.type === "document" || (file.type === "output" && file.mime === "application/vnd.openxmlformats-officedocument.wordprocessingml.document");
     const text = isDocx ? await documentText({ ...file, type: "document" }) : file.data.toString("utf8");

@@ -133,8 +133,26 @@ test('preview requires authentication and ownership, and never serves documents 
   saved = { file: { type: 'output', name: 'generated.pdf', mime: 'application/pdf', data: Buffer.from('%PDF-') } };
   response = await route.GET(request(), params); assert.equal((await response.json()).kind, 'pdf');
   assert.equal((await route.GET(request('?inline=1'), params)).status, 200);
+  saved = { file: { type: 'output', name: 'generated.png', mime: 'image/png', data: Buffer.from('image') } };
+  response = await route.GET(request(), params); assert.equal((await response.json()).kind, 'image');
+  response = await route.GET(request('?inline=1'), params); assert.equal(response.headers.get('content-type'), 'image/png');
+  saved = { file: { type: 'output', name: 'generated.mp4', mime: 'video/mp4', data: Buffer.from('video') } };
+  response = await route.GET(request(), params); assert.equal((await response.json()).kind, 'video');
+  response = await route.GET(request('?inline=1'), params); assert.equal(response.headers.get('content-type'), 'video/mp4');
   saved = { file: { type: 'output', name: 'generated.docx', mime: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', data: Buffer.from('fixture') } };
   response = await route.GET(request(), params); assert.equal((await response.json()).kind, 'text');
   saved = { file: { type: 'spreadsheet', name: 'report.xlsx', data: Buffer.from('sheet') } };
   response = await route.GET(request(), params); assert.equal((await response.json()).sheets[0].rows[0][0], 'A');
+});
+
+test('generated media is validated and stored privately for its owner', async () => {
+  const files = compile('lib/chat-files.ts', { 'server-only': {}, '@/lib/chat-attachments': attachments, '@/lib/supabase/admin': {} });
+  const rows = [];
+  const admin = { storage: { from: () => ({ upload: async () => ({ error: null }) }) }, from: () => ({ insert: row => { rows.push(row); return { select: () => ({ single: async () => ({ data: { ...row, created_at: '2026-01-01' }, error: null }) }) }; } }) };
+  const image = await files.saveChatGeneratedImage(admin, 'alice', Buffer.from([137,80,78,71,13,10,26,10,1]), 'image/png');
+  assert.equal(image.origin, 'output'); assert.equal(image.mime, 'image/png'); assert.equal(rows[0].user_id, 'alice'); assert.equal(rows[0].source_file_id, null);
+  await assert.rejects(files.saveChatGeneratedImage(admin, 'alice', Buffer.from('not png'), 'image/png'), /Choose|invalid/i);
+  const video = await files.saveChatGeneratedVideo(admin, 'bob', Buffer.from('0000ftypmp42'));
+  assert.equal(video.mime, 'video/mp4'); assert.equal(rows[1].user_id, 'bob'); assert.equal(rows[1].source_file_id, null);
+  await assert.rejects(files.saveChatGeneratedVideo(admin, 'bob', Buffer.from('not video')), /invalid/i);
 });

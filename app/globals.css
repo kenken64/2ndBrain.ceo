@@ -1372,6 +1372,8 @@ svg {
   position: relative;
   z-index: 1;
   width: min(100%, 416px);
+  max-height: calc(100dvh - 48px);
+  overflow-y: auto;
   border: 1px solid rgba(26, 26, 26, 0.08);
   border-radius: 24px;
   background: rgba(255, 255, 255, 0.92);
@@ -1479,6 +1481,22 @@ svg {
 
 .login-provider--wechat { display: flex; align-items: center; justify-content: center; gap: 10px; color: #176c42; }
 .login-provider--wechat svg { flex: none; }
+.login-provider--email { display: flex; align-items: center; justify-content: center; gap: 10px; cursor: pointer; }
+.login-email { display: grid; gap: 7px; margin-top: 10px; text-align: left; }
+.login-email__heading { display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px; font-size: 14px; }
+.login-email__heading button, .login-email__links button { border: 0; background: none; color: var(--fg-secondary); cursor: pointer; font: inherit; }
+.login-email__heading button { display: grid; place-items: center; padding: 4px; }
+.login-email label { font-size: 12px; font-weight: 700; }
+.login-email input { width: 100%; min-height: 42px; border: 1px solid rgba(26, 26, 26, 0.16); border-radius: 10px; background: white; color: var(--fg-primary); padding: 9px 11px; font: inherit; }
+.login-email input:focus-visible { outline: 2px solid #5279ef; outline-offset: 2px; }
+.login-email small { color: var(--fg-secondary); font-size: 12px; }
+.login-email__submit { min-height: 44px; margin-top: 5px; border: 0; border-radius: 10px; background: #1d4ed8; color: white; font: inherit; font-size: 14px; font-weight: 700; cursor: pointer; }
+.login-email__submit:disabled { opacity: .6; cursor: wait; }
+.login-email__links { display: flex; justify-content: space-between; gap: 12px; margin-top: 3px; }
+.login-email__links button { padding: 3px 0; color: #2852b5; font-size: 12px; font-weight: 700; }
+.login-dialog p.login-email__error, .login-dialog p.login-email__message { border-radius: 8px; padding: 9px 10px; font-size: 12px; line-height: 1.45; }
+.login-dialog p.login-email__error { background: #fff0ed; color: #9b3021; }
+.login-dialog p.login-email__message { background: #edf8f0; color: #20653d; }
 
 .login-dialog__message {
   margin-top: 18px;
@@ -6280,7 +6298,7 @@ svg {
 .workspace-chat__thread { height: 100%; min-height: 0; max-height: none; }
 .workspace-chat__jump-latest { position: absolute; right: 20px; bottom: 18px; z-index: 2; display: grid; width: 42px; height: 42px; place-items: center; border: 1px solid var(--border-medium); border-radius: 50%; background: #fff; color: var(--brand-blue-deep); box-shadow: var(--shadow-md); cursor: pointer; }
 .workspace-chat__jump-latest:hover { background: var(--bg-subtle); }
-.workspace-chat__form-footer { justify-content: flex-end; gap: 8px; }
+.workspace-chat__form-footer { justify-content: flex-end; flex-wrap: wrap; gap: 8px; }
 .workspace-chat__form textarea { min-height: 64px; max-height: 180px; }
 .workspace-chat-history-slot { min-width: 0; }
 .sidebar-header__actions { display: flex; align-items: center; gap: 4px; }
@@ -6409,6 +6427,7 @@ svg {
 .chat-files-list small { color: #65788b; font-size: 12px; }
 .chat-files-actions { display: flex; gap: 8px; flex: none; }
 .workspace-chat__file-card { display: flex; align-items: center; gap: 7px; width: fit-content; max-width: 100%; margin-top: 10px; padding: 7px 8px 7px 10px; border: 1px solid var(--border-soft); border-radius: 10px; background: #f6f9fc; color: #315d7d; }
+.workspace-chat__generated-image { display: block; max-width: min(100%, 480px); max-height: 480px; margin-top: 12px; border-radius: 12px; object-fit: contain; }
 .workspace-chat__file-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; border: 0; padding: 2px; background: transparent; color: #175285; font: inherit; font-size: 12px; font-weight: 650; cursor: pointer; }
 .workspace-chat__file-name:hover { text-decoration: underline; }
 .chat-file-icon { display: inline-flex; flex: none; align-items: center; justify-content: center; width: 34px; height: 34px; padding: 0; border: 0; border-radius: 8px; background: transparent; color: #315d7d; cursor: pointer; }
@@ -6423,7 +6442,7 @@ svg {
 .chat-file-preview__actions { display: flex; flex: none; gap: 4px; }
 .chat-file-preview__status { padding: 20px 22px; }
 .chat-file-preview__image { flex: 1; min-height: 0; display: flex; justify-content: center; align-items: center; overflow: auto; padding: 20px; background: #f0f4f8; }
-.chat-file-preview__image img { max-width: 100%; max-height: 100%; object-fit: contain; }
+.chat-file-preview__image img, .chat-file-preview__image video { max-width: 100%; max-height: 100%; object-fit: contain; }
 .chat-file-preview__pdf { flex: 1; width: 100%; min-height: 0; border: 0; background: #f0f4f8; }
 .chat-file-preview__body { flex: 1; min-height: 0; overflow: auto; padding: 16px 22px; }
 .chat-file-preview__body p { color: #536d80; font-size: 13px; }
@@ -6509,4 +6528,16 @@ svg {
   .graph3d-display-error { top: auto; right: 10px; bottom: 58px; }
   .graph3d-inspector { right: 10px; bottom: 58px; width: min(300px, calc(100% - 20px)); max-height: 38%; }
   .graph3d-filters { max-height: 120px; }
+}
+
+/* Global page navigation feedback. No percentage is shown because load time is unknown. */
+.page-progress { position: fixed; inset: 0 0 auto; z-index: 9999; pointer-events: none; }
+.page-progress__track { position: relative; display: block; width: 100%; height: 4px; overflow: hidden; background: rgba(49, 95, 225, .14); }
+.page-progress__track::after { position: absolute; inset: 0 auto 0 0; width: 40%; border-radius: 0 4px 4px 0; background: linear-gradient(90deg, #3e68e8, #8571e7, #f08c53); box-shadow: 0 0 10px rgba(62, 104, 232, .55); content: ""; animation: page-progress-slide 1.15s ease-in-out infinite; }
+.page-progress__label { position: absolute; top: 12px; right: 16px; border: 1px solid rgba(49, 95, 225, .12); border-radius: 999px; background: #fff; box-shadow: 0 5px 20px rgba(30, 44, 80, .14); color: #243a70; padding: 6px 11px; font-size: 12px; font-weight: 700; opacity: 0; animation: page-progress-appear 0s linear .65s forwards; }
+.page-progress--fallback { opacity: 0; animation: page-progress-appear 0s linear .18s forwards; }
+@keyframes page-progress-slide { 0% { transform: translateX(-100%); } 100% { transform: translateX(250%); } }
+@keyframes page-progress-appear { to { opacity: 1; } }
+@media (prefers-reduced-motion: reduce) {
+  .page-progress__track::after { animation: none; transform: translateX(75%); }
 }

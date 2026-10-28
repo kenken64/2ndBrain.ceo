@@ -1,5 +1,7 @@
 "use client";
 
+import { navigateToPage } from "@/lib/page-navigation";
+
 import { useRouter } from "next/navigation";
 import { FormEvent, useEffect, useState } from "react";
 
@@ -152,18 +154,18 @@ export function ProvisionForm({ errorMessage, next, startedAt, status }: Provisi
       });
 
       if (response.url && response.redirected && !isApiUrl(response.url)) {
-        window.location.assign(response.url);
+        navigateToPage(response.url);
         return;
       }
 
       if (response.ok && response.url && !isApiUrl(response.url)) {
-        window.location.assign(response.url);
+        navigateToPage(response.url);
         return;
       }
 
       const payload = await response.json().catch(() => null);
 
-      window.location.assign(provisionStepUrl(next, errorCodeFromPayload(payload)));
+      navigateToPage(provisionStepUrl(next, errorCodeFromPayload(payload)));
     } catch {
       setSubmitError("Provisioning request could not be started. Check the server and try again.");
       setIsSubmitting(false);

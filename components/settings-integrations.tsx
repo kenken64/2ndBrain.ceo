@@ -1,5 +1,6 @@
 "use client";
 
+import { navigateToPage } from "@/lib/page-navigation";
 import { useEffect, useRef, useState } from "react";
 import {
   BriefcaseBusiness,
@@ -291,7 +292,7 @@ export function SettingsIntegrations({
       if (loginWindow) {
         loginWindow.location.href = nextUrl;
       } else if (options.redirectCurrent) {
-        window.location.href = nextUrl;
+        navigateToPage(nextUrl);
       }
     } catch (error) {
       loginWindow?.close();

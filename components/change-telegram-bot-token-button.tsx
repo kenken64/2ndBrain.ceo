@@ -1,5 +1,7 @@
 "use client";
 
+import { navigateToPage } from "@/lib/page-navigation";
+
 import { FormEvent, useId, useState } from "react";
 import { Bot, Eye, EyeOff, LoaderCircle, Send, X } from "lucide-react";
 
@@ -64,7 +66,7 @@ export function ChangeTelegramBotTokenButton({ variant = "sidebar" }: ChangeTele
         throw new Error(payload?.error ?? "Telegram bot token update failed");
       }
 
-      window.location.assign(payload?.redirectTo ?? "/onboarding?next=%2Fdashboard&step=approval");
+      navigateToPage(payload?.redirectTo ?? "/onboarding?next=%2Fdashboard&step=approval");
     } catch (submitError) {
       setError(submitError instanceof Error ? submitError.message : "Telegram bot token update failed");
       setIsSubmitting(false);

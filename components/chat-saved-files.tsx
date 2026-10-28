@@ -25,7 +25,7 @@ export function ChatSavedFiles({ disabled, onSelect, label = "Saved files", trig
   return <>
     <button className={triggerClass} type="button" disabled={disabled} onClick={() => { setPage(null); dialog.current?.showModal(); void load(1); }}><FolderOpen size={16} aria-hidden="true" /> {label}</button>
     <dialog className="chat-usage-dialog chat-files-dialog" ref={dialog} aria-labelledby="chat-files-title" onClose={() => abort.current?.abort()}>
-      <div className="chat-usage-header"><div><p className="chat-usage-eyebrow">YOUR LIBRARY</p><h2 id="chat-files-title">My files</h2><p>Files you uploaded in AI Chat are available on your other devices.</p></div><button type="button" className="chat-usage-close" aria-label="Close My files" onClick={() => dialog.current?.close()}><X size={20} /></button></div>
+      <div className="chat-usage-header"><div><p className="chat-usage-eyebrow">YOUR LIBRARY</p><h2 id="chat-files-title">My files</h2><p>Files uploaded or generated in AI Chat are available on your other devices.</p></div><button type="button" className="chat-usage-close" aria-label="Close My files" onClick={() => dialog.current?.close()}><X size={20} /></button></div>
       {error ? <p className="chat-usage-error" role="alert">{error} <button type="button" className="text-link" onClick={() => void load(page?.page ?? 1)}>Try again</button></p> : null}
       {loading && !page ? <p role="status">Loading saved files…</p> : null}
       {page && !page.files.length ? <p>No saved files yet. Attach a file in chat to save it here.</p> : null}

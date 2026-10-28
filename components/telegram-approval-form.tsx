@@ -1,5 +1,7 @@
 "use client";
 
+import { navigateToPage } from "@/lib/page-navigation";
+
 import { FormEvent, useEffect, useId, useState } from "react";
 import { KeyRound } from "lucide-react";
 
@@ -53,7 +55,7 @@ export function TelegramApprovalForm({ errorMessage, next, status }: TelegramApp
         }
 
         if (data?.redirectTo) {
-          window.location.assign(data.redirectTo);
+          navigateToPage(data.redirectTo);
           return;
         }
 
@@ -113,7 +115,7 @@ export function TelegramApprovalForm({ errorMessage, next, status }: TelegramApp
       });
 
       if (response.redirected && response.url) {
-        window.location.assign(response.url);
+        navigateToPage(response.url);
         return;
       }
 
@@ -124,7 +126,7 @@ export function TelegramApprovalForm({ errorMessage, next, status }: TelegramApp
       }
 
       if (data?.redirectTo) {
-        window.location.assign(data.redirectTo);
+        navigateToPage(data.redirectTo);
       }
     } catch (error) {
       setCanRetry(true);
