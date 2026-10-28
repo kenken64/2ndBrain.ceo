@@ -31,6 +31,10 @@ export async function saveChatOutput(admin: Admin, userId: string, sourceId: str
   if (!data.length || data.length > 20 * 1024 * 1024) throw new Error("Generated file is empty or too large.");
   return saveFile(admin, userId, { name, data, mime: kind === "ocr" ? "text/markdown" : "application/json" }, "output", sourceId);
 }
+export async function saveChatGeneratedPdf(admin: Admin, userId: string, sourceId: string, name: string, data: Buffer) {
+  if (!data.length || data.length > 20 * 1024 * 1024 || data.subarray(0, 5).toString() !== "%PDF-") throw new Error("Generated PDF is invalid or exceeds 20 MB.");
+  return saveFile(admin, userId, { name: name.slice(0, 150), data, mime: "application/pdf" }, "output", sourceId);
+}
 
 export async function loadChatFile(admin: Admin, userId: string, id: string) {
   if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id)) return null;
@@ -46,7 +50,7 @@ export async function loadChatFile(admin: Admin, userId: string, id: string) {
   const file = record.file_origin === "output"
     ? { name: record.file_name, data: bytes, mime: record.mime_type, type: "output" as const }
     : validateChatFile(record.file_name, bytes);
-  if (file.mime !== record.mime_type || (file.type === "output" && !["text/markdown", "application/json"].includes(file.mime))) throw new Error("The saved file has an invalid type.");
+  if (file.mime !== record.mime_type || (file.type === "output" && (!(["text/markdown", "application/json", "application/pdf"].includes(file.mime)) || (file.mime === "application/pdf" && bytes.subarray(0, 5).toString() !== "%PDF-")))) throw new Error("The saved file has an invalid type.");
   return { file, metadata: publicChatFile(record) };
 }
 

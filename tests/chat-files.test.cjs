@@ -53,6 +53,8 @@ test('file lookup enforces ownership before downloading and validates stored byt
   const result = await files.loadChatFile(admin, alice, id); assert.equal(result.file.data.toString(), bytes.toString()); assert.equal(downloads, 1);
   row.file_origin = 'output'; row.mime_type = 'text/markdown'; row.file_name = 'output.md';
   const output = await files.loadChatFile(admin, alice, id); assert.equal(output.file.type, 'output'); assert.equal(output.metadata.origin, 'output');
+  row.mime_type = 'application/pdf'; row.file_name = 'output.pdf';
+  await assert.rejects(files.loadChatFile(admin, alice, id), /invalid type/);
   row.object_path = 'bob/other'; await assert.rejects(files.loadChatFile(admin, alice, id), /Invalid file record/);
 });
 
@@ -87,6 +89,15 @@ test('generated output is stored privately with its owner and source, and failed
   assert.deepEqual(removed, [uploaded.path]);
 });
 
+test('generated PDFs are saved as private output files', async () => {
+  const files = compile('lib/chat-files.ts', { 'server-only': {}, '@/lib/chat-attachments': attachments, '@/lib/supabase/admin': {} });
+  let inserted;
+  const admin = { storage: { from: () => ({ upload: async () => ({ error: null }) }) }, from: () => ({ insert: row => { inserted = row; return { select: () => ({ single: async () => ({ data: { ...row, created_at: '2026-01-01' }, error: null }) }) }; } }) };
+  const output = await files.saveChatGeneratedPdf(admin, 'alice', 'template-id', 'row-2.pdf', Buffer.from('%PDF-example'));
+  assert.equal(output.origin, 'output'); assert.equal(output.mime, 'application/pdf'); assert.equal(inserted.user_id, 'alice'); assert.equal(inserted.source_file_id, 'template-id');
+  await assert.rejects(files.saveChatGeneratedPdf(admin, 'alice', 'template-id', 'bad.pdf', Buffer.from('not pdf')), /invalid/);
+});
+
 test('preview requires authentication and ownership, and never serves documents as active HTML', async () => {
   let user = null, requestedOwner, saved;
   const mocks = {
@@ -110,6 +121,9 @@ test('preview requires authentication and ownership, and never serves documents 
   saved = { file: { type: 'pdf', name: 'report.pdf', mime: 'application/pdf', data: Buffer.from('%PDF-') } };
   response = await route.GET(request('?inline=1'), params);
   assert.equal(response.status, 200); assert.equal(response.headers.get('content-disposition'), 'inline'); assert.match(response.headers.get('content-security-policy'), /sandbox/); assert.equal(response.headers.get('cache-control'), 'private, no-store');
+  saved = { file: { type: 'output', name: 'generated.pdf', mime: 'application/pdf', data: Buffer.from('%PDF-') } };
+  response = await route.GET(request(), params); assert.equal((await response.json()).kind, 'pdf');
+  assert.equal((await route.GET(request('?inline=1'), params)).status, 200);
   saved = { file: { type: 'spreadsheet', name: 'report.xlsx', data: Buffer.from('sheet') } };
   response = await route.GET(request(), params); assert.equal((await response.json()).sheets[0].rows[0][0], 'A');
 });

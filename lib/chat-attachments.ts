@@ -55,6 +55,7 @@ export async function spreadsheetContext(file: ChatAttachment): Promise<string> 
   let cells = 0;
   for (const sheet of workbook.worksheets) {
     const rows: unknown[][] = [];
+    const rowNumbers: number[] = [];
     const stats: Record<number, { count: number; sum: number; min: number; max: number }> = {};
     if (sheet.rowCount > 5000 || sheet.columnCount > 100) throw new Error("Use at most 5,000 rows and 100 columns per sheet.");
     sheet.eachRow((row) => {
@@ -78,8 +79,9 @@ export async function spreadsheetContext(file: ChatAttachment): Promise<string> 
         values[column - 1] = v;
       });
       rows.push(values);
+      rowNumbers.push(row.number);
     });
-    sheets.push({ name: sheet.name, rows, numericColumnStatistics: stats });
+    sheets.push({ name: sheet.name, rows, rowNumbers, numericColumnStatistics: stats });
   }
   const result = JSON.stringify({ file: file.name, sheets });
   if (Buffer.byteLength(result) > 28_000) throw new Error("Spreadsheet data exceeds the chat analysis limit. Upload a smaller selection.");
