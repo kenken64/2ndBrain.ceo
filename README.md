@@ -117,6 +117,8 @@ Do not expose Supabase service role keys to the browser. Only use a service role
 
 Marketplace workflow launches use short-lived signed URLs. To also revoke already-open workflow tool tabs when a user logs out, set `MARKETPLACE_LAUNCH_VERIFY_SECRET` in AI CUBER and set the same value plus `MARKETPLACE_LAUNCH_VERIFY_URL=https://your-2ndbrain-domain/api/marketplace/launch-session/verify` in each deployed workflow tool.
 
+The 2D Game Development Tutorial runs as a separate Railway service from [aicuber-2d-game-dev-tutorial](https://github.com/kenken64/aicuber-2d-game-dev-tutorial). Set `GAME_DEV_TUTORIAL_URL` to its public `/api/2ndbrain/launch` endpoint and share a random `GAME_DEV_TUTORIAL_SESSION_SECRET` of at least 32 bytes with that service. Both services need the same `MARKETPLACE_LAUNCH_VERIFY_SECRET`; configure the tutorial's `MARKETPLACE_LAUNCH_VERIFY_URL` to this app's `/api/marketplace/launch-session/verify`. Its repository documents the volume and optional AI/cloud editor configuration. The listing uses the standard 10,000 AI credit monthly workflow price.
+
 ## Supabase
 
 Run every file in `supabase/migrations` in filename order, in the Supabase SQL

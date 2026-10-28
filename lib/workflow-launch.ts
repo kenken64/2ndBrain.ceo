@@ -12,6 +12,12 @@ export type WorkflowLaunchConfig = {
 };
 
 const WORKFLOW_LAUNCH_CONFIGS: Record<string, WorkflowLaunchConfig> = {
+  "2d-game-dev-tutorial": {
+    appUrlEnv: "GAME_DEV_TUTORIAL_URL",
+    itemId: "2d-game-dev-tutorial",
+    secretEnv: "GAME_DEV_TUTORIAL_SESSION_SECRET",
+    toolId: "2d-game-dev-tutorial"
+  },
   "gyne-agent": {
     appUrlEnv: "GYNE_AGENT_URL",
     itemId: "gyne-agent",

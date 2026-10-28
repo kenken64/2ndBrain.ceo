@@ -20,6 +20,18 @@ export const WORKFLOW_STORAGE_KEY = "2ndbrain.workflowTemplates";
 
 export const WORKFLOW_TEMPLATES: WorkflowTemplate[] = [
   {
+    category: "Education",
+    description: "Learn 2D game development through 21 guided modules with playable demos, AI-assisted asset creation, and a final Godot game.",
+    id: "2d-game-dev-tutorial",
+    itemType: "agent-app",
+    launchLabel: "Launch",
+    priceTokens: WORKFLOW_TOOL_PRICE_TOKENS,
+    repoUrl: "https://github.com/kenken64/aicuber-2d-game-dev-tutorial",
+    sourceLabel: "GitHub",
+    steps: ["Create characters and game assets", "Practice gameplay systems", "Build your final Godot game"],
+    title: "2D Game Development Tutorial"
+  },
+  {
     category: "Clinical Operations",
     description: "Install the Gyne Agent Redis task pipeline with Kanban task publishing, AI Agent workers, and optional Telegram updates.",
     id: "gyne-agent",
