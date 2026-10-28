@@ -12,7 +12,7 @@ import { createClient } from "@/lib/supabase/server";
 
 export const dynamic = "force-dynamic";
 
-export default async function ChatPage() {
+export default async function ChatPage({ searchParams }: { searchParams: Promise<{ chat?: string | string[] }> }) {
   if (!hasSupabaseEnv()) return <><Atmosphere /><main className="auth-page"><SetupCallout /></main></>;
   const supabase = await createClient();
   const { data, error } = await supabase.auth.getClaims();
@@ -24,6 +24,8 @@ export default async function ChatPage() {
   const email = typeof data?.claims?.email === "string" ? data.claims.email : null;
   const showAdmin = await canShowAdminWorkspaceLink({ email, userId });
   const chatConfigured = Boolean(process.env.OPENROUTER_API_KEY?.trim()) && hasSupabaseServiceRoleEnv();
+  const { chat } = await searchParams;
+  const initialChatId = typeof chat === "string" && chat.length <= 200 ? chat : undefined;
   return (
     <>
       <Atmosphere />
@@ -31,7 +33,7 @@ export default async function ChatPage() {
         <DashboardSidebar activeItem="chat" avatarName={onboardingProfile?.avatar_name} email={email} ownerName={onboardingProfile?.owner_name} showAdmin={showAdmin} showChatActions />
         <main className="dashboard-main">
           <div className="dashboard-topbar"><AnnouncementPill>AI Chat</AnnouncementPill><a className="text-link" href="/dashboard/settings?tab=payment">AI credits</a></div>
-          <WorkspaceChat userId={userId} configured={chatConfigured} />
+          <WorkspaceChat userId={userId} configured={chatConfigured} initialChatId={initialChatId} />
         </main>
       </div>
     </>

@@ -5,6 +5,8 @@ export type HistoryMessage = ChatMessage & { model?: ChatModelId };
 export type ChatSummary = { id: string; title: string; model: ChatModelId; updatedAt: number };
 export type ChatConversation = ChatSummary & { messages: HistoryMessage[]; revision: number; createdAt: number };
 export type HistoryPage = { chats: ChatSummary[]; hasMore: boolean };
+export type ChatSearchResult = ChatSummary & { messageCount: number; snippet: string | null };
+export type ChatSearchPage = { chats: ChatSearchResult[]; page: number; pageCount: number; total: number };
 
 const DATABASE_PATH = "opfs://ai-cuber-chat-v1.duckdb";
 const DATABASE_LOCK = "ai-cuber-chat-database-v1";
@@ -78,6 +80,66 @@ export async function listChats(userId: string, limit: number): Promise<HistoryP
     const result = await runPrepared(connection, "SELECT id, title, model, updated_at FROM conversations WHERE user_id = ? ORDER BY updated_at DESC, created_at DESC LIMIT ?", [userId, Math.max(1, limit + 1)]);
     const rows = result.toArray().map((row) => row.toJSON() as Record<string, unknown>);
     return { chats: rows.slice(0, limit).map((row) => ({ id: String(row.id), title: String(row.title), model: isChatModel(row.model) ? row.model : CHAT_MODELS[0].id, updatedAt: Number(row.updated_at) })), hasMore: rows.length > limit };
+  });
+}
+
+function likePattern(value: string) {
+  return `%${value.replace(/[\\%_]/g, "\\$&")}%`;
+}
+
+function matchSnippet(content: string, needle: string) {
+  const at = content.toLowerCase().indexOf(needle);
+  if (at < 0) return null;
+  const start = Math.max(0, at - 60);
+  const end = Math.min(content.length, at + needle.length + 100);
+  return `${start > 0 ? "…" : ""}${content.slice(start, end).replace(/\s+/g, " ").trim()}${end < content.length ? "…" : ""}`;
+}
+
+/**
+ * Pages through a user's chats, newest first, optionally filtered by a
+ * case-insensitive match on the title or any message. SQL narrows candidates
+ * with LIKE over the stored JSON; parsed messages then confirm each match so
+ * JSON keys such as "role" or "content" never count as hits.
+ */
+export async function searchChats(userId: string, query: string, page: number, pageSize: number): Promise<ChatSearchPage> {
+  const needle = query.trim().toLowerCase();
+  return withDatabase(async (connection) => {
+    const columns = "SELECT id, title, model, messages_json, updated_at FROM conversations";
+    const order = "ORDER BY updated_at DESC, created_at DESC";
+    let rows: Record<string, unknown>[];
+    let total: number;
+    let pageCount: number;
+    let current: number;
+    if (!needle) {
+      const counted = await runPrepared(connection, "SELECT count(*) AS total FROM conversations WHERE user_id = ?", [userId]);
+      total = Number(counted.toArray()[0]?.toJSON().total ?? 0);
+      pageCount = Math.max(1, Math.ceil(total / pageSize));
+      current = Math.min(Math.max(1, page), pageCount);
+      const result = await runPrepared(connection, `${columns} WHERE user_id = ? ${order} LIMIT ? OFFSET ?`, [userId, pageSize, (current - 1) * pageSize]);
+      rows = result.toArray().map((row) => row.toJSON() as Record<string, unknown>);
+    } else {
+      const result = await runPrepared(connection,
+        `${columns} WHERE user_id = ? AND (lower(title) LIKE ? ESCAPE '\\' OR lower(messages_json) LIKE ? ESCAPE '\\') ${order}`,
+        [userId, likePattern(needle), likePattern(JSON.stringify(needle).slice(1, -1))]);
+      const matches = result.toArray().map((row) => row.toJSON() as Record<string, unknown>).filter((row) => {
+        if (String(row.title).toLowerCase().includes(needle)) return true;
+        try { return validMessages(JSON.parse(String(row.messages_json))).some((message) => message.content.toLowerCase().includes(needle)); } catch { return false; }
+      });
+      total = matches.length;
+      pageCount = Math.max(1, Math.ceil(total / pageSize));
+      current = Math.min(Math.max(1, page), pageCount);
+      rows = matches.slice((current - 1) * pageSize, current * pageSize);
+    }
+    const chats = rows.map((row) => {
+      let messages: HistoryMessage[] = [];
+      try { messages = validMessages(JSON.parse(String(row.messages_json))); } catch { /* An unreadable chat still lists by title. */ }
+      const snippet = needle ? messages.map((message) => matchSnippet(message.content, needle)).find(Boolean) ?? null : null;
+      return {
+        id: String(row.id), title: String(row.title), model: isChatModel(row.model) ? row.model : CHAT_MODELS[0].id,
+        updatedAt: Number(row.updated_at), messageCount: messages.length, snippet
+      };
+    });
+    return { chats, page: current, pageCount, total };
   });
 }
 

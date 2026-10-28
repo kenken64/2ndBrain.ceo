@@ -11,7 +11,8 @@ import type { ChatConversation, ChatSummary, HistoryMessage } from "@/lib/chat-h
 
 type HistoryApi = typeof import("@/lib/chat-history");
 type CacheState = "loading" | "ready" | "unavailable";
-const HISTORY_PAGE_SIZE = 10;
+// The sidebar lists only the most recent chats; /dashboard/chat/history pages through the rest.
+const SIDEBAR_HISTORY_LIMIT = 10;
 
 function newDraft(model: ChatModelId = CHAT_MODELS[0].id): ChatConversation {
   const now = Date.now();
@@ -32,12 +33,10 @@ function historyForRequest(history: HistoryMessage[]): ChatMessage[] {
   return selected;
 }
 
-export function WorkspaceChat({ userId, configured }: { userId: string; configured: boolean }) {
+export function WorkspaceChat({ userId, configured, initialChatId }: { userId: string; configured: boolean; initialChatId?: string }) {
   const [chat, setChat] = useState<ChatConversation | null>(null);
   const [chats, setChats] = useState<ChatSummary[]>([]);
   const [cacheState, setCacheState] = useState<CacheState>("loading");
-  const [hasMore, setHasMore] = useState(false);
-  const [limit, setLimit] = useState(HISTORY_PAGE_SIZE);
   const [selecting, setSelecting] = useState(false);
   const [prompt, setPrompt] = useState("");
   const [error, setError] = useState("");
@@ -53,11 +52,10 @@ export function WorkspaceChat({ userId, configured }: { userId: string; configur
   const isAtBottomRef = useRef(true);
   const channelRef = useRef<BroadcastChannel | null>(null);
 
-  const refreshHistory = useCallback(async (count: number) => {
+  const refreshHistory = useCallback(async () => {
     if (!apiRef.current) return;
-    const page = await apiRef.current.listChats(userId, count);
+    const page = await apiRef.current.listChats(userId, SIDEBAR_HISTORY_LIMIT);
     setChats(page.chats);
-    setHasMore(page.hasMore);
   }, [userId]);
 
   useEffect(() => {
@@ -65,23 +63,24 @@ export function WorkspaceChat({ userId, configured }: { userId: string; configur
     memoryRef.current.clear();
     setChat(null);
     setChats([]);
-    setHasMore(false);
-    setLimit(HISTORY_PAGE_SIZE);
     setPrompt("");
     setCacheState("loading");
     (async () => {
       try {
         const api = await import("@/lib/chat-history");
         await api.migrateLegacyChat(userId);
-        const page = await api.listChats(userId, HISTORY_PAGE_SIZE);
-        const latest = page.chats[0] ? await api.getChat(userId, page.chats[0].id) : null;
+        const page = await api.listChats(userId, SIDEBAR_HISTORY_LIMIT);
+        const requested = initialChatId ? await api.getChat(userId, initialChatId) : null;
+        const latest = requested ?? (page.chats[0] ? await api.getChat(userId, page.chats[0].id) : null);
         if (disposed) return;
         apiRef.current = api;
         setChats(page.chats);
-        setHasMore(page.hasMore);
         const initial = latest ?? newDraft();
         if (latest) memoryRef.current.set(latest.id, latest);
         setChat(initial);
+        if (initialChatId && !requested) setError("That chat is not saved in this browser. Showing your latest chat instead.");
+        // Drop ?chat= once consumed so a reload opens whichever chat is current, not the one linked to.
+        if (initialChatId) window.history.replaceState(null, "", window.location.pathname);
         setCacheState("ready");
       } catch {
         if (disposed) return;
@@ -91,7 +90,7 @@ export function WorkspaceChat({ userId, configured }: { userId: string; configur
       }
     })();
     return () => { disposed = true; apiRef.current = null; };
-  }, [userId]);
+  }, [initialChatId, userId]);
 
   useEffect(() => {
     setHistoryTarget(document.getElementById("sidebar-chat-history-slot"));
@@ -105,10 +104,10 @@ export function WorkspaceChat({ userId, configured }: { userId: string; configur
     const channel = new BroadcastChannel("ai-cuber-chat-history-v1");
     channelRef.current = channel;
     channel.onmessage = (event) => {
-      if (event.data?.userId === userId) void refreshHistory(limit).catch(() => undefined);
+      if (event.data?.userId === userId) void refreshHistory().catch(() => undefined);
     };
     return () => { channelRef.current = null; channel.close(); };
-  }, [cacheState, limit, refreshHistory, userId]);
+  }, [cacheState, refreshHistory, userId]);
 
   useEffect(() => {
     const thread = threadRef.current;
@@ -125,7 +124,7 @@ export function WorkspaceChat({ userId, configured }: { userId: string; configur
 
   function rememberInMemory(next: ChatConversation) {
     memoryRef.current.set(next.id, next);
-    setChats((current) => [{ id: next.id, title: next.title, model: next.model, updatedAt: next.updatedAt }, ...current.filter((item) => item.id !== next.id)]);
+    setChats((current) => [{ id: next.id, title: next.title, model: next.model, updatedAt: next.updatedAt }, ...current.filter((item) => item.id !== next.id)].slice(0, SIDEBAR_HISTORY_LIMIT));
     setChat(next);
   }
 
@@ -136,7 +135,7 @@ export function WorkspaceChat({ userId, configured }: { userId: string; configur
         const saved = await api.saveChat(userId, next);
         memoryRef.current.set(saved.id, saved);
         setChat(saved);
-        await refreshHistory(limit).catch(() => undefined);
+        await refreshHistory().catch(() => undefined);
         channelRef.current?.postMessage({ userId });
         return saved;
       } catch (reason) {
@@ -167,12 +166,6 @@ export function WorkspaceChat({ userId, configured }: { userId: string; configur
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : "Unable to open this chat.");
     } finally { setSelecting(false); }
-  }
-
-  async function loadMore() {
-    const nextLimit = limit + HISTORY_PAGE_SIZE;
-    try { await refreshHistory(nextLimit); setLimit(nextLimit); }
-    catch { setError("Unable to load more chats. Please try again."); }
   }
 
   async function send(event: FormEvent<HTMLFormElement>) {
@@ -239,7 +232,7 @@ export function WorkspaceChat({ userId, configured }: { userId: string; configur
       const saved = await api.saveChat(userId, draft);
       memoryRef.current.set(saved.id, saved);
       setChat(saved);
-      await refreshHistory(limit).catch(() => undefined);
+      await refreshHistory().catch(() => undefined);
       channelRef.current?.postMessage({ userId });
     } catch (reason) {
       if (reason instanceof api.ChatHistoryConflict) {
@@ -279,10 +272,9 @@ export function WorkspaceChat({ userId, configured }: { userId: string; configur
           <p className="workspace-chat__privacy">Chat history is stored in this browser on this device. Clearing browser data removes it.</p>
         </div>
         {historyTarget ? createPortal(<aside aria-label="Chat history" className="workspace-chat-history">
-          <div className="workspace-chat-history__header"><h2>Chat history</h2><span>Recent</span></div>
+          <div className="workspace-chat-history__header"><h2>Chat history</h2><a className="workspace-chat-history__view-all" href="/dashboard/chat/history">View all</a></div>
           {cacheState === "loading" ? <p className="workspace-chat-history__empty">Loading your chats…</p> : chats.length === 0 ? <p className="workspace-chat-history__empty">Your conversations will appear here.</p> : null}
           <div className="workspace-chat-history__list">{chats.map((item) => <button aria-current={chat?.id === item.id ? "true" : undefined} className={`workspace-chat-history__item${chat?.id === item.id ? " is-active" : ""}`} disabled={busy || selecting} key={item.id} onClick={() => void selectChat(item.id)} type="button"><strong>{item.title}</strong><span>{CHAT_MODELS.find((model) => model.id === item.model)?.label ?? "AI"}</span></button>)}</div>
-          {hasMore ? <button className="workspace-chat-history__more" disabled={busy || selecting} onClick={() => void loadMore()} type="button">Show more</button> : null}
         </aside>, historyTarget) : null}
       </div>
     </section>
