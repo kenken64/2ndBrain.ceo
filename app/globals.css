@@ -6408,8 +6408,13 @@ svg {
 .graph-view-switch { display: flex; width: fit-content; gap: 3px; margin: 0 0 12px auto; padding: 4px; border: 1px solid var(--border-soft); border-radius: 11px; background: #f3f6fa; }
 .graph-view-switch button { padding: 8px 13px; border-radius: 8px; background: transparent; color: #5d7184; font-size: 12px; font-weight: 750; cursor: pointer; }
 .graph-view-switch button[aria-pressed="true"] { background: #fff; color: #175285; box-shadow: 0 1px 4px #1d3b521c; }
-.graph3d-shell { position: relative; height: min(76vh, 820px); min-height: 600px; overflow: hidden; border-radius: 16px; border: 1px solid #223649; color: #dce9f4; background: #07101e; }
-.graph3d-viewport { position: absolute; inset: 0; overflow: hidden; }
+.graph3d-shell { position: relative; height: min(76vh, 820px); min-height: 600px; overflow: hidden; border-radius: 16px; border: 1px solid #223649; color: #dce9f4; background: #030815 center / cover no-repeat; }
+.graph3d-shell:fullscreen { width: 100vw; height: 100vh; min-height: 0; border: 0; border-radius: 0; }
+.graph-window-page { min-height: 100vh; padding: 8px; background: #07101e; }
+.graph-window-page .graph3d-shell { height: calc(100dvh - 76px); min-height: 0; }
+.graph-window-page .graph3d-shell:fullscreen { height: 100vh; }
+.graph3d-viewport { position: absolute; inset: 60px 16px 16px; overflow: hidden; }
+.graph3d-shell--controls-open .graph3d-viewport { left: 300px; }
 .graph3d-viewport canvas { display: block; outline: none; }
 .graph3d-controls, .graph3d-inspector, .graph3d-actions { position: absolute; z-index: 2; }
 .graph3d-controls, .graph3d-inspector { border: 1px solid #34495b; border-radius: 14px; background: rgba(10,20,32,.94); box-shadow: 0 16px 40px #0005; backdrop-filter: blur(12px); }
@@ -6436,6 +6441,8 @@ svg {
 .graph3d-filters small { margin-left: auto; color: #8da4b5; }
 .graph3d-actions { display: flex; align-items: center; gap: 7px; top: 16px; right: 16px; }
 .graph3d-actions button { display: inline-flex; align-items: center; gap: 6px; padding: 8px 12px; border: 1px solid #34495b; border-radius: 10px; background: #102030ed; color: #e5f2fa; font-size: 12px; font-weight: 700; cursor: pointer; }
+.graph3d-display-error { position: absolute; z-index: 4; right: 16px; top: 60px; display: flex; align-items: center; gap: 12px; max-width: min(360px, calc(100% - 32px)); padding: 10px 12px; border: 1px solid #8b4e55; border-radius: 10px; background: #321d29; color: #ffe1e1; font-size: 12px; }
+.graph3d-display-error button { display: grid; place-items: center; padding: 4px; background: transparent; color: inherit; cursor: pointer; }
 .graph3d-inspector { right: 16px; bottom: 16px; width: min(300px, calc(100% - 32px)); max-height: 48%; overflow: auto; padding: 16px; }
 .graph3d-inspector-close { float: right; }
 .graph3d-inspector h3 { margin: 8px 34px 4px 0; color: #fff; font-size: 16px; overflow-wrap: anywhere; }
@@ -6450,8 +6457,12 @@ svg {
 .graph3d-state--error { color: #ffd9d9; }
 @media (max-width: 760px) {
   .graph3d-shell { height: 72vh; min-height: 570px; }
+  .graph3d-viewport, .graph3d-shell--controls-open .graph3d-viewport { inset: 82px 10px 62px; }
   .graph3d-controls { top: 10px; left: 10px; width: min(225px, calc(100% - 20px)); padding: 11px; }
   .graph3d-actions { top: auto; right: 10px; bottom: 10px; }
+  .graph3d-actions button { padding: 8px; }
+  .graph3d-action-label { display: none; }
+  .graph3d-display-error { top: auto; right: 10px; bottom: 58px; }
   .graph3d-inspector { right: 10px; bottom: 58px; width: min(300px, calc(100% - 20px)); max-height: 38%; }
   .graph3d-filters { max-height: 120px; }
 }

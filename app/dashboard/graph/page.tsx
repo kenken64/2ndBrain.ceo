@@ -15,6 +15,7 @@ type GraphPageProps = {
   searchParams: Promise<{
     path?: string;
     projectId?: string;
+    graphWindow?: string;
   }>;
 };
 
@@ -265,6 +266,20 @@ export default async function DashboardGraphPage({ searchParams }: GraphPageProp
     (pages ?? []) as GraphPageRow[],
     (pageNodes ?? []) as GraphPageNodeRow[]
   );
+
+  if (params.graphWindow === "1") {
+    return (
+      <main className="graph-window-page">
+        <KnowledgeGraph
+          edges={(edges ?? []) as GraphEdge[]}
+          nodes={graphNodes}
+          highlightPath={highlightPath}
+          projectId={projectId}
+          rootLabel={context.project?.title ?? "Selected Nth Brain intent"}
+        />
+      </main>
+    );
+  }
 
   return (
     <>

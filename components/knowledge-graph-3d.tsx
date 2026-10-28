@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Crosshair, ExternalLink, Maximize2, RotateCcw, Search, X } from "lucide-react";
+import { ExternalLink, Maximize, Maximize2, Minimize, Pause, Play, RotateCcw, Search, X } from "lucide-react";
 import type { ForceGraph3DInstance, LinkObject, NodeObject } from "3d-force-graph";
 
 type InputNode = { id: string; label: string; node_type: string; slug: string; source_path?: string | null; synthetic?: boolean };
@@ -17,7 +17,30 @@ function displayType(type: string) { return type.replace(/_/g, " ").replace(/^./
 function number(value: number | undefined) { return typeof value === "number" && Number.isFinite(value) ? value : 0; }
 function wikiPageHref(projectId: string, sourcePath: string) { return `/dashboard/wiki?${new URLSearchParams({ path: sourcePath, projectId })}`; }
 
+function spaceBackground() {
+  const canvas = document.createElement("canvas");
+  canvas.width = 1440; canvas.height = 960;
+  const ctx = canvas.getContext("2d");
+  if (!ctx) return "";
+  ctx.fillStyle = "#030815"; ctx.fillRect(0, 0, canvas.width, canvas.height);
+  for (const [x, y, radius, color] of [[300, 230, 570, "rgba(41, 66, 133, .28)"], [1110, 700, 600, "rgba(68, 40, 118, .24)"], [850, 280, 470, "rgba(19, 99, 111, .12)"]] as const) {
+    const glow = ctx.createRadialGradient(x, y, 0, x, y, radius);
+    glow.addColorStop(0, color); glow.addColorStop(1, "rgba(3, 8, 21, 0)");
+    ctx.fillStyle = glow; ctx.fillRect(0, 0, canvas.width, canvas.height);
+  }
+  let seed = 18742;
+  const random = () => { seed = (seed * 1664525 + 1013904223) >>> 0; return seed / 4294967296; };
+  for (let i = 0; i < 500; i++) {
+    const x = random() * canvas.width, y = random() * canvas.height;
+    const radius = i < 25 ? 1.3 : 0.35 + random() * 0.65;
+    ctx.fillStyle = `rgba(210, 230, 255, ${0.18 + random() * 0.62})`;
+    ctx.beginPath(); ctx.arc(x, y, radius, 0, Math.PI * 2); ctx.fill();
+  }
+  return `url(${canvas.toDataURL()})`;
+}
+
 export function KnowledgeGraph3D({ nodes, edges, projectId, highlightPath, componentCount, directEdgeCount }: Props) {
+  const shellRef = useRef<HTMLDivElement>(null);
   const viewportRef = useRef<HTMLDivElement>(null);
   const graphRef = useRef<GraphInstance | null>(null);
   const [hiddenTypes, setHiddenTypes] = useState<string[]>([]);
@@ -26,9 +49,31 @@ export function KnowledgeGraph3D({ nodes, edges, projectId, highlightPath, compo
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(true);
   const [showControls, setShowControls] = useState(true);
+  const [drifting, setDrifting] = useState(false);
+  const [fullscreen, setFullscreen] = useState(false);
+  const [displayError, setDisplayError] = useState("");
   const [readyVersion, setReadyVersion] = useState(0);
   const selectedRef = useRef<string | null>(null);
   useEffect(() => { if (window.matchMedia("(max-width: 760px)").matches) setShowControls(false); }, []);
+  useEffect(() => {
+    const preference = window.matchMedia("(prefers-reduced-motion: reduce)");
+    setDrifting(!preference.matches);
+    const onChange = (event: MediaQueryListEvent) => setDrifting(!event.matches);
+    preference.addEventListener("change", onChange);
+    return () => preference.removeEventListener("change", onChange);
+  }, []);
+  useEffect(() => {
+    let fitTimeout: number | undefined;
+    const onFullscreenChange = () => {
+      setFullscreen(document.fullscreenElement === shellRef.current);
+      if (fitTimeout) window.clearTimeout(fitTimeout);
+      fitTimeout = window.setTimeout(() => {
+        if (!selectedRef.current) graphRef.current?.zoomToFit(400, 40);
+      }, 150);
+    };
+    document.addEventListener("fullscreenchange", onFullscreenChange);
+    return () => { document.removeEventListener("fullscreenchange", onFullscreenChange); if (fitTimeout) window.clearTimeout(fitTimeout); };
+  }, []);
   selectedRef.current = selectedId;
   const types = useMemo(() => {
     const counts = new Map<string, number>();
@@ -91,10 +136,11 @@ export function KnowledgeGraph3D({ nodes, edges, projectId, highlightPath, compo
         if (disposed) return;
         const webgl = document.createElement("canvas");
         if (!webgl.getContext("webgl2") && !webgl.getContext("webgl")) throw new Error("WebGL is not available in this browser.");
-        const instance = new ForceGraph3D(container, { controlType: "orbit", rendererConfig: { antialias: true, alpha: false } }) as unknown as GraphInstance;
+        if (container.parentElement) container.parentElement.style.backgroundImage = spaceBackground();
+        const instance = new ForceGraph3D(container, { controlType: "orbit", rendererConfig: { antialias: true, alpha: true } }) as unknown as GraphInstance;
         graph = instance; graphRef.current = instance;
         let fitted = false;
-        instance.width(container.clientWidth).height(container.clientHeight).backgroundColor("#07101e").showNavInfo(false)
+        instance.width(container.clientWidth).height(container.clientHeight).backgroundColor("rgba(0, 0, 0, 0)").showNavInfo(false)
           .nodeId("id").nodeVal("val").nodeRelSize(5.5).nodeResolution(12)
           .nodeColor(node => selectedRef.current && !connectedRef.current.has(node.id) ? "#263747" : node.color)
           .nodeLabel(node => { const label = document.createElement("span"); label.textContent = `${node.label} · ${displayType(node.node_type)}`; return label; })
@@ -119,7 +165,14 @@ export function KnowledgeGraph3D({ nodes, edges, projectId, highlightPath, compo
           .onBackgroundClick(() => setSelectedId(null))
           .graphData({ nodes: visibleGraph.nodes.map(node => ({ ...node })), links: visibleGraph.links.map(link => ({ ...link })) });
         fitTimer = window.setTimeout(() => { if (!disposed && !userInteracted && !selectedRef.current) instance.zoomToFit(500, 60); }, 900);
-        observer = new ResizeObserver(() => { if (container.clientWidth && container.clientHeight) instance.width(container.clientWidth).height(container.clientHeight); });
+        observer = new ResizeObserver(() => {
+          if (!container.clientWidth || !container.clientHeight) return;
+          instance.width(container.clientWidth).height(container.clientHeight);
+          if (!userInteracted && !selectedRef.current) {
+            if (fitTimer) window.clearTimeout(fitTimer);
+            fitTimer = window.setTimeout(() => { if (!disposed && !userInteracted && !selectedRef.current) instance.zoomToFit(500, 40); }, 250);
+          }
+        });
         observer.observe(container);
         setReadyVersion(value => value + 1); setLoading(false);
       } catch (reason) {
@@ -141,6 +194,14 @@ export function KnowledgeGraph3D({ nodes, edges, projectId, highlightPath, compo
   useEffect(() => {
     const graph = graphRef.current;
     if (!graph) return;
+    const controls = graph.controls() as { autoRotate: boolean; autoRotateSpeed: number };
+    controls.autoRotate = drifting && !selectedId;
+    controls.autoRotateSpeed = 0.18;
+  }, [drifting, selectedId, readyVersion]);
+
+  useEffect(() => {
+    const graph = graphRef.current;
+    if (!graph) return;
     graph.nodeColor(node => selectedId && !connected.has(node.id) ? "#263747" : node.color);
     graph.linkColor(link => selectedId ? (link.sourceId === selectedId || link.targetId === selectedId ? "#83ebd2" : "#263a46") : link.synthetic ? "#496275" : "#4f9b8c");
     graph.linkWidth(link => selectedId && (link.sourceId === selectedId || link.targetId === selectedId) ? 1.3 : 0.35);
@@ -154,7 +215,24 @@ export function KnowledgeGraph3D({ nodes, edges, projectId, highlightPath, compo
 
   const neighbors = selected ? visibleGraph.links.filter(edge => edge.sourceId === selected.id || edge.targetId === selected.id).slice(0, 20) : [];
   const nodeById = new Map(visibleGraph.nodes.map(node => [node.id, node]));
-  return <div className="graph3d-shell">
+  const openWindow = () => {
+    if (!projectId) return;
+    const params = new URLSearchParams({ projectId, graphWindow: "1" });
+    if (highlightPath) params.set("path", highlightPath);
+    const opened = window.open(`/dashboard/graph?${params}`, "_blank", "popup=yes,width=1200,height=850");
+    if (!opened) { setDisplayError("Your browser blocked the graph window. Allow pop-ups for this site and try again."); return; }
+    opened.opener = null;
+    setDisplayError("");
+  };
+  const toggleFullscreen = async () => {
+    try {
+      if (document.fullscreenElement === shellRef.current) await document.exitFullscreen();
+      else if (shellRef.current?.requestFullscreen) await shellRef.current.requestFullscreen();
+      else throw new Error("Full screen is not supported by this browser.");
+      setDisplayError("");
+    } catch { setDisplayError("Full screen is unavailable. Try opening the graph in a new window instead."); }
+  };
+  return <div ref={shellRef} className={`graph3d-shell${showControls ? " graph3d-shell--controls-open" : ""}`}>
     <div className="graph3d-viewport" ref={viewportRef} aria-label="Interactive 3D knowledge graph" />
     {loading ? <p className="graph3d-state" role="status">Preparing your 3D graph…</p> : null}
     {error ? <p className="graph3d-state graph3d-state--error" role="alert">{error} Switch to 2D view to explore this graph.</p> : null}
@@ -168,7 +246,8 @@ export function KnowledgeGraph3D({ nodes, edges, projectId, highlightPath, compo
         <p className="graph3d-hint">{componentCount} original cluster{componentCount === 1 ? "" : "s"}. Project-scope links are visual guides.</p>
       </> : null}
     </div>
-    <div className="graph3d-actions"><button type="button" onClick={() => graphRef.current?.zoomToFit(600, 80)} title="Fit graph"><Maximize2 size={15} /> Fit</button><button type="button" onClick={() => graphRef.current?.d3ReheatSimulation()} title="Re-run force layout"><RotateCcw size={15} /> Reflow</button></div>
+    <div className="graph3d-actions"><button type="button" onClick={() => setDrifting(value => !value)} aria-pressed={drifting} title={drifting ? "Pause galaxy drift" : "Resume galaxy drift"}>{drifting ? <Pause size={15} /> : <Play size={15} />} {drifting ? "Pause" : "Drift"}</button><button type="button" onClick={() => { setSelectedId(null); graphRef.current?.zoomToFit(600, 40); }} title="Fit graph"><Maximize2 size={15} /> Fit</button><button type="button" onClick={() => graphRef.current?.d3ReheatSimulation()} title="Re-run force layout"><RotateCcw size={15} /> Reflow</button>{projectId ? <button type="button" onClick={openWindow} aria-label="Open graph in new window" title="Open graph in new window"><ExternalLink size={15} /><span className="graph3d-action-label">Window</span></button> : null}<button type="button" onClick={toggleFullscreen} aria-label={fullscreen ? "Exit full screen" : "Enter full screen"} title={fullscreen ? "Exit full screen" : "Enter full screen"}>{fullscreen ? <Minimize size={15} /> : <Maximize size={15} />}<span className="graph3d-action-label">{fullscreen ? "Exit full screen" : "Full screen"}</span></button></div>
+    {displayError ? <div className="graph3d-display-error" role="alert">{displayError}<button type="button" onClick={() => setDisplayError("")} aria-label="Dismiss message"><X size={14} /></button></div> : null}
     {selected ? <aside className="graph3d-inspector" aria-label="Selected node details"><button className="graph3d-inspector-close" type="button" aria-label="Close node details" onClick={() => setSelectedId(null)}><X size={16} /></button><span className="graph3d-eyebrow"><span className="graph3d-dot" style={{ background: selected.color }} /> {displayType(selected.node_type)}</span><h3>{selected.label}</h3><p>{selected.synthetic ? "Project anchor · visual grouping" : `${selected.degree} visible connection${selected.degree === 1 ? "" : "s"}`}</p>{projectId && selected.source_path ? <a href={wikiPageHref(projectId, selected.source_path)}>Open source page <ExternalLink size={14} /></a> : null}{neighbors.length ? <div className="graph3d-neighbors"><strong>Connections</strong>{neighbors.map(edge => { const otherId = edge.sourceId === selected.id ? edge.targetId : edge.sourceId; const other = nodeById.get(otherId); return other ? <button key={edge.id} type="button" onClick={() => focus(other.id)}><span>{other.label}</span><small>{edge.synthetic ? "project scope" : edge.relation.replace(/_/g, " ")}</small></button> : null; })}{selected.degree > neighbors.length ? <small>Showing {neighbors.length} connections.</small> : null}</div> : null}</aside> : null}
     {!visibleGraph.nodes.length ? <div className="graph3d-empty">All node types are hidden. Select a type in the filter to show it again.</div> : null}
   </div>;
