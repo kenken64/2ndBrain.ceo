@@ -4,8 +4,10 @@ import { AdminUsersTable, type AdminUserRow } from "@/components/admin-users-tab
 import { AnnouncementPill } from "@/components/announcement-pill";
 import { Atmosphere } from "@/components/atmosphere";
 import { DashboardSidebar } from "@/components/dashboard-sidebar";
+import { OpenRouterKeyUsageCard } from "@/components/openrouter-key-usage";
 import { SolanaPaymentHistory } from "@/components/solana-payment-history";
 import { requireAdminPage } from "@/lib/admin";
+import { getOpenRouterKeyUsage } from "@/lib/openrouter-key-usage";
 import { getAdminSolanaPaymentHistory } from "@/lib/solana-payment-history";
 
 export const dynamic = "force-dynamic";
@@ -110,6 +112,8 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
     redirect("/admin/mfa?next=/admin");
   }
 
+  // Started before the database reads so a slow OpenRouter response overlaps them.
+  const openRouterKeyUsagePromise = getOpenRouterKeyUsage();
   const { data: profileRows } = await access.adminSupabase
     .from("profiles")
     .select(
@@ -198,6 +202,7 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
         Number(adminProfileRow.llm_token_quota ?? 0) - Number(adminProfileRow.llm_token_used ?? 0)
       )
     : 0;
+  const openRouterKeyUsage = await openRouterKeyUsagePromise;
 
   return (
     <>
@@ -232,13 +237,16 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
 
             <AdminTabs
               billing={
-                <SolanaPaymentHistory
-                  emptyCopy="No confirmed Solana top-ups have been recorded yet."
-                  eyebrow="Admin billing"
-                  payments={solanaPaymentHistory}
-                  showUser
-                  title="Solana top-up history"
-                />
+                <div className="settings-grid">
+                  <OpenRouterKeyUsageCard usage={openRouterKeyUsage} />
+                  <SolanaPaymentHistory
+                    emptyCopy="No confirmed Solana top-ups have been recorded yet."
+                    eyebrow="Admin billing"
+                    payments={solanaPaymentHistory}
+                    showUser
+                    title="Solana top-up history"
+                  />
+                </div>
               }
               initialTab={requestedTab}
               users={

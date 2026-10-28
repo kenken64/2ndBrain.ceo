@@ -2380,7 +2380,8 @@ svg {
   grid-column: 1 / -1;
 }
 
-.solana-payment-history {
+.solana-payment-history,
+.openrouter-key-usage {
   grid-column: 1 / -1;
 }
 
