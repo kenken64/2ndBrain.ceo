@@ -6425,6 +6425,17 @@ svg {
 .graph3d-panel-header strong span { color: #60c7ae; }
 .graph3d-eyebrow { color: #72ddbd; font-size: 10px; font-weight: 800; letter-spacing: .11em; }
 .graph3d-panel-header button, .graph3d-search button, .graph3d-inspector-close { display: grid; place-items: center; width: 29px; height: 29px; padding: 0; border-radius: 8px; background: #1b2c3d; color: #d6e7f5; cursor: pointer; }
+.graph3d-node-count { display: flex; align-items: center; gap: 6px; }
+.graph3d-panel-header .graph3d-help-trigger { width: 24px; height: 24px; background: transparent; color: #a9c7d6; }
+.graph3d-panel-header .graph3d-help-trigger:hover { color: #7de6c7; background: #1b2c3d; }
+.graph3d-help-dialog { width: min(520px, calc(100vw - 32px)); max-height: min(85dvh, 700px); margin: auto; padding: 24px; overflow-y: auto; border: 1px solid #385466; border-radius: 16px; color: #dce9f4; background: #0b1827; box-shadow: 0 24px 80px #0009; }
+.graph3d-help-dialog::backdrop { background: rgba(0, 4, 12, .75); }
+.graph3d-help-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; }
+.graph3d-help-header h2 { margin: 7px 0 5px; color: #f5fbff; font-size: 21px; line-height: 1.3; }
+.graph3d-help-header button { display: grid; place-items: center; width: 32px; height: 32px; padding: 0; border-radius: 8px; color: #d6e7f5; background: #1b2c3d; cursor: pointer; }
+.graph3d-help-dialog p { margin: 14px 0; color: #c1d2de; font-size: 13px; line-height: 1.6; }
+.graph3d-help-dialog p strong { color: #e7f9f5; }
+.graph3d-help-done { margin-top: 4px; padding: 9px 16px; border-radius: 9px; color: #06271f; background: #72ddbd; font-size: 13px; font-weight: 700; cursor: pointer; }
 .graph3d-search { display: flex; align-items: center; gap: 7px; margin-top: 14px; padding: 0 9px; min-height: 38px; border: 1px solid #385165; border-radius: 9px; color: #7aa3b9; background: #0c1928; }
 .graph3d-search input { flex: 1; width: 100%; min-width: 0; border: 0; outline: 0; color: #f1f9ff; background: transparent; font-size: 12px; }
 .graph3d-search input::placeholder { color: #8a9cab; }

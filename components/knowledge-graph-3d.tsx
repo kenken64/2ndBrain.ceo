@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { ExternalLink, Maximize, Maximize2, Minimize, Pause, Play, RotateCcw, Search, X } from "lucide-react";
+import { CircleHelp, ExternalLink, Maximize, Maximize2, Minimize, Pause, Play, RotateCcw, Search, X } from "lucide-react";
 import type { ForceGraph3DInstance, LinkObject, NodeObject } from "3d-force-graph";
 
 type InputNode = { id: string; label: string; node_type: string; slug: string; source_path?: string | null; synthetic?: boolean };
@@ -41,6 +41,7 @@ function spaceBackground() {
 
 export function KnowledgeGraph3D({ nodes, edges, projectId, highlightPath, componentCount, directEdgeCount }: Props) {
   const shellRef = useRef<HTMLDivElement>(null);
+  const helpRef = useRef<HTMLDialogElement>(null);
   const viewportRef = useRef<HTMLDivElement>(null);
   const graphRef = useRef<GraphInstance | null>(null);
   const [hiddenTypes, setHiddenTypes] = useState<string[]>([]);
@@ -237,7 +238,7 @@ export function KnowledgeGraph3D({ nodes, edges, projectId, highlightPath, compo
     {loading ? <p className="graph3d-state" role="status">Preparing your 3D graph…</p> : null}
     {error ? <p className="graph3d-state graph3d-state--error" role="alert">{error} Switch to 2D view to explore this graph.</p> : null}
     <div className="graph3d-controls">
-      <div className="graph3d-panel-header"><div><span className="graph3d-eyebrow">KNOWLEDGE GALAXY</span><strong>{nodes.filter(node => !node.synthetic).length} nodes <span>·</span> {directEdgeCount} links</strong></div><button type="button" onClick={() => setShowControls(value => !value)} aria-label={showControls ? "Collapse graph controls" : "Expand graph controls"}>{showControls ? "−" : "+"}</button></div>
+      <div className="graph3d-panel-header"><div><span className="graph3d-eyebrow">KNOWLEDGE GALAXY</span><div className="graph3d-node-count"><strong>{nodes.filter(node => !node.synthetic).length} nodes <span>·</span> {directEdgeCount} links</strong><button type="button" className="graph3d-help-trigger" aria-label="About the knowledge graph" title="About the knowledge graph" onClick={() => helpRef.current?.showModal()}><CircleHelp size={16} /></button></div></div><button type="button" onClick={() => setShowControls(value => !value)} aria-label={showControls ? "Collapse graph controls" : "Expand graph controls"}>{showControls ? "−" : "+"}</button></div>
       {showControls ? <>
         <label className="graph3d-search"><Search size={15} /><input type="search" placeholder="Search your graph…" value={query} onChange={event => setQuery(event.target.value)} aria-label="Search graph nodes" />{query ? <button type="button" aria-label="Clear graph search" onClick={() => setQuery("")}><X size={14} /></button> : null}</label>
         {query.trim() ? <div className="graph3d-results" role="region" aria-label="Graph search results">{matches.length ? matches.map(node => <button type="button" key={node.id} onClick={() => { focus(node.id); setQuery(""); }}><span style={{ background: node.color }} />{node.label}</button>) : <p>No matching nodes.</p>}</div> : <p className="graph3d-hint">Drag to orbit · scroll to zoom · click a node to explore its connections.</p>}
@@ -248,6 +249,14 @@ export function KnowledgeGraph3D({ nodes, edges, projectId, highlightPath, compo
     </div>
     <div className="graph3d-actions"><button type="button" onClick={() => setDrifting(value => !value)} aria-pressed={drifting} title={drifting ? "Pause galaxy drift" : "Resume galaxy drift"}>{drifting ? <Pause size={15} /> : <Play size={15} />} {drifting ? "Pause" : "Drift"}</button><button type="button" onClick={() => { setSelectedId(null); graphRef.current?.zoomToFit(600, 40); }} title="Fit graph"><Maximize2 size={15} /> Fit</button><button type="button" onClick={() => graphRef.current?.d3ReheatSimulation()} title="Re-run force layout"><RotateCcw size={15} /> Reflow</button>{projectId ? <button type="button" onClick={openWindow} aria-label="Open graph in new window" title="Open graph in new window"><ExternalLink size={15} /><span className="graph3d-action-label">Window</span></button> : null}<button type="button" onClick={toggleFullscreen} aria-label={fullscreen ? "Exit full screen" : "Enter full screen"} title={fullscreen ? "Exit full screen" : "Enter full screen"}>{fullscreen ? <Minimize size={15} /> : <Maximize size={15} />}<span className="graph3d-action-label">{fullscreen ? "Exit full screen" : "Full screen"}</span></button></div>
     {displayError ? <div className="graph3d-display-error" role="alert">{displayError}<button type="button" onClick={() => setDisplayError("")} aria-label="Dismiss message"><X size={14} /></button></div> : null}
+    <dialog ref={helpRef} className="graph3d-help-dialog" aria-labelledby="graph-help-title">
+      <div className="graph3d-help-header"><div><span className="graph3d-eyebrow">KNOWLEDGE GALAXY</span><h2 id="graph-help-title">What is this graph for?</h2></div><button type="button" aria-label="Close graph help" onClick={() => helpRef.current?.close()}><X size={18} /></button></div>
+      <p>The graph helps you explore how pages, people, decisions and topics in your knowledge base are connected. As your knowledge base grows, it can help you discover related information you might otherwise miss.</p>
+      <p>For example, search for a customer, select their node, and follow its connections to related meeting notes or decisions. Clusters can show groups of related material, and you can open a node’s source page for more detail.</p>
+      <p>The graph is only as useful as its underlying links. A line does not automatically mean AI has discovered an important relationship. <strong>Project-scope links</strong> are visual guides for grouping disconnected nodes. If you already know the page you want, ordinary search may be quicker.</p>
+      <p>Use <strong>Fit</strong> to return to the full overview after exploring a node.</p>
+      <button type="button" className="graph3d-help-done" onClick={() => helpRef.current?.close()}>Got it</button>
+    </dialog>
     {selected ? <aside className="graph3d-inspector" aria-label="Selected node details"><button className="graph3d-inspector-close" type="button" aria-label="Close node details" onClick={() => setSelectedId(null)}><X size={16} /></button><span className="graph3d-eyebrow"><span className="graph3d-dot" style={{ background: selected.color }} /> {displayType(selected.node_type)}</span><h3>{selected.label}</h3><p>{selected.synthetic ? "Project anchor · visual grouping" : `${selected.degree} visible connection${selected.degree === 1 ? "" : "s"}`}</p>{projectId && selected.source_path ? <a href={wikiPageHref(projectId, selected.source_path)}>Open source page <ExternalLink size={14} /></a> : null}{neighbors.length ? <div className="graph3d-neighbors"><strong>Connections</strong>{neighbors.map(edge => { const otherId = edge.sourceId === selected.id ? edge.targetId : edge.sourceId; const other = nodeById.get(otherId); return other ? <button key={edge.id} type="button" onClick={() => focus(other.id)}><span>{other.label}</span><small>{edge.synthetic ? "project scope" : edge.relation.replace(/_/g, " ")}</small></button> : null; })}{selected.degree > neighbors.length ? <small>Showing {neighbors.length} connections.</small> : null}</div> : null}</aside> : null}
     {!visibleGraph.nodes.length ? <div className="graph3d-empty">All node types are hidden. Select a type in the filter to show it again.</div> : null}
   </div>;
