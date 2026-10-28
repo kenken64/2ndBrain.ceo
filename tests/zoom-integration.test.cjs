@@ -22,6 +22,7 @@ test('central Zoom connection preserves primary identity, isolates tokens and en
   try{
     await db.exec(`create role anon; create role authenticated; create role service_role; create schema auth; create table auth.users(id uuid primary key); create table profiles(id uuid primary key,email text,admin_disabled boolean default false,admin_deleted_at timestamptz,marketplace_launch_revoked_at timestamptz); create table marketplace_installs(id uuid primary key,user_id uuid,item_id text,status text);`);
     await db.exec(fs.readFileSync(path.resolve(__dirname,'../supabase/migrations/0038_zoom_connections.sql'),'utf8'));
+    await db.exec(fs.readFileSync(path.resolve(__dirname,'../supabase/migrations/0039_zoom_provider_safe_updates.sql'),'utf8'));
     await db.query('insert into auth.users values ($1),($2)',[alice,bob]);
     await db.query("insert into profiles(id,email) values ($1,'primary@example.test'),($2,'bob@example.test')",[alice,bob]);
     await db.query("insert into marketplace_installs values ($1,$2,'meeting-minutes','installed')",[install,alice]);

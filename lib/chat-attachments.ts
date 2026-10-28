@@ -3,7 +3,7 @@ import { fromBuffer } from "yauzl";
 
 import { CHAT_FILE_MAX_BYTES } from "@/lib/chat-files-shared";
 export { CHAT_FILE_MAX_BYTES } from "@/lib/chat-files-shared";
-export type ChatAttachment = { name: string; type: "image" | "pdf" | "spreadsheet" | "document"; data: Buffer; mime: string };
+export type ChatAttachment = { name: string; type: "image" | "pdf" | "spreadsheet" | "document" | "presentation"; data: Buffer; mime: string };
 
 export function validateChatFile(fileName: string, data: Buffer): ChatAttachment {
   if (typeof fileName !== "string" || !fileName.trim() || fileName.length > 150 || !data.length || data.length > CHAT_FILE_MAX_BYTES) throw new Error("Choose a file between 1 byte and 20 MB, with a name under 150 characters.");
@@ -13,8 +13,9 @@ export function validateChatFile(fileName: string, data: Buffer): ChatAttachment
   if ((ext === "png" && data.subarray(0, 8).equals(Buffer.from([137,80,78,71,13,10,26,10]))) || ((ext === "jpg" || ext === "jpeg") && data[0] === 0xff && data[1] === 0xd8 && data[2] === 0xff) || (ext === "webp" && data.subarray(0, 4).toString() === "RIFF" && data.subarray(8, 12).toString() === "WEBP")) return { name, type: "image", data, mime: ext === "png" ? "image/png" : ext === "webp" ? "image/webp" : "image/jpeg" };
   if (ext === "xlsx" && data.subarray(0, 4).equals(Buffer.from([0x50,0x4b,0x03,0x04]))) return { name, type: "spreadsheet", data, mime: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" };
   if (ext === "docx" && data.subarray(0, 4).equals(Buffer.from([0x50,0x4b,0x03,0x04]))) return { name, type: "document", data, mime: "application/vnd.openxmlformats-officedocument.wordprocessingml.document" };
+  if (ext === "pptx" && data.subarray(0, 4).equals(Buffer.from([0x50,0x4b,0x03,0x04]))) return { name, type: "presentation", data, mime: "application/vnd.openxmlformats-officedocument.presentationml.presentation" };
   if (ext === "csv" && !data.includes(0)) return { name, type: "spreadsheet", data, mime: "text/csv" };
-  throw new Error("Choose a PDF, PNG, JPEG, WebP, XLSX, CSV or DOCX file with a matching file type.");
+  throw new Error("Choose a PDF, PNG, JPEG, WebP, XLSX, CSV, DOCX or PPTX file with a matching file type.");
 }
 
 
@@ -27,7 +28,7 @@ export function parseChatAttachment(value: unknown): ChatAttachment | null {
   return validateChatFile(item.name, data);
 }
 
-export async function checkOfficeArchive(data: Buffer, type: "XLSX" | "DOCX") {
+export async function checkOfficeArchive(data: Buffer, type: "XLSX" | "DOCX" | "PPTX") {
   await new Promise<void>((resolve, reject) => {
     fromBuffer(data, { lazyEntries: true }, (error, zip) => {
       if (error || !zip) return reject(new Error(`Invalid ${type} file.`));
@@ -35,7 +36,7 @@ export async function checkOfficeArchive(data: Buffer, type: "XLSX" | "DOCX") {
       zip.on("error", () => reject(new Error(`Invalid ${type} file.`)));
       zip.on("entry", entry => {
         count++; expanded += entry.uncompressedSize;
-        if (entry.fileName === (type === "DOCX" ? "word/document.xml" : "xl/workbook.xml")) hasDocument = true;
+        if (entry.fileName === (type === "DOCX" ? "word/document.xml" : type === "PPTX" ? "ppt/presentation.xml" : "xl/workbook.xml")) hasDocument = true;
         if (count > 1000 || expanded > 25 * 1024 * 1024) { zip.close(); reject(new Error(`${type} file expands beyond the 25 MB limit.`)); return; }
         zip.readEntry();
       });
@@ -93,6 +94,21 @@ export async function documentText(file: ChatAttachment): Promise<string> {
   const mammoth = await import("mammoth");
   const result = await mammoth.extractRawText({ buffer: file.data });
   return result.value;
+}
+
+export async function presentationText(file: ChatAttachment): Promise<string> {
+  await checkOfficeArchive(file.data, "PPTX");
+  const [{ default: PizZip }, { DOMParser }] = await Promise.all([import("pizzip"), import("@xmldom/xmldom")]);
+  const zip = new PizZip(file.data);
+  const paths = Object.keys(zip.files).filter(name => /^ppt\/slides\/slide\d+\.xml$/.test(name)).sort((a, b) => Number(a.match(/\d+/)?.[0]) - Number(b.match(/\d+/)?.[0]));
+  if (paths.length > 100) throw new Error("Use a presentation with at most 100 slides.");
+  return paths.map((name, index) => {
+    const xml = zip.file(name)?.asText() ?? "";
+    const doc = new DOMParser().parseFromString(xml, "text/xml");
+    const nodes = doc.getElementsByTagNameNS("http://schemas.openxmlformats.org/drawingml/2006/main", "t");
+    const text = Array.from({ length: nodes.length }, (_, i) => nodes.item(i)?.textContent ?? "").join(" ");
+    return `Slide ${index + 1}\n${text}`;
+  }).join("\n\n");
 }
 
 export async function spreadsheetPreview(file: ChatAttachment) {

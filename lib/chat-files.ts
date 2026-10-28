@@ -39,6 +39,10 @@ export async function saveChatGeneratedDocx(admin: Admin, userId: string, source
   if (!data.length || data.length > 20 * 1024 * 1024 || !data.subarray(0, 4).equals(Buffer.from([0x50, 0x4b, 0x03, 0x04]))) throw new Error("Generated DOCX is invalid or exceeds 20 MB.");
   return saveFile(admin, userId, { name: name.slice(0, 150), data, mime: "application/vnd.openxmlformats-officedocument.wordprocessingml.document" }, "output", sourceId);
 }
+export async function saveChatGeneratedPptx(admin: Admin, userId: string, sourceId: string | null, name: string, data: Buffer) {
+  if (!data.length || data.length > 20 * 1024 * 1024 || !data.subarray(0, 4).equals(Buffer.from([0x50, 0x4b, 0x03, 0x04]))) throw new Error("Generated PPTX is invalid or exceeds 20 MB.");
+  return saveFile(admin, userId, { name: name.slice(0, 150), data, mime: "application/vnd.openxmlformats-officedocument.presentationml.presentation" }, "output", sourceId);
+}
 export async function saveChatGeneratedImage(admin: Admin, userId: string, data: Buffer, mime: string) {
   const extensions: Record<string, string> = { "image/png": "png", "image/jpeg": "jpg", "image/webp": "webp" };
   const ext = extensions[mime];
@@ -68,12 +72,13 @@ export async function loadChatFile(admin: Admin, userId: string, id: string) {
     ? { name: record.file_name, data: bytes, mime: record.mime_type, type: "output" as const }
     : validateChatFile(record.file_name, bytes);
   const docxMime = "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
+  const pptxMime = "application/vnd.openxmlformats-officedocument.presentationml.presentation";
   const isImageOutput = file.type === "output" && ["image/png", "image/jpeg", "image/webp"].includes(file.mime);
   if (isImageOutput) {
     const validated = validateChatFile(file.name, bytes);
     if (validated.type !== "image" || validated.mime !== file.mime) throw new Error("The saved file has an invalid type.");
   }
-  if (file.mime !== record.mime_type || (file.type === "output" && !isImageOutput && (!(["text/markdown", "application/json", "application/pdf", "video/mp4", docxMime].includes(file.mime)) || (file.mime === "video/mp4" && (bytes.length < 12 || bytes.subarray(4, 8).toString() !== "ftyp")) || (file.mime === "application/pdf" && bytes.subarray(0, 5).toString() !== "%PDF-") || (file.mime === docxMime && !bytes.subarray(0, 4).equals(Buffer.from([0x50, 0x4b, 0x03, 0x04])))))) throw new Error("The saved file has an invalid type.");
+  if (file.mime !== record.mime_type || (file.type === "output" && !isImageOutput && (!(["text/markdown", "application/json", "application/pdf", "video/mp4", docxMime, pptxMime].includes(file.mime)) || (file.mime === "video/mp4" && (bytes.length < 12 || bytes.subarray(4, 8).toString() !== "ftyp")) || (file.mime === "application/pdf" && bytes.subarray(0, 5).toString() !== "%PDF-") || ((file.mime === docxMime || file.mime === pptxMime) && !bytes.subarray(0, 4).equals(Buffer.from([0x50, 0x4b, 0x03, 0x04])))))) throw new Error("The saved file has an invalid type.");
   return { file, metadata: publicChatFile(record) };
 }
 

@@ -11,7 +11,7 @@
     "start:standalone": "node .next/standalone/server.js",
     "start:next": "next start",
     "typecheck": "tsc --noEmit",
-    "test:chat": "node --test tests/chat-api.test.cjs tests/chat-credits.test.cjs tests/chat-attachments.test.cjs tests/chat-usage-api.test.cjs tests/chat-files.test.cjs tests/chat-pdf-batch.test.cjs tests/chat-docx-batch.test.cjs tests/chat-image-generation.test.cjs tests/chat-video-generation.test.cjs",
+    "test:chat": "node --test tests/chat-api.test.cjs tests/chat-credits.test.cjs tests/chat-attachments.test.cjs tests/chat-usage-api.test.cjs tests/chat-files.test.cjs tests/chat-pdf-batch.test.cjs tests/chat-docx-batch.test.cjs tests/chat-pptx.test.cjs tests/chat-image-generation.test.cjs tests/chat-video-generation.test.cjs",
     "test:wechat-auth": "node --test tests/wechat-auth.test.cjs",
     "test:solana": "node --test tests/solana-rpc.test.cjs",
     "admin:load": "node scripts/load-admin-users.mjs",
@@ -27,6 +27,7 @@
     "@solana/web3.js": "^1.98.4",
     "@supabase/ssr": "latest",
     "@supabase/supabase-js": "latest",
+    "@xmldom/xmldom": "^0.9.12",
     "@xterm/addon-fit": "^0.11.0",
     "@xterm/xterm": "^6.0.0",
     "3d-force-graph": "^1.80.1",
@@ -44,6 +45,7 @@
     "pdf-lib": "^1.17.1",
     "pdf-parse": "^2.4.5",
     "pizzip": "^3.3.0",
+    "pptxgenjs": "^4.0.1",
     "react": "latest",
     "react-dom": "latest",
     "react-markdown": "^10.1.0",
@@ -70,6 +72,9 @@
     },
     "exceljs": {
       "uuid": "^11.1.1"
+    },
+    "pptxgenjs": {
+      "image-size": "^2.0.4"
     }
   },
   "engines": {

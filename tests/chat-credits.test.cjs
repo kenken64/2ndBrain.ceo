@@ -26,6 +26,7 @@ test("chat reservations and reconciliation preserve balances and restrict access
     await db.exec(fs.readFileSync(path.join(__dirname, "../supabase/migrations/0034_chat_pdf_generation.sql"), "utf8"));
     await db.exec(fs.readFileSync(path.join(__dirname, "../supabase/migrations/0035_chat_docx_generation.sql"), "utf8"));
     await db.exec(fs.readFileSync(path.join(__dirname, "../supabase/migrations/0036_chat_media_generation.sql"), "utf8"));
+    await db.exec(fs.readFileSync(path.join(__dirname, "../supabase/migrations/0040_chat_pptx_generation.sql"), "utf8"));
     await db.query("insert into auth.users(id) values ($1),($2)", [user, admin]);
     await db.query("insert into profiles(id,llm_token_quota,llm_token_used) values ($1,1000,100),($2,0,0)", [user, admin]);
     const reserve = (who, amount, exempt = false) => db.query("select * from reserve_chat_credits($1,$2,$3,$4)", [who, "test/model", amount, exempt]);
@@ -69,6 +70,8 @@ test("chat reservations and reconciliation preserve balances and restrict access
     await db.query("select * from settle_chat_credits_itemized($1,$2,$3,$4,$5,$6,$7,$8)", [user, result.rows[0].request_id, "completed", 20, 0.00008, "gen-image", null, null]);
     result = await db.query("select * from reserve_chat_credits_itemized($1,$2,$3,$4,$5,$6)", [user, "video-model", 100, false, "video_generation", null]);
     await db.query("select * from settle_chat_credits_itemized($1,$2,$3,$4,$5,$6,$7,$8)", [user, result.rows[0].request_id, "completed", 30, 0.00012, "gen-video", null, null]);
+    result = await db.query("select * from reserve_chat_credits_itemized($1,$2,$3,$4,$5,$6)", [user, "model", 100, false, "pptx_generation", null]);
+    await db.query("select * from settle_chat_credits_itemized($1,$2,$3,$4,$5,$6,$7,$8)", [user, result.rows[0].request_id, "completed", 12, 0.000048, "gen-pptx", 20, 10]);
     await db.exec("grant usage on schema public, auth to authenticated; grant select on public.chat_credit_requests to authenticated");
     await db.exec(`set test.user_id = '${user}'`);
     await db.exec("set role authenticated");
@@ -79,6 +82,7 @@ test("chat reservations and reconciliation preserve balances and restrict access
     assert.equal(Number(summary.rows.find(row => row.request_kind === "docx_generation").completed_credits), 15);
     assert.equal(Number(summary.rows.find(row => row.request_kind === "image_generation").completed_credits), 20);
     assert.equal(Number(summary.rows.find(row => row.request_kind === "video_generation").completed_credits), 30);
+    assert.equal(Number(summary.rows.find(row => row.request_kind === "pptx_generation").completed_credits), 12);
     const chat = summary.rows.find(row => row.request_kind === "chat");
     assert.equal(Number(chat.completed_credits), 190); assert.equal(Number(chat.failed_count), 1);
     const visible = await db.query("select distinct user_id from chat_credit_requests");

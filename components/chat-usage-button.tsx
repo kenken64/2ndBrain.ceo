@@ -6,7 +6,7 @@ import { BarChart3, X } from "lucide-react";
 type Summary = { request_kind: string; completed_count: number | string; completed_credits: number | string; provider_cost_usd: number | string | null; prompt_tokens: number | string | null; completion_tokens: number | string | null; pending_count: number | string; held_credits: number | string; failed_count: number | string };
 type Item = { id: string; created_at: string; model_id: string; request_kind: string; pdf_pages: number | null; prompt_tokens: number | null; completion_tokens: number | null; cost_usd: number | string | null; reserved_credits: number; charged_credits: number | null; quota_exempt: boolean; status: "completed" | "reserved" | "uncertain" | "failed" };
 type Usage = { summary: Summary[]; items: Item[]; page: number; hasMore: boolean; availableCredits: number; quotaExempt: boolean };
-const labels: Record<string, string> = { chat: "Chat", image_ocr: "Image OCR", pdf_ocr: "PDF OCR", spreadsheet: "Spreadsheet", pdf_generation: "PDF generation", docx_generation: "DOCX generation", image_generation: "Image generation", video_generation: "Video generation" };
+const labels: Record<string, string> = { chat: "Chat", image_ocr: "Image OCR", pdf_ocr: "PDF OCR", spreadsheet: "Spreadsheet", pdf_generation: "PDF generation", docx_generation: "DOCX generation", pptx_generation: "PowerPoint generation", image_generation: "Image generation", video_generation: "Video generation" };
 const number = (value: number | string | null | undefined) => value == null ? "—" : Number(value).toLocaleString("en");
 const dollars = (value: number | string | null) => value == null ? "—" : `$${Number(value).toFixed(6)}`;
 

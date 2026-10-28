@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { spreadsheetContext } from "@/lib/chat-attachments";
-import { loadChatFile, saveChatGeneratedDocx, saveChatGeneratedPdf } from "@/lib/chat-files";
+import { loadChatFile, saveChatGeneratedDocx, saveChatGeneratedPdf, saveChatGeneratedPptx } from "@/lib/chat-files";
 import { prepareDocxBatch, renderDocxRow } from "@/lib/chat-docx-batch";
 import { preparePdfBatch, renderPdfRow, validateBatchMapping } from "@/lib/chat-pdf-batch";
 import { FILE_CHAT_MODEL, validateChatMessages } from "@/lib/chat-models";
@@ -40,23 +40,23 @@ export async function POST(request: Request) {
   } catch { return errorResponse("Invalid request.", 400); }
   const ids = body?.fileIds;
   const messages = validateChatMessages(body?.messages);
-  if (!messages || !Array.isArray(ids) || ids.length !== 2 || ids.some(id => typeof id !== "string") || ids[0] === ids[1]) return errorResponse("Attach one spreadsheet and one PDF or DOCX template.", 400);
+  if (!messages || !Array.isArray(ids) || ids.length !== 2 || ids.some(id => typeof id !== "string") || ids[0] === ids[1]) return errorResponse("Attach one spreadsheet and one PDF, DOCX or PPTX template.", 400);
   const admin = createAdminClient();
   let template: NonNullable<Awaited<ReturnType<typeof loadChatFile>>>;
   let spreadsheet: NonNullable<Awaited<ReturnType<typeof loadChatFile>>>;
   let data: Awaited<ReturnType<typeof preparePdfBatch>>;
-  let templateType: "pdf" | "docx";
+  let templateType: "pdf" | "docx" | "pptx";
   try {
     const files = await Promise.all(ids.map(id => loadChatFile(admin, userId, id)));
     if (files.some(file => !file)) return errorResponse("A saved file was not found.", 404);
     const source = files.filter((file): file is NonNullable<typeof file> => Boolean(file));
-    const doc = source.find(file => (file.file.type === "pdf" || file.file.type === "document") && file.metadata.origin === "upload");
+    const doc = source.find(file => (file.file.type === "pdf" || file.file.type === "document" || file.file.type === "presentation") && file.metadata.origin === "upload");
     const sheet = source.find(file => file.file.type === "spreadsheet" && file.metadata.origin === "upload");
-    if (!doc || !sheet) return errorResponse("Attach one spreadsheet and one PDF or DOCX template.", 400);
+    if (!doc || !sheet) return errorResponse("Attach one spreadsheet and one PDF, DOCX or PPTX template.", 400);
     if (sheet.file.type !== "spreadsheet") return errorResponse("Invalid spreadsheet.", 400);
-    if (doc.file.type !== "pdf" && doc.file.type !== "document") return errorResponse("Invalid template.", 400);
+    if (doc.file.type !== "pdf" && doc.file.type !== "document" && doc.file.type !== "presentation") return errorResponse("Invalid template.", 400);
     template = doc; spreadsheet = sheet;
-    templateType = doc.file.type === "pdf" ? "pdf" : "docx";
+    templateType = doc.file.type === "pdf" ? "pdf" : doc.file.type === "presentation" ? "pptx" : "docx";
     const context = await spreadsheetContext(sheet.file);
     data = doc.file.type === "pdf" ? await preparePdfBatch(doc.file.data, context) : await prepareDocxBatch(doc.file, context);
   } catch (error) {
@@ -81,7 +81,7 @@ export async function POST(request: Request) {
   const mappingBillingNotice = isAdmin ? "This account is exempt from AI credit charges." : "The mapping request was billed.";
   const { data: profile, error: profileError } = await admin.from("profiles").select("email,openclaw_instance").eq("id", userId).maybeSingle();
   if (profileError || !profile) return errorResponse("Unable to check your account.", 503);
-  const { data: reserved, error: reserveError } = await admin.rpc("reserve_chat_credits_itemized", { p_user_id: userId, p_model_id: FILE_CHAT_MODEL, p_credits: reserve, p_is_admin: isAdmin, p_kind: templateType === "pdf" ? "pdf_generation" : "docx_generation", p_pdf_pages: null }).single();
+  const { data: reserved, error: reserveError } = await admin.rpc("reserve_chat_credits_itemized", { p_user_id: userId, p_model_id: FILE_CHAT_MODEL, p_credits: reserve, p_is_admin: isAdmin, p_kind: templateType === "pdf" ? "pdf_generation" : templateType === "pptx" ? "pptx_generation" : "docx_generation", p_pdf_pages: null }).single();
   const reservation = reserved as CreditRow | null;
   if (reserveError || !reservation?.request_id) return errorResponse(reserveError?.message?.includes("insufficient_ai_credits") ? `This request needs an estimated reservation of ${reserve.toLocaleString("en")} AI credits.` : "Chat credit accounting is unavailable.", reserveError?.message?.includes("insufficient_ai_credits") ? 402 : 503);
   const requestId = reservation.request_id;
@@ -123,7 +123,7 @@ export async function POST(request: Request) {
         const bytes = templateType === "pdf" ? await renderPdfRow(template.file.data, data, mapping, row) : renderDocxRow(template.file.data, data, mapping, row);
         totalBytes += bytes.length;
         if (bytes.length > 20 * 1024 * 1024 || totalBytes > MAX_OUTPUT_TOTAL) throw new Error("The generated batch exceeds the file-size limit. Use a smaller template or fewer rows.");
-        const base = template.file.name.replace(/\.(pdf|docx)$/i, "").slice(0, 100) || "document";
+        const base = template.file.name.replace(/\.(pdf|docx|pptx)$/i, "").slice(0, 100) || "document";
         rendered.push({ name: `${base}-row-${row.number}.${templateType}`, bytes });
       }
     } catch (error) { return errorResponse(`${error instanceof Error ? error.message : "Could not render the documents."} ${mappingBillingNotice}`, 422); }
@@ -131,7 +131,7 @@ export async function POST(request: Request) {
     let saveFailed = false;
     for (let start = 0; start < rendered.length; start += 5) {
       const group = rendered.slice(start, start + 5);
-      const saved = await Promise.allSettled(group.map(output => templateType === "pdf" ? saveChatGeneratedPdf(admin, userId, template.metadata.id, output.name, output.bytes) : saveChatGeneratedDocx(admin, userId, template.metadata.id, output.name, output.bytes)));
+      const saved = await Promise.allSettled(group.map(output => templateType === "pdf" ? saveChatGeneratedPdf(admin, userId, template.metadata.id, output.name, output.bytes) : templateType === "pptx" ? saveChatGeneratedPptx(admin, userId, template.metadata.id, output.name, output.bytes) : saveChatGeneratedDocx(admin, userId, template.metadata.id, output.name, output.bytes)));
       for (const outcome of saved) {
         if (outcome.status === "fulfilled") files.push(outcome.value);
         else saveFailed = true;
@@ -140,7 +140,7 @@ export async function POST(request: Request) {
     }
     if (!files.length) return errorResponse(`No documents could be saved. ${mappingBillingNotice} Please try again.`, 503);
     const mappingSummary = mapping.map(item => `- ${item.field} ← ${item.column}`).join("\n");
-    const label = templateType === "pdf" ? "PDF" : "DOCX";
+    const label = templateType.toUpperCase();
     const message = `${saveFailed ? `Saved ${files.length} of ${rendered.length} ${label} files; file storage stopped before the batch was complete.` : `Created ${files.length} ${label} file${files.length === 1 ? "" : "s"} from ${spreadsheet.file.name}.`}\n\n**Field mapping — please review:**\n${mappingSummary}\n\nReview the generated documents before using them.`;
     return NextResponse.json({ message, model: FILE_CHAT_MODEL, savedOutputs: files, batchSaveIncomplete: saveFailed, chargedCredits: Number(billed.charged_credits ?? 0), availableCredits: Math.max(0, Number(billed.llm_token_quota) - Number(billed.llm_token_used)), quotaExempt: isAdmin });
   } catch {
