@@ -28,7 +28,8 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
     }
     if (file.type === "image" || isPdf) return NextResponse.json({ kind: isPdf ? "pdf" : "image", name: file.name }, { headers });
     if (file.type === "spreadsheet") return NextResponse.json({ kind: "spreadsheet", name: file.name, ...await spreadsheetPreview(file) }, { headers });
-    const text = file.type === "document" ? await documentText(file) : file.data.toString("utf8");
+    const isDocx = file.type === "document" || (file.type === "output" && file.mime === "application/vnd.openxmlformats-officedocument.wordprocessingml.document");
+    const text = isDocx ? await documentText({ ...file, type: "document" }) : file.data.toString("utf8");
     return NextResponse.json({ kind: "text", name: file.name, text: text.slice(0, 200_000), truncated: text.length > 200_000 }, { headers });
   } catch (error) {
     console.error("[chat:preview] Could not preview file", error instanceof Error ? error.message : "unknown");

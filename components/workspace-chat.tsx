@@ -181,7 +181,7 @@ export function WorkspaceChat({ userId, configured, initialChatId }: { userId: s
 
   async function send(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    const value = prompt.trim() || (files.length === 2 ? "Fill the PDF template for each spreadsheet record." : files[0] ? `Extract and review ${files[0].name}` : "");
+    const value = prompt.trim() || (files.length === 2 ? "Fill the document template for each spreadsheet record." : files[0] ? `Extract and review ${files[0].name}` : "");
     if (!chat || !configured || busyRef.current || selecting || cacheState === "loading" || uploading || !value) return;
     if (value.length > CHAT_MAX_MESSAGE_CHARS) { setError(`Messages can contain up to ${CHAT_MAX_MESSAGE_CHARS.toLocaleString()} characters.`); return; }
     busyRef.current = true;
@@ -281,16 +281,16 @@ export function WorkspaceChat({ userId, configured, initialChatId }: { userId: s
   newChatRef.current = newChat;
 
   function isBatchPair(names: string[]) {
-    return names.length !== 2 || (names.some(name => /\.pdf$/i.test(name)) && names.some(name => /\.(xlsx|csv)$/i.test(name)));
+    return names.length !== 2 || (names.some(name => /\.(pdf|docx)$/i.test(name)) && names.some(name => /\.(xlsx|csv)$/i.test(name)));
   }
   function addSavedFile(selected: SavedChatFile) {
     if (files.some(item => item.id === selected.id)) { setError("That file is already attached."); return; }
-    if (files.length >= 2 || !isBatchPair([...files.map(item => item.name), selected.name])) { setError("For two attachments, choose one PDF template and one XLSX or CSV spreadsheet."); return; }
+    if (files.length >= 2 || !isBatchPair([...files.map(item => item.name), selected.name])) { setError("For two attachments, choose one PDF or DOCX template and one XLSX or CSV spreadsheet."); return; }
     setFiles(current => [...current, selected]); setError("");
   }
   async function uploadFiles(selected: File[]) {
     if (!selected.length) return;
-    if (files.length + selected.length > 2 || !isBatchPair([...files.map(item => item.name), ...selected.map(item => item.name)])) { setError("For two attachments, choose one PDF template and one XLSX or CSV spreadsheet."); if (fileInputRef.current) fileInputRef.current.value = ""; return; }
+    if (files.length + selected.length > 2 || !isBatchPair([...files.map(item => item.name), ...selected.map(item => item.name)])) { setError("For two attachments, choose one PDF or DOCX template and one XLSX or CSV spreadsheet."); if (fileInputRef.current) fileInputRef.current.value = ""; return; }
     if (selected.some(item => item.size === 0 || item.size > CHAT_FILE_MAX_BYTES)) { setError("Choose files between 1 byte and 20 MB each."); if (fileInputRef.current) fileInputRef.current.value = ""; return; }
     setUploading(true); setError("");
     try {
@@ -335,7 +335,7 @@ export function WorkspaceChat({ userId, configured, initialChatId }: { userId: s
           </div>
           <form className="workspace-chat__form" onSubmit={send}>
             {files.map(item => <div className="workspace-chat__file" key={item.id}><span>{item.name} · saved · Gemini 2.5 Flash{files.length === 1 && item.name.toLowerCase().endsWith(".pdf") ? " · Mistral OCR" : files.length === 1 && /\.(png|jpe?g|webp)$/i.test(item.name) ? " · image OCR" : ""}</span><button type="button" aria-label={`Remove ${item.name}`} disabled={busy} onClick={() => { setFiles(current => current.filter(saved => saved.id !== item.id)); if (fileInputRef.current) fileInputRef.current.value = ""; }}><X size={16} /></button></div>)}
-            {files.length === 2 ? <p className="workspace-chat__notice">Batch PDF mode: one PDF will be created for each spreadsheet row. Review the suggested field mapping and generated files.</p> : null}
+            {files.length === 2 ? <p className="workspace-chat__notice">Batch document mode: one {files.some(item => /\.docx$/i.test(item.name)) ? "DOCX" : "PDF"} will be created per spreadsheet row. {files.some(item => /\.docx$/i.test(item.name)) ? "Use placeholders such as {{Name}} in the DOCX template. " : ""}Review the field mapping and generated files.</p> : null}
             <textarea aria-label="Your message" disabled={!configured || busy || selecting || uploading || cacheState === "loading"} maxLength={CHAT_MAX_MESSAGE_CHARS} onChange={(event) => setPrompt(event.target.value)} onKeyDown={handleKeyDown} placeholder={files.length === 2 ? "Describe how spreadsheet columns match the PDF fields…" : "Ask anything…"} rows={3} /><div className="workspace-chat__form-footer"><input ref={fileInputRef} type="file" multiple accept=".pdf,.png,.jpg,.jpeg,.webp,.xlsx,.csv,.docx" hidden onChange={(event) => { const selected = Array.from(event.target.files ?? []); if (selected.length) void uploadFiles(selected); }} /><button type="button" className="btn-ghost" disabled={busy || selecting || uploading || files.length >= 2} onClick={() => fileInputRef.current?.click()}><Paperclip size={16} /> {uploading ? "Saving…" : "Attach file"}</button><ChatSavedFiles disabled={busy || selecting || uploading || files.length >= 2} onSelect={addSavedFile} /><select aria-label="AI model" className="workspace-chat__model-select" disabled={busy || selecting || uploading || files.length > 0 || !chat} id="workspace-chat-model" onChange={(event) => { if (chat && isChatModel(event.target.value)) setChat({ ...chat, model: event.target.value }); }} value={files.length || uploading ? FILE_CHAT_MODEL : chat?.model ?? CHAT_MODELS[0].id}>{CHAT_MODELS.map((item) => <option key={item.id} value={item.id}>{item.label}</option>)}</select><button aria-label="Send message" className="workspace-chat__send" disabled={!configured || busy || selecting || uploading || cacheState === "loading" || (!prompt.trim() && !files.length)} type="submit"><ArrowUp size={16} strokeWidth={2.4} /></button></div></form>
           <p className="workspace-chat__privacy">Uploaded files are saved privately to your account. Chat history and extracted data remain on this device. Files are sent for processing; follow-ups include the first 6,000 characters of extracted data.</p>
         </div>

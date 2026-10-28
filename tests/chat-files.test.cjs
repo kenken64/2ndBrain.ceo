@@ -98,6 +98,15 @@ test('generated PDFs are saved as private output files', async () => {
   await assert.rejects(files.saveChatGeneratedPdf(admin, 'alice', 'template-id', 'bad.pdf', Buffer.from('not pdf')), /invalid/);
 });
 
+test('generated DOCX files are saved as private output files', async () => {
+  const files = compile('lib/chat-files.ts', { 'server-only': {}, '@/lib/chat-attachments': attachments, '@/lib/supabase/admin': {} });
+  let inserted;
+  const admin = { storage: { from: () => ({ upload: async () => ({ error: null }) }) }, from: () => ({ insert: row => { inserted = row; return { select: () => ({ single: async () => ({ data: { ...row, created_at: '2026-01-01' }, error: null }) }) }; } }) };
+  const output = await files.saveChatGeneratedDocx(admin, 'alice', 'template-id', 'row-2.docx', Buffer.from([0x50, 0x4b, 0x03, 0x04, 1]));
+  assert.equal(output.origin, 'output'); assert.match(output.mime, /wordprocessingml/); assert.equal(inserted.user_id, 'alice'); assert.equal(inserted.source_file_id, 'template-id');
+  await assert.rejects(files.saveChatGeneratedDocx(admin, 'alice', 'template-id', 'bad.docx', Buffer.from('not docx')), /invalid/);
+});
+
 test('preview requires authentication and ownership, and never serves documents as active HTML', async () => {
   let user = null, requestedOwner, saved;
   const mocks = {
@@ -124,6 +133,8 @@ test('preview requires authentication and ownership, and never serves documents 
   saved = { file: { type: 'output', name: 'generated.pdf', mime: 'application/pdf', data: Buffer.from('%PDF-') } };
   response = await route.GET(request(), params); assert.equal((await response.json()).kind, 'pdf');
   assert.equal((await route.GET(request('?inline=1'), params)).status, 200);
+  saved = { file: { type: 'output', name: 'generated.docx', mime: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', data: Buffer.from('fixture') } };
+  response = await route.GET(request(), params); assert.equal((await response.json()).kind, 'text');
   saved = { file: { type: 'spreadsheet', name: 'report.xlsx', data: Buffer.from('sheet') } };
   response = await route.GET(request(), params); assert.equal((await response.json()).sheets[0].rows[0][0], 'A');
 });

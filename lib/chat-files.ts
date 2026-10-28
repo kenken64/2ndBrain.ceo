@@ -35,6 +35,10 @@ export async function saveChatGeneratedPdf(admin: Admin, userId: string, sourceI
   if (!data.length || data.length > 20 * 1024 * 1024 || data.subarray(0, 5).toString() !== "%PDF-") throw new Error("Generated PDF is invalid or exceeds 20 MB.");
   return saveFile(admin, userId, { name: name.slice(0, 150), data, mime: "application/pdf" }, "output", sourceId);
 }
+export async function saveChatGeneratedDocx(admin: Admin, userId: string, sourceId: string, name: string, data: Buffer) {
+  if (!data.length || data.length > 20 * 1024 * 1024 || !data.subarray(0, 4).equals(Buffer.from([0x50, 0x4b, 0x03, 0x04]))) throw new Error("Generated DOCX is invalid or exceeds 20 MB.");
+  return saveFile(admin, userId, { name: name.slice(0, 150), data, mime: "application/vnd.openxmlformats-officedocument.wordprocessingml.document" }, "output", sourceId);
+}
 
 export async function loadChatFile(admin: Admin, userId: string, id: string) {
   if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id)) return null;
@@ -50,7 +54,8 @@ export async function loadChatFile(admin: Admin, userId: string, id: string) {
   const file = record.file_origin === "output"
     ? { name: record.file_name, data: bytes, mime: record.mime_type, type: "output" as const }
     : validateChatFile(record.file_name, bytes);
-  if (file.mime !== record.mime_type || (file.type === "output" && (!(["text/markdown", "application/json", "application/pdf"].includes(file.mime)) || (file.mime === "application/pdf" && bytes.subarray(0, 5).toString() !== "%PDF-")))) throw new Error("The saved file has an invalid type.");
+  const docxMime = "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
+  if (file.mime !== record.mime_type || (file.type === "output" && (!(["text/markdown", "application/json", "application/pdf", docxMime].includes(file.mime)) || (file.mime === "application/pdf" && bytes.subarray(0, 5).toString() !== "%PDF-") || (file.mime === docxMime && !bytes.subarray(0, 4).equals(Buffer.from([0x50, 0x4b, 0x03, 0x04])))))) throw new Error("The saved file has an invalid type.");
   return { file, metadata: publicChatFile(record) };
 }
 

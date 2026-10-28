@@ -21,6 +21,10 @@ export async function preparePdfBatch(pdf: Buffer, spreadsheet: string): Promise
   if (!fields.length) throw new Error("The PDF has no fillable form fields. Use a fillable PDF template.");
   if (fields.length > MAX_FIELDS) throw new Error(`Use a PDF template with at most ${MAX_FIELDS} fields.`);
   if (fields.some(field => field.name.length > 200 || field.options?.some(option => option.length > 200))) throw new Error("PDF field names and options must be at most 200 characters.");
+  return prepareBatchData(fields, spreadsheet);
+}
+
+export function prepareBatchData(fields: BatchField[], spreadsheet: string): BatchData {
   const parsed = JSON.parse(spreadsheet) as { sheets?: Array<{ name: string; rows: unknown[][]; rowNumbers?: number[] }> };
   const sheet = parsed.sheets?.[0];
   if (!sheet?.rows?.length) throw new Error("The first spreadsheet sheet is empty.");
@@ -28,7 +32,7 @@ export async function preparePdfBatch(pdf: Buffer, spreadsheet: string): Promise
   if (!headers.length || headers.some(value => !value || value.length > 200) || new Set(headers.map(value => value.toLowerCase())).size !== headers.length) throw new Error("The first row must contain unique, non-empty column names, each under 200 characters.");
   const rows = sheet.rows.slice(1).map((values, index) => ({ number: sheet.rowNumbers?.[index + 1] ?? index + 2, values })).filter(row => row.values.some(value => value != null && String(value).trim() !== ""));
   if (!rows.length) throw new Error("Add at least one record below the spreadsheet headers.");
-  if (rows.length > MAX_ROWS) throw new Error(`Generate at most ${MAX_ROWS} PDFs at a time. Split the spreadsheet into smaller batches.`);
+  if (rows.length > MAX_ROWS) throw new Error(`Generate at most ${MAX_ROWS} documents at a time. Split the spreadsheet into smaller batches.`);
   return { fields, headers, rows };
 }
 
@@ -43,7 +47,7 @@ export function validateBatchMapping(value: unknown, data: BatchData): BatchMapp
     byName.set(field, column as string | null);
   }
   const missing = data.fields.filter(field => !byName.has(field.name) || byName.get(field.name) === null);
-  if (missing.length) throw new Error(`These PDF fields could not be mapped: ${missing.map(field => field.name).join(", ")}. Describe the corresponding spreadsheet columns and try again.`);
+  if (missing.length) throw new Error(`These template fields could not be mapped: ${missing.map(field => field.name).join(", ")}. Describe the corresponding spreadsheet columns and try again.`);
   return data.fields.map(field => ({ field: field.name, column: byName.get(field.name)! }));
 }
 

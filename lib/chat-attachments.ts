@@ -27,7 +27,7 @@ export function parseChatAttachment(value: unknown): ChatAttachment | null {
   return validateChatFile(item.name, data);
 }
 
-async function checkOfficeArchive(data: Buffer, type: "XLSX" | "DOCX") {
+export async function checkOfficeArchive(data: Buffer, type: "XLSX" | "DOCX") {
   await new Promise<void>((resolve, reject) => {
     fromBuffer(data, { lazyEntries: true }, (error, zip) => {
       if (error || !zip) return reject(new Error(`Invalid ${type} file.`));

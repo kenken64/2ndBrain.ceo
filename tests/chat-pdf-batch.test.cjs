@@ -62,7 +62,7 @@ test('batch endpoint checks ownership, records AI cost and stores each generated
   const mocks = {
     '@/lib/chat-attachments': { spreadsheetContext: async () => sampleData },
     '@/lib/chat-files': { loadChatFile: async (_admin, owner, id) => owner === 'alice' ? loaded[id] ?? null : null, saveChatGeneratedPdf: async (_admin, owner, source, name, bytes) => { assert.equal(owner, 'alice'); assert.equal(source, 'pdf'); if (state.failRow && name.includes('row-2')) throw Error('storage failed'); state.pdfs.push({ name, bytes }); return { id: `file-${state.pdfs.length}`, name }; } },
-    '@/lib/chat-pdf-batch': batch, '@/lib/chat-models': models, '@/lib/admin': { isAdminUser: async () => false }, '@/lib/env': { hasSupabaseEnv: () => true }, '@/lib/onboarding': { getUserIdFromClaims: c => c?.sub },
+    '@/lib/chat-pdf-batch': batch, '@/lib/chat-docx-batch': {}, '@/lib/chat-models': models, '@/lib/admin': { isAdminUser: async () => false }, '@/lib/env': { hasSupabaseEnv: () => true }, '@/lib/onboarding': { getUserIdFromClaims: c => c?.sub },
     '@/lib/supabase/admin': { createAdminClient: () => admin, hasSupabaseServiceRoleEnv: () => true }, '@/lib/supabase/server': { createClient: async () => ({ auth: { getClaims: async () => ({ data: { claims: user ? { sub: user } : null }, error: null }) } }) }, '@/lib/token-quota-redis': { publishTokenQuotaUpdate: async () => true }
   };
   const route = compile('app/api/chat/batch-pdf/route.ts', mocks);
