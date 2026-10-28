@@ -8,6 +8,8 @@ export const CHAT_MODELS = [
   { id: "z-ai/glm-5.3", label: "GLM 5.3" }
 ] as const;
 
+export const FILE_CHAT_MODEL = "google/gemini-2.5-flash" as const;
+
 export type ChatModelId = (typeof CHAT_MODELS)[number]["id"];
 export type ChatMessage = { role: "user" | "assistant"; content: string };
 export const CHAT_MAX_MESSAGES = 20;

@@ -1,5 +1,6 @@
 import "server-only";
 
+import { deleteUserChatFiles } from "@/lib/chat-files";
 import { deleteStoredAvatars } from "@/lib/avaturn";
 import { removeConsumerOwner } from "@/lib/gyne-consumer-registry";
 import { destroyOpenClawInstance, isOpenClawInstanceMissingError } from "@/lib/openclaw";
@@ -107,6 +108,8 @@ export async function destroyUserWorkspaceForAdmin(adminSupabase: AdminSupabase,
   for (const row of rows) {
     await removeConsumerOwner(profile.id, row.consumer_name);
   }
+
+  await deleteUserChatFiles(adminSupabase, profile.id);
 
   const { error } = await adminSupabase.auth.admin.deleteUser(profile.id);
 

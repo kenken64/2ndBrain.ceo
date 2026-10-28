@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { ChatSavedFiles } from "@/components/chat-saved-files";
 import { AiCreditTransfer } from "@/components/ai-credit-transfer";
 import { SolanaPaymentHistory } from "@/components/solana-payment-history";
 import { SolanaCreditPurchase } from "@/components/solana-credit-purchase";
@@ -55,6 +56,7 @@ export function AiCreditsPaymentPanel({
         packageTokens={packageTokens}
         packageUsdCents={packageUsdCents}
       />
+      <article className="settings-action-card"><h2>Saved chat files</h2><p>Download files you saved from AI Chat.</p><ChatSavedFiles disabled={false} /></article>
       <SolanaPaymentHistory payments={paymentHistory} />
       <AiCreditTransfer balance={activeBalance} onBalanceChange={updateBalance} />
     </>

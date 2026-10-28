@@ -11,7 +11,7 @@
     "start:standalone": "node .next/standalone/server.js",
     "start:next": "next start",
     "typecheck": "tsc --noEmit",
-    "test:chat": "node --test tests/chat-api.test.cjs tests/chat-credits.test.cjs tests/chat-attachments.test.cjs tests/chat-usage-api.test.cjs",
+    "test:chat": "node --test tests/chat-api.test.cjs tests/chat-credits.test.cjs tests/chat-attachments.test.cjs tests/chat-usage-api.test.cjs tests/chat-files.test.cjs",
     "test:solana": "node --test tests/solana-rpc.test.cjs",
     "admin:load": "node scripts/load-admin-users.mjs",
     "db:migrate": "bash scripts/apply-migrations.sh",
@@ -26,6 +26,7 @@
     "@supabase/supabase-js": "latest",
     "@xterm/addon-fit": "^0.11.0",
     "@xterm/xterm": "^6.0.0",
+    "3d-force-graph": "^1.80.1",
     "buffer": "^6.0.3",
     "clawmacdo": "^0.93.0",
     "clsx": "latest",
@@ -42,6 +43,7 @@
     "rehype-highlight": "^7.0.2",
     "remark-gfm": "^4.0.1",
     "ssh2": "^1.17.0",
+    "three": "^0.186.1",
     "ws": "^8.22.0",
     "yauzl": "^3.4.0"
   },
@@ -50,6 +52,7 @@
     "@types/node": "latest",
     "@types/react": "latest",
     "@types/react-dom": "latest",
+    "@types/three": "^0.186.0",
     "@types/yauzl": "^3.4.0",
     "typescript": "latest"
   },

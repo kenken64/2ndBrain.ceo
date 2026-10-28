@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
 import { LogOut } from "lucide-react";
+import { ChatSavedFiles } from "@/components/chat-saved-files";
 import { ChatUsageButton } from "@/components/chat-usage-button";
 import { AnnouncementPill } from "@/components/announcement-pill";
 import { Atmosphere } from "@/components/atmosphere";
@@ -37,6 +38,7 @@ export default async function ChatPage({ searchParams }: { searchParams: Promise
           <div className="dashboard-topbar">
             <AnnouncementPill>AI Chat</AnnouncementPill>
             <div className="dashboard-topbar__actions chat-topbar__actions">
+              <ChatSavedFiles disabled={false} label="My files" triggerClass="chat-usage-trigger" />
               <ChatUsageButton />
               <a className="btn-ghost chat-topbar__logout" href="/auth/logout"><LogOut size={16} aria-hidden="true" /> Log out</a>
             </div>

@@ -34,6 +34,7 @@ test("chat API checks authentication, model, billing and uncertain failures", as
   };
   const replacements = {
     "@/lib/admin": { isAdminUser: async () => false },
+    "@/lib/chat-files": { saveChatOutput: async (_admin, userId, sourceId, name, kind, content) => { state.savedOutput = { userId, sourceId, name, kind, content }; if (state.outputFail) throw Error("storage unavailable"); return { id: "output-1", name: "output.md", origin: "output" }; }, saveChatFile: async (_admin, userId, file) => ({ id: "file-1", name: file.name, size: file.data.length, mime: file.mime, createdAt: "2026-01-01" }), loadChatFile: async (_admin, userId, id) => id === "owned" && userId === "user-1" ? { file: { name: "scan.pdf", type: "pdf", mime: "application/pdf", data: Buffer.from("fixture") }, metadata: { id: "owned", name: "scan.pdf" } } : null },
     "@/lib/chat-attachments": {
       parseChatAttachment: value => ({ name: value.name, type: value.kind, mime: value.kind === "pdf" ? "application/pdf" : "image/png", data: Buffer.from("fixture") }),
       pdfPageCount: async () => 3,
@@ -66,6 +67,8 @@ test("chat API checks authentication, model, billing and uncertain failures", as
     if (state.mode === "rate") return Response.json({}, { status: 429 });
     if (state.mode === "missing") return Response.json({ id: "gen-1", choices: [{ message: { content: "hello" } }] });
     state.providerBody = JSON.parse(options.body);
+    if (state.mode === "image") return Response.json({ id: "gen-image", choices: [{ message: { content: JSON.stringify({ transcription: "# Receipt\nTotal: 42", answer: "The total is 42." }) } }], usage: { cost: 0.0004, prompt_tokens: 40, completion_tokens: 10 } });
+    if (state.mode === "invalid-image") return Response.json({ id: "gen-image", choices: [{ message: { content: "not JSON" } }], usage: { cost: 0.0004 } });
     return Response.json({ id: "gen-1", choices: [{ message: { content: "hello", annotations: [{ type: "file", file: { content: [{ type: "text", text: "# Extracted" }] } }] } }], usage: { cost: 0.0004, prompt_tokens: 40, completion_tokens: 10 } });
   };
   process.env.OPENROUTER_API_KEY = "test-key";
@@ -89,9 +92,27 @@ test("chat API checks authentication, model, billing and uncertain failures", as
     reset(); response = await post(request({ ...good, attachment: { name: "scan.pdf", kind: "pdf" } }));
     const pdf = await response.json();
     assert.equal(response.status, 200); assert.equal(pdf.ocr.markdown, "# Extracted");
+    assert.equal(pdf.savedOutput.id, "output-1"); assert.equal(state.savedOutput.userId, "user-1"); assert.equal(state.savedOutput.sourceId, "file-1"); assert.equal(state.savedOutput.kind, "ocr"); assert.equal(state.savedOutput.content, "# Extracted");
     assert.equal(state.providerBody.plugins[0].pdf.engine, "mistral-ocr"); assert.equal(state.providerBody.model, "google/gemini-2.5-flash");
+    assert.match(state.providerBody.messages.at(-1).content[0].text, /First use OCR/); assert.match(state.providerBody.messages.at(-1).content[0].text, /User request: Hello/);
     assert.equal(state.rpc[0].args.p_kind, "pdf_ocr"); assert.equal(state.rpc[0].args.p_pdf_pages, 3);
     assert.equal(state.rpc[1].args.p_cost_usd, 0.0065); assert.equal(state.rpc[1].args.p_prompt_tokens, 40);
+    reset(); state.mode = "image"; response = await post(request({ ...good, model: "mistralai/mistral-small-2603", attachment: { name: "receipt.png", kind: "image" } }));
+    const image = await response.json();
+    assert.equal(response.status, 200); assert.equal(image.ocr.markdown, "# Receipt\nTotal: 42"); assert.equal(image.message, "The total is 42."); assert.equal(state.savedOutput.content, image.ocr.markdown);
+    assert.equal(state.providerBody.model, "google/gemini-2.5-flash"); assert.equal(state.providerBody.response_format.type, "json_schema");
+    assert.equal(state.providerBody.provider.require_parameters, true); assert.match(state.providerBody.messages.at(-1).content[0].text, /User request: Hello/);
+    reset(); state.mode = "image"; state.outputFail = true; response = await post(request({ ...good, attachment: { name: "receipt.png", kind: "image" } }));
+    const unsaved = await response.json(); assert.equal(response.status, 200); assert.equal(unsaved.outputSaveFailed, true); assert.equal(unsaved.message, "The total is 42."); assert.equal(state.rpc[1].args.p_status, "completed");
+    reset(); response = await post(request({ ...good, attachment: { name: "sales.csv", kind: "spreadsheet" } }));
+    const sheet = await response.json(); assert.equal(response.status, 200); assert.equal(sheet.savedOutput.id, "output-1");
+    assert.equal(state.savedOutput.kind, "spreadsheet"); assert.equal(JSON.parse(state.savedOutput.content).answer, "hello");
+    reset(); state.mode = "invalid-image"; response = await post(request({ ...good, attachment: { name: "receipt.png", kind: "image" } }));
+    const invalid = await response.json(); assert.equal(response.status, 200); assert.equal(invalid.ocr, null); assert.match(invalid.message, /could not be displayed/); assert.equal(state.rpc[1].args.p_status, "completed");
+    reset(); response = await post(request({ ...good, fileId: "someone-elses-file" }));
+    assert.equal(response.status, 404); assert.equal(state.rpc.length, 0);
+    reset(); response = await post(request({ ...good, fileId: "owned" }));
+    assert.equal(response.status, 200); assert.equal((await response.json()).savedFile.id, "owned");
     reset(); state.mode = "usage-unavailable"; response = await post(request({ ...good, attachment: { name: "scan.pdf", kind: "pdf" } }));
     assert.equal(response.status, 502); assert.equal(state.rpc[1].args.p_status, "uncertain"); assert.equal(state.rpc[1].args.p_provider_request_id, "gen-1");
     reset(); state.mode = "rate"; response = await post(request({ ...good, attachment: { name: "scan.pdf", kind: "pdf" } }));

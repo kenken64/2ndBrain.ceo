@@ -6,7 +6,9 @@ import { ArrowDown, ArrowUp, Bot, Paperclip, X } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import rehypeHighlight from "rehype-highlight";
 import remarkGfm from "remark-gfm";
-import { CHAT_MAX_MESSAGE_CHARS, CHAT_MAX_MESSAGES, CHAT_MAX_TOTAL_BYTES, CHAT_MODELS, isChatModel, type ChatMessage, type ChatModelId } from "@/lib/chat-models";
+import { CHAT_MAX_MESSAGE_CHARS, CHAT_MAX_MESSAGES, CHAT_MAX_TOTAL_BYTES, CHAT_MODELS, FILE_CHAT_MODEL, isChatModel, type ChatMessage, type ChatModelId } from "@/lib/chat-models";
+import { ChatSavedFiles } from "@/components/chat-saved-files";
+import { CHAT_FILE_MAX_BYTES, type SavedChatFile } from "@/lib/chat-files-shared";
 import type { ChatConversation, ChatSummary, HistoryMessage, FileArtifact } from "@/lib/chat-history";
 
 type HistoryApi = typeof import("@/lib/chat-history");
@@ -39,7 +41,8 @@ export function WorkspaceChat({ userId, configured, initialChatId }: { userId: s
   const [cacheState, setCacheState] = useState<CacheState>("loading");
   const [selecting, setSelecting] = useState(false);
   const [prompt, setPrompt] = useState("");
-  const [file, setFile] = useState<File | null>(null);
+  const [file, setFile] = useState<SavedChatFile | null>(null);
+  const [uploading, setUploading] = useState(false);
   const [panelOpen, setPanelOpen] = useState(true);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [error, setError] = useState("");
@@ -155,7 +158,7 @@ export function WorkspaceChat({ userId, configured, initialChatId }: { userId: s
   }
 
   async function selectChat(id: string) {
-    if (busyRef.current || selecting) return;
+    if (busyRef.current || selecting || uploading) return;
     setSelecting(true);
     setError("");
     setNotice("");
@@ -177,7 +180,7 @@ export function WorkspaceChat({ userId, configured, initialChatId }: { userId: s
   async function send(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const value = prompt.trim() || (file ? `Extract and review ${file.name}` : "");
-    if (!chat || !configured || busyRef.current || selecting || cacheState === "loading" || !value) return;
+    if (!chat || !configured || busyRef.current || selecting || cacheState === "loading" || uploading || !value) return;
     if (value.length > CHAT_MAX_MESSAGE_CHARS) { setError(`Messages can contain up to ${CHAT_MAX_MESSAGE_CHARS.toLocaleString()} characters.`); return; }
     busyRef.current = true;
     isAtBottomRef.current = true;
@@ -185,34 +188,28 @@ export function WorkspaceChat({ userId, configured, initialChatId }: { userId: s
     setBusy(true);
     setError("");
     setNotice("");
-    const model = chat.model;
+    const model = file ? FILE_CHAT_MODEL : chat.model;
     const work = async () => {
       const priorArtifact = [...chat.messages].reverse().find(message => message.artifact)?.artifact;
-      let pending = await persist({ ...chat, messages: [...chat.messages, { role: "user", content: value }] });
+      let pending = await persist({ ...chat, messages: [...chat.messages, { role: "user", content: value, ...(file ? { fileRef: { id: file.id, name: file.name } } : {}) }] });
       setPrompt("");
       try {
-        let attachment: { name: string; data: string } | undefined;
-        if (file) {
-          const bytes = new Uint8Array(await file.arrayBuffer());
-          let binary = "";
-          for (let offset = 0; offset < bytes.length; offset += 32768) binary += String.fromCharCode(...bytes.subarray(offset, offset + 32768));
-          attachment = { name: file.name, data: btoa(binary) };
-        }
         const fileContext = !file && priorArtifact ? `${priorArtifact.content.length > 6000 ? "PARTIAL EXCERPT: remaining file data is not included. Do not infer statistics for the complete file.\n" : ""}${priorArtifact.content.slice(0, 6000)}` : undefined;
-        const response = await fetch("/api/chat", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ model, messages: historyForRequest(pending.messages), attachment, fileContext }) });
-        const payload = await response.json().catch(() => null) as { message?: unknown; error?: unknown; model?: unknown; ocr?: { name?: unknown; markdown?: unknown; truncated?: unknown } | null; spreadsheet?: unknown; chargedCredits?: unknown; availableCredits?: unknown; quotaExempt?: unknown } | null;
+        const response = await fetch("/api/chat", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ model, messages: historyForRequest(pending.messages), fileId: file?.id, fileContext }) });
+        const payload = await response.json().catch(() => null) as { message?: unknown; error?: unknown; model?: unknown; ocr?: { name?: unknown; markdown?: unknown; truncated?: unknown } | null; spreadsheet?: unknown; savedOutput?: { id?: unknown; name?: unknown }; outputSaveFailed?: boolean; chargedCredits?: unknown; availableCredits?: unknown; quotaExempt?: unknown } | null;
         if (!response.ok || typeof payload?.message !== "string") throw new Error(typeof payload?.error === "string" ? payload.error : "Unable to get a response. Please try again.");
         const responseModel = isChatModel(payload.model) ? payload.model : model;
         let artifact: FileArtifact | undefined;
         if (file && payload.ocr && typeof payload.ocr.markdown === "string") artifact = { name: file.name, kind: "ocr", content: payload.ocr.markdown, truncated: payload.ocr.truncated === true };
         else if (file && typeof payload.spreadsheet === "string") artifact = { name: file.name, kind: "spreadsheet", content: payload.spreadsheet };
-        const responseText = file && artifact?.kind === "ocr" && !file.name.toLowerCase().endsWith(".pdf") ? `Text extracted from ${file.name}. Review it in the side panel, then ask a question.` : payload.message;
-        pending = await persist({ ...pending, model: responseModel, messages: [...pending.messages, { role: "assistant", content: responseText, model: responseModel, ...(artifact ? { artifact } : {}) }] });
-        const missingOcr = file && !artifact && file.name.toLowerCase().endsWith(".pdf");
+        const outputFile = payload.savedOutput && typeof payload.savedOutput.id === "string" && typeof payload.savedOutput.name === "string" ? { id: payload.savedOutput.id, name: payload.savedOutput.name } : undefined;
+        pending = await persist({ ...pending, messages: [...pending.messages, { role: "assistant", content: payload.message, model: responseModel, ...(artifact ? { artifact } : {}), ...(outputFile ? { fileRef: outputFile } : {}) }] });
+        const missingOcr = file && !artifact && /\.(pdf|png|jpe?g|webp)$/i.test(file.name);
         setFile(null);
         if (fileInputRef.current) fileInputRef.current.value = "";
         setPanelOpen(true);
-        if (missingOcr) setNotice("The PDF was processed, but OpenRouter did not return extracted text for the side panel.");
+        if (payload.outputSaveFailed) setNotice("The response is shown, but its generated file could not be saved. You can still download the extracted data from the side panel.");
+        else if (missingOcr) setNotice("The file was processed, but no extracted text was available for the side panel.");
         else if (payload.quotaExempt === true) setNotice("This account is exempt from AI credit charges.");
         else if (typeof payload.chargedCredits === "number" && typeof payload.availableCredits === "number") setNotice(`${payload.chargedCredits.toLocaleString()} credits used · ${payload.availableCredits.toLocaleString()} available`);
       } catch (reason) {
@@ -242,7 +239,7 @@ export function WorkspaceChat({ userId, configured, initialChatId }: { userId: s
   }
 
   async function newChat() {
-    if (busyRef.current || selecting) return;
+    if (busyRef.current || selecting || uploading) return;
     const draft = newDraft(chat?.model);
     isAtBottomRef.current = true;
     setShowJumpToLatest(false);
@@ -275,6 +272,18 @@ export function WorkspaceChat({ userId, configured, initialChatId }: { userId: s
   }
   newChatRef.current = newChat;
 
+  async function uploadFile(selected: File) {
+    if (selected.size === 0 || selected.size > CHAT_FILE_MAX_BYTES) { setError("Choose a file between 1 byte and 20 MB."); return; }
+    setUploading(true); setError("");
+    try {
+      const response = await fetch(`/api/chat/files?${new URLSearchParams({ name: selected.name })}`, { method: "POST", headers: { "Content-Type": "application/octet-stream" }, body: selected });
+      const result = await response.json().catch(() => null) as { file?: SavedChatFile; error?: string } | null;
+      if (!response.ok || !result?.file) throw new Error(result?.error || "Could not save file.");
+      setFile(result.file); setNotice("File saved to your private library.");
+    } catch (reason) { setError(reason instanceof Error ? reason.message : "Could not save file."); }
+    finally { setUploading(false); if (fileInputRef.current) fileInputRef.current.value = ""; }
+  }
+
   const activeArtifact = [...(chat?.messages ?? [])].reverse().find(message => message.artifact)?.artifact;
   function downloadArtifact(artifact: FileArtifact) {
     const url = URL.createObjectURL(new Blob([artifact.content], { type: "text/markdown;charset=utf-8" }));
@@ -298,14 +307,14 @@ export function WorkspaceChat({ userId, configured, initialChatId }: { userId: s
           <div className="workspace-chat__conversation">
             <div aria-label="Conversation" aria-live="polite" className="workspace-chat__thread" onScroll={handleThreadScroll} ref={threadRef} role="log">
               {!chat?.messages.length ? <div className="workspace-chat__empty"><span><Bot size={26} /></span><h2>What would you like to work on?</h2><p>Ask a question, explore an idea, or get help with a task.</p></div> : null}
-              {chat?.messages.map((message, index) => <article className={`workspace-chat__message workspace-chat__message--${message.role}`} key={`${index}-${message.role}`}><p className="workspace-chat__sender">{message.role === "user" ? "You" : CHAT_MODELS.find((item) => item.id === message.model)?.label ?? "AI"}</p><div className="workspace-chat__content"><ReactMarkdown remarkPlugins={[remarkGfm]} rehypePlugins={[rehypeHighlight]} components={{ table: ({ children, ...props }) => <div className="workspace-chat__table-wrap"><table {...props}>{children}</table></div> }}>{message.content}</ReactMarkdown></div></article>)}
+              {chat?.messages.map((message, index) => <article className={`workspace-chat__message workspace-chat__message--${message.role}`} key={`${index}-${message.role}`}><p className="workspace-chat__sender">{message.role === "user" ? "You" : CHAT_MODELS.find((item) => item.id === message.model)?.label ?? "AI"}</p><div className="workspace-chat__content"><ReactMarkdown remarkPlugins={[remarkGfm]} rehypePlugins={[rehypeHighlight]} components={{ table: ({ children, ...props }) => <div className="workspace-chat__table-wrap"><table {...props}>{children}</table></div> }}>{message.content}</ReactMarkdown>{message.fileRef ? <a className="workspace-chat__download-file" href={`/api/chat/files/${encodeURIComponent(message.fileRef.id)}`}>Download {message.fileRef.name}</a> : null}</div></article>)}
               {busy ? <p className="workspace-chat__thinking" role="status">Thinking…</p> : null}
             </div>
             {showJumpToLatest && chat?.messages.length ? <button aria-label="Jump to latest message" className="workspace-chat__jump-latest" onClick={() => threadRef.current?.scrollTo({ top: threadRef.current.scrollHeight, behavior: "smooth" })} title="Jump to latest message" type="button"><ArrowDown size={18} /></button> : null}
           </div>
           <form className="workspace-chat__form" onSubmit={send}>
-            {file ? <div className="workspace-chat__file"><span>{file.name} · file requests use Gemini 2.5 Flash{(/\.(png|jpe?g|webp)$/i.test(file.name)) ? " · image text is extracted first; ask questions afterward" : ""}</span><button type="button" aria-label="Remove attachment" onClick={() => { setFile(null); if (fileInputRef.current) fileInputRef.current.value = ""; }}><X size={16} /></button></div> : null}<textarea aria-label="Your message" disabled={!configured || busy || selecting || cacheState === "loading"} maxLength={CHAT_MAX_MESSAGE_CHARS} onChange={(event) => setPrompt(event.target.value)} onKeyDown={handleKeyDown} placeholder="Ask anything…" rows={3} value={prompt} /><div className="workspace-chat__form-footer"><input ref={fileInputRef} type="file" accept=".pdf,.png,.jpg,.jpeg,.webp,.xlsx,.csv" hidden onChange={(event) => { const selected = event.target.files?.[0]; if (!selected) return; if (selected.size > 2 * 1024 * 1024) { setError("Choose a file no larger than 2 MB."); event.target.value = ""; return; } setError(""); setFile(selected); }} /><button type="button" className="btn-ghost" disabled={busy || selecting} onClick={() => fileInputRef.current?.click()}><Paperclip size={16} /> Attach file</button><select aria-label="AI model" className="workspace-chat__model-select" disabled={busy || selecting || !chat} id="workspace-chat-model" onChange={(event) => { if (chat && isChatModel(event.target.value)) setChat({ ...chat, model: event.target.value }); }} value={chat?.model ?? CHAT_MODELS[0].id}>{CHAT_MODELS.map((item) => <option key={item.id} value={item.id}>{item.label}</option>)}</select><button aria-label="Send message" className="workspace-chat__send" disabled={!configured || busy || selecting || cacheState === "loading" || (!prompt.trim() && !file)} type="submit"><ArrowUp size={16} strokeWidth={2.4} /></button></div></form>
-          <p className="workspace-chat__privacy">Chat history and extracted data are stored in this browser. Files are sent for processing; the first 6,000 characters of extracted data are included in follow-up questions.</p>
+            {file ? <div className="workspace-chat__file"><span>{file.name} · saved · Gemini 2.5 Flash{file.name.toLowerCase().endsWith(".pdf") ? " · Mistral OCR" : /\.(png|jpe?g|webp)$/i.test(file.name) ? " · image OCR" : ""}</span><button type="button" aria-label="Remove attachment" disabled={busy} onClick={() => { setFile(null); if (fileInputRef.current) fileInputRef.current.value = ""; }}><X size={16} /></button></div> : null}<textarea aria-label="Your message" disabled={!configured || busy || selecting || uploading || cacheState === "loading"} maxLength={CHAT_MAX_MESSAGE_CHARS} onChange={(event) => setPrompt(event.target.value)} onKeyDown={handleKeyDown} placeholder="Ask anything…" rows={3} value={prompt} /><div className="workspace-chat__form-footer"><input ref={fileInputRef} type="file" accept=".pdf,.png,.jpg,.jpeg,.webp,.xlsx,.csv" hidden onChange={(event) => { const selected = event.target.files?.[0]; if (selected) void uploadFile(selected); }} /><button type="button" className="btn-ghost" disabled={busy || selecting || uploading} onClick={() => fileInputRef.current?.click()}><Paperclip size={16} /> {uploading ? "Saving…" : "Attach file"}</button><ChatSavedFiles disabled={busy || selecting || uploading} onSelect={(saved) => { setFile(saved); setError(""); }} /><select aria-label="AI model" className="workspace-chat__model-select" disabled={busy || selecting || uploading || Boolean(file) || !chat} id="workspace-chat-model" onChange={(event) => { if (chat && isChatModel(event.target.value)) setChat({ ...chat, model: event.target.value }); }} value={file || uploading ? FILE_CHAT_MODEL : chat?.model ?? CHAT_MODELS[0].id}>{CHAT_MODELS.map((item) => <option key={item.id} value={item.id}>{item.label}</option>)}</select><button aria-label="Send message" className="workspace-chat__send" disabled={!configured || busy || selecting || uploading || cacheState === "loading" || (!prompt.trim() && !file)} type="submit"><ArrowUp size={16} strokeWidth={2.4} /></button></div></form>
+          <p className="workspace-chat__privacy">Uploaded files are saved privately to your account. Chat history and extracted data remain on this device. Files are sent for processing; follow-ups include the first 6,000 characters of extracted data.</p>
         </div>
         {activeArtifact && panelOpen ? <aside className="workspace-chat__artifact" aria-label={activeArtifact.kind === "ocr" ? "Extracted text" : "Spreadsheet data"}>
           <div className="workspace-chat__artifact-header"><div><strong>{activeArtifact.kind === "ocr" ? "Extracted text" : "Spreadsheet data"}</strong><p>{activeArtifact.name}</p></div><button type="button" className="btn-icon" aria-label="Close file panel" onClick={() => setPanelOpen(false)}><X size={18} /></button></div>

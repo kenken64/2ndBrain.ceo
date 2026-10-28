@@ -6393,3 +6393,65 @@ svg {
   .chat-usage-metrics > div { grid-template-columns: 1fr auto; align-items: center; }
   .chat-usage-metrics small { grid-column: 1 / -1; }
 }
+.chat-files-list { border: 1px solid #e0e9f1; border-radius: 12px; overflow: hidden; }
+.chat-files-list article { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 12px 14px; border-bottom: 1px solid #edf2f6; }
+.chat-files-list article:last-child { border-bottom: 0; }
+.chat-files-list article > div:first-child { display: grid; gap: 4px; min-width: 0; overflow-wrap: anywhere; font-size: 13px; }
+.chat-files-list small { color: #65788b; font-size: 12px; }
+.chat-files-actions { display: flex; gap: 8px; flex: none; }
+.workspace-chat__download-file { display: inline-block; margin-top: 8px; color: var(--brand-blue-deep); text-decoration: underline; overflow-wrap: anywhere; }
+@media (max-width: 600px) { .chat-files-list article { align-items: flex-start; flex-direction: column; } }
+.chat-usage-pagination .btn-ghost { width: auto; flex: 0 0 auto; }
+.chat-usage-pagination span { white-space: nowrap; }
+
+.graph-explorer { position: relative; }
+.graph-view-switch { display: flex; width: fit-content; gap: 3px; margin: 0 0 12px auto; padding: 4px; border: 1px solid var(--border-soft); border-radius: 11px; background: #f3f6fa; }
+.graph-view-switch button { padding: 8px 13px; border-radius: 8px; background: transparent; color: #5d7184; font-size: 12px; font-weight: 750; cursor: pointer; }
+.graph-view-switch button[aria-pressed="true"] { background: #fff; color: #175285; box-shadow: 0 1px 4px #1d3b521c; }
+.graph3d-shell { position: relative; height: min(76vh, 820px); min-height: 600px; overflow: hidden; border-radius: 16px; border: 1px solid #223649; color: #dce9f4; background: #07101e; }
+.graph3d-viewport { position: absolute; inset: 0; overflow: hidden; }
+.graph3d-viewport canvas { display: block; outline: none; }
+.graph3d-controls, .graph3d-inspector, .graph3d-actions { position: absolute; z-index: 2; }
+.graph3d-controls, .graph3d-inspector { border: 1px solid #34495b; border-radius: 14px; background: rgba(10,20,32,.94); box-shadow: 0 16px 40px #0005; backdrop-filter: blur(12px); }
+.graph3d-controls { top: 16px; left: 16px; width: min(265px, calc(100% - 32px)); padding: 15px; }
+.graph3d-panel-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; }
+.graph3d-panel-header > div { display: grid; gap: 4px; }
+.graph3d-panel-header strong { font-size: 14px; color: #f5fbff; }
+.graph3d-panel-header strong span { color: #60c7ae; }
+.graph3d-eyebrow { color: #72ddbd; font-size: 10px; font-weight: 800; letter-spacing: .11em; }
+.graph3d-panel-header button, .graph3d-search button, .graph3d-inspector-close { display: grid; place-items: center; width: 29px; height: 29px; padding: 0; border-radius: 8px; background: #1b2c3d; color: #d6e7f5; cursor: pointer; }
+.graph3d-search { display: flex; align-items: center; gap: 7px; margin-top: 14px; padding: 0 9px; min-height: 38px; border: 1px solid #385165; border-radius: 9px; color: #7aa3b9; background: #0c1928; }
+.graph3d-search input { flex: 1; width: 100%; min-width: 0; border: 0; outline: 0; color: #f1f9ff; background: transparent; font-size: 12px; }
+.graph3d-search input::placeholder { color: #8a9cab; }
+.graph3d-search button { flex: none; width: 24px; height: 24px; }
+.graph3d-results { max-height: 190px; overflow-y: auto; margin-top: 6px; }
+.graph3d-results button { display: flex; width: 100%; align-items: center; gap: 8px; padding: 7px; border-radius: 7px; color: #e5eff7; background: transparent; text-align: left; font-size: 12px; cursor: pointer; }
+.graph3d-results button:hover, .graph3d-neighbors button:hover { background: #20364a; }
+.graph3d-results button span, .graph3d-dot { display: inline-block; flex: none; width: 9px; height: 9px; border-radius: 50%; }
+.graph3d-hint, .graph3d-results p { margin: 11px 0; color: #99aebe; font-size: 11px; line-height: 1.5; }
+.graph3d-filter-title { margin: 15px 0 8px; color: #7892a6; font-size: 10px; font-weight: 800; letter-spacing: .1em; }
+.graph3d-filters { display: grid; gap: 7px; max-height: 180px; overflow-y: auto; }
+.graph3d-filters label { display: flex; align-items: center; gap: 7px; color: #d6e5f0; font-size: 12px; cursor: pointer; }
+.graph3d-filters input { width: 13px; height: 13px; accent-color: #52d8b1; }
+.graph3d-filters small { margin-left: auto; color: #8da4b5; }
+.graph3d-actions { display: flex; align-items: center; gap: 7px; top: 16px; right: 16px; }
+.graph3d-actions button { display: inline-flex; align-items: center; gap: 6px; padding: 8px 12px; border: 1px solid #34495b; border-radius: 10px; background: #102030ed; color: #e5f2fa; font-size: 12px; font-weight: 700; cursor: pointer; }
+.graph3d-inspector { right: 16px; bottom: 16px; width: min(300px, calc(100% - 32px)); max-height: 48%; overflow: auto; padding: 16px; }
+.graph3d-inspector-close { float: right; }
+.graph3d-inspector h3 { margin: 8px 34px 4px 0; color: #fff; font-size: 16px; overflow-wrap: anywhere; }
+.graph3d-inspector p { margin: 0 0 12px; color: #9db3c2; font-size: 12px; }
+.graph3d-inspector a { display: inline-flex; align-items: center; gap: 6px; color: #7de6c7; font-size: 12px; font-weight: 700; }
+.graph3d-neighbors { display: grid; gap: 4px; margin-top: 14px; }
+.graph3d-neighbors > strong { margin-bottom: 4px; color: #a7bdca; font-size: 11px; text-transform: uppercase; letter-spacing: .06em; }
+.graph3d-neighbors button { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; padding: 6px; border-radius: 6px; background: transparent; color: #e4edf5; text-align: left; font-size: 11px; cursor: pointer; }
+.graph3d-neighbors button span { overflow-wrap: anywhere; }
+.graph3d-neighbors small { color: #8faaba; font-size: 10px; }
+.graph3d-state, .graph3d-empty { position: absolute; z-index: 3; left: 50%; top: 50%; max-width: 340px; transform: translate(-50%, -50%); padding: 12px 16px; border-radius: 10px; background: #102234ed; color: #e8f4fb; text-align: center; font-size: 13px; }
+.graph3d-state--error { color: #ffd9d9; }
+@media (max-width: 760px) {
+  .graph3d-shell { height: 72vh; min-height: 570px; }
+  .graph3d-controls { top: 10px; left: 10px; width: min(225px, calc(100% - 20px)); padding: 11px; }
+  .graph3d-actions { top: auto; right: 10px; bottom: 10px; }
+  .graph3d-inspector { right: 10px; bottom: 58px; width: min(300px, calc(100% - 20px)); max-height: 38%; }
+  .graph3d-filters { max-height: 120px; }
+}

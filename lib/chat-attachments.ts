@@ -1,22 +1,29 @@
 import { Readable } from "node:stream";
 import { fromBuffer } from "yauzl";
 
-export const CHAT_FILE_MAX_BYTES = 2 * 1024 * 1024;
+import { CHAT_FILE_MAX_BYTES } from "@/lib/chat-files-shared";
+export { CHAT_FILE_MAX_BYTES } from "@/lib/chat-files-shared";
 export type ChatAttachment = { name: string; type: "image" | "pdf" | "spreadsheet"; data: Buffer; mime: string };
 
-export function parseChatAttachment(value: unknown): ChatAttachment | null {
-  if (!value || typeof value !== "object") return null;
-  const item = value as Record<string, unknown>;
-  if (typeof item.name !== "string" || item.name.length < 1 || item.name.length > 150 || typeof item.data !== "string" || item.data.length > Math.ceil(CHAT_FILE_MAX_BYTES / 3) * 4 + 4 || !/^[A-Za-z0-9+/]*={0,2}$/.test(item.data)) throw new Error("Invalid attachment.");
-  const data = Buffer.from(item.data, "base64");
-  if (!data.length || data.length > CHAT_FILE_MAX_BYTES || data.toString("base64") !== item.data) throw new Error("Attachment must be at most 2 MB.");
-  const name = item.name.replace(/[\x00-\x1f]/g, "");
+export function validateChatFile(fileName: string, data: Buffer): ChatAttachment {
+  if (typeof fileName !== "string" || !fileName.trim() || fileName.length > 150 || !data.length || data.length > CHAT_FILE_MAX_BYTES) throw new Error("Choose a file between 1 byte and 20 MB, with a name under 150 characters.");
+  const name = fileName.replace(/[\x00-\x1f]/g, "");
   const ext = name.toLowerCase().split(".").pop();
   if (ext === "pdf" && data.subarray(0, 5).toString() === "%PDF-") return { name, type: "pdf", data, mime: "application/pdf" };
   if ((ext === "png" && data.subarray(0, 8).equals(Buffer.from([137,80,78,71,13,10,26,10]))) || ((ext === "jpg" || ext === "jpeg") && data[0] === 0xff && data[1] === 0xd8 && data[2] === 0xff) || (ext === "webp" && data.subarray(0, 4).toString() === "RIFF" && data.subarray(8, 12).toString() === "WEBP")) return { name, type: "image", data, mime: ext === "png" ? "image/png" : ext === "webp" ? "image/webp" : "image/jpeg" };
   if (ext === "xlsx" && data.subarray(0, 4).equals(Buffer.from([0x50,0x4b,0x03,0x04]))) return { name, type: "spreadsheet", data, mime: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" };
   if (ext === "csv" && !data.includes(0)) return { name, type: "spreadsheet", data, mime: "text/csv" };
   throw new Error("Choose a PDF, PNG, JPEG, WebP, XLSX or CSV file with a matching file type.");
+}
+
+
+export function parseChatAttachment(value: unknown): ChatAttachment | null {
+  if (!value || typeof value !== "object") return null;
+  const item = value as Record<string, unknown>;
+  if (typeof item.name !== "string" || typeof item.data !== "string" || item.data.length > Math.ceil(CHAT_FILE_MAX_BYTES / 3) * 4 + 4 || !/^[A-Za-z0-9+/]*={0,2}$/.test(item.data)) throw new Error("Invalid attachment.");
+  const data = Buffer.from(item.data, "base64");
+  if (data.toString("base64") !== item.data) throw new Error("Invalid attachment.");
+  return validateChatFile(item.name, data);
 }
 
 async function checkXlsxArchive(data: Buffer) {

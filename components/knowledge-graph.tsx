@@ -2,6 +2,7 @@
 
 import cytoscape, { type Core, type ElementDefinition, type LayoutOptions } from "cytoscape";
 import fcose from "cytoscape-fcose";
+import { KnowledgeGraph3D } from "@/components/knowledge-graph-3d";
 import { ChevronLeft, ChevronRight, Search, X } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 
@@ -534,7 +535,7 @@ function searchNodeIds(nodes: GraphNode[], value: string) {
     .map((node) => node.id);
 }
 
-export function KnowledgeGraph({ edges, highlightPath, nodes, projectId, rootLabel }: KnowledgeGraphProps) {
+function KnowledgeGraph2D({ edges, highlightPath, nodes, projectId, rootLabel }: KnowledgeGraphProps) {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const cyRef = useRef<Core | null>(null);
   const [activeSearchIndex, setActiveSearchIndex] = useState(0);
@@ -777,4 +778,17 @@ export function KnowledgeGraph({ edges, highlightPath, nodes, projectId, rootLab
       <div className="knowledge-graph-cytoscape" ref={containerRef} />
     </div>
   );
+}
+
+export function KnowledgeGraph(props: KnowledgeGraphProps) {
+  const [view, setView] = useState<"3d" | "2d">("3d");
+  const graph = useMemo(() => buildConnectedGraph(props.nodes, props.edges, props.rootLabel), [props.nodes, props.edges, props.rootLabel]);
+  if (props.nodes.length === 0) return <div className="empty-state">No graph nodes indexed yet. Open the Nth Brain and run Generate knowledge graph.</div>;
+  return <div className="graph-explorer">
+    <div className="graph-view-switch" role="group" aria-label="Graph view">
+      <button type="button" aria-pressed={view === "3d"} onClick={() => setView("3d")}>3D galaxy</button>
+      <button type="button" aria-pressed={view === "2d"} onClick={() => setView("2d")}>2D map</button>
+    </div>
+    {view === "3d" ? <KnowledgeGraph3D nodes={graph.nodes} edges={graph.edges} directEdgeCount={graph.directEdgeCount} componentCount={graph.componentCount} projectId={props.projectId} highlightPath={props.highlightPath} /> : <KnowledgeGraph2D {...props} />}
+  </div>;
 }

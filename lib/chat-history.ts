@@ -2,7 +2,7 @@ import type { AsyncDuckDBConnection } from "@duckdb/duckdb-wasm";
 import { CHAT_MODELS, isChatModel, type ChatMessage, type ChatModelId } from "@/lib/chat-models";
 
 export type FileArtifact = { name: string; kind: "ocr" | "spreadsheet"; content: string; truncated?: boolean };
-export type HistoryMessage = ChatMessage & { model?: ChatModelId; artifact?: FileArtifact };
+export type HistoryMessage = ChatMessage & { model?: ChatModelId; artifact?: FileArtifact; fileRef?: { id: string; name: string } };
 export type ChatSummary = { id: string; title: string; model: ChatModelId; updatedAt: number };
 export type ChatConversation = ChatSummary & { messages: HistoryMessage[]; revision: number; createdAt: number };
 export type HistoryPage = { chats: ChatSummary[]; hasMore: boolean };
@@ -59,6 +59,7 @@ function validMessages(value: unknown): HistoryMessage[] {
   return value.filter((item): item is HistoryMessage =>
     item && (item.role === "user" || item.role === "assistant") && typeof item.content === "string" &&
     item.content.length <= 32_000 && (!item.model || isChatModel(item.model)) &&
+    (!item.fileRef || (typeof item.fileRef.id === "string" && /^[0-9a-f-]{36}$/i.test(item.fileRef.id) && typeof item.fileRef.name === "string" && item.fileRef.name.length <= 150)) &&
     (!item.artifact || (typeof item.artifact.name === "string" && item.artifact.name.length <= 150 &&
       (item.artifact.kind === "ocr" || item.artifact.kind === "spreadsheet") && typeof item.artifact.content === "string" && item.artifact.content.length <= 100_000))
   );
