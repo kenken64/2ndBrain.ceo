@@ -15,10 +15,6 @@ function optionalPositiveNumber(name: string, fallback: number) {
   return Number.isFinite(configured) && configured > 0 ? configured : fallback;
 }
 
-function nextAfterApproval(_next: string) {
-  return "/dashboard/wiki";
-}
-
 function isStaleRunning(startedAt: string | null | undefined) {
   const staleMs = optionalPositiveNumber("OPENCLAW_TELEGRAM_PAIR_STALE_MS", DEFAULT_TELEGRAM_PAIR_STALE_MS);
 
@@ -37,7 +33,7 @@ export async function GET(request: Request) {
   }
 
   const url = new URL(request.url);
-  const next = safeNextPath(url.searchParams.get("next") ?? "/dashboard");
+  const next = safeNextPath(url.searchParams.get("next") ?? "/dashboard/chat");
   const supabase = await createClient();
   const { data: claimsData, error: claimsError } = await supabase.auth.getClaims();
   const userId = getUserIdFromClaims(claimsData?.claims);
@@ -70,7 +66,7 @@ export async function GET(request: Request) {
   if (isReady) {
     return NextResponse.json({
       canRetry: false,
-      redirectTo: nextAfterApproval(next),
+      redirectTo: next,
       status: "ready"
     });
   }

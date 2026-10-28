@@ -239,6 +239,7 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
               billing={
                 <div className="settings-grid">
                   <OpenRouterKeyUsageCard usage={openRouterKeyUsage} />
+                  <article className="settings-action-card"><h2>Itemized AI usage</h2><p>Review per-user OpenRouter requests, costs and credit charges.</p><a className="btn-ghost" href="/admin/ai-usage">View AI usage</a></article>
                   <SolanaPaymentHistory
                     emptyCopy="No confirmed Solana top-ups have been recorded yet."
                     eyebrow="Admin billing"

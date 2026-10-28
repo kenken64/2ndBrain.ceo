@@ -18,6 +18,12 @@ const WORKFLOW_LAUNCH_CONFIGS: Record<string, WorkflowLaunchConfig> = {
     secretEnv: "GAME_DEV_TUTORIAL_SESSION_SECRET",
     toolId: "2d-game-dev-tutorial"
   },
+  "meeting-minutes": {
+    appUrlEnv: "MEETING_MINUTES_URL",
+    itemId: "meeting-minutes",
+    secretEnv: "MEETING_MINUTES_SESSION_SECRET",
+    toolId: "meeting-minutes"
+  },
   "gyne-agent": {
     appUrlEnv: "GYNE_AGENT_URL",
     itemId: "gyne-agent",

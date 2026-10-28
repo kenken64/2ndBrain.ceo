@@ -127,7 +127,7 @@ export function getSelectedProvisionTarget(profile: OnboardingProfile | null | u
   return null;
 }
 
-export function onboardingPath(next = "/dashboard", step?: OnboardingStep) {
+export function onboardingPath(next = "/dashboard/chat", step?: OnboardingStep) {
   const params = new URLSearchParams({ next });
 
   if (step) {

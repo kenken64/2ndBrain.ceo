@@ -121,7 +121,7 @@ function redirectToProvision(request: Request, next: string, error?: string) {
 
 export function GET(request: Request) {
   const requestUrl = new URL(request.url);
-  const next = safeNextPath(requestUrl.searchParams.get("next") ?? "/dashboard");
+  const next = safeNextPath(requestUrl.searchParams.get("next") ?? "/dashboard/chat");
   const error = requestUrl.searchParams.get("error")?.trim() || undefined;
 
   return redirectToProvision(request, next, error);
@@ -219,7 +219,7 @@ export async function POST(request: Request) {
   }
 
   const formData = await request.formData();
-  const next = safeNextPath(String(formData.get("next") ?? "/dashboard"));
+  const next = safeNextPath(String(formData.get("next") ?? "/dashboard/chat"));
   logProvision("request", { next });
   const supabase = await createClient();
   const { data: claimsData, error: claimsError } = await supabase.auth.getClaims();

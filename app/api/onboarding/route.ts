@@ -51,7 +51,7 @@ export async function POST(request: Request) {
   }
 
   const formData = await request.formData();
-  const next = safeNextPath(String(formData.get("next") ?? "/dashboard"));
+  const next = safeNextPath(String(formData.get("next") ?? "/dashboard/chat"));
   const step = parseOnboardingStep(String(formData.get("step") ?? "enrolment")) ?? "enrolment";
 
   const supabase = await createClient();

@@ -49,7 +49,7 @@ export async function POST(request: Request) {
 
   const formData = await request.formData();
   const telegramBotToken = String(formData.get("telegramBotToken") ?? "").trim();
-  const next = safeNextPath(String(formData.get("next") ?? "/dashboard"));
+  const next = safeNextPath(String(formData.get("next") ?? "/dashboard/chat"));
   const validationError = validateTelegramBotToken(telegramBotToken);
 
   if (validationError) {

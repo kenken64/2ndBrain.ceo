@@ -68,6 +68,18 @@ export const WORKFLOW_TEMPLATES: WorkflowTemplate[] = [
     title: "News Intelligence Desk"
   },
   {
+    category: "Productivity",
+    description: "Review meeting transcripts and source documents, connect Zoom recordings, and track follow-ups in a private workspace.",
+    id: "meeting-minutes",
+    itemType: "agent-app",
+    launchLabel: "Launch",
+    priceTokens: WORKFLOW_TOOL_PRICE_TOKENS,
+    repoUrl: "https://github.com/kenken64/aicuber-meeting-minutes",
+    sourceLabel: "GitHub",
+    steps: ["Connect your Zoom account", "Review transcripts and evidence", "Track and export follow-ups"],
+    title: "Meeting Minutes"
+  },
+  {
     category: "Device Automation",
     description: "Browser-based Android screen mirroring, touch control, AI-guided task execution, and playback review for mobile workflows.",
     id: "mobile-device-operator",

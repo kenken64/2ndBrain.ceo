@@ -22,7 +22,7 @@ type LoginPageProps = {
 
 export default async function LoginPage({ searchParams }: LoginPageProps) {
   const params = await searchParams;
-  const next = safeNextPath(params.next ?? "/dashboard");
+  const next = safeNextPath(params.next ?? null, "/dashboard/chat");
 
   if (hasSupabaseEnv()) {
     const supabase = await createClient();

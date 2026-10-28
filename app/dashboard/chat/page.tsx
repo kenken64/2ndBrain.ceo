@@ -1,4 +1,6 @@
 import { redirect } from "next/navigation";
+import { LogOut } from "lucide-react";
+import { ChatUsageButton } from "@/components/chat-usage-button";
 import { AnnouncementPill } from "@/components/announcement-pill";
 import { Atmosphere } from "@/components/atmosphere";
 import { DashboardSidebar } from "@/components/dashboard-sidebar";
@@ -32,7 +34,13 @@ export default async function ChatPage({ searchParams }: { searchParams: Promise
       <div className="dashboard-layout">
         <DashboardSidebar activeItem="chat" avatarName={onboardingProfile?.avatar_name} email={email} ownerName={onboardingProfile?.owner_name} showAdmin={showAdmin} showChatActions />
         <main className="dashboard-main">
-          <div className="dashboard-topbar"><AnnouncementPill>AI Chat</AnnouncementPill><a className="text-link" href="/dashboard/settings?tab=payment">AI credits</a></div>
+          <div className="dashboard-topbar">
+            <AnnouncementPill>AI Chat</AnnouncementPill>
+            <div className="dashboard-topbar__actions chat-topbar__actions">
+              <ChatUsageButton />
+              <a className="btn-ghost chat-topbar__logout" href="/auth/logout"><LogOut size={16} aria-hidden="true" /> Log out</a>
+            </div>
+          </div>
           <WorkspaceChat userId={userId} configured={chatConfigured} initialChatId={initialChatId} />
         </main>
       </div>

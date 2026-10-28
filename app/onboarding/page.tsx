@@ -195,7 +195,7 @@ function ApprovalStep({
 
 export default async function OnboardingPage({ searchParams }: OnboardingPageProps) {
   const params = await searchParams;
-  const next = safeNextPath(params.next ?? "/dashboard");
+  const next = safeNextPath(params.next ?? null, "/dashboard/chat");
 
   if (!hasSupabaseEnv()) {
     return (

@@ -25,7 +25,7 @@ test("chat API checks authentication, model, billing and uncertain failures", as
     rpc(name, args) {
       return { single: async () => {
         state.rpc.push({ name, args });
-        if (name === "reserve_chat_credits") return state.noCredit
+        if (name === "reserve_chat_credits_itemized") return state.noCredit
           ? { data: null, error: { message: "insufficient_ai_credits" } }
           : { data: { request_id: "req-1", llm_token_quota: 10000, llm_token_used: 500 }, error: null };
         return { data: { llm_token_quota: 10000, llm_token_used: 250, charged_credits: args.p_actual_credits }, error: null };
@@ -34,6 +34,11 @@ test("chat API checks authentication, model, billing and uncertain failures", as
   };
   const replacements = {
     "@/lib/admin": { isAdminUser: async () => false },
+    "@/lib/chat-attachments": {
+      parseChatAttachment: value => ({ name: value.name, type: value.kind, mime: value.kind === "pdf" ? "application/pdf" : "image/png", data: Buffer.from("fixture") }),
+      pdfPageCount: async () => 3,
+      spreadsheetContext: async () => '{"sheets":[]}'
+    },
     "@/lib/chat-models": models,
     "@/lib/env": { hasSupabaseEnv: () => true },
     "@/lib/onboarding": { getUserIdFromClaims: (claims) => claims?.sub || null },
@@ -55,12 +60,13 @@ test("chat API checks authentication, model, billing and uncertain failures", as
   }
   global.fetch = async (url, options) => {
     state.urls.push(String(url));
-    if (String(url).endsWith("/models")) return Response.json({ data: [{ id: models.CHAT_MODELS[0].id, pricing: { prompt: "0.000002", completion: "0.00001" } }] });
+    if (String(url).endsWith("/models")) return Response.json({ data: models.CHAT_MODELS.map(({ id }) => ({ id, pricing: { prompt: "0.000002", completion: "0.00001" } })) });
+    if (String(url).startsWith("https://openrouter.ai/api/v1/generation")) return state.mode === "usage-unavailable" ? Response.json({}, { status: 503 }) : Response.json({ data: { total_cost: 0.0065 } });
     if (state.mode === "network") throw Error("network");
     if (state.mode === "rate") return Response.json({}, { status: 429 });
     if (state.mode === "missing") return Response.json({ id: "gen-1", choices: [{ message: { content: "hello" } }] });
     state.providerBody = JSON.parse(options.body);
-    return Response.json({ id: "gen-1", choices: [{ message: { content: "hello" } }], usage: { cost: 0.0004 } });
+    return Response.json({ id: "gen-1", choices: [{ message: { content: "hello", annotations: [{ type: "file", file: { content: [{ type: "text", text: "# Extracted" }] } }] } }], usage: { cost: 0.0004, prompt_tokens: 40, completion_tokens: 10 } });
   };
   process.env.OPENROUTER_API_KEY = "test-key";
   const request = (body) => new Request("http://localhost:3000/api/chat", { method: "POST", headers: { "content-type": "application/json", host: "localhost:3000", origin: "http://localhost:3000" }, body: JSON.stringify(body) });
@@ -80,6 +86,16 @@ test("chat API checks authentication, model, billing and uncertain failures", as
     const data = await response.json();
     assert.equal(response.status, 200); assert.equal(data.message, "hello"); assert.equal(data.chargedCredits, 100);
     assert.equal(state.rpc[1].args.p_status, "completed"); assert.equal(state.providerBody.model, good.model); assert.equal(state.notifications.length, 2);
+    reset(); response = await post(request({ ...good, attachment: { name: "scan.pdf", kind: "pdf" } }));
+    const pdf = await response.json();
+    assert.equal(response.status, 200); assert.equal(pdf.ocr.markdown, "# Extracted");
+    assert.equal(state.providerBody.plugins[0].pdf.engine, "mistral-ocr"); assert.equal(state.providerBody.model, "google/gemini-2.5-flash");
+    assert.equal(state.rpc[0].args.p_kind, "pdf_ocr"); assert.equal(state.rpc[0].args.p_pdf_pages, 3);
+    assert.equal(state.rpc[1].args.p_cost_usd, 0.0065); assert.equal(state.rpc[1].args.p_prompt_tokens, 40);
+    reset(); state.mode = "usage-unavailable"; response = await post(request({ ...good, attachment: { name: "scan.pdf", kind: "pdf" } }));
+    assert.equal(response.status, 502); assert.equal(state.rpc[1].args.p_status, "uncertain"); assert.equal(state.rpc[1].args.p_provider_request_id, "gen-1");
+    reset(); state.mode = "rate"; response = await post(request({ ...good, attachment: { name: "scan.pdf", kind: "pdf" } }));
+    assert.equal(response.status, 502); assert.equal(state.rpc[1].args.p_status, "uncertain");
     reset(); state.mode = "rate"; response = await post(request(good));
     assert.equal(response.status, 502); assert.equal(state.rpc[1].args.p_status, "failed");
     reset(); state.mode = "network"; response = await post(request(good));

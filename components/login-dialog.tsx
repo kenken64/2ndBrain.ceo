@@ -16,7 +16,7 @@ type LoginDialogProps = {
 export function LoginDialog({
   error,
   isOpen = true,
-  next = "/dashboard",
+  next = "/dashboard/chat",
   onClose,
   supabaseConfigured = true,
   locale = "en"

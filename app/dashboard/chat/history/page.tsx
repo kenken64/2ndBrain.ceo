@@ -1,4 +1,5 @@
 import { redirect } from "next/navigation";
+import { ArrowLeft, LogOut } from "lucide-react";
 import { AnnouncementPill } from "@/components/announcement-pill";
 import { Atmosphere } from "@/components/atmosphere";
 import { ChatHistoryBrowser } from "@/components/chat-history-browser";
@@ -36,7 +37,13 @@ export default async function ChatHistoryPage({ searchParams }: ChatHistoryPageP
       <div className="dashboard-layout">
         <DashboardSidebar activeItem="chat" avatarName={onboardingProfile?.avatar_name} email={email} ownerName={onboardingProfile?.owner_name} showAdmin={showAdmin} />
         <main className="dashboard-main">
-          <div className="dashboard-topbar"><AnnouncementPill>Chat history</AnnouncementPill><a className="text-link" href="/dashboard/chat">Back to chat</a></div>
+          <div className="dashboard-topbar">
+            <AnnouncementPill>Chat history</AnnouncementPill>
+            <div className="dashboard-topbar__actions chat-topbar__actions">
+              <a className="btn-ghost chat-topbar__logout" href="/dashboard/chat"><ArrowLeft size={16} aria-hidden="true" /> Back to chat</a>
+              <a className="btn-ghost chat-topbar__logout" href="/auth/logout"><LogOut size={16} aria-hidden="true" /> Log out</a>
+            </div>
+          </div>
           <ChatHistoryBrowser initialPage={initialPage} initialQuery={initialQuery} userId={userId} />
         </main>
       </div>

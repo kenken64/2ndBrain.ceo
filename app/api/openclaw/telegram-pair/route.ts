@@ -42,10 +42,6 @@ function pairErrorCode(error: unknown) {
   return "openclaw_telegram_pair_failed";
 }
 
-function nextAfterApproval(_next: string) {
-  return "/dashboard/wiki";
-}
-
 function sanitizeLogValue(value: string | null | undefined) {
   return (value ?? "")
     .replace(/[0-9]{6,}:[A-Za-z0-9_-]+/g, "[telegram_token]")
@@ -74,7 +70,7 @@ export async function POST(request: Request) {
   }
 
   const formData = await request.formData();
-  const next = safeNextPath(String(formData.get("next") ?? "/dashboard"));
+  const next = safeNextPath(String(formData.get("next") ?? "/dashboard/chat"));
   const code = String(formData.get("telegramPairCode") ?? "").trim();
 
   if (!/^[a-zA-Z0-9]{8}$/.test(code)) {
@@ -257,7 +253,7 @@ export async function POST(request: Request) {
       })();
     }
 
-    return NextResponse.redirect(appUrl(nextAfterApproval(next), request), { status: 303 });
+    return NextResponse.redirect(appUrl(next, request), { status: 303 });
   } catch (error) {
     const message = error instanceof Error ? error.message : "openclaw_telegram_pair_failed";
 

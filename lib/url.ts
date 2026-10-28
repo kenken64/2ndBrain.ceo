@@ -1,9 +1,9 @@
 import type { NextRequest } from "next/server";
 import { getConfiguredSiteUrls, getSiteUrl } from "@/lib/env";
 
-export function safeNextPath(value: string | null) {
+export function safeNextPath(value: string | null, fallback = "/dashboard") {
   if (!value || !value.startsWith("/") || value.startsWith("//")) {
-    return "/dashboard";
+    return fallback;
   }
 
   return value;

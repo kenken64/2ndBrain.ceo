@@ -4,29 +4,10 @@ import {
   getUserIdFromClaims,
   isOnboardingComplete,
   onboardingPath,
-  onboardingProfileSelect,
-  type OnboardingProfile
+  onboardingProfileSelect
 } from "@/lib/onboarding";
 import { createClient } from "@/lib/supabase/server";
 import { appUrl, getRequestOrigin, safeNextPath } from "@/lib/url";
-
-type GoogleWorkspaceLoginProfile = OnboardingProfile & {
-  google_workspace_connected_at?: string | null;
-  google_workspace_enabled?: boolean | null;
-};
-
-function googleWorkspaceLoginPath(next: string) {
-  const params = new URLSearchParams({
-    gwsAuth: "login",
-    tab: "integrations"
-  });
-
-  if (next && next !== "/dashboard/settings") {
-    params.set("next", next);
-  }
-
-  return `/dashboard/settings?${params.toString()}`;
-}
 
 function authErrorCode(error: unknown) {
   if (!error || typeof error !== "object") {
@@ -74,7 +55,7 @@ function isLocalDevCallbackOrigin(origin: string) {
 export async function GET(request: Request) {
   const requestUrl = new URL(request.url);
   const code = requestUrl.searchParams.get("code");
-  const next = safeNextPath(requestUrl.searchParams.get("next"));
+  const next = safeNextPath(requestUrl.searchParams.get("next"), "/dashboard/chat");
   const oauthError = requestUrl.searchParams.get("error")?.trim();
 
   if (!hasSupabaseEnv()) {
@@ -144,21 +125,11 @@ export async function GET(request: Request) {
 
         const { data: profile } = await supabase
           .from("profiles")
-          .select(`${onboardingProfileSelect},google_workspace_enabled,google_workspace_connected_at`)
+          .select(onboardingProfileSelect)
           .eq("id", userId)
           .maybeSingle();
-        const onboardingProfile = profile as GoogleWorkspaceLoginProfile | null;
-
-        if (!isOnboardingComplete(onboardingProfile)) {
+        if (!isOnboardingComplete(profile)) {
           return NextResponse.redirect(appUrl(onboardingPath(next), request));
-        }
-
-        const openClawInstance = onboardingProfile?.openclaw_instance?.trim();
-        const googleWorkspaceEnabled = Boolean(onboardingProfile?.google_workspace_enabled);
-        const googleWorkspaceConnected = Boolean(onboardingProfile?.google_workspace_connected_at);
-
-        if (openClawInstance && googleWorkspaceEnabled && !googleWorkspaceConnected) {
-          return NextResponse.redirect(appUrl(googleWorkspaceLoginPath(next), request));
         }
       }
 

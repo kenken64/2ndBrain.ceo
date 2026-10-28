@@ -1,4 +1,6 @@
 export const CHAT_MODELS = [
+  { id: "google/gemini-2.5-flash", label: "Gemini 2.5 Flash" },
+  { id: "mistralai/mistral-small-2603", label: "Mistral Small 4" },
   { id: "openai/gpt-6.1-sol", label: "GPT-6.1 Sol" },
   { id: "anthropic/claude-sonnet-5.5", label: "Claude Sonnet 5.5" },
   { id: "moonshotai/kimi-k3.1-pro", label: "Kimi K3.1 Pro" },

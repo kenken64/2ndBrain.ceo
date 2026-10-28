@@ -5,7 +5,7 @@ import { appUrl, getIncomingRequestOrigin, getRequestOrigin, safeNextPath } from
 
 export async function GET(request: Request) {
   const requestUrl = new URL(request.url);
-  const next = safeNextPath(requestUrl.searchParams.get("next"));
+  const next = safeNextPath(requestUrl.searchParams.get("next"), "/dashboard/chat");
   const loginHint = requestUrl.searchParams.get("login_hint")?.trim();
   const pkceRetry = requestUrl.searchParams.get("pkce_retry") === "1";
 
