@@ -4,7 +4,7 @@ import { BrandLogo } from "@/components/brand-logo";
 import { ChatInput } from "@/components/chat-input";
 import { LoginDialog } from "@/components/login-dialog";
 import { SetupCallout } from "@/components/setup-callout";
-import { hasSupabaseEnv } from "@/lib/env";
+import { hasSupabaseEnv, isWechatLoginEnabled } from "@/lib/env";
 import {
   getUserIdFromClaims,
   isOnboardingComplete,
@@ -59,7 +59,7 @@ export default async function IntentPage({ searchParams }: IntentPageProps) {
         <Atmosphere />
         <main className="auth-page">
           <div className="auth-stack">
-            <LoginDialog next={next} supabaseConfigured={hasSupabaseEnv()} />
+            <LoginDialog next={next} supabaseConfigured={hasSupabaseEnv()} wechatEnabled={isWechatLoginEnabled()} />
           </div>
         </main>
       </>

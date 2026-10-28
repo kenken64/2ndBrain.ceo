@@ -1477,6 +1477,9 @@ svg {
   transform: translateY(-1px);
 }
 
+.login-provider--wechat { display: flex; align-items: center; justify-content: center; gap: 10px; color: #176c42; }
+.login-provider--wechat svg { flex: none; }
+
 .login-dialog__message {
   margin-top: 18px;
   border: 1px solid rgba(243, 112, 47, 0.24);

@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
 import { Atmosphere } from "@/components/atmosphere";
 import { LoginDialog } from "@/components/login-dialog";
-import { hasSupabaseEnv } from "@/lib/env";
+import { hasSupabaseEnv, isWechatLoginEnabled } from "@/lib/env";
 import {
   getUserIdFromClaims,
   isOnboardingComplete,
@@ -52,7 +52,7 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
       <Atmosphere />
       <main className="auth-page">
         <div className="auth-stack">
-          <LoginDialog error={params.error} next={next} supabaseConfigured={hasSupabaseEnv()} />
+          <LoginDialog error={params.error} next={next} supabaseConfigured={hasSupabaseEnv()} wechatEnabled={isWechatLoginEnabled()} />
         </div>
       </main>
     </>

@@ -65,6 +65,10 @@ export function hasSupabaseEnv() {
   return Boolean(getSupabaseUrl() && getSupabasePublishableKey());
 }
 
+export function isWechatLoginEnabled() {
+  return cleanEnvValue(process.env.WECHAT_LOGIN_ENABLED)?.toLowerCase() === "true";
+}
+
 export function getSupabaseEnv() {
   const supabaseUrl = getSupabaseUrl();
   const supabasePublishableKey = getSupabasePublishableKey();

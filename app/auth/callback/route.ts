@@ -101,6 +101,7 @@ export async function GET(request: Request) {
 
       retryLoginUrl.searchParams.set("next", next);
       retryLoginUrl.searchParams.set("pkce_retry", "1");
+      if (requestUrl.searchParams.get("provider") === "wechat") retryLoginUrl.searchParams.set("provider", "wechat");
 
       return NextResponse.redirect(retryLoginUrl);
     }
@@ -118,7 +119,7 @@ export async function GET(request: Request) {
         await supabase.from("profiles").upsert(
           {
             id: userId,
-            email
+            ...(email ? { email } : {})
           },
           { onConflict: "id" }
         );

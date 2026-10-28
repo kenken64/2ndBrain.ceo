@@ -12,6 +12,7 @@
     "start:next": "next start",
     "typecheck": "tsc --noEmit",
     "test:chat": "node --test tests/chat-api.test.cjs tests/chat-credits.test.cjs tests/chat-attachments.test.cjs tests/chat-usage-api.test.cjs tests/chat-files.test.cjs",
+    "test:wechat-auth": "node --test tests/wechat-auth.test.cjs",
     "test:solana": "node --test tests/solana-rpc.test.cjs",
     "admin:load": "node scripts/load-admin-users.mjs",
     "db:migrate": "bash scripts/apply-migrations.sh",

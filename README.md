@@ -39,6 +39,8 @@ Required local setup:
 - Add `http://localhost:3000/auth/callback` to Supabase Auth redirect URLs.
 - Keep real `.env` files out of Git. `.gitignore` and `.dockerignore` exclude them.
 
+Optional WeChat website sign-in uses a Logto OIDC bridge and a Supabase custom provider. Follow [the WeChat setup guide](docs/wechat-login.md), then set `WECHAT_LOGIN_ENABLED=true` after the external configuration is ready.
+
 ## Workspace AI chat
 
 Set the server-only `OPENROUTER_API_KEY` and `SUPABASE_SERVICE_ROLE_KEY`, then apply migrations through `0033_chat_file_outputs.sql`. Restart the app after changing environment variables. The key must have sufficient OpenRouter credit and access to the selected models. Without either key or the migration, chat cannot send requests. Docker Compose users can alternatively set `OPENROUTER_API_KEY` in the optional Docker secrets workflow.

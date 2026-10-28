@@ -8,7 +8,7 @@ import { LoginDialog } from "@/components/login-dialog";
 import { ProvisionForm } from "@/components/provision-form";
 import { SetupCallout } from "@/components/setup-callout";
 import { TelegramApprovalForm } from "@/components/telegram-approval-form";
-import { hasSupabaseEnv } from "@/lib/env";
+import { hasSupabaseEnv, isWechatLoginEnabled } from "@/lib/env";
 import {
   getRequiredOnboardingStep,
   getUserIdFromClaims,
@@ -218,7 +218,7 @@ export default async function OnboardingPage({ searchParams }: OnboardingPagePro
         <Atmosphere />
         <main className="auth-page">
           <div className="auth-stack">
-            <LoginDialog next={onboardingPath(next)} supabaseConfigured={hasSupabaseEnv()} />
+            <LoginDialog next={onboardingPath(next)} supabaseConfigured={hasSupabaseEnv()} wechatEnabled={isWechatLoginEnabled()} />
           </div>
         </main>
       </>

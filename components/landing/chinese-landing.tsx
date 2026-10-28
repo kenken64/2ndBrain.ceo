@@ -24,13 +24,13 @@ const workspace = [
   { icon: Server, title: "AI 助手工作空间", body: "查看助手运行状态并打开网关，管理您的专属环境。", href: "/dashboard/openclaw", action: "打开工作空间" }
 ];
 
-export function ChineseLanding({ fontClass, supabaseConfigured }: { fontClass: string; supabaseConfigured: boolean }) {
+export function ChineseLanding({ fontClass, supabaseConfigured, wechatEnabled }: { fontClass: string; supabaseConfigured: boolean; wechatEnabled: boolean }) {
   return (
     <div lang="zh-CN">
       <a className="skip-link" href="#main-content">跳至主要内容</a>
       <Atmosphere />
       <div className={`page-shell lp-type ${fontClass}`}>
-        <MarketingNav locale="zh" supabaseConfigured={supabaseConfigured} />
+        <MarketingNav locale="zh" supabaseConfigured={supabaseConfigured} wechatEnabled={wechatEnabled} />
         <main id="main-content">
           <section className="lp-hero">
             <div className="container lp-hero__grid">

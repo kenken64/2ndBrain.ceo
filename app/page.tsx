@@ -17,7 +17,7 @@ import { Atmosphere } from "@/components/atmosphere";
 import { ChatInput } from "@/components/chat-input";
 import { Footer } from "@/components/footer";
 import { MarketingNav } from "@/components/marketing-nav";
-import { hasSupabaseEnv } from "@/lib/env";
+import { hasSupabaseEnv, isWechatLoginEnabled } from "@/lib/env";
 import { BootRail } from "@/components/landing/boot-rail";
 import { ExportProof } from "@/components/landing/export-proof";
 import { OperatingRoom } from "@/components/landing/operating-room";
@@ -74,7 +74,7 @@ export default async function Home({ searchParams }: { searchParams: Promise<{ l
   const locale = params.lang === "en" || params.lang === "zh" ? params.lang : storedLocale;
 
   if (locale === "zh") {
-    return <ChineseLanding fontClass={manrope.variable} supabaseConfigured={hasSupabaseEnv()} />;
+    return <ChineseLanding fontClass={manrope.variable} supabaseConfigured={hasSupabaseEnv()} wechatEnabled={isWechatLoginEnabled()} />;
   }
 
   return (
@@ -84,7 +84,7 @@ export default async function Home({ searchParams }: { searchParams: Promise<{ l
       </a>
       <Atmosphere />
       <div className={`page-shell lp-type ${manrope.variable}`}>
-        <MarketingNav locale="en" supabaseConfigured={hasSupabaseEnv()} />
+        <MarketingNav locale="en" supabaseConfigured={hasSupabaseEnv()} wechatEnabled={isWechatLoginEnabled()} />
         <main id="main-content">
           {/* ---- Hero: the intent console ---- */}
           <section className="lp-hero">

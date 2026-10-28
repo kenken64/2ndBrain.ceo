@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { hasSupabaseEnv } from "@/lib/env";
+import { hasSupabaseEnv, isWechatLoginEnabled } from "@/lib/env";
 import { createClient } from "@/lib/supabase/server";
 import { appUrl, getIncomingRequestOrigin, getRequestOrigin, safeNextPath } from "@/lib/url";
 
@@ -8,6 +8,14 @@ export async function GET(request: Request) {
   const next = safeNextPath(requestUrl.searchParams.get("next"), "/dashboard/chat");
   const loginHint = requestUrl.searchParams.get("login_hint")?.trim();
   const pkceRetry = requestUrl.searchParams.get("pkce_retry") === "1";
+  const requestedProvider = requestUrl.searchParams.get("provider") ?? "google";
+
+  if (requestedProvider !== "google" && requestedProvider !== "wechat") {
+    return NextResponse.redirect(appUrl(`/login?error=unsupported_provider&next=${encodeURIComponent(next)}`, request));
+  }
+  if (requestedProvider === "wechat" && !isWechatLoginEnabled()) {
+    return NextResponse.redirect(appUrl(`/login?error=wechat_unavailable&next=${encodeURIComponent(next)}`, request));
+  }
 
   if (!hasSupabaseEnv()) {
     return NextResponse.redirect(
@@ -19,9 +27,12 @@ export async function GET(request: Request) {
   const origin = getRequestOrigin(request);
 
   if (origin !== incomingOrigin) {
-    return NextResponse.redirect(
-      new URL(`/auth/login?next=${encodeURIComponent(next)}`, origin)
-    );
+    const canonical = new URL("/auth/login", origin);
+    canonical.searchParams.set("next", next);
+    if (requestedProvider === "wechat") canonical.searchParams.set("provider", "wechat");
+    if (loginHint && requestedProvider === "google") canonical.searchParams.set("login_hint", loginHint);
+    if (pkceRetry) canonical.searchParams.set("pkce_retry", "1");
+    return NextResponse.redirect(canonical);
   }
 
   const supabase = await createClient();
@@ -29,19 +40,20 @@ export async function GET(request: Request) {
 
   callbackUrl.searchParams.set("next", next);
   callbackUrl.searchParams.set("callback_origin", origin);
+  if (requestedProvider === "wechat") callbackUrl.searchParams.set("provider", "wechat");
   if (pkceRetry) {
     callbackUrl.searchParams.set("pkce_retry", "1");
   }
 
   const { data, error } = await supabase.auth.signInWithOAuth({
-    provider: "google",
+    provider: requestedProvider === "wechat" ? "custom:wechat" : "google",
     options: {
       redirectTo: callbackUrl.toString(),
-      queryParams: {
+      ...(requestedProvider === "google" ? { queryParams: {
         access_type: "offline",
         ...(loginHint ? { login_hint: loginHint } : {}),
         prompt: "select_account consent"
-      }
+      } } : {})
     }
   });
 

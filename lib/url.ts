@@ -2,7 +2,7 @@ import type { NextRequest } from "next/server";
 import { getConfiguredSiteUrls, getSiteUrl } from "@/lib/env";
 
 export function safeNextPath(value: string | null, fallback = "/dashboard") {
-  if (!value || !value.startsWith("/") || value.startsWith("//")) {
+  if (!value || !value.startsWith("/") || value.startsWith("//") || /[\\\u0000-\u001f\u007f]/.test(value)) {
     return fallback;
   }
 

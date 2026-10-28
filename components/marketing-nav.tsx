@@ -8,10 +8,11 @@ import { LoginDialog } from "@/components/login-dialog";
 type MarketingNavProps = {
   anchorPrefix?: string;
   supabaseConfigured?: boolean;
+  wechatEnabled?: boolean;
   locale?: "en" | "zh";
 };
 
-export function MarketingNav({ anchorPrefix = "", supabaseConfigured = true, locale }: MarketingNavProps) {
+export function MarketingNav({ anchorPrefix = "", supabaseConfigured = true, wechatEnabled = false, locale }: MarketingNavProps) {
   const [isLoginOpen, setIsLoginOpen] = useState(false);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const sectionHref = (hash: string) => `${anchorPrefix}${hash}`;
@@ -133,6 +134,7 @@ export function MarketingNav({ anchorPrefix = "", supabaseConfigured = true, loc
         locale={locale}
         onClose={() => setIsLoginOpen(false)}
         supabaseConfigured={supabaseConfigured}
+        wechatEnabled={wechatEnabled}
       />
     </>
   );

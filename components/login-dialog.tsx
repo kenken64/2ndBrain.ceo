@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useId } from "react";
-import { X } from "lucide-react";
+import { MessageCircle, X } from "lucide-react";
 import { BrandLogo } from "@/components/brand-logo";
 
 type LoginDialogProps = {
@@ -10,6 +10,7 @@ type LoginDialogProps = {
   next?: string;
   onClose?: () => void;
   supabaseConfigured?: boolean;
+  wechatEnabled?: boolean;
   locale?: "en" | "zh";
 };
 
@@ -19,6 +20,7 @@ export function LoginDialog({
   next = "/dashboard/chat",
   onClose,
   supabaseConfigured = true,
+  wechatEnabled = false,
   locale = "en"
 }: LoginDialogProps) {
   const chinese = locale === "zh";
@@ -109,14 +111,18 @@ export function LoginDialog({
         ) : null}
 
         <div className="login-dialog__actions">
-          {supabaseConfigured ? (
+          {supabaseConfigured ? <>
             <a className="login-provider" href={`/auth/login?next=${encodeURIComponent(next)}`}>
               <span aria-hidden="true" className="google-g">
                 G
               </span>
               {chinese ? "使用 Google 登录" : "Continue with Google"}
             </a>
-          ) : (
+            {wechatEnabled ? <a className="login-provider login-provider--wechat" href={`/auth/login?provider=wechat&next=${encodeURIComponent(next)}`}>
+              <MessageCircle size={20} aria-hidden="true" />
+              {chinese ? "使用微信登录" : "Continue with WeChat"}
+            </a> : null}
+          </> : (
             <p className="login-dialog__message" role="alert">
               {chinese ? "登录服务尚未配置，请联系管理员。" : "Supabase credentials are required before login can run."}
             </p>
