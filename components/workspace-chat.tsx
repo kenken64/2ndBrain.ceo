@@ -2,12 +2,13 @@
 
 import { useCallback, useEffect, useRef, useState, type FormEvent, type KeyboardEvent } from "react";
 import { createPortal } from "react-dom";
-import { ArrowDown, ArrowUp, Bot, Paperclip, X } from "lucide-react";
+import { ArrowDown, ArrowUp, Bot, Download, Eye, FileText, Paperclip, X } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import rehypeHighlight from "rehype-highlight";
 import remarkGfm from "remark-gfm";
 import { CHAT_MAX_MESSAGE_CHARS, CHAT_MAX_MESSAGES, CHAT_MAX_TOTAL_BYTES, CHAT_MODELS, FILE_CHAT_MODEL, isChatModel, type ChatMessage, type ChatModelId } from "@/lib/chat-models";
 import { ChatSavedFiles } from "@/components/chat-saved-files";
+import { ChatFilePreview } from "@/components/chat-file-preview";
 import { CHAT_FILE_MAX_BYTES, type SavedChatFile } from "@/lib/chat-files-shared";
 import type { ChatConversation, ChatSummary, HistoryMessage, FileArtifact } from "@/lib/chat-history";
 
@@ -44,6 +45,7 @@ export function WorkspaceChat({ userId, configured, initialChatId }: { userId: s
   const [file, setFile] = useState<SavedChatFile | null>(null);
   const [uploading, setUploading] = useState(false);
   const [panelOpen, setPanelOpen] = useState(true);
+  const [previewFile, setPreviewFile] = useState<{ id: string; name: string } | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
@@ -196,7 +198,7 @@ export function WorkspaceChat({ userId, configured, initialChatId }: { userId: s
       try {
         const fileContext = !file && priorArtifact ? `${priorArtifact.content.length > 6000 ? "PARTIAL EXCERPT: remaining file data is not included. Do not infer statistics for the complete file.\n" : ""}${priorArtifact.content.slice(0, 6000)}` : undefined;
         const response = await fetch("/api/chat", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ model, messages: historyForRequest(pending.messages), fileId: file?.id, fileContext }) });
-        const payload = await response.json().catch(() => null) as { message?: unknown; error?: unknown; model?: unknown; ocr?: { name?: unknown; markdown?: unknown; truncated?: unknown } | null; spreadsheet?: unknown; savedOutput?: { id?: unknown; name?: unknown }; outputSaveFailed?: boolean; chargedCredits?: unknown; availableCredits?: unknown; quotaExempt?: unknown } | null;
+        const payload = await response.json().catch(() => null) as { message?: unknown; error?: unknown; model?: unknown; ocr?: { name?: unknown; markdown?: unknown; truncated?: unknown } | null; spreadsheet?: unknown; savedOutput?: { id?: unknown; name?: unknown }; outputSaveFailed?: boolean; usagePending?: boolean; chargedCredits?: unknown; availableCredits?: unknown; quotaExempt?: unknown } | null;
         if (!response.ok || typeof payload?.message !== "string") throw new Error(typeof payload?.error === "string" ? payload.error : "Unable to get a response. Please try again.");
         const responseModel = isChatModel(payload.model) ? payload.model : model;
         let artifact: FileArtifact | undefined;
@@ -208,10 +210,13 @@ export function WorkspaceChat({ userId, configured, initialChatId }: { userId: s
         setFile(null);
         if (fileInputRef.current) fileInputRef.current.value = "";
         setPanelOpen(true);
-        if (payload.outputSaveFailed) setNotice("The response is shown, but its generated file could not be saved. You can still download the extracted data from the side panel.");
-        else if (missingOcr) setNotice("The file was processed, but no extracted text was available for the side panel.");
-        else if (payload.quotaExempt === true) setNotice("This account is exempt from AI credit charges.");
-        else if (typeof payload.chargedCredits === "number" && typeof payload.availableCredits === "number") setNotice(`${payload.chargedCredits.toLocaleString()} credits used · ${payload.availableCredits.toLocaleString()} available`);
+        const notices: string[] = [];
+        if (payload.outputSaveFailed) notices.push("The response is shown, but its generated file could not be saved. You can still download the extracted data from the side panel.");
+        else if (missingOcr) notices.push("The file was processed, but no extracted text was available for the side panel.");
+        if (payload.usagePending) notices.push("PDF usage is unconfirmed. Reserved credits remain held for review; see AI Credits Usage or contact support.");
+        else if (payload.quotaExempt === true) notices.push("This account is exempt from AI credit charges.");
+        else if (typeof payload.chargedCredits === "number" && typeof payload.availableCredits === "number") notices.push(`${payload.chargedCredits.toLocaleString()} credits used · ${payload.availableCredits.toLocaleString()} available`);
+        if (notices.length) setNotice(notices.join(" "));
       } catch (reason) {
         if (apiRef.current && reason instanceof apiRef.current.ChatHistoryConflict) throw reason;
         await persist({ ...pending, messages: pending.messages.slice(0, -1) });
@@ -293,7 +298,7 @@ export function WorkspaceChat({ userId, configured, initialChatId }: { userId: s
   }
 
   return (
-    <section aria-labelledby="workspace-chat-title" className="dashboard-workbench workspace-chat">
+    <section aria-labelledby="workspace-chat-title" className={`dashboard-workbench workspace-chat${activeArtifact && panelOpen ? " workspace-chat--with-artifact" : ""}`}>
       <div className="workspace-chat__header">
         <div><p className="workspace-status-card__eyebrow">YOUR AI WORKSPACE</p><h1 id="workspace-chat-title">Chat with AI</h1><p>Choose a model and ask a question. An estimated amount of AI credits is reserved first; actual usage determines the final charge.</p></div>
       </div>
@@ -307,28 +312,30 @@ export function WorkspaceChat({ userId, configured, initialChatId }: { userId: s
           <div className="workspace-chat__conversation">
             <div aria-label="Conversation" aria-live="polite" className="workspace-chat__thread" onScroll={handleThreadScroll} ref={threadRef} role="log">
               {!chat?.messages.length ? <div className="workspace-chat__empty"><span><Bot size={26} /></span><h2>What would you like to work on?</h2><p>Ask a question, explore an idea, or get help with a task.</p></div> : null}
-              {chat?.messages.map((message, index) => <article className={`workspace-chat__message workspace-chat__message--${message.role}`} key={`${index}-${message.role}`}><p className="workspace-chat__sender">{message.role === "user" ? "You" : CHAT_MODELS.find((item) => item.id === message.model)?.label ?? "AI"}</p><div className="workspace-chat__content"><ReactMarkdown remarkPlugins={[remarkGfm]} rehypePlugins={[rehypeHighlight]} components={{ table: ({ children, ...props }) => <div className="workspace-chat__table-wrap"><table {...props}>{children}</table></div> }}>{message.content}</ReactMarkdown>{message.fileRef ? <a className="workspace-chat__download-file" href={`/api/chat/files/${encodeURIComponent(message.fileRef.id)}`}>Download {message.fileRef.name}</a> : null}</div></article>)}
+              {chat?.messages.map((message, index) => <article className={`workspace-chat__message workspace-chat__message--${message.role}`} key={`${index}-${message.role}`}><p className="workspace-chat__sender">{message.role === "user" ? "You" : CHAT_MODELS.find((item) => item.id === message.model)?.label ?? "AI"}</p><div className="workspace-chat__content"><ReactMarkdown remarkPlugins={[remarkGfm]} rehypePlugins={[rehypeHighlight]} components={{ table: ({ children, ...props }) => <div className="workspace-chat__table-wrap"><table {...props}>{children}</table></div> }}>{message.content}</ReactMarkdown>{message.fileRef ? <div className="workspace-chat__file-card"><FileText size={17} aria-hidden="true" /><button type="button" className="workspace-chat__file-name" onClick={() => setPreviewFile(message.fileRef!)}>{message.fileRef.name}</button><button type="button" className="chat-file-icon" aria-label={`Preview ${message.fileRef.name}`} title="Preview" onClick={() => setPreviewFile(message.fileRef!)}><Eye size={17} /></button><a className="chat-file-icon" aria-label={`Download ${message.fileRef.name}`} title="Download" href={`/api/chat/files/${encodeURIComponent(message.fileRef.id)}`}><Download size={17} /></a></div> : null}</div></article>)}
               {busy ? <p className="workspace-chat__thinking" role="status">Thinking…</p> : null}
             </div>
             {showJumpToLatest && chat?.messages.length ? <button aria-label="Jump to latest message" className="workspace-chat__jump-latest" onClick={() => threadRef.current?.scrollTo({ top: threadRef.current.scrollHeight, behavior: "smooth" })} title="Jump to latest message" type="button"><ArrowDown size={18} /></button> : null}
           </div>
           <form className="workspace-chat__form" onSubmit={send}>
-            {file ? <div className="workspace-chat__file"><span>{file.name} · saved · Gemini 2.5 Flash{file.name.toLowerCase().endsWith(".pdf") ? " · Mistral OCR" : /\.(png|jpe?g|webp)$/i.test(file.name) ? " · image OCR" : ""}</span><button type="button" aria-label="Remove attachment" disabled={busy} onClick={() => { setFile(null); if (fileInputRef.current) fileInputRef.current.value = ""; }}><X size={16} /></button></div> : null}<textarea aria-label="Your message" disabled={!configured || busy || selecting || uploading || cacheState === "loading"} maxLength={CHAT_MAX_MESSAGE_CHARS} onChange={(event) => setPrompt(event.target.value)} onKeyDown={handleKeyDown} placeholder="Ask anything…" rows={3} value={prompt} /><div className="workspace-chat__form-footer"><input ref={fileInputRef} type="file" accept=".pdf,.png,.jpg,.jpeg,.webp,.xlsx,.csv" hidden onChange={(event) => { const selected = event.target.files?.[0]; if (selected) void uploadFile(selected); }} /><button type="button" className="btn-ghost" disabled={busy || selecting || uploading} onClick={() => fileInputRef.current?.click()}><Paperclip size={16} /> {uploading ? "Saving…" : "Attach file"}</button><ChatSavedFiles disabled={busy || selecting || uploading} onSelect={(saved) => { setFile(saved); setError(""); }} /><select aria-label="AI model" className="workspace-chat__model-select" disabled={busy || selecting || uploading || Boolean(file) || !chat} id="workspace-chat-model" onChange={(event) => { if (chat && isChatModel(event.target.value)) setChat({ ...chat, model: event.target.value }); }} value={file || uploading ? FILE_CHAT_MODEL : chat?.model ?? CHAT_MODELS[0].id}>{CHAT_MODELS.map((item) => <option key={item.id} value={item.id}>{item.label}</option>)}</select><button aria-label="Send message" className="workspace-chat__send" disabled={!configured || busy || selecting || uploading || cacheState === "loading" || (!prompt.trim() && !file)} type="submit"><ArrowUp size={16} strokeWidth={2.4} /></button></div></form>
+            {file ? <div className="workspace-chat__file"><span>{file.name} · saved · Gemini 2.5 Flash{file.name.toLowerCase().endsWith(".pdf") ? " · Mistral OCR" : /\.(png|jpe?g|webp)$/i.test(file.name) ? " · image OCR" : ""}</span><button type="button" aria-label="Remove attachment" disabled={busy} onClick={() => { setFile(null); if (fileInputRef.current) fileInputRef.current.value = ""; }}><X size={16} /></button></div> : null}<textarea aria-label="Your message" disabled={!configured || busy || selecting || uploading || cacheState === "loading"} maxLength={CHAT_MAX_MESSAGE_CHARS} onChange={(event) => setPrompt(event.target.value)} onKeyDown={handleKeyDown} placeholder="Ask anything…" rows={3} value={prompt} /><div className="workspace-chat__form-footer"><input ref={fileInputRef} type="file" accept=".pdf,.png,.jpg,.jpeg,.webp,.xlsx,.csv,.docx" hidden onChange={(event) => { const selected = event.target.files?.[0]; if (selected) void uploadFile(selected); }} /><button type="button" className="btn-ghost" disabled={busy || selecting || uploading} onClick={() => fileInputRef.current?.click()}><Paperclip size={16} /> {uploading ? "Saving…" : "Attach file"}</button><ChatSavedFiles disabled={busy || selecting || uploading} onSelect={(saved) => { setFile(saved); setError(""); }} /><select aria-label="AI model" className="workspace-chat__model-select" disabled={busy || selecting || uploading || Boolean(file) || !chat} id="workspace-chat-model" onChange={(event) => { if (chat && isChatModel(event.target.value)) setChat({ ...chat, model: event.target.value }); }} value={file || uploading ? FILE_CHAT_MODEL : chat?.model ?? CHAT_MODELS[0].id}>{CHAT_MODELS.map((item) => <option key={item.id} value={item.id}>{item.label}</option>)}</select><button aria-label="Send message" className="workspace-chat__send" disabled={!configured || busy || selecting || uploading || cacheState === "loading" || (!prompt.trim() && !file)} type="submit"><ArrowUp size={16} strokeWidth={2.4} /></button></div></form>
           <p className="workspace-chat__privacy">Uploaded files are saved privately to your account. Chat history and extracted data remain on this device. Files are sent for processing; follow-ups include the first 6,000 characters of extracted data.</p>
         </div>
-        {activeArtifact && panelOpen ? <aside className="workspace-chat__artifact" aria-label={activeArtifact.kind === "ocr" ? "Extracted text" : "Spreadsheet data"}>
-          <div className="workspace-chat__artifact-header"><div><strong>{activeArtifact.kind === "ocr" ? "Extracted text" : "Spreadsheet data"}</strong><p>{activeArtifact.name}</p></div><button type="button" className="btn-icon" aria-label="Close file panel" onClick={() => setPanelOpen(false)}><X size={18} /></button></div>
-          {activeArtifact.truncated ? <p className="workspace-chat__warning">The extraction was truncated. Try a shorter document or image.</p> : null}
-          {activeArtifact.content.length > 6000 ? <p>Follow-up questions include only the first 6,000 characters of this data.</p> : null}
-          <div className="workspace-chat__artifact-actions"><button type="button" className="btn-ghost" onClick={() => void navigator.clipboard.writeText(activeArtifact.content).catch(() => setError("Could not copy text."))}>Copy</button><button type="button" className="btn-ghost" onClick={() => downloadArtifact(activeArtifact)}>Download</button></div>
-          <div className="workspace-chat__artifact-content">{activeArtifact.kind === "ocr" ? <ReactMarkdown remarkPlugins={[remarkGfm]} components={{ img: () => null }}>{activeArtifact.content}</ReactMarkdown> : <><p>Spreadsheet rows and calculated numeric column statistics. For exact grouped calculations, verify results in a spreadsheet.</p><pre>{activeArtifact.content}</pre></>}</div>
-        </aside> : activeArtifact ? <button className="btn-ghost workspace-chat__show-artifact" type="button" onClick={() => setPanelOpen(true)}>Show file</button> : null}
+        {activeArtifact && !panelOpen ? <button className="btn-ghost workspace-chat__show-artifact" type="button" onClick={() => setPanelOpen(true)}>Show file</button> : null}
         {historyTarget ? createPortal(<aside aria-label="Chat history" className="workspace-chat-history">
           <div className="workspace-chat-history__header"><h2>Chat history</h2><a className="workspace-chat-history__view-all" href="/dashboard/chat/history">View all</a></div>
           {cacheState === "loading" ? <p className="workspace-chat-history__empty">Loading your chats…</p> : chats.length === 0 ? <p className="workspace-chat-history__empty">Your conversations will appear here.</p> : null}
           <div className="workspace-chat-history__list">{chats.map((item) => <button aria-current={chat?.id === item.id ? "true" : undefined} className={`workspace-chat-history__item${chat?.id === item.id ? " is-active" : ""}`} disabled={busy || selecting} key={item.id} onClick={() => void selectChat(item.id)} type="button"><strong>{item.title}</strong><span>{CHAT_MODELS.find((model) => model.id === item.model)?.label ?? "AI"}</span></button>)}</div>
         </aside>, historyTarget) : null}
       </div>
+      {activeArtifact && panelOpen ? <aside className="workspace-chat__artifact" aria-label={activeArtifact.kind === "ocr" ? "Extracted text" : "Spreadsheet data"}>
+        <div className="workspace-chat__artifact-header"><div><strong>{activeArtifact.kind === "ocr" ? "Extracted text" : "Spreadsheet data"}</strong><p>{activeArtifact.name}</p></div><button type="button" className="btn-icon" aria-label="Close file panel" onClick={() => setPanelOpen(false)}><X size={18} /></button></div>
+        {activeArtifact.truncated ? <p className="workspace-chat__warning">The extraction was truncated. Try a shorter document or image.</p> : null}
+        {activeArtifact.content.length > 6000 ? <p>Follow-up questions include only the first 6,000 characters of this data.</p> : null}
+        <div className="workspace-chat__artifact-actions"><button type="button" className="btn-ghost" onClick={() => void navigator.clipboard.writeText(activeArtifact.content).catch(() => setError("Could not copy text."))}>Copy</button><button type="button" className="btn-ghost" onClick={() => downloadArtifact(activeArtifact)}>Download</button></div>
+        <div className="workspace-chat__artifact-content">{activeArtifact.kind === "ocr" ? <ReactMarkdown remarkPlugins={[remarkGfm]} components={{ img: () => null }}>{activeArtifact.content}</ReactMarkdown> : <><p>Spreadsheet rows and calculated numeric column statistics. For exact grouped calculations, verify results in a spreadsheet.</p><pre>{activeArtifact.content}</pre></>}</div>
+      </aside> : null}
+      {previewFile ? <ChatFilePreview file={previewFile} onClose={() => setPreviewFile(null)} /> : null}
     </section>
   );
 }

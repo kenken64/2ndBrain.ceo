@@ -86,3 +86,30 @@ test('generated output is stored privately with its owner and source, and failed
   await assert.rejects(files.saveChatOutput(admin, 'alice', 'source-id', 'report.pdf', 'ocr', 'text'), /could not be saved/);
   assert.deepEqual(removed, [uploaded.path]);
 });
+
+test('preview requires authentication and ownership, and never serves documents as active HTML', async () => {
+  let user = null, requestedOwner, saved;
+  const mocks = {
+    '@/lib/chat-attachments': { documentText: async () => '<script>alert(1)</script>', spreadsheetPreview: async () => ({ sheets: [{ name: 'Sheet1', rows: [['A', '1']] }], truncated: false }) },
+    '@/lib/chat-files': { loadChatFile: async (_admin, owner) => { requestedOwner = owner; return saved; } },
+    '@/lib/env': { hasSupabaseEnv: () => true },
+    '@/lib/onboarding': { getUserIdFromClaims: c => c?.sub },
+    '@/lib/supabase/admin': { createAdminClient: () => ({}), hasSupabaseServiceRoleEnv: () => true },
+    '@/lib/supabase/server': { createClient: async () => ({ auth: { getClaims: async () => ({ data: { claims: user ? { sub: user } : null }, error: null }) } }) }
+  };
+  const route = compile('app/api/chat/files/[id]/preview/route.ts', mocks);
+  const params = { params: Promise.resolve({ id: 'file-1' }) };
+  const request = (query = '') => new Request('http://localhost/api/chat/files/file-1/preview' + query);
+  assert.equal((await route.GET(request(), params)).status, 401);
+  user = 'alice'; saved = null;
+  assert.equal((await route.GET(request(), params)).status, 404); assert.equal(requestedOwner, 'alice');
+  saved = { file: { type: 'document', name: 'report.docx', mime: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', data: Buffer.from('document') } };
+  let response = await route.GET(request(), params); const body = await response.json();
+  assert.equal(response.headers.get('content-type'), 'application/json'); assert.equal(body.kind, 'text'); assert.equal(body.text, '<script>alert(1)</script>');
+  assert.equal((await route.GET(request('?inline=1'), params)).status, 400);
+  saved = { file: { type: 'pdf', name: 'report.pdf', mime: 'application/pdf', data: Buffer.from('%PDF-') } };
+  response = await route.GET(request('?inline=1'), params);
+  assert.equal(response.status, 200); assert.equal(response.headers.get('content-disposition'), 'inline'); assert.match(response.headers.get('content-security-policy'), /sandbox/); assert.equal(response.headers.get('cache-control'), 'private, no-store');
+  saved = { file: { type: 'spreadsheet', name: 'report.xlsx', data: Buffer.from('sheet') } };
+  response = await route.GET(request(), params); assert.equal((await response.json()).sheets[0].rows[0][0], 'A');
+});

@@ -37,6 +37,7 @@ test("chat API checks authentication, model, billing and uncertain failures", as
     "@/lib/chat-files": { saveChatOutput: async (_admin, userId, sourceId, name, kind, content) => { state.savedOutput = { userId, sourceId, name, kind, content }; if (state.outputFail) throw Error("storage unavailable"); return { id: "output-1", name: "output.md", origin: "output" }; }, saveChatFile: async (_admin, userId, file) => ({ id: "file-1", name: file.name, size: file.data.length, mime: file.mime, createdAt: "2026-01-01" }), loadChatFile: async (_admin, userId, id) => id === "owned" && userId === "user-1" ? { file: { name: "scan.pdf", type: "pdf", mime: "application/pdf", data: Buffer.from("fixture") }, metadata: { id: "owned", name: "scan.pdf" } } : null },
     "@/lib/chat-attachments": {
       parseChatAttachment: value => ({ name: value.name, type: value.kind, mime: value.kind === "pdf" ? "application/pdf" : "image/png", data: Buffer.from("fixture") }),
+      documentText: async () => "Quarterly report: sales grew 20 percent.",
       pdfPageCount: async () => 3,
       spreadsheetContext: async () => '{"sheets":[]}'
     },
@@ -62,7 +63,11 @@ test("chat API checks authentication, model, billing and uncertain failures", as
   global.fetch = async (url, options) => {
     state.urls.push(String(url));
     if (String(url).endsWith("/models")) return Response.json({ data: models.CHAT_MODELS.map(({ id }) => ({ id, pricing: { prompt: "0.000002", completion: "0.00001" } })) });
-    if (String(url).startsWith("https://openrouter.ai/api/v1/generation")) return state.mode === "usage-unavailable" ? Response.json({}, { status: 503 }) : Response.json({ data: { total_cost: 0.0065 } });
+    if (String(url).startsWith("https://openrouter.ai/api/v1/generation")) {
+      state.usageAttempts = (state.usageAttempts || 0) + 1;
+      if (state.mode === "usage-unavailable" || (state.mode === "usage-delay" && state.usageAttempts < 3)) return Response.json({}, { status: 503 });
+      return Response.json({ data: { id: "gen-1", total_cost: 0.0065 } });
+    }
     if (state.mode === "network") throw Error("network");
     if (state.mode === "rate") return Response.json({}, { status: 429 });
     if (state.mode === "missing") return Response.json({ id: "gen-1", choices: [{ message: { content: "hello" } }] });
@@ -97,6 +102,8 @@ test("chat API checks authentication, model, billing and uncertain failures", as
     assert.match(state.providerBody.messages.at(-1).content[0].text, /First use OCR/); assert.match(state.providerBody.messages.at(-1).content[0].text, /User request: Hello/);
     assert.equal(state.rpc[0].args.p_kind, "pdf_ocr"); assert.equal(state.rpc[0].args.p_pdf_pages, 3);
     assert.equal(state.rpc[1].args.p_cost_usd, 0.0065); assert.equal(state.rpc[1].args.p_prompt_tokens, 40);
+    reset(); state.mode = "usage-delay"; response = await post(request({ ...good, attachment: { name: "scan.pdf", kind: "pdf" } }));
+    assert.equal(response.status, 200); assert.equal(state.usageAttempts, 3); assert.equal(state.rpc[1].args.p_status, "completed"); assert.equal(state.rpc[1].args.p_cost_usd, 0.0065);
     reset(); state.mode = "image"; response = await post(request({ ...good, model: "mistralai/mistral-small-2603", attachment: { name: "receipt.png", kind: "image" } }));
     const image = await response.json();
     assert.equal(response.status, 200); assert.equal(image.ocr.markdown, "# Receipt\nTotal: 42"); assert.equal(image.message, "The total is 42."); assert.equal(state.savedOutput.content, image.ocr.markdown);
@@ -107,6 +114,9 @@ test("chat API checks authentication, model, billing and uncertain failures", as
     reset(); response = await post(request({ ...good, attachment: { name: "sales.csv", kind: "spreadsheet" } }));
     const sheet = await response.json(); assert.equal(response.status, 200); assert.equal(sheet.savedOutput.id, "output-1");
     assert.equal(state.savedOutput.kind, "spreadsheet"); assert.equal(JSON.parse(state.savedOutput.content).answer, "hello");
+    reset(); response = await post(request({ ...good, attachment: { name: "report.docx", kind: "document" } }));
+    assert.equal(response.status, 200); assert.equal(state.providerBody.model, "google/gemini-2.5-flash");
+    assert.match(state.providerBody.messages.at(-1).content, /Word document text/); assert.match(state.providerBody.messages.at(-1).content, /sales grew 20 percent/);
     reset(); state.mode = "invalid-image"; response = await post(request({ ...good, attachment: { name: "receipt.png", kind: "image" } }));
     const invalid = await response.json(); assert.equal(response.status, 200); assert.equal(invalid.ocr, null); assert.match(invalid.message, /could not be displayed/); assert.equal(state.rpc[1].args.p_status, "completed");
     reset(); response = await post(request({ ...good, fileId: "someone-elses-file" }));
@@ -114,7 +124,9 @@ test("chat API checks authentication, model, billing and uncertain failures", as
     reset(); response = await post(request({ ...good, fileId: "owned" }));
     assert.equal(response.status, 200); assert.equal((await response.json()).savedFile.id, "owned");
     reset(); state.mode = "usage-unavailable"; response = await post(request({ ...good, attachment: { name: "scan.pdf", kind: "pdf" } }));
-    assert.equal(response.status, 502); assert.equal(state.rpc[1].args.p_status, "uncertain"); assert.equal(state.rpc[1].args.p_provider_request_id, "gen-1");
+    const pending = await response.json();
+    assert.equal(response.status, 200); assert.equal(pending.message, "hello"); assert.equal(pending.ocr.markdown, "# Extracted"); assert.equal(pending.usagePending, true);
+    assert.equal(pending.chargedCredits, undefined); assert.equal(state.usageAttempts, 4); assert.equal(state.rpc[1].args.p_status, "uncertain"); assert.equal(state.rpc[1].args.p_provider_request_id, "gen-1");
     reset(); state.mode = "rate"; response = await post(request({ ...good, attachment: { name: "scan.pdf", kind: "pdf" } }));
     assert.equal(response.status, 502); assert.equal(state.rpc[1].args.p_status, "uncertain");
     reset(); state.mode = "rate"; response = await post(request(good));

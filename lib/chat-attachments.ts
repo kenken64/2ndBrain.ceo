@@ -3,7 +3,7 @@ import { fromBuffer } from "yauzl";
 
 import { CHAT_FILE_MAX_BYTES } from "@/lib/chat-files-shared";
 export { CHAT_FILE_MAX_BYTES } from "@/lib/chat-files-shared";
-export type ChatAttachment = { name: string; type: "image" | "pdf" | "spreadsheet"; data: Buffer; mime: string };
+export type ChatAttachment = { name: string; type: "image" | "pdf" | "spreadsheet" | "document"; data: Buffer; mime: string };
 
 export function validateChatFile(fileName: string, data: Buffer): ChatAttachment {
   if (typeof fileName !== "string" || !fileName.trim() || fileName.length > 150 || !data.length || data.length > CHAT_FILE_MAX_BYTES) throw new Error("Choose a file between 1 byte and 20 MB, with a name under 150 characters.");
@@ -12,8 +12,9 @@ export function validateChatFile(fileName: string, data: Buffer): ChatAttachment
   if (ext === "pdf" && data.subarray(0, 5).toString() === "%PDF-") return { name, type: "pdf", data, mime: "application/pdf" };
   if ((ext === "png" && data.subarray(0, 8).equals(Buffer.from([137,80,78,71,13,10,26,10]))) || ((ext === "jpg" || ext === "jpeg") && data[0] === 0xff && data[1] === 0xd8 && data[2] === 0xff) || (ext === "webp" && data.subarray(0, 4).toString() === "RIFF" && data.subarray(8, 12).toString() === "WEBP")) return { name, type: "image", data, mime: ext === "png" ? "image/png" : ext === "webp" ? "image/webp" : "image/jpeg" };
   if (ext === "xlsx" && data.subarray(0, 4).equals(Buffer.from([0x50,0x4b,0x03,0x04]))) return { name, type: "spreadsheet", data, mime: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" };
+  if (ext === "docx" && data.subarray(0, 4).equals(Buffer.from([0x50,0x4b,0x03,0x04]))) return { name, type: "document", data, mime: "application/vnd.openxmlformats-officedocument.wordprocessingml.document" };
   if (ext === "csv" && !data.includes(0)) return { name, type: "spreadsheet", data, mime: "text/csv" };
-  throw new Error("Choose a PDF, PNG, JPEG, WebP, XLSX or CSV file with a matching file type.");
+  throw new Error("Choose a PDF, PNG, JPEG, WebP, XLSX, CSV or DOCX file with a matching file type.");
 }
 
 
@@ -26,18 +27,19 @@ export function parseChatAttachment(value: unknown): ChatAttachment | null {
   return validateChatFile(item.name, data);
 }
 
-async function checkXlsxArchive(data: Buffer) {
+async function checkOfficeArchive(data: Buffer, type: "XLSX" | "DOCX") {
   await new Promise<void>((resolve, reject) => {
     fromBuffer(data, { lazyEntries: true }, (error, zip) => {
-      if (error || !zip) return reject(new Error("Invalid XLSX file."));
-      let count = 0, expanded = 0;
-      zip.on("error", () => reject(new Error("Invalid XLSX file.")));
+      if (error || !zip) return reject(new Error(`Invalid ${type} file.`));
+      let count = 0, expanded = 0, hasDocument = false;
+      zip.on("error", () => reject(new Error(`Invalid ${type} file.`)));
       zip.on("entry", entry => {
         count++; expanded += entry.uncompressedSize;
-        if (count > 1000 || expanded > 25 * 1024 * 1024) { zip.close(); reject(new Error("Spreadsheet expands beyond the 25 MB limit.")); return; }
+        if (entry.fileName === (type === "DOCX" ? "word/document.xml" : "xl/workbook.xml")) hasDocument = true;
+        if (count > 1000 || expanded > 25 * 1024 * 1024) { zip.close(); reject(new Error(`${type} file expands beyond the 25 MB limit.`)); return; }
         zip.readEntry();
       });
-      zip.on("end", () => resolve());
+      zip.on("end", () => hasDocument ? resolve() : reject(new Error(`Invalid ${type} file.`)));
       zip.readEntry();
     });
   });
@@ -47,7 +49,7 @@ export async function spreadsheetContext(file: ChatAttachment): Promise<string> 
   const ExcelJS = await import("exceljs");
   const workbook = new ExcelJS.Workbook();
   if (file.mime === "text/csv") await workbook.csv.read(Readable.from(file.data));
-  else { await checkXlsxArchive(file.data); await workbook.xlsx.load(file.data as never); }
+  else { await checkOfficeArchive(file.data, "XLSX"); await workbook.xlsx.load(file.data as never); }
   if (workbook.worksheets.length > 10) throw new Error("Use a workbook with at most 10 sheets.");
   const sheets: unknown[] = [];
   let cells = 0;
@@ -82,6 +84,41 @@ export async function spreadsheetContext(file: ChatAttachment): Promise<string> 
   const result = JSON.stringify({ file: file.name, sheets });
   if (Buffer.byteLength(result) > 28_000) throw new Error("Spreadsheet data exceeds the chat analysis limit. Upload a smaller selection.");
   return result;
+}
+
+export async function documentText(file: ChatAttachment): Promise<string> {
+  await checkOfficeArchive(file.data, "DOCX");
+  const mammoth = await import("mammoth");
+  const result = await mammoth.extractRawText({ buffer: file.data });
+  return result.value;
+}
+
+export async function spreadsheetPreview(file: ChatAttachment) {
+  const ExcelJS = await import("exceljs");
+  const workbook = new ExcelJS.Workbook();
+  if (file.mime === "text/csv") await workbook.csv.read(Readable.from(file.data));
+  else { await checkOfficeArchive(file.data, "XLSX"); await workbook.xlsx.load(file.data as never); }
+  let truncated = workbook.worksheets.length > 10;
+  let remainingChars = 250_000;
+  const sheets = workbook.worksheets.slice(0, 10).map(sheet => {
+    const rowCount = Math.min(sheet.rowCount, 100), columnCount = Math.min(sheet.columnCount, 50);
+    if (sheet.rowCount > rowCount || sheet.columnCount > columnCount) truncated = true;
+    const rows: string[][] = [];
+    for (let row = 1; row <= rowCount; row++) {
+      const values: string[] = [];
+      for (let column = 1; column <= columnCount; column++) {
+        const value = sheet.getRow(row).getCell(column).text;
+        const limit = Math.min(300, remainingChars);
+        if (value.length > limit) truncated = true;
+        const text = value.slice(0, limit);
+        remainingChars -= text.length;
+        values.push(text);
+      }
+      rows.push(values);
+    }
+    return { name: sheet.name, rows };
+  });
+  return { sheets, truncated };
 }
 
 export async function pdfPageCount(file: ChatAttachment) {
