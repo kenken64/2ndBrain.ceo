@@ -2254,7 +2254,7 @@ svg {
 }
 
 .settings-workbench__header {
-  width: min(100%, 760px);
+  width: 100%;
 }
 
 .settings-workbench__header h1 {
@@ -2361,7 +2361,7 @@ svg {
 }
 
 .settings-integrations__header {
-  width: min(100%, 760px);
+  width: 100%;
 }
 
 .settings-integrations__header h2 {
@@ -3084,12 +3084,12 @@ svg {
 
 .dashboard-main {
   min-width: 0;
-  padding: 32px var(--gutter) 80px;
+  padding: 24px 20px 48px;
 }
 
 .dashboard-center {
-  width: min(100%, 920px);
-  margin: 0 auto;
+  width: 100%;
+  margin: 0;
   padding-top: 48px;
   text-align: center;
 }
@@ -3537,8 +3537,9 @@ svg {
 
 .dashboard-workbench,
 .graph-workbench {
-  width: min(100%, 1180px);
-  margin: 34px auto 0;
+  width: 100%;
+  min-width: 0;
+  margin: 24px 0 0;
 }
 
 .wiki-workspace {
@@ -4465,7 +4466,7 @@ svg {
 }
 
 .wiki-empty-panel__chat {
-  width: min(100%, 720px);
+  width: 100%;
   margin-top: 10px;
 }
 
@@ -5369,7 +5370,7 @@ svg {
   }
 
   .dashboard-main {
-    padding: 24px var(--gutter) 64px;
+    padding: 20px 16px 48px;
   }
 
   .dashboard-topbar {
@@ -5856,7 +5857,7 @@ svg {
   }
 
   .dashboard-main {
-    padding: 18px var(--gutter) 56px;
+    padding: 18px 16px 48px;
   }
 
   .dashboard-center {
@@ -6258,8 +6259,8 @@ svg {
 }
 
 .pomodoro-layout {
-  width: min(100%, 620px);
-  margin: clamp(32px, 6vw, 72px) auto 0;
+  width: 100%;
+  margin: clamp(32px, 6vw, 72px) 0 0;
 }
 
 .pomodoro-card {
@@ -6719,7 +6720,7 @@ svg {
 
 /* Give the selected graph the available desktop workspace; short screens can scroll. */
 @media (min-width: 1025px) {
-  .dashboard-main--graph { display: flex; flex-direction: column; height: 100dvh; min-height: 620px; padding: 24px clamp(20px, 2vw, 32px); }
+  .dashboard-main--graph { display: flex; flex-direction: column; height: 100dvh; min-height: 620px; padding: 24px 20px; }
   .dashboard-main--graph .dashboard-topbar { flex: none; }
   .graph-workbench--visualization { display: flex; flex: 1; flex-direction: column; width: 100%; min-height: 0; margin: 18px 0 0; }
   .graph-workbench--visualization .graph-workbench__header { flex: none; }
