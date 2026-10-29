@@ -5,6 +5,7 @@ import { Footer } from "@/components/footer";
 import { MarketingNav } from "@/components/marketing-nav";
 import { Reveal } from "@/components/landing/reveal";
 import { OperatingRoom } from "@/components/landing/operating-room";
+import { MarketplaceShowcase } from "@/components/landing/marketplace-showcase";
 
 const features = [
   { icon: MessageSquare, label: "AI 对话", title: "与不同 AI 模型对话", body: "选择 AI 模型，讨论问题并获得任务帮助。", href: "/dashboard/chat", action: "打开 AI 对话" },
@@ -52,6 +53,7 @@ export function ChineseLanding({ fontClass, supabaseConfigured, wechatEnabled }:
               <div className="lp-feature-grid">{features.map(({ icon: Icon, ...feature }, index) => <Reveal as="article" className="lp-feature-card" delay={index * 60} key={feature.label}><span aria-hidden="true" className="lp-feature-card__icon"><Icon size={22} /></span><span className="lp-feature-card__label">{feature.label}</span><h3>{feature.title}</h3><p>{feature.body}</p><a href={feature.href}>{feature.action} <span aria-hidden="true">→</span></a></Reveal>)}</div>
             </div>
           </section>
+          <MarketplaceShowcase locale="zh" />
           <section aria-labelledby="zh-how" className="lp-section" id="how-it-works">
             <div className="container"><Reveal as="header" className="lp-sec-head"><p className="lp-kicker">工作原理</p><h2 className="lp-h2" id="zh-how">从一个想法，到属于您的知识库。</h2><p className="lp-lead">描述需求并添加资料，AI 助手会帮助您整理成可编辑的文档和知识图谱。敏感操作需要您的确认。</p></Reveal>
               <OperatingRoom locale="zh" />

@@ -25,6 +25,7 @@ import { RECORD } from "@/components/landing/record";
 import { Reveal } from "@/components/landing/reveal";
 import { WorkspaceRail } from "@/components/landing/workspace-rail";
 import { ChineseLanding } from "@/components/landing/chinese-landing";
+import { MarketplaceShowcase } from "@/components/landing/marketplace-showcase";
 import "./landing.css";
 
 export const dynamic = "force-dynamic";
@@ -208,6 +209,8 @@ export default async function Home({ searchParams }: { searchParams: Promise<{ l
               </div>
             </div>
           </section>
+
+          <MarketplaceShowcase />
 
           {/* ---- The Operating Room ---- */}
           <section aria-labelledby="lp-h-how" className="lp-section" id="how-it-works">

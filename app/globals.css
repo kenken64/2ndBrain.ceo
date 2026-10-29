@@ -5299,11 +5299,7 @@ svg {
   }
 }
 
-@media (max-width: 960px) {
-  :root {
-    --gutter: clamp(16px, 4vw, 32px);
-  }
-
+@media (max-width: 1200px) {
   .nav-links,
   .nav-actions .text-link {
     display: none;
@@ -5336,6 +5332,12 @@ svg {
   .site-nav__menu .nav-link:hover {
     background: var(--bg-elevated);
     opacity: 1;
+  }
+}
+
+@media (max-width: 960px) {
+  :root {
+    --gutter: clamp(16px, 4vw, 32px);
   }
 
   .steps-grid,

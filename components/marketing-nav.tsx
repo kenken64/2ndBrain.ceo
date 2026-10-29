@@ -32,6 +32,9 @@ export function MarketingNav({ anchorPrefix = "", supabaseConfigured = true, wec
             <a className="nav-link" href={sectionHref("#features")}>
               {chinese ? "产品功能" : "Features"}
             </a>
+            <a className="nav-link" href={sectionHref("#marketplace")}>
+              {chinese ? "工具市场" : "Marketplace"}
+            </a>
             <a className="nav-link" href={sectionHref("#how-it-works")}>
               {chinese ? "工作原理" : "How it works"}
             </a>
@@ -97,6 +100,9 @@ export function MarketingNav({ anchorPrefix = "", supabaseConfigured = true, wec
           <div className="site-nav__menu" id="site-nav-menu">
             <a className="nav-link" href={sectionHref("#features")} onClick={() => setIsMenuOpen(false)}>
               {chinese ? "产品功能" : "Features"}
+            </a>
+            <a className="nav-link" href={sectionHref("#marketplace")} onClick={() => setIsMenuOpen(false)}>
+              {chinese ? "工具市场" : "Marketplace"}
             </a>
             <a
               className="nav-link"
