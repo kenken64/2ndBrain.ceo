@@ -191,8 +191,8 @@ export function DashboardSidebar({
           disabled={creditLocked}
           href="/dashboard/openclaw"
           icon={<Plug size={18} strokeWidth={1.7} />}
-          label={zh ? "AI 助手网关" : "AI Assistant Gateway UI"}
-          title={zh ? "AI 助手网关" : "AI Assistant Gateway UI"}
+          label={zh ? "AI 助手网关" : "AI Assistant Gateway"}
+          title={zh ? "AI 助手网关" : "AI Assistant Gateway"}
         />
         <SidebarNavItem
           active={activeItem === "remotion"}
