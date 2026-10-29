@@ -1,4 +1,5 @@
 import { Readable } from "node:stream";
+import { posix } from "node:path";
 import { fromBuffer } from "yauzl";
 
 import { CHAT_FILE_MAX_BYTES } from "@/lib/chat-files-shared";
@@ -100,12 +101,25 @@ export async function presentationText(file: ChatAttachment): Promise<string> {
   await checkOfficeArchive(file.data, "PPTX");
   const [{ default: PizZip }, { DOMParser }] = await Promise.all([import("pizzip"), import("@xmldom/xmldom")]);
   const zip = new PizZip(file.data);
-  const paths = Object.keys(zip.files).filter(name => /^ppt\/slides\/slide\d+\.xml$/.test(name)).sort((a, b) => Number(a.match(/\d+/)?.[0]) - Number(b.match(/\d+/)?.[0]));
+  const presentation = zip.file("ppt/presentation.xml")?.asText().replace(/^\uFEFF/, "");
+  const relationships = zip.file("ppt/_rels/presentation.xml.rels")?.asText().replace(/^\uFEFF/, "");
+  if (!presentation || !relationships || /<!DOCTYPE/i.test(presentation + relationships)) throw new Error("The presentation slide order is unavailable.");
+  const doc = new DOMParser().parseFromString(presentation, "text/xml"), relDoc = new DOMParser().parseFromString(relationships, "text/xml");
+  const relationNodes = relDoc.getElementsByTagNameNS("http://schemas.openxmlformats.org/package/2006/relationships", "Relationship");
+  const targets = new Map<string, string>();
+  for (let i = 0; i < relationNodes.length; i++) {
+    const relation = relationNodes.item(i)!;
+    const id = relation.getAttribute("Id"), target = relation.getAttribute("Target");
+    if (id && target && relation.getAttribute("Type")?.endsWith("/slide")) targets.set(id, target.startsWith("/") ? posix.normalize(target.slice(1)) : posix.normalize(posix.join("ppt", target)));
+  }
+  const slideIds = doc.getElementsByTagNameNS("http://schemas.openxmlformats.org/presentationml/2006/main", "sldId");
+  const paths = Array.from({ length: slideIds.length }, (_, index) => targets.get(slideIds.item(index)!.getAttributeNS("http://schemas.openxmlformats.org/officeDocument/2006/relationships", "id") ?? "") ?? "");
+  if (paths.some(path => !/^ppt\/slides\/slide\d+\.xml$/.test(path) || !zip.file(path))) throw new Error("The presentation slide order is unavailable.");
   if (paths.length > 100) throw new Error("Use a presentation with at most 100 slides.");
   return paths.map((name, index) => {
     const xml = zip.file(name)?.asText() ?? "";
-    const doc = new DOMParser().parseFromString(xml, "text/xml");
-    const nodes = doc.getElementsByTagNameNS("http://schemas.openxmlformats.org/drawingml/2006/main", "t");
+    const slide = new DOMParser().parseFromString(xml.replace(/^\uFEFF/, ""), "text/xml");
+    const nodes = slide.getElementsByTagNameNS("http://schemas.openxmlformats.org/drawingml/2006/main", "t");
     const text = Array.from({ length: nodes.length }, (_, i) => nodes.item(i)?.textContent ?? "").join(" ");
     return `Slide ${index + 1}\n${text}`;
   }).join("\n\n");

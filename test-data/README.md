@@ -1,11 +1,11 @@
 # Chat attachment test data
 
-All names, businesses, records, and events in these examples are fictional. Each example below includes the files to attach, a prompt to copy, and results to check.
+The sample records and events in these examples are fictional. The PowerPoint design template includes existing AICUBER branding. Each example below includes the files to attach, a prompt or action, and results to check.
 
 1. Open **AI Chat** and start a new conversation.
 2. Attach the files listed for the test, or choose the indicated chat mode.
-3. Copy and send the test prompt. Review the answer and any field mapping.
-4. Open **My files** to download saved uploads and generated outputs. Check **AI Credits Usage** for the processing cost.
+3. Follow the test's prompt or action. Review the answer and any field mapping.
+4. Open **My files** to download saved uploads and generated outputs. For tests that use AI, check **AI Credits Usage** for the processing cost.
 
 The batch tests use the first spreadsheet row as headers and generate one file for each subsequent record. For individual file questions, attach one file. AI output can vary, so compare the facts and generated files with the expected results rather than requiring exact wording.
 
@@ -88,3 +88,9 @@ Choose **Generate PowerPoint** in chat. No attachment is required.
 Prompt: **Create a five-slide presentation explaining a four-week pilot to improve customer support response times. Cover the goal, timeline, team responsibilities, and risks.**
 
 Expected: An editable presentation with a cover and concise content slides, saved to My files. Download it to review the layout. The AI may choose wording and details; check facts before sharing.
+
+## Test 10: Apply a new PowerPoint design
+
+Attach [source-content.pptx](test-10/source-content.pptx) first and [design-template.pptx](test-10/design-template.pptx) second. The chat will label them **Content** and **Template**; use **Swap content and template** if necessary. Send the request with the arrow button; no prompt is needed and this transfer uses no AI credits.
+
+Expected: One editable presentation saved in My files, with the AICUBER template design and the source slide's “Sales and receipt” title, receipt image, and bar chart (A = 20, B = 35). Download and open it in PowerPoint to check that the image and chart are present and the chart data remains editable. The chart overlays the template watermark, illustrating why every result needs a layout review. Source object positions are retained; speaker notes, animations and transitions are not transferred.
