@@ -1,6 +1,7 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
-import { FolderOpen, X } from "lucide-react";
+import { FolderOpen, Play, X } from "lucide-react";
+import { ChatFilePreview } from "@/components/chat-file-preview";
 import type { SavedChatFile } from "@/lib/chat-files-shared";
 
 type Page = { files: SavedChatFile[]; page: number; hasMore: boolean };
@@ -9,6 +10,7 @@ export function ChatSavedFiles({ disabled, onSelect, label = "Saved files", trig
   const [page, setPage] = useState<Page | null>(null);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [previewFile, setPreviewFile] = useState<SavedChatFile | null>(null);
   const abort = useRef<AbortController | null>(null);
   useEffect(() => () => abort.current?.abort(), []);
   async function load(number: number) {
@@ -24,13 +26,14 @@ export function ChatSavedFiles({ disabled, onSelect, label = "Saved files", trig
   }
   return <>
     <button className={triggerClass} type="button" disabled={disabled} onClick={() => { setPage(null); dialog.current?.showModal(); void load(1); }}><FolderOpen size={16} aria-hidden="true" /> {label}</button>
-    <dialog className="chat-usage-dialog chat-files-dialog" ref={dialog} aria-labelledby="chat-files-title" onClose={() => abort.current?.abort()}>
+    <dialog className="chat-usage-dialog chat-files-dialog" ref={dialog} aria-labelledby="chat-files-title" onClose={() => { abort.current?.abort(); setPreviewFile(null); }}>
       <div className="chat-usage-header"><div><p className="chat-usage-eyebrow">YOUR LIBRARY</p><h2 id="chat-files-title">My files</h2><p>Files uploaded or generated in AI Chat are available on your other devices.</p></div><button type="button" className="chat-usage-close" aria-label="Close My files" onClick={() => dialog.current?.close()}><X size={20} /></button></div>
       {error ? <p className="chat-usage-error" role="alert">{error} <button type="button" className="text-link" onClick={() => void load(page?.page ?? 1)}>Try again</button></p> : null}
       {loading && !page ? <p role="status">Loading saved files…</p> : null}
       {page && !page.files.length ? <p>No saved files yet. Attach a file in chat to save it here.</p> : null}
-      {page?.files.length ? <div className="chat-files-list">{page.files.map(file => <article key={file.id}><div><strong>{file.name}</strong><small>{file.origin === "output" ? "Generated output" : "Original upload"} · {(file.size / (1024 * 1024)).toFixed(2)} MB · {new Date(file.createdAt).toLocaleDateString()}</small></div><div className="chat-files-actions"><a href={`/api/chat/files/${encodeURIComponent(file.id)}`} className="btn-ghost">Download</a>{onSelect && (file.origin !== "output" || /\.pptx$/i.test(file.name)) ? <button type="button" className="btn-ghost" onClick={() => { onSelect(file); dialog.current?.close(); }}>Attach</button> : null}</div></article>)}</div> : null}
+      {page?.files.length ? <div className="chat-files-list">{page.files.map(file => <article key={file.id}><div><strong>{file.name}</strong><small>{file.origin === "output" ? "Generated output" : "Original upload"} · {(file.size / (1024 * 1024)).toFixed(2)} MB · {new Date(file.createdAt).toLocaleDateString()}</small></div><div className="chat-files-actions">{file.origin === "output" && file.mime === "video/mp4" ? <button type="button" className="btn-ghost" aria-label={`Play ${file.name}`} onClick={() => setPreviewFile(file)}><Play size={15} aria-hidden="true" /> Play</button> : null}<a href={`/api/chat/files/${encodeURIComponent(file.id)}`} className="btn-ghost">Download</a>{onSelect && (file.origin !== "output" || /\.pptx$/i.test(file.name)) ? <button type="button" className="btn-ghost" onClick={() => { onSelect(file); dialog.current?.close(); }}>Attach</button> : null}</div></article>)}</div> : null}
       {page ? <div className="chat-usage-pagination"><button className="btn-ghost" type="button" disabled={loading || page.page <= 1} onClick={() => void load(page.page - 1)}>Previous</button><span>Page {page.page}{loading ? " · Loading…" : ""}</span><button className="btn-ghost" type="button" disabled={loading || !page.hasMore} onClick={() => void load(page.page + 1)}>Next</button></div> : null}
     </dialog>
+    {previewFile ? <ChatFilePreview file={previewFile} onClose={() => setPreviewFile(null)} /> : null}
   </>;
 }

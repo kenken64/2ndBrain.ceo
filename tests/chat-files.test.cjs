@@ -139,7 +139,14 @@ test('preview requires authentication and ownership, and never serves documents 
   response = await route.GET(request('?inline=1'), params); assert.equal(response.headers.get('content-type'), 'image/png');
   saved = { file: { type: 'output', name: 'generated.mp4', mime: 'video/mp4', data: Buffer.from('video') } };
   response = await route.GET(request(), params); assert.equal((await response.json()).kind, 'video');
-  response = await route.GET(request('?inline=1'), params); assert.equal(response.headers.get('content-type'), 'video/mp4');
+  response = await route.GET(request('?inline=1'), params); assert.equal(response.headers.get('content-type'), 'video/mp4'); assert.equal(response.headers.get('accept-ranges'), 'bytes'); assert.equal(response.headers.get('content-length'), '5');
+  const ranged = range => new Request('http://localhost/api/chat/files/file-1/preview?inline=1', { headers: { range } });
+  response = await route.GET(ranged('bytes=1-3'), params); assert.equal(response.status, 206); assert.equal(response.headers.get('content-range'), 'bytes 1-3/5'); assert.equal(Buffer.from(await response.arrayBuffer()).toString(), 'ide');
+  response = await route.GET(ranged('bytes=2-'), params); assert.equal(response.status, 206); assert.equal(Buffer.from(await response.arrayBuffer()).toString(), 'deo');
+  response = await route.GET(ranged('bytes=-2'), params); assert.equal(response.status, 206); assert.equal(Buffer.from(await response.arrayBuffer()).toString(), 'eo');
+  response = await route.GET(ranged('bytes=0-500'), params); assert.equal(response.headers.get('content-range'), 'bytes 0-4/5');
+  for (const range of ['bytes=5-', 'bytes=3-1', 'bytes=-0', 'bytes=0-1,3-4', 'bytes=99999999999999999999-']) { response = await route.GET(ranged(range), params); assert.equal(response.status, 416); assert.equal(response.headers.get('content-range'), 'bytes */5'); }
+  user = null; assert.equal((await route.GET(ranged('bytes=0-1'), params)).status, 401); user = 'alice';
   saved = { file: { type: 'output', name: 'generated.docx', mime: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', data: Buffer.from('fixture') } };
   response = await route.GET(request(), params); assert.equal((await response.json()).kind, 'document');
   saved = { file: { type: 'output', name: 'generated.pptx', mime: 'application/vnd.openxmlformats-officedocument.presentationml.presentation', data: Buffer.from('fixture') } };

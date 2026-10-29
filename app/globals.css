@@ -6565,6 +6565,9 @@ svg {
 .chat-file-preview__status { padding: 20px 22px; }
 .chat-file-preview__image { flex: 1; min-height: 0; display: flex; justify-content: center; align-items: center; overflow: auto; padding: 20px; background: #f0f4f8; }
 .chat-file-preview__image img, .chat-file-preview__image video { max-width: 100%; max-height: 100%; object-fit: contain; }
+.chat-file-preview__video { flex: 1; min-height: 0; display: flex; flex-direction: column; justify-content: center; align-items: center; gap: 12px; overflow: auto; padding: 20px; background: #f0f4f8; }
+.chat-file-preview__video video { display: block; max-width: 100%; max-height: 100%; }
+.chat-file-preview__video p { margin: 0; color: #8a2430; font-size: 13px; }
 .chat-file-preview__pdf { flex: 1; width: 100%; min-height: 0; border: 0; background: #f0f4f8; }
 .chat-file-preview__body { flex: 1; min-height: 0; overflow: auto; padding: 16px 22px; }
 .chat-file-preview__body p { color: #536d80; font-size: 13px; }

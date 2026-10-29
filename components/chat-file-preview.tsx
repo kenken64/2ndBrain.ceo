@@ -24,6 +24,7 @@ export function ChatFilePreview({ file, onClose }: Props) {
 export function ChatFilePreviewContent({ file }: { file: { id: string; name: string } }) {
   const [preview, setPreview] = useState<Preview | null>(null);
   const [error, setError] = useState("");
+  const [videoError, setVideoError] = useState(false);
   const [sheetIndex, setSheetIndex] = useState(0);
   const base = `/api/chat/files/${encodeURIComponent(file.id)}`;
   useEffect(() => {
@@ -44,7 +45,7 @@ export function ChatFilePreviewContent({ file }: { file: { id: string; name: str
   return <>
     {error ? <p className="chat-file-preview__status" role="alert">{error}</p> : !preview ? <p className="chat-file-preview__status" role="status">Loading preview…</p> : null}
     {preview?.kind === "image" ? <div className="chat-file-preview__image"><img src={`${base}/preview?inline=1`} alt={`Preview of ${preview.name}`} /></div> : null}
-    {preview?.kind === "video" ? <div className="chat-file-preview__image"><video controls preload="metadata" src={`${base}/preview?inline=1`} aria-label={`Preview of ${preview.name}`} /></div> : null}
+    {preview?.kind === "video" ? <div className="chat-file-preview__video"><video controls playsInline preload="metadata" src={`${base}/preview?inline=1`} aria-label={`Preview of ${preview.name}`} onError={() => setVideoError(true)} />{videoError ? <p role="alert">The video could not be played in this browser. Try downloading the file.</p> : null}</div> : null}
     {preview?.kind === "pdf" ? <iframe className="chat-file-preview__pdf" title={`Preview of ${preview.name}`} src={`${base}/preview?inline=1`} /> : null}
     {preview?.kind === "document" ? <FormattedDocx file={file} /> : null}
     {preview?.kind === "presentation" ? <VisualPresentation file={file} text={preview.text} truncated={preview.truncated} /> : null}

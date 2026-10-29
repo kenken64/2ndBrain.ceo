@@ -26,7 +26,24 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
     const isVideo = file.type === "output" && file.mime === "video/mp4";
     if (new URL(request.url).searchParams.get("inline") === "1") {
       if (!isImage && !isPdf && !isVideo) return NextResponse.json({ error: "This file cannot be displayed inline." }, { status: 400, headers });
-      return new Response(new Uint8Array(file.data), { headers: { ...headers, "Content-Type": file.mime, "Content-Disposition": "inline", "Content-Security-Policy": "default-src 'none'; sandbox", "Cross-Origin-Resource-Policy": "same-origin" } });
+      const inlineHeaders = { ...headers, "Content-Type": file.mime, "Content-Disposition": "inline", "Content-Security-Policy": "default-src 'none'; sandbox", "Cross-Origin-Resource-Policy": "same-origin" };
+      if (isVideo) {
+        const size = file.data.length;
+        const range = request.headers.get("range");
+        if (range) {
+          const match = /^bytes=(\d*)-(\d*)$/i.exec(range.trim());
+          const first = match?.[1] ? Number(match[1]) : null;
+          const last = match?.[2] ? Number(match[2]) : null;
+          if (!match || (first === null && last === null) || (first !== null && !Number.isSafeInteger(first)) || (last !== null && !Number.isSafeInteger(last)) || (first === null && last === 0) || (first !== null && (first >= size || (last !== null && last < first)))) {
+            return new Response(null, { status: 416, headers: { ...inlineHeaders, "Accept-Ranges": "bytes", "Content-Range": `bytes */${size}` } });
+          }
+          const start = first === null ? Math.max(0, size - last!) : first;
+          const end = first === null || last === null ? size - 1 : Math.min(size - 1, last);
+          return new Response(new Uint8Array(file.data.subarray(start, end + 1)), { status: 206, headers: { ...inlineHeaders, "Accept-Ranges": "bytes", "Content-Range": `bytes ${start}-${end}/${size}`, "Content-Length": String(end - start + 1) } });
+        }
+        return new Response(new Uint8Array(file.data), { headers: { ...inlineHeaders, "Accept-Ranges": "bytes", "Content-Length": String(size) } });
+      }
+      return new Response(new Uint8Array(file.data), { headers: inlineHeaders });
     }
     if (isImage || isPdf || isVideo) return NextResponse.json({ kind: isPdf ? "pdf" : isVideo ? "video" : "image", name: file.name }, { headers });
     if (file.type === "spreadsheet") return NextResponse.json({ kind: "spreadsheet", name: file.name, ...await spreadsheetPreview(file) }, { headers });

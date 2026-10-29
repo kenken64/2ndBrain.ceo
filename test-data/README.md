@@ -169,3 +169,9 @@ Ingestion uses the project's AI agent and may incur its normal costs. Generating
 ## Test 19: Send button direction
 
 Open **AI Chat** and enter [the sample prompt](test-19/prompt.txt). The arrow beside **Send** should point right and the button should be enabled. Check the intent prompt composer on the Nth Brain page as well: its send arrow should point right. Sending an AI request may incur normal charges; inspecting the icons does not.
+
+## Test 20: Play a generated MP4 in My files
+
+For a manual test, select **Video · 3s** in AI Chat and use [video-prompt.txt](test-20/video-prompt.txt). Once the video job finishes, open **My files** and select **Play** next to the generated MP4. The video should play in the browser with controls; pause it, seek to another point, close the player, and confirm My files remains open. Use **Download** to save the original video. Repeat on desktop and mobile. Creating the video uses AI credits; playing an existing video does not.
+
+[playback-sample.mp4](test-20/playback-sample.mp4) is a three-second fictional test pattern for offline playback testing; it is not an AI-generated output and cannot be uploaded as a chat attachment. Run `node --test tests/chat-files.test.cjs` to verify authenticated video preview and byte-range responses without generating a video.
