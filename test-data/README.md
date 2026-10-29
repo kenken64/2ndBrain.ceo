@@ -109,7 +109,7 @@ Files: [attendees-mapping.csv](test-11/attendees-mapping.csv), [registration-for
 ## Test 12: Image and video mode controls
 
 1. With no files attached, select **Image** above the message box. Copy [image-prompt.txt](test-12/image-prompt.txt) into the composer and select **Create image**. Check that an image is returned and saved in My files.
-2. Select **Video · 3s**, copy [video-prompt.txt](test-12/video-prompt.txt) and select **Create video**. Check the progress message and the saved three-second video when the job completes.
+2. Select **Video · 15s**, copy [video-prompt.txt](test-12/video-prompt.txt) and select **Create video**. Check the progress message and the saved 15-second video when the job completes.
 3. Select **Chat** to return to ordinary questions. Attach a file and confirm the mode buttons cannot be changed until the attachment is removed.
 
 Image and video generation use AI credits. Review the displayed estimate and AI Credits Usage; provider availability and final costs can vary.
@@ -172,6 +172,12 @@ Open **AI Chat** and enter [the sample prompt](test-19/prompt.txt). The arrow be
 
 ## Test 20: Play a generated MP4 in My files
 
-For a manual test, select **Video · 3s** in AI Chat and use [video-prompt.txt](test-20/video-prompt.txt). Once the video job finishes, open **My files** and select **Play** next to the generated MP4. The video should play in the browser with controls; pause it, seek to another point, close the player, and confirm My files remains open. Use **Download** to save the original video. Repeat on desktop and mobile. Creating the video uses AI credits; playing an existing video does not.
+For a manual test, select **Video · 15s** in AI Chat and use [video-prompt.txt](test-20/video-prompt.txt). Once the video job finishes, open **My files** and select **Play** next to the generated MP4. The video should play in the browser with controls; pause it, seek to another point, close the player, and confirm My files remains open. Use **Download** to save the original video. Repeat on desktop and mobile. Creating the video uses AI credits; playing an existing video does not.
 
 [playback-sample.mp4](test-20/playback-sample.mp4) is a three-second fictional test pattern for offline playback testing; it is not an AI-generated output and cannot be uploaded as a chat attachment. Run `node --test tests/chat-files.test.cjs` to verify authenticated video preview and byte-range responses without generating a video.
+
+## Test 21: Generate a 15-second video and track its cost
+
+Select **Video · 15s** in AI Chat and use [video-prompt.txt](test-21/video-prompt.txt). Before submitting, confirm the app displays the current estimated reservation. Select **Create video**, wait for the job to finish, then open **My files** to play and download the saved MP4. Check its duration in the player and review the itemized charge in **AI Credits Usage**. The estimate and final charge can differ. An AI video request is billable and generated output is subject to the 20 MiB storage limit.
+
+For an offline check, run `node --test tests/chat-video-generation.test.cjs`. It verifies the 15-second provider request, model capability check, reservation, final-cost settlement, and job recovery without generating a video.

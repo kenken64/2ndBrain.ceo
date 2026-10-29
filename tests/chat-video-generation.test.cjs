@@ -72,7 +72,7 @@ test('video generation preserves jobs, settles actual cost and saves the complet
   } finally { Module._load = originalLoad; }
   process.env.OPENROUTER_API_KEY = 'test-key';
   global.fetch = async (url, options = {}) => {
-    if (String(url).endsWith('/videos/models')) return Response.json({ data: [{ id: 'x-ai/grok-imagine-video-1.5-lite', supported_durations: [3], supported_resolutions: ['480p'], supported_aspect_ratios: ['16:9'], pricing_skus: { cents_per_video_output_second_480p: state.mode === 'bad-price' ? 'no' : '2' } }] });
+    if (String(url).endsWith('/videos/models')) return Response.json({ data: [{ id: 'x-ai/grok-imagine-video-1.5-lite', supported_durations: state.mode === 'duration-unavailable' ? [3] : [3, 15], supported_resolutions: ['480p'], supported_aspect_ratios: ['16:9'], pricing_skus: { cents_per_video_output_second_480p: state.mode === 'bad-price' ? 'no' : '2' } }] });
     if (options.method === 'POST') { state.providerBody = JSON.parse(options.body); if (state.mode === 'network') throw Error('network'); return Response.json({ id: 'job-provider' }, { status: 202 }); }
     if (String(url).includes('/content?')) return new Response(Buffer.from('0000ftypmp42'));
     return Response.json({ status: state.mode === 'pending' ? 'pending' : 'completed', generation_id: 'gen-1', usage: state.mode === 'missing-usage' ? undefined : { cost: 0.05 } });
@@ -82,10 +82,11 @@ test('video generation preserves jobs, settles actual cost and saves the complet
     reset(); state.auth = false; assert.equal((await route.POST(req('POST', { prompt: 'ocean' }))).status, 401);
     reset(); assert.equal((await route.POST(req('POST', { prompt: 'ocean' }, 'http://evil.test'))).status, 403);
     reset(); state.mode = 'bad-price'; assert.equal((await route.POST(req('POST', { prompt: 'ocean' }))).status, 503); assert.equal(state.calls.length, 0);
+    reset(); state.mode = 'duration-unavailable'; assert.equal((await route.POST(req('POST', { prompt: 'ocean' }))).status, 503); assert.equal(state.calls.length, 0); assert.equal(state.providerBody, undefined);
     reset(); state.mode = 'insufficient'; assert.equal((await route.POST(req('POST', { prompt: 'ocean' }))).status, 402); assert.equal(state.providerBody, undefined);
-    reset(); const quote = await (await route.GET()).json(); assert.equal(quote.credits, 15000);
+    reset(); const quote = await (await route.GET()).json(); assert.equal(quote.credits, 75000); assert.equal(quote.estimatedUsd, 0.3);
     const submitted = await (await route.POST(req('POST', { prompt: 'ocean' }))).json(); assert.equal(submitted.jobId, jobId);
-    assert.equal(state.job.provider_job_id, 'job-provider'); assert.equal(state.providerBody.duration, 3); assert.equal(state.calls[0].args.p_kind, 'video_generation');
+    assert.equal(state.job.provider_job_id, 'job-provider'); assert.equal(state.providerBody.duration, 15); assert.equal(state.providerBody.model, 'x-ai/grok-imagine-video-1.5-lite'); assert.equal(state.calls[0].args.p_kind, 'video_generation'); assert.equal(state.calls[0].args.p_credits, 75000);
     state.mode = 'pending'; assert.equal((await (await route.PATCH(req('PATCH', { jobId }))).json()).status, 'pending'); assert.equal(state.calls.length, 1);
     state.mode = 'ok'; const done = await (await route.PATCH(req('PATCH', { jobId }))).json(); assert.equal(done.status, 'completed'); assert.equal(state.calls[1].args.p_cost_usd, 0.05); assert.equal(state.calls[1].args.p_actual_credits, 12500); assert.equal(state.saved.user, 'user-1'); assert.equal(state.job.output_file_id, 'file-1');
     await route.PATCH(req('PATCH', { jobId })); assert.equal(state.calls.length, 2);

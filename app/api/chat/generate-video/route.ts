@@ -11,7 +11,7 @@ export const runtime = "nodejs";
 export const maxDuration = 60;
 const MODEL = "x-ai/grok-imagine-video-1.5-lite";
 const CREDITS_PER_USD = 250_000;
-const DURATION = 3;
+const DURATION = 15;
 const RESOLUTION = "480p";
 const errorResponse = (error: string, status: number) => NextResponse.json({ error }, { status });
 type CreditRow = { request_id?: string; llm_token_quota: number | string; llm_token_used: number | string; charged_credits?: number | string };
@@ -66,7 +66,7 @@ export async function POST(request: Request) {
   let body; try { body = await readBody(request); } catch { return errorResponse("Invalid request.", 400); }
   const prompt = typeof body.prompt === "string" ? body.prompt.trim() : "";
   if (!prompt || prompt.length > 10_000) return errorResponse("Enter a video prompt of up to 10,000 characters.", 400);
-  let reserve: number; try { reserve = await price(context.apiKey); } catch { return errorResponse("Video pricing or this three-second model is temporarily unavailable.", 503); }
+  let reserve: number; try { reserve = await price(context.apiKey); } catch { return errorResponse("Video pricing or this 15-second model is temporarily unavailable.", 503); }
   const isAdmin = await isAdminUser(context.email, context.userId);
   const { data: reserved, error } = await context.admin.rpc("reserve_chat_credits_itemized", { p_user_id: context.userId, p_model_id: MODEL, p_credits: reserve, p_is_admin: isAdmin, p_kind: "video_generation", p_pdf_pages: null }).single();
   const row = reserved as CreditRow | null;
@@ -92,7 +92,7 @@ export async function POST(request: Request) {
     if (typeof result.id !== "string" || !/^[a-zA-Z0-9_-]{1,200}$/.test(result.id)) throw new Error("invalid job id");
     const saved = await context.admin.from("chat_video_jobs").update({ status: "pending", provider_job_id: result.id, updated_at: new Date().toISOString() }).eq("id", job.id).eq("user_id", context.userId).select("id").single();
     if (saved.error || !saved.data) throw new Error("failed to save provider job id");
-    return NextResponse.json({ message: "Your three-second video is being generated. Its progress will appear below; the finished video will be saved to My Files.", jobId: job.id });
+    return NextResponse.json({ message: "Your 15-second video is being generated. Its progress will appear below; the finished video will be saved to My Files.", jobId: job.id });
   } catch {
     await settle("uncertain").catch(() => undefined);
     await context.admin.from("chat_video_jobs").update({ status: "uncertain", updated_at: new Date().toISOString() }).eq("id", job.id).eq("user_id", context.userId);
