@@ -3,7 +3,7 @@
 import { Localized, useLanguage, LocalizedMessage } from "@/components/language-provider";
 
 import { useEffect, useMemo, useState } from "react";
-import { AlertTriangle, Check, ChevronLeft, ChevronRight, Coins, ExternalLink, Plus, RefreshCw, Search } from "lucide-react";
+import { AlertTriangle, Check, ChevronLeft, ChevronRight, Coins, ExternalLink, Plus, RefreshCw, Search, Timer } from "lucide-react";
 import { uiMessagesZh } from "@/lib/ui-messages";
 import { WORKFLOW_TEMPLATES } from "@/lib/workflow-templates";
 
@@ -100,7 +100,7 @@ async function readJson<T>(response: Response) {
   return payload;
 }
 
-export function WorkflowMarketplace() {
+export function WorkflowMarketplace({ setupComplete = true }: { setupComplete?: boolean }) {
   const { language } = useLanguage();
   const zh = language === "zh";
   const [marketplace, setMarketplace] = useState<MarketplaceState>(emptyState);
@@ -109,7 +109,7 @@ export function WorkflowMarketplace() {
   const [loading, setLoading] = useState(true);
   const [installingId, setInstallingId] = useState<string | null>(null);
   const [page, setPage] = useState(1);
-  const [pageSize, setPageSize] = useState<(typeof PAGE_SIZE_OPTIONS)[number]>(PAGE_SIZE_OPTIONS[0]);
+  const [pageSize, setPageSize] = useState<(typeof PAGE_SIZE_OPTIONS)[number]>(PAGE_SIZE_OPTIONS[1]);
   const [searchTerm, setSearchTerm] = useState("");
   const installByItemId = useMemo(
     () => new Map(marketplace.installs.map((install) => [install.itemId, install])),
@@ -189,6 +189,8 @@ export function WorkflowMarketplace() {
       setMessage(
         payload.install.alreadyInstalled
           ? "Workflow tool is already installed."
+          : WORKFLOW_TEMPLATES.find((item) => item.id === id)?.priceTokens === 0
+            ? "Free app installed. Open it from My Workflows."
           : payload.install.allocation?.quotaExempt
             ? "Workflow tool installed with admin quota exemption."
             : `Workflow tool installed and ${formatTokens(payload.install.chargedTokens)} AI credits allocated.`
@@ -292,12 +294,13 @@ export function WorkflowMarketplace() {
       <div className="workflow-grid">
         {pageTemplates.map((template) => {
           const install = installByItemId.get(template.id);
+          const isBuiltIn = Boolean(template.internalPath);
           const isDisabled = install?.status === "disabled";
           const isInstalled = Boolean(install);
           const isInstalling = installingId === template.id;
           const hasEnoughCredits = loading || marketplace.balance.availableTokens >= template.priceTokens;
           const missingTokens = Math.max(0, template.priceTokens - marketplace.balance.availableTokens);
-          const canInstall = !loading && !isInstalled && !isInstalling && (marketplace.isAdmin || hasEnoughCredits);
+          const canInstall = (setupComplete || isBuiltIn) && !loading && !isInstalled && !isInstalling && (marketplace.isAdmin || hasEnoughCredits);
           const statusClass = isDisabled
             ? " project-status--failed"
             : isInstalled
@@ -305,7 +308,7 @@ export function WorkflowMarketplace() {
             : !loading && !marketplace.isAdmin && !hasEnoughCredits
               ? " project-status--failed"
               : " project-status--running";
-          const priceCopy = marketplace.isAdmin
+          const priceCopy = isBuiltIn ? (zh ? "免费 · 内置应用" : "Free · Built-in app") : marketplace.isAdmin
             ? (zh ? `标价：${formatTokens(template.priceTokens)} AI 积分。管理员免费安装` : `Listed price: ${formatTokens(template.priceTokens)} AI credits. Admin install: free`)
             : (zh ? `需要 ${formatTokens(template.priceTokens)} AI 积分` : `Requires ${formatTokens(template.priceTokens)} AI credits`);
           const installedDate = formatDate(install?.installedAt, zh);
@@ -328,6 +331,8 @@ export function WorkflowMarketplace() {
                     ? (zh ? "已停用" : "disabled")
                     : isInstalled
                       ? (zh ? "已安装" : "installed")
+                      : isBuiltIn
+                        ? (zh ? "可用" : "available")
                       : !loading && !marketplace.isAdmin && !hasEnoughCredits
                         ? (zh ? "未解锁" : "locked")
                         : (zh ? "可用" : "available")}
@@ -338,7 +343,7 @@ export function WorkflowMarketplace() {
                 <Coins size={16} strokeWidth={1.9} />
                 <span>{priceCopy}</span>
               </div>
-              {!marketplace.isAdmin && !install ? (
+              {!isBuiltIn && !marketplace.isAdmin && !install ? (
                 <p className="workflow-card__billing">
                   {zh ? `安装需要 ${formatTokens(template.priceTokens)} AI 积分。` : `Need ${formatTokens(template.priceTokens)} AI credits to install. `}
                   {hasEnoughCredits
@@ -346,7 +351,7 @@ export function WorkflowMarketplace() {
                     : (zh ? `还需 ${formatTokens(missingTokens)}。` : `${formatTokens(missingTokens)} more needed.`)}
                 </p>
               ) : null}
-              {install?.allocation ? (
+              {!isBuiltIn && install?.allocation ? (
                 <dl className="workflow-card__allocation">
                   <div>
                     <dt><Localized en="Allocated" zh="已分配" /></dt>
@@ -362,7 +367,7 @@ export function WorkflowMarketplace() {
                   </div>
                 </dl>
               ) : null}
-              {install ? (
+              {!isBuiltIn && install ? (
                 <p className="workflow-card__billing">
                   {installedDate ? (zh ? `安装日期：${installedDate}。` : `Installed: ${installedDate}. `) : null}
                   {billingCopy}
@@ -374,7 +379,12 @@ export function WorkflowMarketplace() {
                 ))}
               </ol>
               <div className="workflow-card__actions">
-                <button
+                {template.internalPath && isInstalled && !isDisabled ? (
+                  <a className="btn-primary" href={template.internalPath}>
+                    <Timer size={16} strokeWidth={1.9} />
+                    <Localized en="Open timer" zh="打开计时器" />
+                  </a>
+                ) : <button
                   className={isInstalled ? "btn-ghost" : "btn-primary"}
                   disabled={!canInstall}
                   onClick={() => installWorkflow(template.id)}
@@ -390,7 +400,7 @@ export function WorkflowMarketplace() {
                     <Plus size={16} strokeWidth={1.9} />
                   )}
                   {isDisabled ? (zh ? "已停用" : "Disabled") : isInstalled ? (zh ? "已安装" : "Installed") : isInstalling ? (zh ? "正在安装..." : "Installing...") : (zh ? "安装" : "Install")}
-                </button>
+                </button>}
                 {template.repoUrl ? (
                   <a className="btn-ghost" href={template.repoUrl} rel="noreferrer" target="_blank">
                     <ExternalLink size={16} strokeWidth={1.9} />
@@ -398,10 +408,13 @@ export function WorkflowMarketplace() {
                   </a>
                 ) : null}
               </div>
-              {!loading && !marketplace.isAdmin && !isInstalled && !hasEnoughCredits ? (
+              {!isBuiltIn && !loading && !marketplace.isAdmin && !isInstalled && !hasEnoughCredits ? (
                 <p className="workflow-card__hint">
                   {zh ? `再添加 ${formatTokens(missingTokens)} AI 积分即可安装此工具。` : `Add ${formatTokens(missingTokens)} more AI credits to install this workflow tool.`}
                 </p>
+              ) : null}
+              {!isBuiltIn && !setupComplete && !isInstalled ? (
+                <p className="workflow-card__hint"><Localized en="Complete workspace setup before installing this tool." zh="安装此工具前请完成工作空间设置。" /> <a href="/onboarding?next=%2Fdashboard%2Fmarketplace"><Localized en="Continue setup" zh="继续设置" /></a></p>
               ) : null}
               {isDisabled ? (
                 <p className="workflow-card__hint">

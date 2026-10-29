@@ -10,7 +10,6 @@ import { hasSupabaseEnv } from "@/lib/env";
 import {
   getUserIdFromClaims,
   isOnboardingComplete,
-  onboardingPath,
   onboardingProfileSelect,
   type OnboardingProfile
 } from "@/lib/onboarding";
@@ -46,9 +45,7 @@ export default async function WorkflowMarketplacePage() {
         .maybeSingle()
     : { data: null };
 
-  if (!isOnboardingComplete(profile as OnboardingProfile | null)) {
-    redirect(onboardingPath("/dashboard/marketplace"));
-  }
+  const setupComplete = isOnboardingComplete(profile as OnboardingProfile | null);
 
   const email = typeof claimsData.claims.email === "string" ? claimsData.claims.email : null;
   const showAdmin = await canShowAdminWorkspaceLink({ email, userId });
@@ -81,10 +78,10 @@ export default async function WorkflowMarketplacePage() {
             <div className="settings-workbench__header">
               <p className="workspace-status-card__eyebrow"><Localized en="Workflow" zh="工作流" /></p>
               <h1 id="workflow-marketplace-title"><Localized en="Marketplace" zh="应用市场" /></h1>
-              <p><Localized en="Install workflow tools, allocate AI credits to each tool, and keep them available under My Workflows." zh="安装工作流工具、为每个工具分配 AI 积分，并在“我的工作流”中使用。" /></p>
+              <p><Localized en="Install tools to My Workflows. Paid tools use AI credits; free apps are available without credits." zh="将工具安装到“我的工作流”。付费工具使用 AI 积分，免费应用无需积分。" /></p>
             </div>
 
-            <WorkflowMarketplace />
+            <WorkflowMarketplace setupComplete={setupComplete} />
           </section>
         </main>
       </div>

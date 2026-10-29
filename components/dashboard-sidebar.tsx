@@ -221,7 +221,6 @@ export function DashboardSidebar({
         <span className="sidebar-section-label sidebar-section-label--nested">{zh ? "工作流" : "WORKFLOW"}</span>
         <SidebarNavItem
           active={activeItem === "marketplace"}
-          disabled={creditLocked}
           href="/dashboard/marketplace"
           icon={<Store size={18} strokeWidth={1.7} />}
           label={zh ? "应用市场" : "Marketplace"}
@@ -229,7 +228,6 @@ export function DashboardSidebar({
         />
         <SidebarNavItem
           active={activeItem === "workflows"}
-          disabled={creditLocked}
           href="/dashboard/workflows"
           icon={<ListChecks size={18} strokeWidth={1.7} />}
           label={zh ? "我的工作流" : "My Workflows"}

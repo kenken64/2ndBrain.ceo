@@ -8,6 +8,7 @@ export type WorkflowTemplate = {
   description: string;
   id: string;
   itemType: "agent-app" | "workflow";
+  internalPath?: string;
   launchLabel?: string;
   repoUrl?: string;
   sourceLabel?: string;
@@ -90,6 +91,17 @@ export const WORKFLOW_TEMPLATES: WorkflowTemplate[] = [
     sourceLabel: "GitHub",
     steps: ["Mirror Android screens", "Run natural-language tasks", "Replay recorded workflows"],
     title: "Mobile Device Operator"
+  },
+  {
+    category: "Productivity",
+    description: "Stay focused with a simple Pomodoro timer for work sessions and breaks, built into your workspace.",
+    id: "pomodoro-timer",
+    itemType: "agent-app",
+    internalPath: "/dashboard/pomodoro",
+    launchLabel: "Open timer",
+    priceTokens: 0,
+    steps: ["Focus for 25 minutes", "Take short or long breaks", "Track completed focus sessions"],
+    title: "Pomodoro Timer"
   }
 ];
 

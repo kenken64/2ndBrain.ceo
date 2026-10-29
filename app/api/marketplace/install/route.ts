@@ -118,7 +118,9 @@ export async function POST(request: Request) {
       p_config: {
         source: "2ndBrain.ceo"
       },
-      p_is_admin: isAdmin,
+      // The RPC uses this flag for credit exemption only. A free catalog item
+      // is exempt even if the user's credit balance is below zero.
+      p_is_admin: isAdmin || item.priceTokens === 0,
       p_item_id: item.id,
       p_item_type: item.itemType,
       p_price_tokens: item.priceTokens,

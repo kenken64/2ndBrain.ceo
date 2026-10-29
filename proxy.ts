@@ -48,6 +48,12 @@ function isCreditLockAllowedPath(pathname: string) {
   return (
     pathname === "/dashboard/settings" ||
     pathname === "/dashboard/settings/" ||
+    pathname === "/dashboard/marketplace" ||
+    pathname === "/dashboard/marketplace/" ||
+    pathname === "/dashboard/workflows" ||
+    pathname === "/dashboard/workflows/" ||
+    pathname === "/dashboard/pomodoro" ||
+    pathname === "/dashboard/pomodoro/" ||
     pathname === "/api/account/destroy-workspace" ||
     pathname === "/api/chat/recover-pptx" ||
     pathname.startsWith("/api/openclaw/gws-auth") ||

@@ -1,4 +1,4 @@
-import { ArrowRight, BookOpenText, ClipboardList, Gamepad2, ListTodo, Newspaper, Smartphone, type LucideIcon } from "lucide-react";
+import { ArrowRight, BookOpenText, ClipboardList, Gamepad2, ListTodo, Newspaper, Smartphone, Timer, type LucideIcon } from "lucide-react";
 import { translateUiMessage } from "@/lib/ui-messages";
 import { MARKETPLACE_ITEMS } from "@/lib/workflow-templates";
 
@@ -8,7 +8,8 @@ const icons: Record<string, LucideIcon> = {
   "psle-eng-tutor-brain": BookOpenText,
   "news-intelligence-desk": Newspaper,
   "meeting-minutes": ClipboardList,
-  "mobile-device-operator": Smartphone
+  "mobile-device-operator": Smartphone,
+  "pomodoro-timer": Timer
 };
 
 export function MarketplaceShowcase({ locale = "en" }: { locale?: "en" | "zh" }) {
@@ -46,9 +47,9 @@ export function MarketplaceShowcase({ locale = "en" }: { locale?: "en" | "zh" })
                 </ul>
                 <div className="lp-marketplace-card__footer">
                   <span className="lp-marketplace-card__price">
-                    {zh ? "标价 " : "Listed price "}<strong>{new Intl.NumberFormat("en-US").format(item.priceTokens)}</strong> {zh ? "AI 积分" : "AI credits"}
+                    {item.priceTokens === 0 ? <strong>{zh ? "免费" : "Free"}</strong> : <>{zh ? "标价 " : "Listed price "}<strong>{new Intl.NumberFormat("en-US").format(item.priceTokens)}</strong> {zh ? "AI 积分" : "AI credits"}</>}
                   </span>
-                  {item.repoUrl ? <a aria-label={`${zh ? "在 GitHub 查看" : "View on GitHub"}: ${translate(item.title)}`} href={item.repoUrl} rel="noreferrer" target="_blank">GitHub <span aria-hidden="true">↗</span></a> : null}
+                  {item.repoUrl ? <a aria-label={`${zh ? "在 GitHub 查看" : "View on GitHub"}: ${translate(item.title)}`} href={item.repoUrl} rel="noreferrer" target="_blank">GitHub <span aria-hidden="true">↗</span></a> : <a href="/dashboard/marketplace">{zh ? "安装应用" : "Install app"} <span aria-hidden="true">→</span></a>}
                 </div>
               </article>
             );

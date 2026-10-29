@@ -6257,6 +6257,41 @@ svg {
   outline-offset: 3px;
 }
 
+.pomodoro-layout {
+  width: min(100%, 620px);
+  margin: clamp(32px, 6vw, 72px) auto 0;
+}
+
+.pomodoro-card {
+  border: 1px solid rgba(18, 99, 232, 0.14);
+  border-radius: var(--radius-xl);
+  background: rgba(255, 255, 255, 0.94);
+  box-shadow: var(--shadow-lg);
+  padding: clamp(22px, 5vw, 42px);
+}
+
+.pomodoro-card__intro { display: flex; align-items: center; gap: 14px; }
+.pomodoro-card__icon { display: grid; width: 48px; height: 48px; flex: none; place-items: center; border-radius: 15px; background: #eaf1ff; color: var(--brand-blue-deep); }
+.pomodoro-card__eyebrow { margin: 0 0 4px; color: var(--brand-blue-deep); font-size: calc(11px * var(--small-text-scale, 1)); font-weight: 800; letter-spacing: 0.07em; }
+.pomodoro-card__intro h1 { margin: 0; color: var(--fg-primary); font-size: 25px; line-height: 1.2; }
+.pomodoro-card__description { margin: 18px 0 24px; color: var(--fg-secondary); font-size: calc(14px * var(--small-text-scale, 1)); line-height: 1.55; }
+.pomodoro-modes { display: flex; flex-wrap: wrap; gap: 6px; border: 1px solid #dfe8f7; border-radius: 14px; background: #f4f7fc; padding: 5px; }
+.pomodoro-modes button { flex: 1 1 auto; min-height: 40px; border: 0; border-radius: 10px; background: transparent; color: var(--fg-secondary); padding: 8px 10px; font-size: calc(13px * var(--small-text-scale, 1)); font-weight: 700; cursor: pointer; }
+.pomodoro-modes button.is-active { background: white; color: var(--brand-blue-deep); box-shadow: var(--shadow-sm); }
+.pomodoro-modes button:focus-visible { outline: 2px solid var(--brand-blue); outline-offset: 2px; }
+.pomodoro-dial { display: grid; width: min(100%, 270px); aspect-ratio: 1; place-items: center; margin: 30px auto 0; border-radius: 50%; background: conic-gradient(var(--brand-blue) var(--pomodoro-progress), #e8effa 0); padding: 9px; }
+.pomodoro-dial__inside { display: flex; width: 100%; height: 100%; flex-direction: column; align-items: center; justify-content: center; border-radius: 50%; background: white; }
+.pomodoro-dial__inside span { color: var(--brand-blue-deep); font-size: calc(13px * var(--small-text-scale, 1)); font-weight: 700; }
+.pomodoro-dial__inside strong { margin: 6px 0; color: var(--fg-primary); font-size: clamp(48px, 10vw, 66px); font-weight: 800; letter-spacing: -0.04em; line-height: 1; font-variant-numeric: tabular-nums; }
+.pomodoro-dial__inside small { color: var(--fg-secondary); font-size: calc(12px * var(--small-text-scale, 1)); }
+.pomodoro-announcement { min-height: 24px; margin-top: 14px; color: var(--brand-blue-deep); font-size: calc(13px * var(--small-text-scale, 1)); text-align: center; }
+.pomodoro-actions { display: flex; flex-wrap: wrap; justify-content: center; gap: 10px; margin-top: 8px; }
+.pomodoro-actions button { gap: 8px; min-height: 44px; cursor: pointer; }
+.pomodoro-actions__start { min-width: 150px; }
+.pomodoro-card__footer { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-top: 32px; border-top: 1px solid var(--border-soft); padding-top: 20px; color: var(--fg-secondary); font-size: calc(13px * var(--small-text-scale, 1)); }
+.pomodoro-card__footer strong { color: var(--fg-primary); font-size: 21px; font-variant-numeric: tabular-nums; }
+.pomodoro-note, .pomodoro-loading { margin: 16px 0 0; color: var(--fg-secondary); font-size: calc(12px * var(--small-text-scale, 1)); line-height: 1.5; text-align: center; }
+
 @media (max-width: 600px) {
   .site-nav--localized .github-link {
     display: none;

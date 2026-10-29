@@ -32,6 +32,7 @@ type MarketplaceInstall = {
 };
 
 type MarketplaceState = {
+  balance: { availableTokens: number };
   installs: MarketplaceInstall[];
   isAdmin: boolean;
 };
@@ -106,13 +107,14 @@ function workflowFromInstall(install: MarketplaceInstall) {
   };
 }
 
-export function MyWorkflows() {
+export function MyWorkflows({ setupComplete = true }: { setupComplete?: boolean }) {
   const { language } = useLanguage();
   const zh = language === "zh";
   const [installs, setInstalls] = useState<MarketplaceInstall[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [canUsePaidTools, setCanUsePaidTools] = useState(false);
   const [launchingId, setLaunchingId] = useState<string | null>(null);
   const [unsubscribingId, setUnsubscribingId] = useState<string | null>(null);
   const workflows = useMemo(
@@ -135,6 +137,7 @@ export function MyWorkflows() {
       const payload = await readJson<MarketplaceState>(response);
 
       setInstalls(payload.installs);
+      setCanUsePaidTools(payload.isAdmin || payload.balance.availableTokens > 0);
     } catch (refreshError) {
       setError(refreshError instanceof Error ? refreshError.message : "Installed workflow tools could not be loaded.");
     } finally {
@@ -147,7 +150,10 @@ export function MyWorkflows() {
   }, []);
 
   async function unsubscribeWorkflow(itemId: string, title: string) {
-    const confirmed = window.confirm(zh ? `取消订阅 ${title}？后续定期 AI 积分扣费将停止。` : `Unsubscribe ${title}? Future recurring AI credit charges will stop.`);
+    const free = workflowTemplateById(itemId)?.priceTokens === 0;
+    const confirmed = window.confirm(free
+      ? (zh ? `从工作空间移除 ${title}？` : `Remove ${title} from your workspace?`)
+      : (zh ? `取消订阅 ${title}？后续定期 AI 积分扣费将停止。` : `Unsubscribe ${title}? Future recurring AI credit charges will stop.`));
 
     if (!confirmed) {
       return;
@@ -172,6 +178,8 @@ export function MyWorkflows() {
       setMessage(
         payload.install.alreadyUnsubscribed
           ? "Workflow tool was already unsubscribed."
+          : free
+            ? "Free app removed from My Workflows."
           : refundedTokens > 0
             ? `Workflow tool unsubscribed and ${formatTokens(refundedTokens)} AI credits refunded.`
             : "Workflow tool unsubscribed. Future recurring charges are stopped."
@@ -230,7 +238,7 @@ export function MyWorkflows() {
         <div>
           <p className="workspace-status-card__eyebrow"><Localized en="Installed tools" zh="已安装的工具" /></p>
           <h2>{loading ? (zh ? "正在加载工作流工具" : "Loading workflow tools") : (zh ? `已安装 ${workflows.length} 个` : `${workflows.length} installed`)}</h2>
-          <p><Localized en="Each workflow tool has a dedicated AI credit allocation for its own runs." zh="每个工作流工具都有专用的 AI 积分供其运行。" /></p>
+          <p><Localized en="Paid workflow tools have dedicated AI credit allocations. Free apps need no credits." zh="付费工作流工具使用专用的 AI 积分配额。免费应用无需积分。" /></p>
         </div>
         <button className="btn-ghost" disabled={loading} onClick={refreshInstalls} type="button">
           <RefreshCw size={16} strokeWidth={1.8} />
@@ -248,7 +256,9 @@ export function MyWorkflows() {
           const isUnsubscribing = unsubscribingId === item.id;
           const installedDate = formatDate(install.installedAt, zh);
           const nextChargeDate = formatDate(install.nextChargeAt, zh);
-          const billingCopy = install.allocation?.quotaExempt
+          const isFree = item.priceTokens === 0;
+          const paidToolLocked = !isFree && (!setupComplete || !canUsePaidTools);
+          const billingCopy = isFree ? (zh ? "免费，无定期费用。" : "Free, no recurring charges.") : install.allocation?.quotaExempt
             ? (zh ? "管理员无需支付定期 AI 积分费用。" : "Admin exempt from recurring AI credit charges.")
             : isDisabled
               ? (zh ? "积分充足前无法续费。" : "Renewal disabled until enough AI credits are available.")
@@ -268,7 +278,7 @@ export function MyWorkflows() {
                 </span>
               </div>
               <p><LocalizedMessage text={item.description} /></p>
-              {install.allocation ? (
+              {!isFree && install.allocation ? (
                 <dl className="workflow-card__allocation">
                   <div>
                     <dt><Localized en="Allocated" zh="已分配" /></dt>
@@ -293,16 +303,26 @@ export function MyWorkflows() {
                   <Localized en="Add AI credits, then refresh My Workflows to reactivate this workflow tool." zh="添加 AI 积分，然后刷新“我的工作流”以重新启用此工具。" />
                 </p>
               ) : null}
+              {paidToolLocked && !isDisabled ? (
+                <p className="workflow-card__hint">{!setupComplete
+                  ? <Localized en="Complete workspace setup before launching this tool." zh="启动此工具前请完成工作空间设置。" />
+                  : <Localized en="Add AI credits before launching this tool." zh="启动此工具前请添加 AI 积分。" />}</p>
+              ) : null}
               <ol className="workflow-card__steps">
                 {item.steps.map((step) => (
                   <li key={step}><LocalizedMessage text={step} /></li>
                 ))}
               </ol>
               <div className="workflow-card__actions">
-                {item.launchLabel ? (
+                {item.internalPath ? (
+                  <a className="btn-primary" href={item.internalPath}>
+                    <Rocket size={16} strokeWidth={1.8} />
+                    <LocalizedMessage text={item.launchLabel ?? "Open timer"} />
+                  </a>
+                ) : item.launchLabel ? (
                   <button
                     className="btn-primary"
-                    disabled={isDisabled || isLaunching}
+                    disabled={isDisabled || isLaunching || paidToolLocked}
                     onClick={() => launchWorkflow(item.id)}
                     type="button"
                   >
@@ -327,7 +347,7 @@ export function MyWorkflows() {
                   type="button"
                 >
                   {isDisabled ? <AlertTriangle size={16} strokeWidth={1.8} /> : <Trash2 size={16} strokeWidth={1.8} />}
-                  {isUnsubscribing ? (zh ? "正在取消订阅..." : "Unsubscribing...") : (zh ? "取消订阅" : "Unsubscribe")}
+                  {isUnsubscribing ? (isFree ? (zh ? "正在移除..." : "Removing...") : (zh ? "正在取消订阅..." : "Unsubscribing...")) : isFree ? (zh ? "移除" : "Remove") : (zh ? "取消订阅" : "Unsubscribe")}
                 </button>
               </div>
             </article>

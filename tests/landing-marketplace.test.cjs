@@ -34,12 +34,12 @@ const { MarketplaceShowcase } = compile("components/landing/marketplace-showcase
 
 test("public marketplace shows the shared catalog, prices and repository links", () => {
   const html = renderToStaticMarkup(React.createElement(MarketplaceShowcase));
-  assert.equal(catalog.MARKETPLACE_ITEMS.length, 6);
+  assert.equal(catalog.MARKETPLACE_ITEMS.length, 7);
   for (const item of catalog.MARKETPLACE_ITEMS) {
     assert.ok(html.includes(item.title));
     assert.ok(html.includes(item.description));
-    assert.ok(html.includes(new Intl.NumberFormat("en-US").format(item.priceTokens)));
-    assert.ok(html.includes(item.repoUrl));
+    assert.ok(html.includes(item.priceTokens === 0 ? "Free" : new Intl.NumberFormat("en-US").format(item.priceTokens)));
+    if (item.repoUrl) assert.ok(html.includes(item.repoUrl));
     for (const step of item.steps) assert.ok(html.includes(step));
   }
   assert.ok(html.includes('href="/dashboard/marketplace"'));

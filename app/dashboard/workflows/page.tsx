@@ -10,7 +10,6 @@ import { hasSupabaseEnv } from "@/lib/env";
 import {
   getUserIdFromClaims,
   isOnboardingComplete,
-  onboardingPath,
   onboardingProfileSelect,
   type OnboardingProfile
 } from "@/lib/onboarding";
@@ -46,10 +45,6 @@ export default async function MyWorkflowsPage() {
         .maybeSingle()
     : { data: null };
 
-  if (!isOnboardingComplete(profile as OnboardingProfile | null)) {
-    redirect(onboardingPath("/dashboard/workflows"));
-  }
-
   const email = typeof claimsData.claims.email === "string" ? claimsData.claims.email : null;
   const showAdmin = await canShowAdminWorkspaceLink({ email, userId });
   const onboardingProfile = profile as OnboardingProfile | null;
@@ -84,7 +79,7 @@ export default async function MyWorkflowsPage() {
               <p><Localized en="Manage workflow tools installed from Marketplace and review their AI credit allocations." zh="管理从应用市场安装的工作流工具并查看其 AI 积分分配。" /></p>
             </div>
 
-            <MyWorkflows />
+            <MyWorkflows setupComplete={isOnboardingComplete(onboardingProfile)} />
           </section>
         </main>
       </div>
