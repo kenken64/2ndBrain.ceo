@@ -143,3 +143,25 @@ For a manual check, send [the long-response prompt](test-15/prompt.txt) in Chat.
 ## Test 17: Knowledge graph workspace sizing
 
 [knowledge-graph.json](test-17/knowledge-graph.json) is a small fictional graph with a customer, meeting notes, decision, and topic for a layout preview. Open an existing Nth Brain graph on a wide desktop display. The node map should use the available width beside the sidebar and fit within the visible height. Collapse and expand the sidebar, switch between **3D galaxy** and **2D map**, and use **Fit** or full screen. The graph should resize without covering its controls. On a phone, the map and controls should remain usable with page scrolling. The graph does not use AI credits.
+
+## Test 18: Ingest a PDF into Nth Brain and build a knowledge graph
+
+Files: [nth-brain-support-pilot.pdf](test-18/nth-brain-support-pilot.pdf) and [ingestion-prompt.txt](test-18/ingestion-prompt.txt). This is a searchable, three-page fictional project brief with people, a company, a team, tools, a target, a decision, a risk, and feedback. The double-bracketed names identify linked concepts.
+
+1. Open a ready **Nth Brain** project. For a clean test, use a separate test project so these fictional pages do not mix with real project knowledge.
+2. Under **Upload to this Nth Brain**, select **Attach documents** and choose the PDF. Paste the prompt below into **Instruction for AI ingestion** and select **Upload into Nth Brain**.
+3. Wait for the background ingest to finish and the page tree to refresh. Inspect the generated pages and their `[[wiki links]]`. If the job fails or only saves the source, resolve the ingest issue or add the links to wiki pages before continuing.
+4. Select **Generate knowledge graph**, wait for indexing to finish, then open **Knowledge Graph** for the same project. Use search to find **Support Pilot**, **Maya Chen**, **Ticket Routing**, and **Knowledge Base**. Select nodes to inspect their connections and open their source pages.
+5. Check that the pages preserve at least these relationships: Maya owns Support Pilot; Alex owns Ticket Routing; Ticket Routing depends on Knowledge Base; Priya owns Response Time Dashboard; and Weekend Coverage is a risk to the Eight-Hour Target. The exact number, labels, types, and edges can vary with AI ingestion. Graph links are derived from indexed wiki links and supported relation fields; a line does not by itself prove the relationship is correct. Project-scope visual links may also appear.
+
+**Instruction for AI ingestion:**
+
+```text
+Ingest the attached fictional Northstar Labs support-pilot brief into this Nth Brain. Use the PDF as the source of truth and preserve its names, dates, ownership, decisions, risks, and stated relationships. Do not invent facts.
+
+Create or update separate, clearly titled wiki pages for Northstar Labs, Customer Support Team, Support Pilot, Maya Chen, Alex Tan, Priya Rao, Sam Lee, Ticket Routing, Knowledge Base, Response Time Dashboard, Eight-Hour Target, Pilot Approval, Weekend Coverage, and Customer Feedback. Link related pages using exact wiki links such as [[Support Pilot]], [[Maya Chen]], and [[Ticket Routing]] so the knowledge graph can index the connections. Include the source document and useful links in the Nth Brain index and log.
+
+For relationships supported by the document, use the graph's supported relation names in page frontmatter where appropriate: owned_by, depends_on, related_to, decision_from, or source_for. For example, on the Support Pilot page use owned_by: Maya Chen; on the Ticket Routing page use owned_by: Alex Tan and depends_on: Knowledge Base. Describe the evidence in each page as well. Do not turn a risk, target, or proposed outcome into a fact that has already occurred.
+```
+
+Ingestion uses the project's AI agent and may incur its normal costs. Generating the graph indexes the resulting wiki content. The PDF is text-based, so it does not require OCR.
