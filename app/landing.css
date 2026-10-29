@@ -28,7 +28,7 @@
   background: rgba(255, 255, 255, 0.66);
   padding: 5px 12px;
   font-family: var(--font-mono);
-  font-size: 11px;
+  font-size: calc(11px * var(--small-text-scale, 1));
   font-weight: 500;
   letter-spacing: 0.18em;
   color: var(--fg-secondary);
@@ -69,7 +69,7 @@
 .lp-footline {
   margin: 32px 0 0;
   font-family: var(--font-mono);
-  font-size: 12px;
+  font-size: calc(12px * var(--small-text-scale, 1));
   color: var(--fg-secondary);
 }
 
@@ -282,7 +282,7 @@
   background: rgba(255, 255, 255, 0.7);
   padding: 7px 14px;
   font-family: var(--font-mono);
-  font-size: 12px;
+  font-size: calc(12px * var(--small-text-scale, 1));
   letter-spacing: 0.16em;
   color: var(--fg-soft);
   animation: lp-fade-up 600ms var(--lp-ease) 500ms both;
@@ -345,7 +345,7 @@
   margin-top: 14px;
   writing-mode: vertical-rl;
   font-family: var(--font-mono);
-  font-size: 11px;
+  font-size: calc(11px * var(--small-text-scale, 1));
   letter-spacing: 0.18em;
   color: var(--fg-muted);
   animation: lp-fade-in 800ms ease 1200ms both;
@@ -429,7 +429,7 @@
   max-width: 560px;
   margin: 14px 0 0;
   color: var(--fg-secondary);
-  font-size: 13px;
+  font-size: calc(13px * var(--small-text-scale, 1));
   line-height: 1.5;
   animation: lp-fade-up 600ms var(--lp-ease) 950ms both;
 }
@@ -437,7 +437,7 @@
 .lp-status {
   margin: 18px 0 0;
   font-family: var(--font-mono);
-  font-size: 12px;
+  font-size: calc(12px * var(--small-text-scale, 1));
   color: var(--fg-secondary);
   animation: lp-fade-up 600ms var(--lp-ease) 1050ms both;
 }
@@ -459,12 +459,12 @@
 .lp-runs-on__label {
   margin-right: 6px;
   color: rgba(17, 24, 39, 0.56);
-  font-size: 13px;
+  font-size: calc(13px * var(--small-text-scale, 1));
   font-weight: 600;
 }
 
 .lp-runs-on__item {
-  font-size: 11px;
+  font-size: calc(11px * var(--small-text-scale, 1));
   font-weight: 600;
   letter-spacing: 0.12em;
   color: var(--fg-secondary);
@@ -550,14 +550,14 @@
 
 .lp-cell__tag {
   font-family: var(--font-mono);
-  font-size: 10.5px;
+  font-size: calc(10.5px * var(--small-text-scale, 1));
   letter-spacing: 0.14em;
   color: var(--fg-secondary);
 }
 
 .lp-cell__title {
   margin: 0;
-  font-size: 15.5px;
+  font-size: calc(15.5px * var(--small-text-scale, 1));
   font-weight: 750;
   letter-spacing: -0.01em;
   color: var(--fg-primary);
@@ -566,7 +566,7 @@
 .lp-cell__sub {
   margin: 0;
   color: var(--fg-secondary);
-  font-size: 12.5px;
+  font-size: calc(12.5px * var(--small-text-scale, 1));
   line-height: 1.5;
 }
 
@@ -576,7 +576,7 @@
   border-top: 1px dashed var(--border-medium);
   padding-top: 6px;
   font-family: var(--font-mono);
-  font-size: 10.5px;
+  font-size: calc(10.5px * var(--small-text-scale, 1));
   line-height: 1.45;
   color: var(--fg-secondary);
 }
@@ -651,7 +651,7 @@
   background: var(--bg-subtle);
   padding: 2px 8px;
   font-family: var(--font-mono);
-  font-size: 10px;
+  font-size: calc(10px * var(--small-text-scale, 1));
   color: var(--fg-soft);
   opacity: 0;
   transform: translateY(8px);
@@ -661,7 +661,7 @@
 }
 
 .lp-chip-file small {
-  font-size: 9px;
+  font-size: calc(9px * var(--small-text-scale, 1));
   color: var(--fg-secondary);
 }
 
@@ -677,7 +677,7 @@
   width: 100%;
   margin-top: 2px;
   font-family: var(--font-mono);
-  font-size: 10.5px;
+  font-size: calc(10.5px * var(--small-text-scale, 1));
   color: var(--fg-secondary);
   opacity: 0;
   transition: opacity 300ms ease 580ms;
@@ -726,7 +726,7 @@
   background: var(--bg-subtle);
   padding: 5px 10px;
   font-family: var(--font-mono);
-  font-size: 10.5px;
+  font-size: calc(10.5px * var(--small-text-scale, 1));
   color: var(--fg-secondary);
 }
 
@@ -740,7 +740,7 @@
   display: block;
   min-height: 1.65em;
   font-family: var(--font-mono);
-  font-size: 12px;
+  font-size: calc(12px * var(--small-text-scale, 1));
   line-height: 1.65;
   color: var(--fg-soft);
 }
@@ -793,7 +793,7 @@
   min-height: 0;
   overflow: hidden;
   font-family: var(--font-mono);
-  font-size: 12px;
+  font-size: calc(12px * var(--small-text-scale, 1));
   line-height: 1.6;
   white-space: pre;
   color: var(--fg-soft);
@@ -822,7 +822,7 @@
 .lp-tree__count {
   margin: 4px 0 0;
   font-family: var(--font-mono);
-  font-size: 11px;
+  font-size: calc(11px * var(--small-text-scale, 1));
   font-variant-numeric: tabular-nums;
   color: var(--fg-secondary);
   opacity: 0;
@@ -894,7 +894,7 @@
 
 .lp-node text {
   font-family: var(--font-mono);
-  font-size: 10px;
+  font-size: calc(10px * var(--small-text-scale, 1));
   fill: var(--fg-secondary);
   text-anchor: middle;
   transition: fill 200ms ease;
@@ -944,7 +944,7 @@
   background: #0d1420;
   padding: 12px 14px;
   font-family: var(--font-mono);
-  font-size: 12px;
+  font-size: calc(12px * var(--small-text-scale, 1));
   line-height: 1.6;
 }
 
@@ -1021,7 +1021,7 @@
 .lp-tg__head {
   margin: 0;
   font-family: var(--font-mono);
-  font-size: 10.5px;
+  font-size: calc(10.5px * var(--small-text-scale, 1));
   color: var(--fg-secondary);
 }
 
@@ -1031,7 +1031,7 @@
   border-radius: 10px;
   background: var(--bg-elevated);
   padding: 8px 10px;
-  font-size: 12.5px;
+  font-size: calc(12.5px * var(--small-text-scale, 1));
   line-height: 1.45;
   color: var(--fg-soft);
 }
@@ -1048,7 +1048,7 @@
   border-radius: var(--radius-pill);
   padding: 7px 10px;
   font-family: var(--font-mono);
-  font-size: 12px;
+  font-size: calc(12px * var(--small-text-scale, 1));
   font-weight: 600;
   cursor: pointer;
   transition:
@@ -1113,7 +1113,7 @@
 .lp-tg__result {
   margin: 2px 0 0;
   font-family: var(--font-mono);
-  font-size: 11.5px;
+  font-size: calc(11.5px * var(--small-text-scale, 1));
   animation: lp-line-in 240ms var(--lp-ease);
 }
 
@@ -1132,7 +1132,7 @@
   background: transparent;
   padding: 4px 12px;
   font-family: var(--font-mono);
-  font-size: 11.5px;
+  font-size: calc(11.5px * var(--small-text-scale, 1));
   color: var(--fg-soft);
   cursor: pointer;
   transition:
@@ -1267,7 +1267,7 @@
   display: block;
   margin-bottom: 2px;
   font-family: var(--font-mono);
-  font-size: 10.5px;
+  font-size: calc(10.5px * var(--small-text-scale, 1));
   letter-spacing: 0.14em;
   color: var(--fg-muted);
 }
@@ -1283,7 +1283,7 @@
   max-width: 52ch;
   margin: 6px 0 0;
   color: var(--fg-secondary);
-  font-size: 14.5px;
+  font-size: calc(14.5px * var(--small-text-scale, 1));
   line-height: 1.55;
 }
 
@@ -1297,14 +1297,14 @@
   box-shadow: var(--shadow-lg);
   padding: 20px 22px;
   font-family: var(--font-mono);
-  font-size: 13px;
+  font-size: calc(13px * var(--small-text-scale, 1));
 }
 
 .lp-receipt__head {
   margin: 0 0 4px;
   border-bottom: 1px dashed var(--border-strong);
   padding-bottom: 10px;
-  font-size: 11px;
+  font-size: calc(11px * var(--small-text-scale, 1));
   letter-spacing: 0.16em;
   color: var(--fg-secondary);
 }
@@ -1321,7 +1321,7 @@
   gap: 8px;
   border-bottom: 1px dashed var(--border-medium);
   padding: 9px 0;
-  font-size: 12.5px;
+  font-size: calc(12.5px * var(--small-text-scale, 1));
   white-space: pre;
   overflow: hidden;
   color: var(--fg-soft);
@@ -1360,7 +1360,7 @@
 .lp-receipt__status {
   margin: 14px 0 0;
   border-radius: 6px;
-  font-size: 12.5px;
+  font-size: calc(12.5px * var(--small-text-scale, 1));
   font-weight: 700;
   letter-spacing: 0.08em;
   color: var(--brand-green);
@@ -1413,7 +1413,7 @@
 .lp-room-nav__item {
   padding: 5px 0;
   font-family: var(--font-mono);
-  font-size: 12px;
+  font-size: calc(12px * var(--small-text-scale, 1));
   letter-spacing: 0.12em;
   color: var(--fg-muted);
   transition: color 200ms ease;
@@ -1440,7 +1440,7 @@
 .lp-room-panel__lead {
   margin: 0;
   font-family: var(--font-mono);
-  font-size: 11px;
+  font-size: calc(11px * var(--small-text-scale, 1));
   letter-spacing: 0.14em;
   text-transform: uppercase;
   color: var(--fg-secondary);
@@ -1457,7 +1457,7 @@
 .lp-room-panel__body {
   margin: 10px 0 0;
   color: var(--fg-secondary);
-  font-size: 15px;
+  font-size: calc(15px * var(--small-text-scale, 1));
   line-height: 1.6;
 }
 
@@ -1503,7 +1503,7 @@
   background: #0d1420;
   padding: 12px 14px;
   font-family: var(--font-mono);
-  font-size: 11.5px;
+  font-size: calc(11.5px * var(--small-text-scale, 1));
   line-height: 1.5;
 }
 
@@ -1546,7 +1546,7 @@
   display: flex;
   align-items: center;
   gap: 10px;
-  font-size: 14px;
+  font-size: calc(14px * var(--small-text-scale, 1));
   color: var(--fg-soft);
 }
 
@@ -1571,7 +1571,7 @@
   background: var(--bg-subtle);
   padding: 4px 10px;
   font-family: var(--font-mono);
-  font-size: 12px;
+  font-size: calc(12px * var(--small-text-scale, 1));
   color: var(--fg-secondary);
 }
 
@@ -1644,7 +1644,7 @@
 .lp-own-row p {
   margin: 4px 0 0;
   color: var(--fg-secondary);
-  font-size: 14.5px;
+  font-size: calc(14.5px * var(--small-text-scale, 1));
   line-height: 1.55;
 }
 
@@ -1716,7 +1716,7 @@
   box-shadow: var(--shadow-sm);
   padding: 4px 10px;
   font-family: var(--font-mono);
-  font-size: 12px;
+  font-size: calc(12px * var(--small-text-scale, 1));
   color: var(--fg-soft);
   transform: translateX(-170px);
   transition: transform 600ms cubic-bezier(0.22, 1, 0.36, 1) calc(var(--lp-i, 0) * 120ms);
@@ -1738,7 +1738,7 @@
 
 .lp-proof__boundary span {
   font-family: var(--font-mono);
-  font-size: 10.5px;
+  font-size: calc(10.5px * var(--small-text-scale, 1));
   letter-spacing: 0.12em;
   color: var(--fg-secondary);
 }
@@ -1746,7 +1746,7 @@
 .lp-proof__caption {
   margin: 12px 0 0;
   font-family: var(--font-mono);
-  font-size: 11px;
+  font-size: calc(11px * var(--small-text-scale, 1));
   text-align: right;
   color: var(--fg-secondary);
 }
@@ -1803,7 +1803,7 @@
 }
 
 .lp-int-chip__name {
-  font-size: 15px;
+  font-size: calc(15px * var(--small-text-scale, 1));
   font-weight: 700;
   color: var(--fg-primary);
 }
@@ -1811,7 +1811,7 @@
 .lp-int-chip__sub {
   margin-top: 2px;
   font-family: var(--font-mono);
-  font-size: 11px;
+  font-size: calc(11px * var(--small-text-scale, 1));
   color: var(--fg-secondary);
 }
 
@@ -1864,7 +1864,7 @@
 .lp-start__status {
   margin: 0;
   font-family: var(--font-mono);
-  font-size: 12px;
+  font-size: calc(12px * var(--small-text-scale, 1));
   color: var(--fg-secondary);
 }
 
@@ -1884,7 +1884,7 @@
 .lp-start__files {
   margin: 18px 0 0;
   font-family: var(--font-mono);
-  font-size: 12px;
+  font-size: calc(12px * var(--small-text-scale, 1));
   color: var(--fg-secondary);
 }
 
@@ -1899,7 +1899,7 @@
   max-width: 640px;
   margin: 16px auto 0;
   font-family: var(--font-mono);
-  font-size: 12px;
+  font-size: calc(12px * var(--small-text-scale, 1));
   font-variant-numeric: tabular-nums;
   line-height: 1.6;
   color: var(--fg-secondary);
@@ -2099,7 +2099,7 @@
   }
 
   .lp-proof__chip {
-    font-size: 12px;
+    font-size: calc(12px * var(--small-text-scale, 1));
     transform: translateX(-90px);
   }
 
@@ -2118,7 +2118,7 @@
   }
 
   .lp-hero__sub {
-    font-size: 16px;
+    font-size: calc(16px * var(--small-text-scale, 1));
   }
 
   .lp-cell {
@@ -2127,7 +2127,7 @@
 
   .lp-console {
     padding: 10px 12px;
-    font-size: 11px;
+    font-size: calc(11px * var(--small-text-scale, 1));
   }
 
   .lp-tg__actions {
@@ -2140,15 +2140,15 @@
 
   .lp-receipt {
     padding: 16px;
-    font-size: 12px;
+    font-size: calc(12px * var(--small-text-scale, 1));
   }
 
   .lp-receipt__row {
-    font-size: 11px;
+    font-size: calc(11px * var(--small-text-scale, 1));
   }
 
   .lp-check {
-    font-size: 14px;
+    font-size: calc(14px * var(--small-text-scale, 1));
   }
 
   .lp-own {
@@ -2278,7 +2278,7 @@
   margin-top: 22px;
   color: var(--brand-blue-deep);
   font-family: var(--font-mono);
-  font-size: 11px;
+  font-size: calc(11px * var(--small-text-scale, 1));
   font-weight: 700;
   letter-spacing: 0.1em;
 }
@@ -2293,7 +2293,7 @@
 .lp-feature-card p {
   margin: 12px 0 24px;
   color: var(--fg-secondary);
-  font-size: 15px;
+  font-size: calc(15px * var(--small-text-scale, 1));
   line-height: 1.6;
 }
 
@@ -2303,7 +2303,7 @@
   gap: 8px;
   margin-top: auto;
   color: var(--brand-blue-deep);
-  font-size: 14px;
+  font-size: calc(14px * var(--small-text-scale, 1));
   font-weight: 700;
 }
 
