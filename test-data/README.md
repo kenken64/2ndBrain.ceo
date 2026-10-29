@@ -165,3 +165,7 @@ For relationships supported by the document, use the graph's supported relation 
 ```
 
 Ingestion uses the project's AI agent and may incur its normal costs. Generating the graph indexes the resulting wiki content. The PDF is text-based, so it does not require OCR.
+
+## Test 19: Send button direction
+
+Open **AI Chat** and enter [the sample prompt](test-19/prompt.txt). The arrow beside **Send** should point right and the button should be enabled. Check the intent prompt composer on the Nth Brain page as well: its send arrow should point right. Sending an AI request may incur normal charges; inspecting the icons does not.

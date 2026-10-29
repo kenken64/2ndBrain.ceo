@@ -3,7 +3,7 @@
 import { navigateToPage } from "@/lib/page-navigation";
 
 import { ChangeEvent, FormEvent, useEffect, useId, useRef, useState } from "react";
-import { ArrowUp, ChevronDown, FileText, Mic, Plus, X } from "lucide-react";
+import { ArrowRight, ChevronDown, FileText, Mic, Plus, X } from "lucide-react";
 
 type ChatInputProps = {
   placeholder: string;
@@ -361,7 +361,7 @@ export function ChatInput({
             disabled={isProgressVisible}
             type="submit"
           >
-            <ArrowUp size={18} strokeWidth={2.2} />
+            <ArrowRight size={18} strokeWidth={2.2} />
           </button>
         </div>
       </div>
