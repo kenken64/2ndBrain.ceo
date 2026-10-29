@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { documentText, presentationText, spreadsheetPreview } from "@/lib/chat-attachments";
+import { checkOfficeArchive, presentationText, spreadsheetPreview } from "@/lib/chat-attachments";
 import { loadChatFile } from "@/lib/chat-files";
 import { hasSupabaseEnv } from "@/lib/env";
 import { getUserIdFromClaims } from "@/lib/onboarding";
@@ -32,7 +32,15 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
     if (file.type === "spreadsheet") return NextResponse.json({ kind: "spreadsheet", name: file.name, ...await spreadsheetPreview(file) }, { headers });
     const isDocx = file.type === "document" || (file.type === "output" && file.mime === "application/vnd.openxmlformats-officedocument.wordprocessingml.document");
     const isPptx = file.type === "presentation" || (file.type === "output" && file.mime === "application/vnd.openxmlformats-officedocument.presentationml.presentation");
-    const text = isDocx ? await documentText({ ...file, type: "document" }) : isPptx ? await presentationText({ ...file, type: "presentation" }) : file.data.toString("utf8");
+    if (isDocx) {
+      await checkOfficeArchive(file.data, "DOCX");
+      return NextResponse.json({ kind: "document", name: file.name }, { headers });
+    }
+    if (isPptx) {
+      const text = await presentationText({ ...file, type: "presentation" });
+      return NextResponse.json({ kind: "presentation", name: file.name, text: text.slice(0, 200_000), truncated: text.length > 200_000 }, { headers });
+    }
+    const text = file.data.toString("utf8");
     return NextResponse.json({ kind: "text", name: file.name, text: text.slice(0, 200_000), truncated: text.length > 200_000 }, { headers });
   } catch (error) {
     console.error("[chat:preview] Could not preview file", error instanceof Error ? error.message : "unknown");

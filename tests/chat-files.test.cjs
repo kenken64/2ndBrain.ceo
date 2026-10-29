@@ -108,9 +108,9 @@ test('generated DOCX files are saved as private output files', async () => {
 });
 
 test('preview requires authentication and ownership, and never serves documents as active HTML', async () => {
-  let user = null, requestedOwner, saved;
+  let user = null, requestedOwner, saved, invalidArchive = false;
   const mocks = {
-    '@/lib/chat-attachments': { documentText: async () => '<script>alert(1)</script>', spreadsheetPreview: async () => ({ sheets: [{ name: 'Sheet1', rows: [['A', '1']] }], truncated: false }) },
+    '@/lib/chat-attachments': { checkOfficeArchive: async () => { if (invalidArchive) throw new Error('Invalid archive'); }, presentationText: async () => 'Slide 1\nTest', spreadsheetPreview: async () => ({ sheets: [{ name: 'Sheet1', rows: [['A', '1']] }], truncated: false }) },
     '@/lib/chat-files': { loadChatFile: async (_admin, owner) => { requestedOwner = owner; return saved; } },
     '@/lib/env': { hasSupabaseEnv: () => true },
     '@/lib/onboarding': { getUserIdFromClaims: c => c?.sub },
@@ -125,8 +125,9 @@ test('preview requires authentication and ownership, and never serves documents 
   assert.equal((await route.GET(request(), params)).status, 404); assert.equal(requestedOwner, 'alice');
   saved = { file: { type: 'document', name: 'report.docx', mime: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', data: Buffer.from('document') } };
   let response = await route.GET(request(), params); const body = await response.json();
-  assert.equal(response.headers.get('content-type'), 'application/json'); assert.equal(body.kind, 'text'); assert.equal(body.text, '<script>alert(1)</script>');
+  assert.equal(response.headers.get('content-type'), 'application/json'); assert.equal(body.kind, 'document');
   assert.equal((await route.GET(request('?inline=1'), params)).status, 400);
+  invalidArchive = true; assert.equal((await route.GET(request(), params)).status, 422); invalidArchive = false;
   saved = { file: { type: 'pdf', name: 'report.pdf', mime: 'application/pdf', data: Buffer.from('%PDF-') } };
   response = await route.GET(request('?inline=1'), params);
   assert.equal(response.status, 200); assert.equal(response.headers.get('content-disposition'), 'inline'); assert.match(response.headers.get('content-security-policy'), /sandbox/); assert.equal(response.headers.get('cache-control'), 'private, no-store');
@@ -140,7 +141,9 @@ test('preview requires authentication and ownership, and never serves documents 
   response = await route.GET(request(), params); assert.equal((await response.json()).kind, 'video');
   response = await route.GET(request('?inline=1'), params); assert.equal(response.headers.get('content-type'), 'video/mp4');
   saved = { file: { type: 'output', name: 'generated.docx', mime: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', data: Buffer.from('fixture') } };
-  response = await route.GET(request(), params); assert.equal((await response.json()).kind, 'text');
+  response = await route.GET(request(), params); assert.equal((await response.json()).kind, 'document');
+  saved = { file: { type: 'output', name: 'generated.pptx', mime: 'application/vnd.openxmlformats-officedocument.presentationml.presentation', data: Buffer.from('fixture') } };
+  response = await route.GET(request(), params); const presentation = await response.json(); assert.equal(presentation.kind, 'presentation'); assert.match(presentation.text, /Slide 1/);
   saved = { file: { type: 'spreadsheet', name: 'report.xlsx', data: Buffer.from('sheet') } };
   response = await route.GET(request(), params); assert.equal((await response.json()).sheets[0].rows[0][0], 'A');
 });

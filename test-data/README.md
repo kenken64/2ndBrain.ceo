@@ -13,7 +13,7 @@ The batch tests use the first spreadsheet row as headers and generate one file f
 
 Files: [participants.xlsx](test-1/participants.xlsx) and [registration-form.pdf](test-1/registration-form.pdf)
 
-Prompt: **Fill the PDF form using each row in the Excel file and generate one completed PDF per participant.**
+Action: Select **Review fields**, check the proposed mappings and select **Generate documents**.
 
 Expected: Five completed PDFs. For example, Alice Tan's form should include `alice.tan@example.com`, `Northstar Labs`, `AI for Business`, and `2026-11-05`. The response should show how the spreadsheet columns were mapped to the PDF fields.
 
@@ -21,7 +21,7 @@ Expected: Five completed PDFs. For example, Alice Tan's form should include `ali
 
 Files: [participants.xlsx](test-2/participants.xlsx) and [registration-confirmation-template.docx](test-2/registration-confirmation-template.docx)
 
-Prompt: **Fill the Word template using each row in the Excel file and generate one document per participant.**
+Action: Select **Review fields**, check the proposed mappings and select **Generate documents**.
 
 Expected: Five editable Word documents, each with all matching placeholders replaced. Alice Tan's document should include `alice.tan@example.com`, `Northstar Labs`, `AI for Business`, and `2026-11-05`.
 
@@ -77,13 +77,13 @@ Expected: The pilot starts on 2 November 2026, runs for four weeks, and the staf
 
 Files: [participants.xlsx](test-8/participants.xlsx) and [training-template.pptx](test-8/training-template.pptx)
 
-Prompt: **Fill the PowerPoint template using each spreadsheet row and create one presentation per participant.**
+Action: Select **Review fields**, check the proposed mappings and select **Generate documents**.
 
 Expected: Five editable PPTX files, with names and other fields filled on both slides. For Alice Tan, verify `Northstar Labs`, `alice.tan@example.com`, `AI for Business`, and `2026-11-05`. The template uses simple `{{Field Name}}` placeholders. Download a file and open it in PowerPoint to inspect the slide layout.
 
 ## Test 9: PowerPoint from a prompt
 
-Choose **Generate PowerPoint** in chat. No attachment is required.
+Select **PowerPoint** above the chat message box. No attachment is required.
 
 Prompt: **Create a five-slide presentation explaining a four-week pilot to improve customer support response times. Cover the goal, timeline, team responsibilities, and risks.**
 
@@ -94,3 +94,22 @@ Expected: An editable presentation with a cover and concise content slides, save
 Attach [source-content.pptx](test-10/source-content.pptx) first and [design-template.pptx](test-10/design-template.pptx) second. The chat will label them **Content** and **Template**; use **Swap content and template** if necessary. Send the request with the arrow button; no prompt is needed and this transfer uses no AI credits.
 
 Expected: One editable presentation saved in My files, with the AICUBER template design and the source slide's “Sales and receipt” title, receipt image, and bar chart (A = 20, B = 35). Download and open it in PowerPoint to check that the image and chart are present and the chart data remains editable. The chart overlays the template watermark, illustrating why every result needs a layout review. Source object positions are retained; speaker notes, animations and transitions are not transferred.
+
+## Test 11: Mapping review, batch results and file reuse
+
+Files: [attendees-mapping.csv](test-11/attendees-mapping.csv), [registration-form.pdf](test-11/registration-form.pdf), [registration-template.docx](test-11/registration-template.docx) and [presentation-template.pptx](test-11/presentation-template.pptx). All sample records are fictional.
+
+1. **Drag and drop:** Drop the CSV and PDF into the chat composer. The two files should attach and appear in the preview panel.
+2. **Mapping review:** Select **Review fields**. Choose `Attendee` for `Full Name`, `Email Address` for `Email`, and `Organization` for `Company`; check that `Course` and `Session Date` match. Select **Generate documents**. No AI credits are charged for this mapping or batch.
+3. **Progress and ZIP:** The batch should process three records. Rows 2 and 4 should succeed; row 3 should report that its email exceeds the PDF field's 100-character limit. Select **Download all as ZIP** and confirm it contains the two successful PDFs. The files are also saved in My files.
+4. **Word preview and mapping:** Attach the CSV and DOCX template in a new chat. The side panel should show a formatted document with a table and receipt image. Review and correct the same three mappings before generating. All three Word files should be created; the Word template does not impose the PDF's email length limit.
+5. **Follow-up:** In the completed PDF batch, select **Ask about** on the row 2 PDF. Ask **What name, company and course are on this form?** Expected: Alice Tan, Northstar Labs and AI for Business. The file is processed again, so normal AI and PDF OCR charges apply.
+6. **PowerPoint preview and questions:** Attach the presentation template by itself and ask **What registration details appear on these slides?** After the response, select **Ask about** on the presentation and ask **What placeholders are listed?** Use the side panel's **Next** and **Previous** buttons to inspect both slides. Answers use slide text; images and charts are not sent for analysis. Visual rendering is an approximation; download the original for a definitive layout check. For a chart and image example, also preview [the Test 10 source deck](test-10/source-content.pptx).
+
+## Test 12: Image and video mode controls
+
+1. With no files attached, select **Image** above the message box. Copy [image-prompt.txt](test-12/image-prompt.txt) into the composer and select **Create image**. Check that an image is returned and saved in My files.
+2. Select **Video · 3s**, copy [video-prompt.txt](test-12/video-prompt.txt) and select **Create video**. Check the progress message and the saved three-second video when the job completes.
+3. Select **Chat** to return to ordinary questions. Attach a file and confirm the mode buttons cannot be changed until the attachment is removed.
+
+Image and video generation use AI credits. Review the displayed estimate and AI Credits Usage; provider availability and final costs can vary.

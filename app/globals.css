@@ -6304,8 +6304,37 @@ svg {
 .workspace-chat__notice, .workspace-chat__privacy { margin: 0; }
 .workspace-chat__form { border: 1px solid rgba(18,99,232,0.2); border-radius: var(--radius-md); background: #fff; padding: 12px; box-shadow: var(--shadow-sm); }
 .workspace-chat__form:focus-within { box-shadow: 0 0 0 3px rgba(18,99,232,0.12); }
+.workspace-chat__mode-bar { display: flex; align-items: center; gap: 4px; min-width: 0; overflow-x: auto; padding: 0 0 10px; border-bottom: 1px solid #edf2f7; }
+.workspace-chat__mode-label { flex: none; padding: 0 8px 0 3px; color: #778a9a; font-size: 10px; font-weight: 750; letter-spacing: .08em; }
+.workspace-chat__mode { display: inline-flex; flex: none; align-items: center; gap: 6px; padding: 7px 10px; border: 1px solid transparent; border-radius: 9px; background: transparent; color: #587084; font: inherit; font-size: 12px; font-weight: 650; white-space: nowrap; cursor: pointer; }
+.workspace-chat__mode:hover:not(:disabled) { background: #f1f6fb; color: #174f80; }
+.workspace-chat__mode[aria-pressed="true"] { border-color: #c7def4; background: #eaf4ff; color: #15558e; }
+.workspace-chat__mode:focus-visible { outline: 2px solid #4a91da; outline-offset: 2px; }
+.workspace-chat__mode:disabled { cursor: default; opacity: .55; }
+.workspace-chat__mode:disabled[aria-pressed="true"] { opacity: 1; }
+.workspace-chat__form.is-dragging { border-color: var(--brand-blue); background: #f3f8ff; }
+.workspace-chat__drop-hint { margin: 0 0 6px; color: #175285; font-size: 13px; font-weight: 700; }
+.workspace-chat__send.workspace-chat__send--label { width: auto; min-width: max-content; padding: 0 12px; font: inherit; font-size: 12px; font-weight: 700; white-space: nowrap; }
+.chat-batch-mapping { margin: 8px 0; padding: 12px; border: 1px solid #d4e5f5; border-radius: 10px; background: #f8fbff; font-size: 12px; }
+.chat-batch-mapping__header { display: flex; align-items: flex-start; justify-content: space-between; gap: 8px; }
+.chat-batch-mapping p { margin: 5px 0 10px; color: #536d80; }
+.chat-batch-mapping__fields { display: grid; gap: 8px; max-height: 190px; overflow: auto; }
+.chat-batch-mapping__fields label { display: grid; grid-template-columns: minmax(0, 1fr) minmax(120px, 1fr); gap: 8px; align-items: center; }
+.chat-batch-mapping__fields span { overflow-wrap: anywhere; }
+.chat-batch-mapping__fields select { width: 100%; padding: 6px; border: 1px solid #cbdbe9; border-radius: 7px; background: #fff; font: inherit; }
+.chat-batch-progress { display: grid; gap: 4px; margin: 8px 0; color: #315d7d; font-size: 12px; }
+.chat-batch-progress progress { width: 100%; accent-color: #1769c2; }
+.workspace-chat__ask-file { border: 0; background: transparent; color: #175285; font: inherit; font-size: 12px; cursor: pointer; white-space: nowrap; }
+.workspace-chat__ask-file:disabled { opacity: .5; cursor: default; }
+.workspace-chat__download-all { margin-top: 10px; }
 .workspace-chat__form textarea { display: block; width: 100%; min-height: 80px; resize: vertical; border: 0; outline: 0; background: transparent; color: var(--fg-primary); padding: 4px; }
 .workspace-chat__form-footer { display: flex; align-items: center; justify-content: space-between; gap: 10px; color: var(--fg-secondary); font-size: 12px; }
+.workspace-chat .workspace-chat__form-footer { justify-content: space-between; gap: 10px; }
+.workspace-chat__attachment-actions, .workspace-chat__submit-actions { display: flex; align-items: center; gap: 8px; min-width: 0; flex-wrap: wrap; }
+.workspace-chat__submit-actions { justify-content: flex-end; margin-left: auto; }
+.workspace-chat__model-control { display: flex; align-items: center; gap: 7px; color: #6a7c8d; font-size: 12px; font-weight: 650; }
+.workspace-chat__model-control .workspace-chat__model-select { max-width: min(46vw, 210px); }
+.workspace-chat__send.workspace-chat__send--action { display: inline-flex; width: auto; min-width: 70px; min-height: 38px; align-items: center; justify-content: center; gap: 5px; padding: 0 13px; font: inherit; font-size: 12px; font-weight: 700; white-space: nowrap; }
 .workspace-chat__send { display: grid; width: 32px; height: 32px; flex: none; place-items: center; border-radius: 10px; background: var(--action-primary); box-shadow: 0 1px 2px rgba(18,99,232,0.28); color: #fff; cursor: pointer; transition: background 120ms ease, transform 120ms ease; }
 .workspace-chat__send:hover:not(:disabled) { background: var(--action-primary-hover); }
 .workspace-chat__send:active:not(:disabled) { transform: scale(0.94); }
@@ -6317,6 +6346,9 @@ svg {
   .workspace-chat__thread { min-height: 280px; padding: 14px; }
   .workspace-chat__message { max-width: 96%; }
   .workspace-chat__options > span { flex-basis: 100%; }
+  .workspace-chat__mode-label { display: none; }
+  .workspace-chat__mode { padding-inline: 8px; }
+  .workspace-chat__attachment-actions, .workspace-chat__submit-actions { flex: 1 1 auto; }
 }
 
 .workspace-chat__layout { display: grid; grid-template-columns: minmax(190px, 240px) minmax(0, 1fr); gap: 18px; align-items: start; }
@@ -6521,6 +6553,10 @@ svg {
 .chat-file-preview__body { flex: 1; min-height: 0; overflow: auto; padding: 16px 22px; }
 .chat-file-preview__body p { color: #536d80; font-size: 13px; }
 .chat-file-preview__body pre { white-space: pre-wrap; overflow-wrap: anywhere; font: inherit; line-height: 1.65; }
+.chat-file-preview__presentation { flex: 1; min-height: 0; overflow: auto; color: #536d80; font-size: 13px; }
+.chat-file-preview__presentation canvas { display: block; width: 100%; height: auto; background: #f0f4f8; border: 1px solid #dce7ef; border-radius: 8px; }
+.chat-file-preview__presentation pre { white-space: pre-wrap; overflow-wrap: anywhere; font: inherit; }
+.chat-file-preview__slide-controls { display: flex; justify-content: space-between; align-items: center; gap: 8px; padding: 10px 0; }
 .chat-file-preview__body select { margin: 0 0 12px 6px; padding: 7px; font: inherit; }
 .chat-file-preview__table { max-width: 100%; overflow: auto; border: 1px solid #dce7ef; border-radius: 8px; }
 .chat-file-preview__table table { border-collapse: collapse; width: 100%; font-size: 13px; }

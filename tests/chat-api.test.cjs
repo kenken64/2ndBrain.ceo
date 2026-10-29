@@ -34,11 +34,13 @@ test("chat API checks authentication, model, billing and uncertain failures", as
   };
   const replacements = {
     "@/lib/admin": { isAdminUser: async () => false },
-    "@/lib/chat-files": { saveChatGeneratedPptx: async (_admin, userId, sourceId, name, bytes) => { assert.equal(userId, "user-1"); assert.equal(sourceId, null); assert.ok(bytes.length); if (state.outputFail) throw Error("storage unavailable"); return { id: "pptx-output", name }; }, saveChatOutput: async (_admin, userId, sourceId, name, kind, content) => { state.savedOutput = { userId, sourceId, name, kind, content }; if (state.outputFail) throw Error("storage unavailable"); return { id: "output-1", name: "output.md", origin: "output" }; }, saveChatFile: async (_admin, userId, file) => ({ id: "file-1", name: file.name, size: file.data.length, mime: file.mime, createdAt: "2026-01-01" }), loadChatFile: async (_admin, userId, id) => id === "owned" && userId === "user-1" ? { file: { name: "scan.pdf", type: "pdf", mime: "application/pdf", data: Buffer.from("fixture") }, metadata: { id: "owned", name: "scan.pdf" } } : null },
+    "@/lib/chat-files": { saveChatGeneratedPptx: async (_admin, userId, sourceId, name, bytes) => { assert.equal(userId, "user-1"); assert.equal(sourceId, null); assert.ok(bytes.length); if (state.outputFail) throw Error("storage unavailable"); return { id: "pptx-output", name }; }, saveChatOutput: async (_admin, userId, sourceId, name, kind, content) => { state.savedOutput = { userId, sourceId, name, kind, content }; if (state.outputFail) throw Error("storage unavailable"); return { id: "output-1", name: "output.md", origin: "output" }; }, saveChatFile: async (_admin, userId, file) => ({ id: "file-1", name: file.name, size: file.data.length, mime: file.mime, createdAt: "2026-01-01" }), loadChatFile: async (_admin, userId, id) => userId === "user-1" && (id === "owned" || id === "generated") ? { file: { name: "scan.pdf", type: id === "generated" ? "output" : "pdf", mime: "application/pdf", data: Buffer.from("fixture") }, metadata: { id, name: "scan.pdf" } } : null },
     "@/lib/chat-pptx-generation": { renderChatPresentation: async content => { assert.equal(content.title, "Example"); return Buffer.from("pptx"); } },
     "@/lib/chat-attachments": {
+      validateChatFile: (name, data) => ({ name, data, type: "pdf", mime: "application/pdf" }),
       parseChatAttachment: value => ({ name: value.name, type: value.kind, mime: value.kind === "pdf" ? "application/pdf" : "image/png", data: Buffer.from("fixture") }),
       documentText: async () => "Quarterly report: sales grew 20 percent.",
+      presentationText: async () => "Slide 1\nQuarterly report",
       pdfPageCount: async () => 3,
       spreadsheetContext: async () => '{"sheets":[]}'
     },
@@ -123,12 +125,16 @@ test("chat API checks authentication, model, billing and uncertain failures", as
     reset(); response = await post(request({ ...good, attachment: { name: "report.docx", kind: "document" } }));
     assert.equal(response.status, 200); assert.equal(state.providerBody.model, "google/gemini-2.5-flash");
     assert.match(state.providerBody.messages.at(-1).content, /Word document text/); assert.match(state.providerBody.messages.at(-1).content, /sales grew 20 percent/);
+    reset(); response = await post(request({ ...good, attachment: { name: "slides.pptx", kind: "presentation" } }));
+    assert.equal(response.status, 200); assert.match(state.providerBody.messages.at(-1).content, /PowerPoint slide text/); assert.match(state.providerBody.messages.at(-1).content, /images and charts are not included/);
     reset(); state.mode = "invalid-image"; response = await post(request({ ...good, attachment: { name: "receipt.png", kind: "image" } }));
     const invalid = await response.json(); assert.equal(response.status, 200); assert.equal(invalid.ocr, null); assert.match(invalid.message, /could not be displayed/); assert.equal(state.rpc[1].args.p_status, "completed");
     reset(); response = await post(request({ ...good, fileId: "someone-elses-file" }));
     assert.equal(response.status, 404); assert.equal(state.rpc.length, 0);
     reset(); response = await post(request({ ...good, fileId: "owned" }));
     assert.equal(response.status, 200); assert.equal((await response.json()).savedFile.id, "owned");
+    reset(); response = await post(request({ ...good, fileId: "generated" }));
+    assert.equal(response.status, 200); assert.equal((await response.json()).savedFile.id, "generated"); assert.equal(state.rpc[0].args.p_kind, "pdf_ocr"); assert.equal(state.rpc[1].args.p_status, "completed");
     reset(); state.mode = "usage-unavailable"; response = await post(request({ ...good, attachment: { name: "scan.pdf", kind: "pdf" } }));
     const pending = await response.json();
     assert.equal(response.status, 200); assert.equal(pending.message, "hello"); assert.equal(pending.ocr.markdown, "# Extracted"); assert.equal(pending.usagePending, true);
