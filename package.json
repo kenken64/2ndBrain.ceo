@@ -11,7 +11,7 @@
     "start:standalone": "node .next/standalone/server.js",
     "start:next": "next start",
     "typecheck": "tsc --noEmit",
-    "test:chat": "node --test tests/chat-api.test.cjs tests/chat-credits.test.cjs tests/chat-attachments.test.cjs tests/chat-usage-api.test.cjs tests/chat-files.test.cjs tests/chat-pdf-batch.test.cjs tests/chat-batch-review.test.cjs tests/chat-docx-batch.test.cjs tests/chat-pptx.test.cjs tests/chat-pptx-recovery.test.cjs tests/chat-pptx-retheme.test.cjs tests/chat-image-generation.test.cjs tests/chat-video-generation.test.cjs",
+    "test:chat": "node --test tests/chat-api.test.cjs tests/chat-stream.test.cjs tests/chat-response-metrics.test.cjs tests/chat-credits.test.cjs tests/chat-attachments.test.cjs tests/chat-usage-api.test.cjs tests/chat-files.test.cjs tests/chat-pdf-batch.test.cjs tests/chat-batch-review.test.cjs tests/chat-docx-batch.test.cjs tests/chat-pptx.test.cjs tests/chat-pptx-recovery.test.cjs tests/chat-pptx-retheme.test.cjs tests/chat-image-generation.test.cjs tests/chat-video-generation.test.cjs",
     "test:wechat-auth": "node --test tests/wechat-auth.test.cjs",
     "test:solana": "node --test tests/solana-rpc.test.cjs",
     "admin:load": "node scripts/load-admin-users.mjs",

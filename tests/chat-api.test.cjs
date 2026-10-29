@@ -45,6 +45,7 @@ test("chat API checks authentication, model, billing and uncertain failures", as
       spreadsheetContext: async () => '{"sheets":[]}'
     },
     "@/lib/chat-models": models,
+    "@/lib/chat-stream": compile("lib/chat-stream.ts"),
     "@/lib/env": { hasSupabaseEnv: () => true },
     "@/lib/onboarding": { getUserIdFromClaims: (claims) => claims?.sub || null },
     "@/lib/supabase/admin": { createAdminClient: () => admin, hasSupabaseServiceRoleEnv: () => true },
@@ -75,6 +76,7 @@ test("chat API checks authentication, model, billing and uncertain failures", as
     if (state.mode === "rate") return Response.json({}, { status: 429 });
     if (state.mode === "missing") return Response.json({ id: "gen-1", choices: [{ message: { content: "hello" } }] });
     state.providerBody = JSON.parse(options.body);
+    if (state.mode === "stream") return new Response('data: {"id":"gen-stream","choices":[{"delta":{"content":"Hello"}}]}\n\ndata: {"id":"gen-stream","choices":[{"delta":{"content":" world"},"finish_reason":"stop"}],"usage":{"cost":0.0004,"prompt_tokens":40,"completion_tokens":10}}\n\ndata: [DONE]\n\n', { headers: { "content-type": "text/event-stream" } });
     if (state.mode === "presentation-bad-json") return Response.json({ id: "gen-pptx", choices: [{ message: { content: "Incomplete slide content" }, finish_reason: "length" }], usage: { cost: 0.001 } });
     if (state.mode === "presentation") return Response.json({ id: "gen-pptx", choices: [{ message: { content: JSON.stringify({ title: "Example", slides: [{ title: "Summary", bullets: ["One"] }] }) } }], usage: { cost: 0.001, prompt_tokens: 50, completion_tokens: 20 } });
     if (state.mode === "image") return Response.json({ id: "gen-image", choices: [{ message: { content: JSON.stringify({ transcription: "# Receipt\nTotal: 42", answer: "The total is 42." }) } }], usage: { cost: 0.0004, prompt_tokens: 40, completion_tokens: 10 } });
@@ -99,6 +101,11 @@ test("chat API checks authentication, model, billing and uncertain failures", as
     const data = await response.json();
     assert.equal(response.status, 200); assert.equal(data.message, "hello"); assert.equal(data.chargedCredits, 100);
     assert.equal(state.rpc[1].args.p_status, "completed"); assert.equal(state.providerBody.model, good.model); assert.equal(state.notifications.length, 2);
+    reset(); state.mode = "stream"; response = await post(request({ ...good, stream: true }));
+    const streamed = (await response.text()).trim().split("\n").map(line => JSON.parse(line));
+    assert.deepEqual(streamed.map(item => item.type), ["delta", "delta", "done"]); assert.equal(streamed[2].chargedCredits, 100); assert.equal(streamed[2].outputTokens, 10); assert.ok(streamed[2].generationMs >= 0);
+    assert.equal(state.providerBody.stream, true); assert.equal(state.providerBody.max_tokens, 4096); assert.equal(state.rpc[1].args.p_status, "completed"); assert.equal(state.rpc[1].args.p_provider_request_id, "gen-stream"); assert.equal(state.rpc[1].args.p_cost_usd, 0.0004);
+    reset(); response = await post(request({ ...good, stream: true, attachment: { name: "scan.pdf", kind: "pdf" } })); assert.equal(response.status, 400); assert.equal(state.rpc.length, 0);
     reset(); state.mode = "presentation"; response = await post(request({ ...good, outputFormat: "pptx" }));
     const pptx = await response.json(); assert.equal(response.status, 200); assert.equal(pptx.savedOutput.id, "pptx-output"); assert.equal(state.rpc[0].args.p_kind, "pptx_generation"); assert.equal(state.rpc[1].args.p_cost_usd, 0.001); assert.equal(state.providerBody.response_format.type, "json_schema");
     reset(); state.mode = "presentation"; state.outputFail = true; response = await post(request({ ...good, outputFormat: "pptx" }));
@@ -110,7 +117,7 @@ test("chat API checks authentication, model, billing and uncertain failures", as
     reset(); response = await post(request({ ...good, outputFormat: "pptx", attachment: { name: "scan.pdf", kind: "pdf" } })); assert.equal(response.status, 400); assert.equal(state.rpc.length, 0);
     reset(); response = await post(request({ ...good, attachment: { name: "scan.pdf", kind: "pdf" } }));
     const pdf = await response.json();
-    assert.equal(response.status, 200); assert.equal(pdf.ocr.markdown, "# Extracted");
+    assert.equal(response.status, 200); assert.equal(pdf.ocr.markdown, "# Extracted"); assert.equal(pdf.outputTokens, 10); assert.ok(pdf.generationMs >= 0);
     assert.equal(pdf.savedOutput.id, "output-1"); assert.equal(state.savedOutput.userId, "user-1"); assert.equal(state.savedOutput.sourceId, "file-1"); assert.equal(state.savedOutput.kind, "ocr"); assert.equal(state.savedOutput.content, "# Extracted");
     assert.equal(state.providerBody.plugins[0].pdf.engine, "mistral-ocr"); assert.equal(state.providerBody.model, "google/gemini-2.5-flash");
     assert.match(state.providerBody.messages.at(-1).content[0].text, /First use OCR/); assert.match(state.providerBody.messages.at(-1).content[0].text, /User request: Hello/);

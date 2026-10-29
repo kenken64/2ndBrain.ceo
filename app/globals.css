@@ -6350,6 +6350,8 @@ svg {
 .workspace-chat__send.workspace-chat__send--action { display: inline-flex; width: auto; min-width: 70px; min-height: 38px; align-items: center; justify-content: center; gap: 5px; padding: 0 13px; font: inherit; font-size: 12px; font-weight: 700; white-space: nowrap; }
 .workspace-chat__send { display: grid; width: 32px; height: 32px; flex: none; place-items: center; border-radius: 10px; background: var(--action-primary); box-shadow: 0 1px 2px rgba(18,99,232,0.28); color: #fff; cursor: pointer; transition: background 120ms ease, transform 120ms ease; }
 .workspace-chat__send:hover:not(:disabled) { background: var(--action-primary-hover); }
+.workspace-chat__send.workspace-chat__stop { background: #344c62; }
+.workspace-chat__send.workspace-chat__stop:hover:not(:disabled) { background: #243b50; }
 .workspace-chat__send:active:not(:disabled) { transform: scale(0.94); }
 .workspace-chat__send:focus-visible { outline: 2px solid var(--action-primary); outline-offset: 2px; }
 .workspace-chat__send:disabled { background: var(--bg-subtle); box-shadow: none; color: var(--fg-muted); cursor: not-allowed; }
@@ -6664,4 +6666,32 @@ svg {
 @keyframes page-progress-appear { to { opacity: 1; } }
 @media (prefers-reduced-motion: reduce) {
   .page-progress__track::after { animation: none; transform: translateX(75%); }
+}
+
+.chat-response-tools { display: flex; align-items: center; gap: 8px; margin-top: 12px; padding-top: 9px; border-top: 1px solid var(--border-soft); }
+.chat-response-tools__stats { display: flex; flex: 1; flex-wrap: wrap; gap: 3px 12px; color: var(--fg-muted); font-size: 11px; line-height: 1.5; }
+.chat-response-tools__copy { display: grid; width: 30px; height: 30px; flex: none; place-items: center; border: 1px solid var(--border-soft); border-radius: 8px; background: transparent; color: var(--fg-muted); cursor: pointer; }
+.chat-response-tools__copy:hover { color: var(--action-primary); background: var(--bg-subtle); }
+.chat-response-tools__copy:focus-visible { outline: 2px solid var(--action-primary); outline-offset: 2px; }
+.chat-response-tools__status { color: var(--fg-muted); font-size: 11px; }
+.chat-response-tools__status:empty { display: none; }
+
+/* Give the selected graph the available desktop workspace; short screens can scroll. */
+@media (min-width: 1025px) {
+  .dashboard-main--graph { display: flex; flex-direction: column; height: 100dvh; min-height: 620px; padding: 24px clamp(20px, 2vw, 32px); }
+  .dashboard-main--graph .dashboard-topbar { flex: none; }
+  .graph-workbench--visualization { display: flex; flex: 1; flex-direction: column; width: 100%; min-height: 0; margin: 18px 0 0; }
+  .graph-workbench--visualization .graph-workbench__header { flex: none; }
+  .graph-workbench--visualization .graph-explorer { display: flex; flex: 1; flex-direction: column; min-height: 0; }
+  .graph-workbench--visualization .graph-view-switch { flex: none; }
+  .graph-workbench--visualization .graph3d-shell:not(:fullscreen),
+  .graph-workbench--visualization .knowledge-graph-shell { flex: 1; height: auto; min-height: 300px; }
+}
+.graph-workbench--visualization .graph-explorer__heading { display: flex; align-items: center; gap: 14px; margin-bottom: 14px; }
+.graph-workbench--visualization .graph-workbench__header { flex: 1; align-items: center; min-width: 0; margin: 0; }
+.graph-workbench--visualization .graph-view-switch { flex: none; margin: 0; }
+@media (max-width: 600px) {
+  .graph-workbench--visualization .graph-explorer__heading { flex-wrap: wrap; }
+  .graph-workbench--visualization .graph-workbench__header { flex-basis: 100%; }
+  .graph-workbench--visualization .graph-view-switch { margin-left: auto; }
 }

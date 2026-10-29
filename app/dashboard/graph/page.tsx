@@ -292,25 +292,17 @@ export default async function DashboardGraphPage({ searchParams }: GraphPageProp
           ownerName={context.profile.owner_name}
           showAdmin={showAdmin}
         />
-        <main className="dashboard-main">
+        <main className="dashboard-main dashboard-main--graph">
           <div className="dashboard-topbar">
             <AnnouncementPill>{context.project?.title ?? "Knowledge Graph"}</AnnouncementPill>
             <a className="btn-primary" href="/dashboard/wiki">
               Nth Brain
             </a>
           </div>
-          <section className="graph-workbench">
-            <div className="graph-workbench__header">
-              <div>
-                <p className="workspace-status-card__eyebrow">Knowledge Graph</p>
-                <h1>Node map</h1>
-              </div>
-              <span className="project-status project-status--running">
-                {graphNodes.length} nodes
-              </span>
-            </div>
+          <section className="graph-workbench graph-workbench--visualization">
             <KnowledgeGraph
               edges={(edges ?? []) as GraphEdge[]}
+              heading={<div className="graph-workbench__header"><div><p className="workspace-status-card__eyebrow">Knowledge Graph</p><h1>Node map</h1></div><span className="project-status project-status--running">{graphNodes.length} nodes</span></div>}
               nodes={graphNodes}
               highlightPath={highlightPath}
               projectId={projectId}

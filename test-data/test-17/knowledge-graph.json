@@ -1,0 +1,13 @@
+{
+  "nodes": [
+    {"id":"customer","label":"Customer","node_type":"person","slug":"customer"},
+    {"id":"meeting","label":"Meeting notes","node_type":"page","slug":"meeting"},
+    {"id":"decision","label":"Pilot decision","node_type":"decision","slug":"decision"},
+    {"id":"topic","label":"Support pilot","node_type":"concept","slug":"topic"}
+  ],
+  "edges": [
+    {"id":"one","from_node_id":"customer","to_node_id":"meeting","relation":"attended","weight":1},
+    {"id":"two","from_node_id":"meeting","to_node_id":"decision","relation":"records","weight":1},
+    {"id":"three","from_node_id":"decision","to_node_id":"topic","relation":"about","weight":1}
+  ]
+}

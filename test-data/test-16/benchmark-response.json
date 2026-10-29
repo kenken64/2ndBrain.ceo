@@ -1,0 +1,8 @@
+{
+  "content": "The agent follows instructions. The operator reviews its work.",
+  "elapsedMs": 2500,
+  "generationMs": 2000,
+  "outputTokens": 30,
+  "expectedWords": 9,
+  "expectedTokensPerSecond": 15
+}

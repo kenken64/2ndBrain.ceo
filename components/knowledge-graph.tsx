@@ -6,7 +6,7 @@ import cytoscape, { type Core, type ElementDefinition, type LayoutOptions } from
 import fcose from "cytoscape-fcose";
 import { KnowledgeGraph3D } from "@/components/knowledge-graph-3d";
 import { ChevronLeft, ChevronRight, Search, X } from "lucide-react";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 
 cytoscape.use(fcose);
 
@@ -31,6 +31,7 @@ type GraphEdge = {
 
 type KnowledgeGraphProps = {
   edges: GraphEdge[];
+  heading?: ReactNode;
   highlightPath?: string | null;
   nodes: GraphNode[];
   projectId?: string | null;
@@ -785,12 +786,12 @@ function KnowledgeGraph2D({ edges, highlightPath, nodes, projectId, rootLabel }:
 export function KnowledgeGraph(props: KnowledgeGraphProps) {
   const [view, setView] = useState<"3d" | "2d">("3d");
   const graph = useMemo(() => buildConnectedGraph(props.nodes, props.edges, props.rootLabel), [props.nodes, props.edges, props.rootLabel]);
-  if (props.nodes.length === 0) return <div className="empty-state">No graph nodes indexed yet. Open the Nth Brain and run Generate knowledge graph.</div>;
+  if (props.nodes.length === 0) return <>{props.heading}<div className="empty-state">No graph nodes indexed yet. Open the Nth Brain and run Generate knowledge graph.</div></>;
   return <div className="graph-explorer">
-    <div className="graph-view-switch" role="group" aria-label="Graph view">
+    <div className="graph-explorer__heading">{props.heading}<div className="graph-view-switch" role="group" aria-label="Graph view">
       <button type="button" aria-pressed={view === "3d"} onClick={() => setView("3d")}>3D galaxy</button>
       <button type="button" aria-pressed={view === "2d"} onClick={() => setView("2d")}>2D map</button>
-    </div>
+    </div></div>
     {view === "3d" ? <KnowledgeGraph3D nodes={graph.nodes} edges={graph.edges} directEdgeCount={graph.directEdgeCount} componentCount={graph.componentCount} projectId={props.projectId} highlightPath={props.highlightPath} /> : <KnowledgeGraph2D {...props} />}
   </div>;
 }

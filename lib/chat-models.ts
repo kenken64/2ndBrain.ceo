@@ -15,7 +15,7 @@ export type ChatMessage = { role: "user" | "assistant"; content: string };
 export const CHAT_MAX_MESSAGES = 20;
 export const CHAT_MAX_MESSAGE_CHARS = 8_000;
 export const CHAT_MAX_TOTAL_BYTES = 40_000;
-export const CHAT_MAX_OUTPUT_TOKENS = 1_200;
+export const CHAT_MAX_OUTPUT_TOKENS = 4_096;
 
 export function isChatModel(value: unknown): value is ChatModelId {
   return typeof value === "string" && CHAT_MODELS.some((model) => model.id === value);

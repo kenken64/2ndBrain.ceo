@@ -1,0 +1,11 @@
+: synthetic offline OpenRouter stream; no real request or cost
+
+data: {"id":"fixture-generation","choices":[{"delta":{"content":"The agent began with a simple instruction. "}}]}
+
+data: {"id":"fixture-generation","choices":[{"delta":{"content":"Then it stopped listening. Café."},"finish_reason":"stop"}]}
+
+data: {"id":"fixture-generation","choices":[],"usage":{"prompt_tokens":20,"completion_tokens":15,"cost":0.0002}}
+
+data: [DONE]
+
+: end of fixture

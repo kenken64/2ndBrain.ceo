@@ -9,6 +9,7 @@ import { createAdminClient, hasSupabaseServiceRoleEnv } from "@/lib/supabase/adm
 import { createClient } from "@/lib/supabase/server";
 import { publishTokenQuotaUpdate } from "@/lib/token-quota-redis";
 import { renderChatPresentation } from "@/lib/chat-pptx-generation";
+import { streamChatResponse } from "@/lib/chat-stream";
 
 export const runtime = "nodejs";
 export const maxDuration = 120;
@@ -61,7 +62,7 @@ function reservationCredits(pricing: Pricing, messages: ChatMessage[], attachmen
 
 function userError(message: string, status: number) { return NextResponse.json({ error: message }, { status }); }
 
-async function getPdfGenerationCost(providerId: string, apiKey: string) {
+async function getGenerationCost(providerId: string, apiKey: string) {
   for (const delay of PDF_USAGE_RETRY_DELAYS_MS) {
     if (delay) await new Promise(resolve => setTimeout(resolve, delay));
     try {
@@ -95,9 +96,10 @@ export async function POST(request: Request) {
   const raw = await readRequestBody(request);
   const body = raw && typeof raw === "object" ? raw as Record<string, unknown> : null;
   const presentation = body?.outputFormat === "pptx";
-  let model = body?.model;
+  const requestedModel = body?.model;
   const messages = validateChatMessages(body?.messages);
-  if (!isChatModel(model) || !messages) return userError("Choose a model and enter a valid message.", 400);
+  if (!isChatModel(requestedModel) || !messages) return userError("Choose a model and enter a valid message.", 400);
+  let model = requestedModel;
   const context = typeof body?.fileContext === "string" ? body.fileContext : "";
   if (presentation && (body?.fileId != null || body?.attachment != null || context)) return userError("Generate a PowerPoint from a prompt without attachments.", 400);
   if (Buffer.byteLength(context) > 28_000) return userError("File context is too large. Start a new chat or upload a smaller file.", 400);
@@ -141,6 +143,8 @@ export async function POST(request: Request) {
   } catch (error) {
     return userError(error instanceof Error ? error.message : "Could not read attachment.", 400);
   }
+  const streaming = body?.stream === true;
+  if (streaming && (attachment || presentation)) return userError("Streaming is currently available for text chat without attachments.", 400);
 
 
   let reserve: number;
@@ -217,10 +221,12 @@ export async function POST(request: Request) {
         providerMessages[providerMessages.length - 1] = { role: "user", content };
       }
     }
+    const upstreamAbort = new AbortController();
+    const providerStartedAt = performance.now();
     const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
-      method: "POST", signal: AbortSignal.timeout(90_000),
+      method: "POST", signal: streaming ? AbortSignal.any([request.signal, upstreamAbort.signal, AbortSignal.timeout(100_000)]) : AbortSignal.timeout(90_000),
       headers: { Authorization: `Bearer ${process.env.OPENROUTER_API_KEY.trim()}`, "Content-Type": "application/json", "X-Title": "AI CUBER" },
-      body: JSON.stringify({ model, user: userId, messages: providerMessages, max_tokens: presentation || (attachment && attachment.type !== "spreadsheet") ? FILE_OUTPUT_TOKENS : CHAT_MAX_OUTPUT_TOKENS, stream: false, usage: { include: true }, ...(attachment?.type === "pdf" ? { plugins: [{ id: "file-parser", pdf: { engine: "mistral-ocr" } }] } : {}), ...(presentation ? { provider: { require_parameters: true }, response_format: { type: "json_schema", json_schema: { name: "presentation_content", strict: true, schema: { type: "object", properties: { title: { type: "string" }, slides: { type: "array", items: { type: "object", properties: { title: { type: "string" }, bullets: { type: "array", items: { type: "string" } } }, required: ["title", "bullets"], additionalProperties: false } } }, required: ["title", "slides"], additionalProperties: false } } } } : attachment?.type === "image" ? { provider: { require_parameters: true }, response_format: { type: "json_schema", json_schema: { name: "image_ocr_and_answer", strict: true, schema: { type: "object", properties: { transcription: { type: "string" }, answer: { type: "string" } }, required: ["transcription", "answer"], additionalProperties: false } } } } : {}) })
+      body: JSON.stringify({ model, user: userId, messages: providerMessages, max_tokens: presentation || (attachment && attachment.type !== "spreadsheet") ? FILE_OUTPUT_TOKENS : CHAT_MAX_OUTPUT_TOKENS, stream: streaming, usage: { include: true }, ...(attachment?.type === "pdf" ? { plugins: [{ id: "file-parser", pdf: { engine: "mistral-ocr" } }] } : {}), ...(presentation ? { provider: { require_parameters: true }, response_format: { type: "json_schema", json_schema: { name: "presentation_content", strict: true, schema: { type: "object", properties: { title: { type: "string" }, slides: { type: "array", items: { type: "object", properties: { title: { type: "string" }, bullets: { type: "array", items: { type: "string" } } }, required: ["title", "bullets"], additionalProperties: false } } }, required: ["title", "slides"], additionalProperties: false } } } } : attachment?.type === "image" ? { provider: { require_parameters: true }, response_format: { type: "json_schema", json_schema: { name: "image_ocr_and_answer", strict: true, schema: { type: "object", properties: { transcription: { type: "string" }, answer: { type: "string" } }, required: ["transcription", "answer"], additionalProperties: false } } } } : {}) })
     });
     if (!response.ok) {
       const knownFailure = attachment?.type !== "pdf" && response.status >= 400 && response.status < 500 && response.status !== 408;
@@ -229,14 +235,25 @@ export async function POST(request: Request) {
       if (!settled || !knownFailure) return userError("The request could not be confirmed. Reserved credits are held for review; contact support before retrying.", 502);
       return userError("The selected model could not respond. Please try again.", 502);
     }
+    if (streaming) {
+      if (!response.body || !response.headers.get("content-type")?.toLowerCase().includes("text/event-stream")) {
+        upstreamAbort.abort();
+        if (response.body) void response.body.cancel().catch(() => undefined);
+        await settle("uncertain", null, response.headers.get("x-generation-id"));
+        return userError("The AI provider did not return a stream. Usage is unconfirmed; check AI Credits Usage before retrying.", 502);
+      }
+      return streamChatResponse({ upstream: response, requestSignal: request.signal, upstreamAbort, startedAt: providerStartedAt, model, quotaExempt: isAdmin, settle, lookupCost: id => getGenerationCost(id, process.env.OPENROUTER_API_KEY!.trim()) });
+    }
     const result = await response.json() as { id?: unknown; choices?: Array<{ finish_reason?: string; message?: { content?: unknown; annotations?: Array<{ type?: string; file?: { content?: Array<{ type?: string; text?: string }> } }> } }>; usage?: { cost?: unknown; prompt_tokens?: unknown; completion_tokens?: unknown } };
+    const generationMs = Math.max(0, performance.now() - providerStartedAt);
+    const outputTokens = typeof result.usage?.completion_tokens === "number" && Number.isSafeInteger(result.usage.completion_tokens) && result.usage.completion_tokens >= 0 ? result.usage.completion_tokens : undefined;
     const providerId = typeof result.id === "string" ? result.id : null;
     lastProviderId = providerId;
     let cost = typeof result.usage?.cost === "number" && Number.isFinite(result.usage.cost) && result.usage.cost >= 0 ? result.usage.cost : null;
     if (attachment?.type === "pdf") {
       // PDF parsing may be charged even when the inference provider fails. Use
       // the generation's total cost instead of assuming token cost includes it.
-      cost = providerId ? await getPdfGenerationCost(providerId, process.env.OPENROUTER_API_KEY.trim()) : null;
+      cost = providerId ? await getGenerationCost(providerId, process.env.OPENROUTER_API_KEY.trim()) : null;
     }
     const text = typeof result.choices?.[0]?.message?.content === "string" ? result.choices[0].message.content : "";
     const usagePending = cost === null && attachment?.type === "pdf" && Boolean(text.trim());
@@ -257,15 +274,15 @@ export async function POST(request: Request) {
       } catch (error) {
         console.error("[chat:pptx] Could not render AI response", { requestId, errorType: error instanceof Error ? error.name : "unknown" });
         const returned = text.slice(0, 23_000);
-        return NextResponse.json({ message: `The AI request was billed, but the returned content could not be converted into a PowerPoint. No additional AI request was made. The returned content is below so you can copy it.${text.length > returned.length ? " The content was truncated for display." : ""}\n\n${returned}`, model, chargedCredits: Number(settled?.charged_credits ?? 0), availableCredits: Math.max(0, Number(settled?.llm_token_quota ?? 0) - Number(settled?.llm_token_used ?? 0)), quotaExempt: isAdmin }, { headers: { "Cache-Control": "private, no-store" } });
+        return NextResponse.json({ message: `The AI request was billed, but the returned content could not be converted into a PowerPoint. No additional AI request was made. The returned content is below so you can copy it.${text.length > returned.length ? " The content was truncated for display." : ""}\n\n${returned}`, model, generationMs, outputTokens, chargedCredits: Number(settled?.charged_credits ?? 0), availableCredits: Math.max(0, Number(settled?.llm_token_quota ?? 0) - Number(settled?.llm_token_used ?? 0)), quotaExempt: isAdmin }, { headers: { "Cache-Control": "private, no-store" } });
       }
       try {
         const output = await saveChatGeneratedPptx(admin, userId, null, "presentation.pptx", bytes);
-        return NextResponse.json({ message: "Your PowerPoint presentation is ready. Longer content may continue onto additional slides; review it in the chat or download it from My files.", model, savedOutput: output, chargedCredits: Number(settled?.charged_credits ?? 0), availableCredits: Math.max(0, Number(settled?.llm_token_quota ?? 0) - Number(settled?.llm_token_used ?? 0)), quotaExempt: isAdmin });
+        return NextResponse.json({ message: "Your PowerPoint presentation is ready. Longer content may continue onto additional slides; review it in the chat or download it from My files.", model, generationMs, outputTokens, savedOutput: output, chargedCredits: Number(settled?.charged_credits ?? 0), availableCredits: Math.max(0, Number(settled?.llm_token_quota ?? 0) - Number(settled?.llm_token_used ?? 0)), quotaExempt: isAdmin });
       } catch (error) {
         console.error("[chat:pptx] Could not save presentation", { requestId, errorType: error instanceof Error ? error.name : "unknown" });
-        if (bytes.length <= 5 * 1024 * 1024) return NextResponse.json({ message: "Your presentation was created, but could not be saved to My files. Download it or retry saving below without another AI charge. The download is available only until you leave or refresh this page.", model, recoveryPptx: bytes.toString("base64"), chargedCredits: Number(settled?.charged_credits ?? 0), availableCredits: Math.max(0, Number(settled?.llm_token_quota ?? 0) - Number(settled?.llm_token_used ?? 0)), quotaExempt: isAdmin }, { headers: { "Cache-Control": "private, no-store" } });
-        return NextResponse.json({ message: `The AI request was billed, but the presentation could not be saved and is too large for a recovery download. No additional AI request was made. The returned content is below so you can copy it.\n\n${text.slice(0, 23_000)}`, model, chargedCredits: Number(settled?.charged_credits ?? 0), availableCredits: Math.max(0, Number(settled?.llm_token_quota ?? 0) - Number(settled?.llm_token_used ?? 0)), quotaExempt: isAdmin }, { headers: { "Cache-Control": "private, no-store" } });
+        if (bytes.length <= 5 * 1024 * 1024) return NextResponse.json({ message: "Your presentation was created, but could not be saved to My files. Download it or retry saving below without another AI charge. The download is available only until you leave or refresh this page.", model, generationMs, outputTokens, recoveryPptx: bytes.toString("base64"), chargedCredits: Number(settled?.charged_credits ?? 0), availableCredits: Math.max(0, Number(settled?.llm_token_quota ?? 0) - Number(settled?.llm_token_used ?? 0)), quotaExempt: isAdmin }, { headers: { "Cache-Control": "private, no-store" } });
+        return NextResponse.json({ message: `The AI request was billed, but the presentation could not be saved and is too large for a recovery download. No additional AI request was made. The returned content is below so you can copy it.\n\n${text.slice(0, 23_000)}`, model, generationMs, outputTokens, chargedCredits: Number(settled?.charged_credits ?? 0), availableCredits: Math.max(0, Number(settled?.llm_token_quota ?? 0) - Number(settled?.llm_token_used ?? 0)), quotaExempt: isAdmin }, { headers: { "Cache-Control": "private, no-store" } });
       }
     }
     const annotations = result.choices?.[0]?.message?.annotations ?? [];
@@ -291,7 +308,7 @@ export async function POST(request: Request) {
         console.error("[chat] Could not save generated file", error instanceof Error ? error.message : "unknown");
       }
     }
-    return NextResponse.json({ message: answer, model, savedFile, savedOutput, outputSaveFailed, ocr: extracted ? { name: attachment?.name, markdown: extracted.slice(0, 100_000), truncated: extracted.length > 100_000 || (attachment?.type === "image" && result.choices?.[0]?.finish_reason === "length") } : null, spreadsheet: spreadsheet || undefined, usagePending, ...(settled && !usagePending ? { chargedCredits: Number(settled.charged_credits ?? 0), availableCredits: Math.max(0, Number(settled.llm_token_quota) - Number(settled.llm_token_used)) } : {}), quotaExempt: isAdmin });
+    return NextResponse.json({ message: answer, model, generationMs, outputTokens, savedFile, savedOutput, outputSaveFailed, ocr: extracted ? { name: attachment?.name, markdown: extracted.slice(0, 100_000), truncated: extracted.length > 100_000 || (attachment?.type === "image" && result.choices?.[0]?.finish_reason === "length") } : null, spreadsheet: spreadsheet || undefined, usagePending, ...(settled && !usagePending ? { chargedCredits: Number(settled.charged_credits ?? 0), availableCredits: Math.max(0, Number(settled.llm_token_quota) - Number(settled.llm_token_used)) } : {}), quotaExempt: isAdmin });
   } catch {
     const settled = await settle("uncertain", null, lastProviderId).catch(() => null);
     return userError(settled ? "The request could not be confirmed. Reserved credits are held for review; contact support before retrying." : "Chat is temporarily unavailable. Your reservation will be reviewed.", 502);

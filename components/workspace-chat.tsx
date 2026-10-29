@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState, type FormEvent, type KeyboardEvent } from "react";
 import { createPortal } from "react-dom";
-import { ArrowDown, ArrowUp, Bot, Download, Eye, FileText, Image as ImageIcon, MessageSquare, Paperclip, Presentation, Video, X } from "lucide-react";
+import { ArrowDown, ArrowUp, Bot, Download, Eye, FileText, Image as ImageIcon, MessageSquare, Paperclip, Presentation, Square, Video, X } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import rehypeHighlight from "rehype-highlight";
 import remarkGfm from "remark-gfm";
@@ -10,7 +10,10 @@ import { CHAT_MAX_MESSAGE_CHARS, CHAT_MAX_MESSAGES, CHAT_MAX_TOTAL_BYTES, CHAT_M
 import { ChatSavedFiles } from "@/components/chat-saved-files";
 import { ChatFilePreviewContent } from "@/components/chat-file-preview";
 import { ChatBatchMapping, type BatchReview } from "@/components/chat-batch-mapping";
+import { ChatResponseTools } from "@/components/chat-response-tools";
 import { readBatchProgress, type BatchProgress } from "@/lib/chat-batch-client";
+import { readChatStream } from "@/lib/chat-stream-client";
+import { isChatResponseMetrics } from "@/lib/chat-response-metrics";
 import { CHAT_FILE_MAX_BYTES, type SavedChatFile } from "@/lib/chat-files-shared";
 import type { ChatConversation, ChatSummary, HistoryMessage, FileArtifact } from "@/lib/chat-history";
 
@@ -68,11 +71,16 @@ export function WorkspaceChat({ userId, configured, initialChatId }: { userId: s
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
   const [busy, setBusy] = useState(false);
+  const [streamingResponse, setStreamingResponse] = useState<{ chatId: string; text: string; model: ChatModelId } | null>(null);
+  const [unsavedResponses, setUnsavedResponses] = useState<Array<{ chatId: string; text: string; model: ChatModelId }>>([]);
+  const [canStop, setCanStop] = useState(false);
+  const [stopping, setStopping] = useState(false);
   const [showJumpToLatest, setShowJumpToLatest] = useState(false);
   const [historyTarget, setHistoryTarget] = useState<HTMLElement | null>(null);
   const apiRef = useRef<HistoryApi | null>(null);
   const memoryRef = useRef(new Map<string, ChatConversation>());
   const busyRef = useRef(false);
+  const streamAbortRef = useRef<AbortController | null>(null);
   const newChatRef = useRef<() => void>(() => undefined);
   const threadRef = useRef<HTMLDivElement>(null);
   const isAtBottomRef = useRef(true);
@@ -129,6 +137,10 @@ export function WorkspaceChat({ userId, configured, initialChatId }: { userId: s
     let disposed = false;
     memoryRef.current.clear();
     setChat(null);
+    setStreamingResponse(null);
+    setUnsavedResponses([]);
+    setCanStop(false);
+    setStopping(false);
     setChats([]);
     setPrompt("");
     setFiles([]);
@@ -164,7 +176,7 @@ export function WorkspaceChat({ userId, configured, initialChatId }: { userId: s
         setCacheState("unavailable");
       }
     })();
-    return () => { disposed = true; apiRef.current = null; };
+    return () => { disposed = true; apiRef.current = null; streamAbortRef.current?.abort(); streamAbortRef.current = null; };
   }, [initialChatId, userId]);
 
   useEffect(() => {
@@ -187,7 +199,7 @@ export function WorkspaceChat({ userId, configured, initialChatId }: { userId: s
   useEffect(() => {
     const thread = threadRef.current;
     if (thread && isAtBottomRef.current) thread.scrollTo({ top: thread.scrollHeight, behavior: "smooth" });
-  }, [chat?.messages, busy]);
+  }, [chat?.messages, busy, streamingResponse?.text]);
 
   function handleThreadScroll() {
     const thread = threadRef.current;
@@ -281,21 +293,37 @@ export function WorkspaceChat({ userId, configured, initialChatId }: { userId: s
     setNotice("");
     const file = files[0] ?? followUpFile;
     const model = file || generationMode === "pptx" ? FILE_CHAT_MODEL : chat.model;
+    const streamChat = generationMode === "chat" && !file && !batch && !isPowerPointTransfer;
+    const streamController = streamChat ? new AbortController() : null;
+    let streamText = "", requestStarted = false, responseSaved = false, requestStartedAt = 0;
+    if (streamController) {
+      streamAbortRef.current = streamController;
+      setStreamingResponse({ chatId: chat.id, text: "", model });
+      setCanStop(true); setStopping(false);
+    }
     const work = async () => {
       const priorArtifact = [...chat.messages].reverse().find(message => message.artifact)?.artifact;
       let pending = await persist({ ...chat, messages: [...chat.messages, { role: "user", content: value, ...(files.length ? { fileRefs: files.map(({ id, name }) => ({ id, name })) } : followUpFile ? { fileRef: followUpFile } : {}) }] });
       setPrompt("");
       try {
+        if (streamController?.signal.aborted) throw new DOMException("Stopped", "AbortError");
         const fileContext = !file && priorArtifact ? `${priorArtifact.content.length > 6000 ? "PARTIAL EXCERPT: remaining file data is not included. Do not infer statistics for the complete file.\n" : ""}${priorArtifact.content.slice(0, 6000)}` : undefined;
-        const response = await fetch(generationMode === "image" ? "/api/chat/generate-image" : generationMode === "video" ? "/api/chat/generate-video" : isPowerPointTransfer ? "/api/chat/retheme-pptx" : batch ? "/api/chat/batch-review" : "/api/chat", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(generationMode === "image" || generationMode === "video" ? { prompt: value } : isPowerPointTransfer ? { sourceId: files[0].id, templateId: files[1].id } : batch ? { action: "run", mappings: review!.mappings, fileIds: files.map(item => item.id) } : { model, messages: historyForRequest(pending.messages), ...(generationMode === "pptx" ? { outputFormat: "pptx" } : { fileId: file?.id, fileContext }) }) });
-        let payload: { message?: unknown; error?: unknown; model?: unknown; recoveryPptx?: unknown; ocr?: { name?: unknown; markdown?: unknown; truncated?: unknown } | null; spreadsheet?: unknown; savedOutput?: { id?: unknown; name?: unknown }; savedOutputs?: Array<{ id?: unknown; name?: unknown }>; batchSaveIncomplete?: boolean; outputSaveFailed?: boolean; usagePending?: boolean; chargedCredits?: unknown; availableCredits?: unknown; quotaExempt?: unknown } | null;
+        requestStarted = true;
+        requestStartedAt = performance.now();
+        const response = await fetch(generationMode === "image" ? "/api/chat/generate-image" : generationMode === "video" ? "/api/chat/generate-video" : isPowerPointTransfer ? "/api/chat/retheme-pptx" : batch ? "/api/chat/batch-review" : "/api/chat", { method: "POST", headers: { "Content-Type": "application/json" }, signal: streamController?.signal, body: JSON.stringify(generationMode === "image" || generationMode === "video" ? { prompt: value } : isPowerPointTransfer ? { sourceId: files[0].id, templateId: files[1].id } : batch ? { action: "run", mappings: review!.mappings, fileIds: files.map(item => item.id) } : { model, messages: historyForRequest(pending.messages), ...(generationMode === "pptx" ? { outputFormat: "pptx" } : { fileId: file?.id, fileContext, ...(streamChat ? { stream: true } : {}) }) }) });
+        let payload: { message?: unknown; error?: unknown; model?: unknown; generationMs?: unknown; outputTokens?: unknown; recoveryPptx?: unknown; ocr?: { name?: unknown; markdown?: unknown; truncated?: unknown } | null; spreadsheet?: unknown; savedOutput?: { id?: unknown; name?: unknown }; savedOutputs?: Array<{ id?: unknown; name?: unknown }>; batchSaveIncomplete?: boolean; outputSaveFailed?: boolean; usagePending?: boolean; truncated?: boolean; chargedCredits?: unknown; availableCredits?: unknown; quotaExempt?: unknown } | null;
         if (batch) {
           const result = await readBatchProgress(response, setBatchProgress);
           const mapping = review!.mappings.map(item => `- ${item.field.slice(0, 100)} ← ${item.column?.slice(0, 100)}`).join("\n");
           const failures = result.progress.failed.map(item => `- Row ${item.row}: ${item.error.slice(0, 100)}`).join("\n");
           payload = { message: `Generated ${result.progress.succeeded} of ${result.progress.total} documents; ${result.progress.failed.length} need attention. No AI credits were used.\n\n**Approved field mapping:**\n${mapping}${failures ? `\n\n**Rows needing attention:**\n${failures}` : ""}`, savedOutputs: result.files, batchSaveIncomplete: result.progress.failed.length > 0 };
+        } else if (streamChat) {
+          payload = await readChatStream(response, text => { streamText = text; setStreamingResponse({ chatId: chat.id, text, model }); });
+          setCanStop(false); streamAbortRef.current = null;
         } else payload = await response.json().catch(() => null);
         if (!response.ok || typeof payload?.message !== "string") throw new Error(typeof payload?.error === "string" ? payload.error : "Unable to get a response. Please try again.");
+        const metricsCandidate = { elapsedMs: Math.max(0, performance.now() - requestStartedAt), generationMs: payload.generationMs, outputTokens: payload.outputTokens };
+        const metrics = isChatResponseMetrics(metricsCandidate) ? metricsCandidate : { elapsedMs: metricsCandidate.elapsedMs };
         const responseModel = isChatModel(payload.model) ? payload.model : model;
         if (typeof payload.recoveryPptx === "string" && payload.recoveryPptx.length <= Math.ceil(5 * 1024 * 1024 / 3) * 4 + 4) {
           try {
@@ -309,7 +337,9 @@ export function WorkspaceChat({ userId, configured, initialChatId }: { userId: s
         if (artifact) setPanelSelection("artifact");
         const outputFile = payload.savedOutput && typeof payload.savedOutput.id === "string" && typeof payload.savedOutput.name === "string" ? { id: payload.savedOutput.id, name: payload.savedOutput.name } : undefined;
         const outputFiles = Array.isArray(payload.savedOutputs) ? payload.savedOutputs.filter((item): item is { id: string; name: string } => typeof item.id === "string" && typeof item.name === "string").slice(0, 100) : [];
-        pending = await persist({ ...pending, messages: [...pending.messages, { role: "assistant", content: payload.message, ...(generationMode === "chat" && !isPowerPointTransfer && !batch ? { model: responseModel } : {}), ...(artifact ? { artifact } : {}), ...(outputFile ? { fileRef: outputFile } : {}), ...(outputFiles.length ? { fileRefs: outputFiles } : {}) }] });
+        pending = await persist({ ...pending, messages: [...pending.messages, { role: "assistant", content: payload.message, metrics, ...(generationMode === "chat" && !isPowerPointTransfer && !batch ? { model: responseModel } : {}), ...(artifact ? { artifact } : {}), ...(outputFile ? { fileRef: outputFile } : {}), ...(outputFiles.length ? { fileRefs: outputFiles } : {}) }] });
+        responseSaved = true;
+        if (streamChat) setStreamingResponse(null);
         const generated = [...(outputFile ? [outputFile] : []), ...outputFiles];
         if (generated.length) {
           setPanelFiles(current => [...current.filter(item => !generated.some(output => output.id === item.id)), ...generated]);
@@ -329,9 +359,20 @@ export function WorkspaceChat({ userId, configured, initialChatId }: { userId: s
         if (payload.usagePending) notices.push("Usage is unconfirmed. Reserved credits remain held for review; see AI Credits Usage or contact support.");
         else if (payload.quotaExempt === true) notices.push("This account is exempt from AI credit charges.");
         else if (typeof payload.chargedCredits === "number" && typeof payload.availableCredits === "number") notices.push(`${payload.chargedCredits.toLocaleString()} credits used · ${payload.availableCredits.toLocaleString()} available`);
+        if (payload.truncated) notices.push("The response reached its length limit. Ask the model to continue.");
         if (notices.length) setNotice(notices.join(" "));
       } catch (reason) {
         if (apiRef.current && reason instanceof apiRef.current.ChatHistoryConflict) throw reason;
+        if (streamChat && (streamText.trim() || streamController?.signal.aborted)) {
+          const stopped = streamController?.signal.aborted === true;
+          setCanStop(false); streamAbortRef.current = null;
+          if (streamText.trim()) await persist({ ...pending, messages: [...pending.messages, { role: "assistant", content: `${streamText}\n\n*Response ${stopped ? "stopped" : "interrupted"}.*`, model, metrics: { elapsedMs: Math.max(0, performance.now() - requestStartedAt) } }] });
+          else if (!requestStarted) setPrompt(value);
+          setStreamingResponse(null);
+          setNotice(stopped && !requestStarted ? "Stopped before the request was sent." : stopped ? `Response stopped.${streamText.trim() ? " Partial text is kept." : ""} The provider may still charge for work performed; check AI Credits Usage for the status.` : "The response was interrupted. Partial text is kept; check AI Credits Usage before retrying.");
+          if (!stopped && reason instanceof Error) setError(reason.message);
+          return;
+        }
         await persist({ ...pending, messages: pending.messages.slice(0, -1) });
         setPrompt(value);
         throw reason;
@@ -345,8 +386,12 @@ export function WorkspaceChat({ userId, configured, initialChatId }: { userId: s
         });
       } else { await work(); }
     } catch (reason) {
+      if (streamChat && streamText.trim() && !responseSaved) {
+        setUnsavedResponses(current => [...current, { chatId: chat.id, text: streamText, model }]);
+        setNotice("The response is shown below but could not be saved to chat history. Copy it before leaving this page.");
+      }
       setError(reason instanceof Error ? reason.message : "Unable to get a response. Please try again.");
-    } finally { busyRef.current = false; setBusy(false); }
+    } finally { busyRef.current = false; setBusy(false); setCanStop(false); setStopping(false); streamAbortRef.current = null; setStreamingResponse(null); }
   }
 
   function handleKeyDown(event: KeyboardEvent<HTMLTextAreaElement>) {
@@ -523,9 +568,11 @@ export function WorkspaceChat({ userId, configured, initialChatId }: { userId: s
           <div className="workspace-chat__conversation">
             <div aria-label="Conversation" aria-live="polite" className="workspace-chat__thread" onScroll={handleThreadScroll} ref={threadRef} role="log">
               {!chat?.messages.length ? <div className="workspace-chat__empty"><span><Bot size={26} /></span><h2>What would you like to work on?</h2><p>Ask a question, explore an idea, or get help with a task.</p></div> : null}
-              {chat?.messages.map((message, index) => <article className={`workspace-chat__message workspace-chat__message--${message.role}`} key={`${index}-${message.role}`}><p className="workspace-chat__sender">{message.role === "user" ? "You" : CHAT_MODELS.find((item) => item.id === message.model)?.label ?? "AI"}</p><div className="workspace-chat__content"><ReactMarkdown remarkPlugins={[remarkGfm]} rehypePlugins={[rehypeHighlight]} components={{ table: ({ children, ...props }) => <div className="workspace-chat__table-wrap"><table {...props}>{children}</table></div> }}>{message.content}</ReactMarkdown>{[...(message.fileRef ? [message.fileRef] : []), ...(message.fileRefs ?? [])].map(reference => <div key={reference.id}>{message.role === "assistant" && /^generated-image-[0-9a-f]+\.(png|jpg|webp)$/i.test(reference.name) ? <img className="workspace-chat__generated-image" src={`/api/chat/files/${encodeURIComponent(reference.id)}/preview?inline=1`} alt="AI-generated image" /> : null}<div className="workspace-chat__file-card"><FileText size={17} aria-hidden="true" /><button type="button" className="workspace-chat__file-name" onClick={() => showFileInPanel(reference)}>{reference.name}</button><button type="button" className="chat-file-icon" aria-label={`Preview ${reference.name}`} title="Preview" onClick={() => showFileInPanel(reference)}><Eye size={17} /></button><a className="chat-file-icon" aria-label={`Download ${reference.name}`} title="Download" href={`/api/chat/files/${encodeURIComponent(reference.id)}`}><Download size={17} /></a>{/\.(pdf|docx|pptx|png|jpe?g|webp|xlsx|csv)$/i.test(reference.name) ? <button type="button" className="workspace-chat__ask-file" disabled={busy || uploading || selecting} onClick={() => askAboutFile(reference)} aria-label={`Ask about ${reference.name}`}>Ask about</button> : null}</div></div>)}{message.role === "assistant" && message.fileRefs && message.fileRefs.length > 1 ? <button type="button" className="btn-ghost btn-ghost--compact workspace-chat__download-all" disabled={downloading} onClick={() => void downloadBatch(message.fileRefs!.map(item => item.id))}>{downloading ? "Preparing ZIP…" : "Download all as ZIP"}</button> : null}</div></article>)}
+              {chat?.messages.map((message, index) => <article className={`workspace-chat__message workspace-chat__message--${message.role}`} key={`${index}-${message.role}`}><p className="workspace-chat__sender">{message.role === "user" ? "You" : CHAT_MODELS.find((item) => item.id === message.model)?.label ?? "AI"}</p><div className="workspace-chat__content"><ReactMarkdown remarkPlugins={[remarkGfm]} rehypePlugins={[rehypeHighlight]} components={{ table: ({ children, ...props }) => <div className="workspace-chat__table-wrap"><table {...props}>{children}</table></div> }}>{message.content}</ReactMarkdown>{[...(message.fileRef ? [message.fileRef] : []), ...(message.fileRefs ?? [])].map(reference => <div key={reference.id}>{message.role === "assistant" && /^generated-image-[0-9a-f]+\.(png|jpg|webp)$/i.test(reference.name) ? <img className="workspace-chat__generated-image" src={`/api/chat/files/${encodeURIComponent(reference.id)}/preview?inline=1`} alt="AI-generated image" /> : null}<div className="workspace-chat__file-card"><FileText size={17} aria-hidden="true" /><button type="button" className="workspace-chat__file-name" onClick={() => showFileInPanel(reference)}>{reference.name}</button><button type="button" className="chat-file-icon" aria-label={`Preview ${reference.name}`} title="Preview" onClick={() => showFileInPanel(reference)}><Eye size={17} /></button><a className="chat-file-icon" aria-label={`Download ${reference.name}`} title="Download" href={`/api/chat/files/${encodeURIComponent(reference.id)}`}><Download size={17} /></a>{/\.(pdf|docx|pptx|png|jpe?g|webp|xlsx|csv)$/i.test(reference.name) ? <button type="button" className="workspace-chat__ask-file" disabled={busy || uploading || selecting} onClick={() => askAboutFile(reference)} aria-label={`Ask about ${reference.name}`}>Ask about</button> : null}</div></div>)}{message.role === "assistant" && message.fileRefs && message.fileRefs.length > 1 ? <button type="button" className="btn-ghost btn-ghost--compact workspace-chat__download-all" disabled={downloading} onClick={() => void downloadBatch(message.fileRefs!.map(item => item.id))}>{downloading ? "Preparing ZIP…" : "Download all as ZIP"}</button> : null}</div>{message.role === "assistant" ? <ChatResponseTools content={message.content} metrics={message.metrics} /> : null}</article>)}
+              {streamingResponse && streamingResponse.chatId === chat?.id && streamingResponse.text ? <article className="workspace-chat__message workspace-chat__message--assistant"><p className="workspace-chat__sender">{CHAT_MODELS.find(item => item.id === streamingResponse.model)?.label ?? "AI"}</p><div className="workspace-chat__content"><ReactMarkdown remarkPlugins={[remarkGfm]} rehypePlugins={[rehypeHighlight]} components={{ table: ({ children, ...props }) => <div className="workspace-chat__table-wrap"><table {...props}>{children}</table></div> }}>{streamingResponse.text}</ReactMarkdown></div></article> : null}
+              {unsavedResponses.filter(item => item.chatId === chat?.id).map((item, index) => <article className="workspace-chat__message workspace-chat__message--assistant" key={`unsaved-${index}`}><p className="workspace-chat__sender">{CHAT_MODELS.find(model => model.id === item.model)?.label ?? "AI"} · Not saved</p><div className="workspace-chat__content"><ReactMarkdown remarkPlugins={[remarkGfm]} rehypePlugins={[rehypeHighlight]}>{item.text}</ReactMarkdown></div><ChatResponseTools content={item.text} /></article>)}
               {presentationRecoveries.filter(item => item.chatId === chat?.id).map(item => <article className="workspace-chat__message workspace-chat__message--assistant workspace-chat__recovery" key={item.id}><strong>Presentation ready for recovery</strong><p>Download it now or retry saving to My files. This copy is available only until you leave or refresh the page.</p><div className="workspace-chat__recovery-actions"><button className="btn-ghost btn-ghost--compact" type="button" onClick={() => downloadPresentationRecovery(item)}><Download size={15} /> Download PowerPoint</button><button className="btn-ghost btn-ghost--compact" type="button" disabled={busy || selecting || uploading} onClick={() => void savePresentationRecovery(item)}>{savingRecovery === item.id ? "Saving…" : "Retry saving"}</button></div></article>)}
-              {busy ? <p className="workspace-chat__thinking" role="status">Thinking…</p> : null}
+              {busy ? <p className="workspace-chat__thinking" role="status">{stopping ? "Stopping…" : streamingResponse ? (streamingResponse.text ? "Generating response…" : "Waiting for the AI response…") : "Working…"}</p> : null}
             </div>
             {showJumpToLatest && chat?.messages.length ? <button aria-label="Jump to latest message" className="workspace-chat__jump-latest" onClick={() => threadRef.current?.scrollTo({ top: threadRef.current.scrollHeight, behavior: "smooth" })} title="Jump to latest message" type="button"><ArrowDown size={18} /></button> : null}
           </div>
@@ -557,7 +604,7 @@ export function WorkspaceChat({ userId, configured, initialChatId }: { userId: s
               </div>
               <div className="workspace-chat__submit-actions">
                 {generationMode === "chat" && files.length !== 2 ? <label className="workspace-chat__model-control"><span>Model</span><select aria-label="AI model" className="workspace-chat__model-select" disabled={busy || selecting || uploading || files.length > 0 || !!followUpFile || !chat} id="workspace-chat-model" onChange={(event) => { if (chat && isChatModel(event.target.value)) setChat({ ...chat, model: event.target.value }); }} value={files.length || followUpFile || uploading ? FILE_CHAT_MODEL : chat?.model ?? CHAT_MODELS[0].id}>{CHAT_MODELS.map((item) => <option key={item.id} value={item.id}>{item.label}</option>)}</select></label> : null}
-                <button aria-label={isPowerPointTransfer ? "Apply PowerPoint template" : isBatchFiles ? (visibleReview ? "Generate documents" : "Review fields") : "Send message"} className="workspace-chat__send workspace-chat__send--action" disabled={!configured || busy || selecting || uploading || cacheState === "loading" || (!prompt.trim() && !files.length && !followUpFile) || (isPowerPointTransfer && confirmedPowerPointRoles !== powerPointFileKey) || (!!visibleReview && visibleReview.mappings.some(item => !item.column))} type="submit">{isPowerPointTransfer ? "Apply template" : isBatchFiles ? (visibleReview ? "Generate documents" : "Review fields") : generationMode === "image" ? "Create image" : generationMode === "video" ? "Create video" : generationMode === "pptx" ? "Create slides" : <>Send <ArrowUp size={15} strokeWidth={2.4} aria-hidden="true" /></>}</button>
+                {canStop ? <button aria-label="Stop response" className="workspace-chat__send workspace-chat__send--action workspace-chat__stop" disabled={stopping} type="button" onClick={() => { setStopping(true); streamAbortRef.current?.abort(); }}>{stopping ? "Stopping…" : <>Stop <Square size={12} fill="currentColor" aria-hidden="true" /></>}</button> : <button aria-label={isPowerPointTransfer ? "Apply PowerPoint template" : isBatchFiles ? (visibleReview ? "Generate documents" : "Review fields") : "Send message"} className="workspace-chat__send workspace-chat__send--action" disabled={!configured || busy || selecting || uploading || cacheState === "loading" || (!prompt.trim() && !files.length && !followUpFile) || (isPowerPointTransfer && confirmedPowerPointRoles !== powerPointFileKey) || (!!visibleReview && visibleReview.mappings.some(item => !item.column))} type="submit">{isPowerPointTransfer ? "Apply template" : isBatchFiles ? (visibleReview ? "Generate documents" : "Review fields") : generationMode === "image" ? "Create image" : generationMode === "video" ? "Create video" : generationMode === "pptx" ? "Create slides" : <>Send <ArrowUp size={15} strokeWidth={2.4} aria-hidden="true" /></>}</button>}
               </div>
             </div>
           </form>

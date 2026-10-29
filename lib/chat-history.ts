@@ -1,9 +1,10 @@
 import type { AsyncDuckDBConnection } from "@duckdb/duckdb-wasm";
 import { CHAT_MODELS, isChatModel, type ChatMessage, type ChatModelId } from "@/lib/chat-models";
+import { isChatResponseMetrics, type ChatResponseMetrics } from "@/lib/chat-response-metrics";
 
 export type FileArtifact = { name: string; kind: "ocr" | "spreadsheet"; content: string; truncated?: boolean };
 type FileReference = { id: string; name: string };
-export type HistoryMessage = ChatMessage & { model?: ChatModelId; artifact?: FileArtifact; fileRef?: FileReference; fileRefs?: FileReference[] };
+export type HistoryMessage = ChatMessage & { model?: ChatModelId; artifact?: FileArtifact; fileRef?: FileReference; fileRefs?: FileReference[]; metrics?: ChatResponseMetrics };
 export type ChatSummary = { id: string; title: string; model: ChatModelId; updatedAt: number };
 export type ChatConversation = ChatSummary & { messages: HistoryMessage[]; revision: number; createdAt: number };
 export type HistoryPage = { chats: ChatSummary[]; hasMore: boolean };
@@ -60,7 +61,7 @@ function validMessages(value: unknown): HistoryMessage[] {
   const validFile = (file: FileReference) => file && typeof file.id === "string" && /^[0-9a-f-]{36}$/i.test(file.id) && typeof file.name === "string" && file.name.length <= 150;
   return value.filter((item): item is HistoryMessage =>
     item && (item.role === "user" || item.role === "assistant") && typeof item.content === "string" &&
-    item.content.length <= 32_000 && (!item.model || isChatModel(item.model)) &&
+    item.content.length <= 32_000 && (!item.model || isChatModel(item.model)) && (!item.metrics || isChatResponseMetrics(item.metrics)) &&
     (!item.fileRef || validFile(item.fileRef)) && (!item.fileRefs || (Array.isArray(item.fileRefs) && item.fileRefs.length <= 100 && item.fileRefs.every(validFile))) &&
     (!item.artifact || (typeof item.artifact.name === "string" && item.artifact.name.length <= 150 &&
       (item.artifact.kind === "ocr" || item.artifact.kind === "spreadsheet") && typeof item.artifact.content === "string" && item.artifact.content.length <= 100_000))

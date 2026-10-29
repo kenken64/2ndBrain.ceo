@@ -127,3 +127,19 @@ Attach [overlapping-source.pptx](test-14/overlapping-source.pptx) as **Content t
 Expected: The app reports that source objects overlap or are too close and does not save a misleading result. The image was deliberately positioned over the title for this test. Repeat with [source-content.pptx](test-10/source-content.pptx) to verify the clean transfer in Test 10. Reversing the two roles and attempting to proceed should also be rejected when the template cannot be checked safely. Neither transfer uses AI credits.
 
 For comparison, [expected-restyled.pptx](test-14/expected-restyled.pptx) is the result of the corrected Test 10 transfer. Check that its title, receipt, chart and AICUBER logo do not overlap; the chart remains editable.
+
+## Test 15: Streaming a long chat response and stopping it
+
+Choose **Chat** with no attachment. Use [the long-response prompt](test-15/prompt.txt), then select **Send**. Text should appear as it is generated, and **Send** should change to **Stop**. Select **Stop** while the answer is arriving; the partial answer should remain in the conversation, and you should be able to send another message. Repeat without stopping and check that the full response appears. The output limit is higher, but exact essay length depends on the model.
+
+Manual requests use AI credits; stopping does not guarantee the provider stops billing. Check **AI Credits Usage** for the status. [provider-stream.sse](test-15/provider-stream.sse) contains fictional usage for offline tests only. Run `node --test tests/chat-stream.test.cjs tests/chat-api.test.cjs` to test streaming and accounting without calling OpenRouter.
+
+## Test 16: Response statistics and copying
+
+Use [the benchmark fixture](test-16/benchmark-response.json) for the offline test: `node --test tests/chat-response-metrics.test.cjs tests/chat-stream.test.cjs tests/chat-api.test.cjs`. The fixture has nine words, a 2.5-second response time, 30 provider-reported output tokens, and a 2-second AI request, giving 15 tokens/s.
+
+For a manual check, send [the long-response prompt](test-15/prompt.txt) in Chat. After the response finishes, check its word count, response time, output tokens, and tokens/s. Select the copy icon and paste into a text editor to check the copied message. Reopen the chat and confirm the statistics remain. Older responses and requests without provider token counts show a dash for unavailable measurements. The displayed response time includes the app's processing; tokens/s divides the provider's output tokens by the AI request duration, including provider latency. Stops may not return token counts. Batch or media workflows may not report text-token statistics. Manual AI requests use credits.
+
+## Test 17: Knowledge graph workspace sizing
+
+[knowledge-graph.json](test-17/knowledge-graph.json) is a small fictional graph with a customer, meeting notes, decision, and topic for a layout preview. Open an existing Nth Brain graph on a wide desktop display. The node map should use the available width beside the sidebar and fit within the visible height. Collapse and expand the sidebar, switch between **3D galaxy** and **2D map**, and use **Fit** or full screen. The graph should resize without covering its controls. On a phone, the map and controls should remain usable with page scrolling. The graph does not use AI credits.
