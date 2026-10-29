@@ -59,6 +59,41 @@ test("language preference selects labels and placeholders without translating un
   assert.match(zh, /Customer project: Hello/);
 });
 
+test("every signed-in dashboard header includes the language toggle", () => {
+  const missing = [];
+  function visit(directory) {
+    for (const entry of fs.readdirSync(directory, { withFileTypes: true })) {
+      const filename = path.join(directory, entry.name);
+      if (entry.isDirectory()) {
+        visit(filename);
+      } else if (entry.name.endsWith(".tsx")) {
+        const source = ts.createSourceFile(filename, fs.readFileSync(filename, "utf8"), ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX);
+        function walk(node) {
+          if (ts.isJsxElement(node)) {
+            const className = node.openingElement.attributes.properties.find(property =>
+              ts.isJsxAttribute(property) && property.name.getText(source) === "className"
+            );
+            if (className && ts.isStringLiteral(className.initializer) && className.initializer.text.split(/\s+/).includes("dashboard-topbar")) {
+              let hasToggle = false;
+              function findToggle(child) {
+                if ((ts.isJsxSelfClosingElement(child) || ts.isJsxOpeningElement(child)) && child.tagName.getText(source) === "LanguageToggle") hasToggle = true;
+                ts.forEachChild(child, findToggle);
+              }
+              findToggle(node);
+              if (!hasToggle) missing.push(path.relative(path.resolve(__dirname, ".."), filename));
+            }
+          }
+          ts.forEachChild(node, walk);
+        }
+        walk(source);
+      }
+    }
+  }
+  visit(path.resolve(__dirname, "../app/dashboard"));
+  visit(path.resolve(__dirname, "../app/admin"));
+  assert.deepEqual(missing, []);
+});
+
 test("destructive confirmation keeps the required word while translating its instructions", () => {
   const child = React.createElement(ConfirmDialog, {
     open: true, closeLabel: "Close", eyebrow: "Delete account", title: "Delete this account?",

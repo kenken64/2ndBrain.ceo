@@ -1,4 +1,4 @@
-import { Localized } from "@/components/language-provider";
+import { LanguageToggle, Localized } from "@/components/language-provider";
 import { redirect } from "next/navigation";
 import { AnnouncementPill } from "@/components/announcement-pill";
 import { Atmosphere } from "@/components/atmosphere";
@@ -70,9 +70,12 @@ export default async function WorkflowMarketplacePage() {
         <main className="dashboard-main">
           <div className="dashboard-topbar">
             <AnnouncementPill><Localized en="Workflow marketplace" zh="工作流应用市场" /></AnnouncementPill>
-            <a className="btn-primary" href="/dashboard/workflows">
-              <Localized en="My Workflows" zh="我的工作流" />
-            </a>
+            <div className="dashboard-topbar__actions">
+              <LanguageToggle />
+              <a className="btn-primary" href="/dashboard/workflows">
+                <Localized en="My Workflows" zh="我的工作流" />
+              </a>
+            </div>
           </div>
           <section className="dashboard-workbench workflow-workbench" aria-labelledby="workflow-marketplace-title">
             <div className="settings-workbench__header">

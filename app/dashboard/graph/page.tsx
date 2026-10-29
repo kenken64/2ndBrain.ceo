@@ -1,4 +1,4 @@
-import { Localized, LocalizedMessage } from "@/components/language-provider";
+import { LanguageToggle, Localized, LocalizedMessage } from "@/components/language-provider";
 import { redirect } from "next/navigation";
 import { AnnouncementPill } from "@/components/announcement-pill";
 import { Atmosphere } from "@/components/atmosphere";
@@ -171,9 +171,12 @@ export default async function DashboardGraphPage({ searchParams }: GraphPageProp
           <main className="dashboard-main">
             <div className="dashboard-topbar">
               <AnnouncementPill><Localized en="Knowledge Graph" zh="知识图谱" /></AnnouncementPill>
-              <a className="btn-primary" href="/dashboard/wiki">
-                Nth Brain
-              </a>
+              <div className="dashboard-topbar__actions">
+                <LanguageToggle />
+                <a className="btn-primary" href="/dashboard/wiki">
+                  Nth Brain
+                </a>
+              </div>
             </div>
             <section className="graph-workbench">
               <div className="graph-workbench__header">
@@ -293,9 +296,12 @@ export default async function DashboardGraphPage({ searchParams }: GraphPageProp
         <main className="dashboard-main dashboard-main--graph">
           <div className="dashboard-topbar">
             <AnnouncementPill>{context.project?.title ?? "Knowledge Graph"}</AnnouncementPill>
-            <a className="btn-primary" href="/dashboard/wiki">
-              Nth Brain
-            </a>
+            <div className="dashboard-topbar__actions">
+              <LanguageToggle />
+              <a className="btn-primary" href="/dashboard/wiki">
+                Nth Brain
+              </a>
+            </div>
           </div>
           <section className="graph-workbench graph-workbench--visualization">
             <KnowledgeGraph

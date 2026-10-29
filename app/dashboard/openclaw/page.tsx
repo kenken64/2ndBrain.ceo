@@ -1,4 +1,4 @@
-import { Localized } from "@/components/language-provider";
+import { LanguageToggle, Localized } from "@/components/language-provider";
 import { redirect } from "next/navigation";
 import { AnnouncementPill } from "@/components/announcement-pill";
 import { Atmosphere } from "@/components/atmosphere";
@@ -97,6 +97,7 @@ export default async function DashboardOpenClawPage() {
           <div className="dashboard-topbar">
             <AnnouncementPill><Localized en="AI Agent workspace" zh="AI Agent 工作空间" /></AnnouncementPill>
             <div className="dashboard-topbar__actions">
+              <LanguageToggle />
               <SshConsolePanel />
               <OpenClawGatewayButton initialGatewayUrl={gatewayUrl} />
             </div>

@@ -1,4 +1,4 @@
-import { Localized, LocalizedMessage } from "@/components/language-provider";
+import { LanguageToggle, Localized, LocalizedMessage } from "@/components/language-provider";
 import { redirect } from "next/navigation";
 import { AnnouncementPill } from "@/components/announcement-pill";
 import { Atmosphere } from "@/components/atmosphere";
@@ -91,9 +91,12 @@ export default async function DashboardPage() {
         <main className="dashboard-main">
           <div className="dashboard-topbar">
             <AnnouncementPill><Localized en="Workspace is provisioned" zh="工作空间已配置" /></AnnouncementPill>
-            <a className="btn-primary" href="/auth/logout">
-              <Localized en="Log out" zh="退出登录" />
-            </a>
+            <div className="dashboard-topbar__actions">
+              <LanguageToggle />
+              <a className="btn-primary" href="/auth/logout">
+                <Localized en="Log out" zh="退出登录" />
+              </a>
+            </div>
           </div>
           <section className="dashboard-center">
             <h1 className="dashboard-heading"><Localized en={`${firstName}’s AI CUBER workspace`} zh={`${firstName}的 AI CUBER 工作空间`} /></h1>

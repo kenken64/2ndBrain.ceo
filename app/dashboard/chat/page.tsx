@@ -1,4 +1,4 @@
-import { Localized } from "@/components/language-provider";
+import { LanguageToggle, Localized } from "@/components/language-provider";
 import { redirect } from "next/navigation";
 import { LogOut } from "lucide-react";
 import { ChatSavedFiles } from "@/components/chat-saved-files";
@@ -41,6 +41,7 @@ export default async function ChatPage({ searchParams }: { searchParams: Promise
             <div className="dashboard-topbar__actions chat-topbar__actions">
               <ChatSavedFiles disabled={false} label="My files" triggerClass="chat-usage-trigger" />
               <ChatUsageButton />
+              <LanguageToggle />
               <a className="btn-ghost chat-topbar__logout" href="/auth/logout"><LogOut size={16} aria-hidden="true" /> <Localized en="Log out" zh="退出登录" /></a>
             </div>
           </div>

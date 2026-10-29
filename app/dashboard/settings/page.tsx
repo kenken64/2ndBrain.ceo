@@ -1,4 +1,4 @@
-import { Localized } from "@/components/language-provider";
+import { LanguageToggle, Localized } from "@/components/language-provider";
 import { redirect } from "next/navigation";
 import { AnnouncementPill } from "@/components/announcement-pill";
 import { Atmosphere } from "@/components/atmosphere";
@@ -138,9 +138,12 @@ export default async function DashboardSettingsPage({ searchParams }: DashboardS
         <main className="dashboard-main">
           <div className="dashboard-topbar">
             <AnnouncementPill><Localized en="Workspace settings" zh="工作空间设置" /></AnnouncementPill>
-            <a className="btn-primary" href="/auth/logout">
-              <Localized en="Log out" zh="退出登录" />
-            </a>
+            <div className="dashboard-topbar__actions">
+              <LanguageToggle />
+              <a className="btn-primary" href="/auth/logout">
+                <Localized en="Log out" zh="退出登录" />
+              </a>
+            </div>
           </div>
           <section className="dashboard-workbench settings-workbench" aria-labelledby="settings-title">
             <div className="settings-workbench__header">

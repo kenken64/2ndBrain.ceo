@@ -1,4 +1,4 @@
-import { Localized, LocalizedMessage } from "@/components/language-provider";
+import { LanguageToggle, Localized, LocalizedMessage } from "@/components/language-provider";
 import { redirect } from "next/navigation";
 import { AdminTabs, type AdminTabId } from "@/components/admin-tabs";
 import { AdminUsersTable, type AdminUserRow } from "@/components/admin-users-table";
@@ -211,8 +211,11 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
         <main className="dashboard-main">
           <div className="dashboard-topbar">
             <AnnouncementPill><Localized en={"TOTP verified admin"} zh={"已通过 TOTP 验证的管理员"} /></AnnouncementPill>
-            <a className="btn-primary" href="/auth/logout">
-              <Localized en={"Log out"} zh={"退出登录"} /></a>
+            <div className="dashboard-topbar__actions">
+              <LanguageToggle />
+              <a className="btn-primary" href="/auth/logout">
+                <Localized en={"Log out"} zh={"退出登录"} /></a>
+            </div>
           </div>
           <section className="dashboard-workbench admin-workbench" aria-labelledby="admin-title">
             <div className="settings-workbench__header">
