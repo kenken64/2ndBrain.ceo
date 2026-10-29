@@ -8,7 +8,7 @@ import rehypeHighlight from "rehype-highlight";
 import remarkGfm from "remark-gfm";
 import { CHAT_MAX_MESSAGE_CHARS, CHAT_MAX_MESSAGES, CHAT_MAX_TOTAL_BYTES, CHAT_MODELS, FILE_CHAT_MODEL, isChatModel, type ChatMessage, type ChatModelId } from "@/lib/chat-models";
 import { ChatSavedFiles } from "@/components/chat-saved-files";
-import { ChatFilePreview } from "@/components/chat-file-preview";
+import { ChatFilePreview, ChatFilePreviewContent } from "@/components/chat-file-preview";
 import { CHAT_FILE_MAX_BYTES, type SavedChatFile } from "@/lib/chat-files-shared";
 import type { ChatConversation, ChatSummary, HistoryMessage, FileArtifact } from "@/lib/chat-history";
 
@@ -51,6 +51,8 @@ export function WorkspaceChat({ userId, configured, initialChatId }: { userId: s
   const [files, setFiles] = useState<SavedChatFile[]>([]);
   const [uploading, setUploading] = useState(false);
   const [panelOpen, setPanelOpen] = useState(true);
+  const [panelFiles, setPanelFiles] = useState<Array<{ id: string; name: string }>>([]);
+  const [panelSelection, setPanelSelection] = useState("");
   const [previewFile, setPreviewFile] = useState<{ id: string; name: string } | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [error, setError] = useState("");
@@ -120,6 +122,8 @@ export function WorkspaceChat({ userId, configured, initialChatId }: { userId: s
     setChats([]);
     setPrompt("");
     setFiles([]);
+    setPanelFiles([]);
+    setPanelSelection("");
     setCacheState("loading");
     (async () => {
       try {
@@ -219,6 +223,8 @@ export function WorkspaceChat({ userId, configured, initialChatId }: { userId: s
       setShowJumpToLatest(false);
       setChat(selected);
       setFiles([]);
+      setPanelFiles([]);
+      setPanelSelection("");
       setPanelOpen(true);
       setPrompt("");
     } catch (reason) {
@@ -254,6 +260,7 @@ export function WorkspaceChat({ userId, configured, initialChatId }: { userId: s
         let artifact: FileArtifact | undefined;
         if (file && payload.ocr && typeof payload.ocr.markdown === "string") artifact = { name: file.name, kind: "ocr", content: payload.ocr.markdown, truncated: payload.ocr.truncated === true };
         else if (file && typeof payload.spreadsheet === "string") artifact = { name: file.name, kind: "spreadsheet", content: payload.spreadsheet };
+        if (artifact) setPanelSelection("artifact");
         const outputFile = payload.savedOutput && typeof payload.savedOutput.id === "string" && typeof payload.savedOutput.name === "string" ? { id: payload.savedOutput.id, name: payload.savedOutput.name } : undefined;
         const outputFiles = Array.isArray(payload.savedOutputs) ? payload.savedOutputs.filter((item): item is { id: string; name: string } => typeof item.id === "string" && typeof item.name === "string").slice(0, 100) : [];
         pending = await persist({ ...pending, messages: [...pending.messages, { role: "assistant", content: payload.message, ...(generationMode === "chat" && !isPowerPointTransfer ? { model: responseModel } : {}), ...(artifact ? { artifact } : {}), ...(outputFile ? { fileRef: outputFile } : {}), ...(outputFiles.length ? { fileRefs: outputFiles } : {}) }] });
@@ -302,6 +309,8 @@ export function WorkspaceChat({ userId, configured, initialChatId }: { userId: s
     setShowJumpToLatest(false);
     setChat(draft);
     setFiles([]);
+    setPanelFiles([]);
+    setPanelSelection("");
     setPanelOpen(true);
     setPrompt("");
     setError("");
@@ -332,11 +341,17 @@ export function WorkspaceChat({ userId, configured, initialChatId }: { userId: s
   function isBatchPair(names: string[]) {
     return names.length !== 2 || names.every(name => /\.pptx$/i.test(name)) || (names.some(name => /\.(pdf|docx|pptx)$/i.test(name)) && names.some(name => /\.(xlsx|csv)$/i.test(name)));
   }
+  function showAttachedFile(file: { id: string; name: string }, replace: boolean) {
+    setPanelFiles(current => replace ? [file] : [...current.filter(item => item.id !== file.id), file]);
+    setPanelSelection(current => replace || !current || current === "artifact" ? file.id : current);
+    setPanelOpen(true);
+  }
   function addSavedFile(selected: SavedChatFile) {
     if (files.some(item => item.id === selected.id)) { setError("That file is already attached."); return; }
     if (files.length >= 2 || !isBatchPair([...files.map(item => item.name), selected.name])) { setError("Choose two PowerPoint files, or one document template and one spreadsheet."); return; }
     if (selected.origin === "output" && files.some(item => /\.(xlsx|csv)$/i.test(item.name))) { setError("Use an uploaded template with a spreadsheet. Generated PowerPoints can be used with another PowerPoint."); return; }
     if (/\.(xlsx|csv)$/i.test(selected.name) && files.some(item => item.origin === "output")) { setError("Use an uploaded template with a spreadsheet. Generated PowerPoints can be used with another PowerPoint."); return; }
+    showAttachedFile(selected, files.length === 0);
     setFiles(current => [...current, selected]); setError("");
   }
   async function uploadFiles(selected: File[]) {
@@ -346,11 +361,11 @@ export function WorkspaceChat({ userId, configured, initialChatId }: { userId: s
     if (selected.some(item => item.size === 0 || item.size > CHAT_FILE_MAX_BYTES)) { setError("Choose files between 1 byte and 20 MB each."); if (fileInputRef.current) fileInputRef.current.value = ""; return; }
     setUploading(true); setError("");
     try {
-      for (const item of selected) {
+      for (const [index, item] of selected.entries()) {
         const response = await fetch(`/api/chat/files?${new URLSearchParams({ name: item.name })}`, { method: "POST", headers: { "Content-Type": "application/octet-stream" }, body: item });
         const result = await response.json().catch(() => null) as { file?: SavedChatFile; error?: string } | null;
         if (!response.ok || !result?.file) throw new Error(result?.error || "Could not save file.");
-        const saved = result.file; setFiles(current => [...current, saved]);
+        const saved = result.file; showAttachedFile(saved, files.length === 0 && index === 0); setFiles(current => [...current, saved]);
       }
       setNotice("Files saved to your private library.");
     } catch (reason) { setError(reason instanceof Error ? reason.message : "Could not save file."); }
@@ -358,6 +373,15 @@ export function WorkspaceChat({ userId, configured, initialChatId }: { userId: s
   }
 
   const activeArtifact = [...(chat?.messages ?? [])].reverse().find(message => message.artifact)?.artifact;
+  const selectedPanelFile = panelFiles.find(item => item.id === panelSelection) ?? (!activeArtifact || panelSelection !== "artifact" ? panelFiles[0] : undefined);
+  const showArtifact = !!activeArtifact && (panelSelection === "artifact" || !selectedPanelFile);
+  const hasPanelContent = panelFiles.length > 0 || !!activeArtifact;
+  function removeAttachment(id: string) {
+    setFiles(current => current.filter(item => item.id !== id));
+    setPanelFiles(current => current.filter(item => item.id !== id));
+    if (panelSelection === id) setPanelSelection(panelFiles.find(item => item.id !== id)?.id ?? (activeArtifact ? "artifact" : ""));
+    if (fileInputRef.current) fileInputRef.current.value = "";
+  }
   function downloadArtifact(artifact: FileArtifact) {
     const url = URL.createObjectURL(new Blob([artifact.content], { type: "text/markdown;charset=utf-8" }));
     const link = document.createElement("a");
@@ -366,7 +390,7 @@ export function WorkspaceChat({ userId, configured, initialChatId }: { userId: s
   }
 
   return (
-    <section aria-labelledby="workspace-chat-title" className={`dashboard-workbench workspace-chat${activeArtifact && panelOpen ? " workspace-chat--with-artifact" : ""}`}>
+    <section aria-labelledby="workspace-chat-title" className={`dashboard-workbench workspace-chat${hasPanelContent && panelOpen ? " workspace-chat--with-artifact" : ""}`}>
       <div className="workspace-chat__header">
         <div><p className="workspace-status-card__eyebrow">YOUR AI WORKSPACE</p><h1 id="workspace-chat-title">Chat with AI</h1><p>Choose a model and ask a question. An estimated amount of AI credits is reserved first; actual usage determines the final charge.</p></div>
       </div>
@@ -390,7 +414,7 @@ export function WorkspaceChat({ userId, configured, initialChatId }: { userId: s
             {showJumpToLatest && chat?.messages.length ? <button aria-label="Jump to latest message" className="workspace-chat__jump-latest" onClick={() => threadRef.current?.scrollTo({ top: threadRef.current.scrollHeight, behavior: "smooth" })} title="Jump to latest message" type="button"><ArrowDown size={18} /></button> : null}
           </div>
           <form className="workspace-chat__form" onSubmit={send}>
-            {files.map(item => <div className="workspace-chat__file" key={item.id}><span>{item.name} · saved{files.length === 2 && files.every(file => /\.pptx$/i.test(file.name)) ? "" : " · Gemini 2.5 Flash"}{files.length === 1 && item.name.toLowerCase().endsWith(".pdf") ? " · Mistral OCR" : files.length === 1 && /\.(png|jpe?g|webp)$/i.test(item.name) ? " · image OCR" : ""}</span><button type="button" aria-label={`Remove ${item.name}`} disabled={busy} onClick={() => { setFiles(current => current.filter(saved => saved.id !== item.id)); if (fileInputRef.current) fileInputRef.current.value = ""; }}><X size={16} /></button></div>)}
+            {files.map(item => <div className="workspace-chat__file" key={item.id}><span>{item.name} · saved{files.length === 2 && files.every(file => /\.pptx$/i.test(file.name)) ? "" : " · Gemini 2.5 Flash"}{files.length === 1 && item.name.toLowerCase().endsWith(".pdf") ? " · Mistral OCR" : files.length === 1 && /\.(png|jpe?g|webp)$/i.test(item.name) ? " · image OCR" : ""}</span><button type="button" aria-label={`Remove ${item.name}`} disabled={busy} onClick={() => removeAttachment(item.id)}><X size={16} /></button></div>)}
             {files.length === 2 && files.every(item => /\.pptx$/i.test(item.name)) ? <div className="workspace-chat__notice"><strong>PowerPoint transfer</strong><p>Content: {files[0].name}<br />Template: {files[1].name}</p><button type="button" className="btn-ghost btn-ghost--compact" disabled={busy} onClick={() => setFiles(current => [...current].reverse())}>Swap content and template</button><p>Review the finished slides for overlapping elements. Transfer does not use AI credits.</p></div> : files.length === 2 ? <p className="workspace-chat__notice">Batch document mode: one {files.some(item => /\.pptx$/i.test(item.name)) ? "PPTX" : files.some(item => /\.docx$/i.test(item.name)) ? "DOCX" : "PDF"} will be created per spreadsheet row. {files.some(item => /\.(docx|pptx)$/i.test(item.name)) ? "Use placeholders such as {{Name}} in the template. " : ""}Review the field mapping and generated files.</p> : null}
             {generationMode === "image" ? <p className="workspace-chat__notice">Generate one image with Seedream 4.5. {imageEstimate ? `Current reservation: ${imageEstimate.credits.toLocaleString()} credits (estimated provider cost $${imageEstimate.estimatedUsd.toFixed(4)}). ` : imageEstimateError ? "Pricing is temporarily unavailable. " : "Checking current pricing… "}The final provider cost is recorded in AI Credits Usage.</p> : null}
             {generationMode === "video" ? <p className="workspace-chat__notice">Generate a 3-second, 480p video with Grok Imagine Video 1.5 Lite. {videoEstimate ? `Current reservation: ${videoEstimate.credits.toLocaleString()} credits (estimated provider cost $${videoEstimate.estimatedUsd.toFixed(4)}). ` : "Pricing is unavailable or still loading. "}Final usage is recorded in AI Credits Usage.</p> : null}
@@ -398,21 +422,19 @@ export function WorkspaceChat({ userId, configured, initialChatId }: { userId: s
             <textarea aria-label="Your message" disabled={!configured || busy || selecting || uploading || cacheState === "loading" || (files.length === 2 && files.every(item => /\.pptx$/i.test(item.name)))} maxLength={CHAT_MAX_MESSAGE_CHARS} value={files.length === 2 && files.every(item => /\.pptx$/i.test(item.name)) ? "" : prompt} onChange={(event) => setPrompt(event.target.value)} onKeyDown={handleKeyDown} placeholder={generationMode === "image" ? "Describe the image you want to create…" : generationMode === "video" ? "Describe the video you want to create…" : generationMode === "pptx" ? "Describe the PowerPoint you want to create…" : files.length === 2 && files.every(item => /\.pptx$/i.test(item.name)) ? "Use the controls above to confirm the file order." : files.length === 2 ? "Describe how spreadsheet columns match the document fields…" : "Ask anything…"} rows={3} /><div className="workspace-chat__form-footer"><input ref={fileInputRef} type="file" multiple accept=".pdf,.png,.jpg,.jpeg,.webp,.xlsx,.csv,.docx,.pptx" hidden onChange={(event) => { const selected = Array.from(event.target.files ?? []); if (selected.length) void uploadFiles(selected); }} /><button type="button" className="btn-ghost" disabled={generationMode !== "chat" || busy || selecting || uploading || files.length >= 2} onClick={() => fileInputRef.current?.click()}><Paperclip size={16} /> {uploading ? "Saving…" : "Attach file"}</button><ChatSavedFiles disabled={generationMode !== "chat" || busy || selecting || uploading || files.length >= 2} onSelect={addSavedFile} /><select aria-label="Chat mode" className="workspace-chat__model-select" disabled={busy || selecting || uploading || files.length > 0} value={generationMode} onChange={event => setGenerationMode(event.target.value === "image" ? "image" : event.target.value === "video" ? "video" : event.target.value === "pptx" ? "pptx" : "chat")}><option value="chat">Chat</option><option value="image">Generate image</option><option value="video">Generate 3s video</option><option value="pptx">Generate PowerPoint</option></select>{generationMode === "chat" && !(files.length === 2 && files.every(item => /\.pptx$/i.test(item.name))) ? <select aria-label="AI model" className="workspace-chat__model-select" disabled={busy || selecting || uploading || files.length > 0 || !chat} id="workspace-chat-model" onChange={(event) => { if (chat && isChatModel(event.target.value)) setChat({ ...chat, model: event.target.value }); }} value={files.length || uploading ? FILE_CHAT_MODEL : chat?.model ?? CHAT_MODELS[0].id}>{CHAT_MODELS.map((item) => <option key={item.id} value={item.id}>{item.label}</option>)}</select> : null}<button aria-label="Send message" className="workspace-chat__send" disabled={!configured || busy || selecting || uploading || cacheState === "loading" || (!prompt.trim() && !files.length)} type="submit"><ArrowUp size={16} strokeWidth={2.4} /></button></div></form>
           <p className="workspace-chat__privacy">Uploaded files are saved privately to your account. Chat history and extracted data remain on this device. Files are sent for processing; follow-ups include the first 6,000 characters of extracted data.</p>
         </div>
-        {activeArtifact && !panelOpen ? <button className="btn-ghost workspace-chat__show-artifact" type="button" onClick={() => setPanelOpen(true)}>Show file</button> : null}
+        {hasPanelContent && !panelOpen ? <button className="btn-ghost workspace-chat__show-artifact" type="button" onClick={() => setPanelOpen(true)}>Show file panel</button> : null}
         {historyTarget ? createPortal(<aside aria-label="Chat history" className="workspace-chat-history">
           <div className="workspace-chat-history__header"><h2>Chat history</h2><a className="workspace-chat-history__view-all" href="/dashboard/chat/history">View all</a></div>
           {cacheState === "loading" ? <p className="workspace-chat-history__empty">Loading your chats…</p> : chats.length === 0 ? <p className="workspace-chat-history__empty">Your conversations will appear here.</p> : null}
           <div className="workspace-chat-history__list">{chats.map((item) => <button aria-current={chat?.id === item.id ? "true" : undefined} className={`workspace-chat-history__item${chat?.id === item.id ? " is-active" : ""}`} disabled={busy || selecting} key={item.id} onClick={() => void selectChat(item.id)} type="button"><strong>{item.title}</strong><span>{CHAT_MODELS.find((model) => model.id === item.model)?.label ?? "AI"}</span></button>)}</div>
         </aside>, historyTarget) : null}
       </div>
-      {activeArtifact && panelOpen ? <aside className="workspace-chat__artifact" aria-label={activeArtifact.kind === "ocr" ? "Extracted text" : "Spreadsheet data"}>
-        <div className="workspace-chat__artifact-header"><div><strong>{activeArtifact.kind === "ocr" ? "Extracted text" : "Spreadsheet data"}</strong><p>{activeArtifact.name}</p></div><button type="button" className="btn-icon" aria-label="Close file panel" onClick={() => setPanelOpen(false)}><X size={18} /></button></div>
-        {activeArtifact.truncated ? <p className="workspace-chat__warning">The extraction was truncated. Try a shorter document or image.</p> : null}
-        {activeArtifact.content.length > 6000 ? <p>Follow-up questions include only the first 6,000 characters of this data.</p> : null}
-        <div className="workspace-chat__artifact-actions"><button type="button" className="btn-ghost" onClick={() => void navigator.clipboard.writeText(activeArtifact.content).catch(() => setError("Could not copy text."))}>Copy</button><button type="button" className="btn-ghost" onClick={() => downloadArtifact(activeArtifact)}>Download</button></div>
-        <div className="workspace-chat__artifact-content">{activeArtifact.kind === "ocr" ? <ReactMarkdown remarkPlugins={[remarkGfm]} components={{ img: () => null }}>{activeArtifact.content}</ReactMarkdown> : <><p>Spreadsheet rows and calculated numeric column statistics. For exact grouped calculations, verify results in a spreadsheet.</p><pre>{activeArtifact.content}</pre></>}</div>
+      {hasPanelContent && panelOpen ? <aside className="workspace-chat__artifact" aria-label="File panel">
+        <div className="workspace-chat__artifact-header"><div><strong>{showArtifact && activeArtifact ? (activeArtifact.kind === "ocr" ? "Extracted text" : "Spreadsheet data") : "File preview"}</strong><p>{showArtifact ? activeArtifact?.name : selectedPanelFile?.name}</p></div><div className="workspace-chat__artifact-header-actions">{!showArtifact && selectedPanelFile ? <a className="chat-file-icon" href={`/api/chat/files/${encodeURIComponent(selectedPanelFile.id)}`} aria-label={`Download ${selectedPanelFile.name}`} title="Download"><Download size={18} /></a> : null}<button type="button" className="btn-icon" aria-label="Close file panel" onClick={() => setPanelOpen(false)}><X size={18} /></button></div></div>
+        {panelFiles.length + (activeArtifact ? 1 : 0) > 1 ? <div className="workspace-chat__panel-tabs" aria-label="Choose file preview">{panelFiles.map(item => <button type="button" key={item.id} title={item.name} aria-pressed={!showArtifact && selectedPanelFile?.id === item.id} onClick={() => setPanelSelection(item.id)}>{item.name}</button>)}{activeArtifact ? <button type="button" aria-pressed={showArtifact} onClick={() => setPanelSelection("artifact")}>{activeArtifact.kind === "ocr" ? "Extracted text" : "Spreadsheet data"}</button> : null}</div> : null}
+        {showArtifact && activeArtifact ? <>{activeArtifact.truncated ? <p className="workspace-chat__warning">The extraction was truncated. Try a shorter document or image.</p> : null}{activeArtifact.content.length > 6000 ? <p>Follow-up questions include only the first 6,000 characters of this data.</p> : null}<div className="workspace-chat__artifact-actions"><button type="button" className="btn-ghost" onClick={() => void navigator.clipboard.writeText(activeArtifact.content).catch(() => setError("Could not copy text."))}>Copy</button><button type="button" className="btn-ghost" onClick={() => downloadArtifact(activeArtifact)}>Download</button></div><div className="workspace-chat__artifact-content">{activeArtifact.kind === "ocr" ? <ReactMarkdown remarkPlugins={[remarkGfm]} components={{ img: () => null }}>{activeArtifact.content}</ReactMarkdown> : <><p>Spreadsheet rows and calculated numeric column statistics. For exact grouped calculations, verify results in a spreadsheet.</p><pre>{activeArtifact.content}</pre></>}</div></> : selectedPanelFile ? <ChatFilePreviewContent key={selectedPanelFile.id} file={selectedPanelFile} /> : null}
       </aside> : null}
-      {previewFile ? <ChatFilePreview file={previewFile} onClose={() => setPreviewFile(null)} /> : null}
+      {previewFile ? <ChatFilePreview key={previewFile.id} file={previewFile} onClose={() => setPreviewFile(null)} /> : null}
     </section>
   );
 }
