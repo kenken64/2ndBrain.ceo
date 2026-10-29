@@ -116,43 +116,43 @@ export function RemotionAvatarStatus({
     <article className="workspace-status-card" id="remotion-avatar">
       <div className="workspace-status-card__header">
         <div>
-          <p className="workspace-status-card__eyebrow"><Localized en={"Remotion AI Assistant"} zh={"Remotion AI 助手"} /></p>
-          <h2><Localized en={"AI Assistant runtime output"} zh={"AI 助手运行输出"} /></h2>
+          <p className="workspace-status-card__eyebrow"><Localized en={"AI Assistant Avatar"} zh={"AI 助手形象"} /></p>
+          <h2><Localized en={"Avatar runtime output"} zh={"形象运行输出"} /></h2>
         </div>
         <span className={`project-status project-status--${isReady ? "ready" : status === "stale" ? "failed" : "running"}`}>
           {isReady ? <Localized en={"ready"} zh={"已就绪"} /> : status === "stale" ? <Localized en={"stale"} zh={"已过期"} /> : <Localized en={"processing"} zh={"处理中"} />}
         </span>
       </div>
       <p className="workspace-status-card__copy">
-        <Localized en={"Review the public AI Assistant URL after setup finishes and use it as the dashboard access point for Remotion output."} zh={"设置完成后查看 AI 助手的公共地址，并用它从工作台访问 Remotion 输出。"} /></p>
+        <Localized en={"Review the public AI Assistant Avatar URL after setup finishes and use it to access the avatar from your dashboard."} zh={"设置完成后查看 AI 助手形象的公共地址，并通过该地址从工作台访问形象。"} /></p>
       <dl className="workspace-status-list">
         <div>
-          <dt><Localized en={"AI Assistant"} zh={"AI 助手"} /></dt>
+          <dt><Localized en={"AI Assistant Avatar"} zh={"AI 助手形象"} /></dt>
           <dd>{avatarName ?? <Localized en="Not named yet" zh="尚未命名" />}</dd>
         </div>
         <div>
           <dt><Localized en={"Public URL"} zh={"公共地址"} /></dt>
-          <dd>{remotionUrl || "Still waiting for Remotion to publish a URL"}</dd>
+          <dd>{remotionUrl || <Localized en="Still waiting for an avatar URL" zh="仍在等待形象地址" />}</dd>
         </div>
       </dl>
       {isPaused ? (
         <p className="workspace-status-card__paused" role="alert">
           <AlertTriangle aria-hidden="true" size={16} strokeWidth={1.9} />
           <span>
-            <Localized en={"AI Agent usage is paused, so the Remotion URL check is skipped."} zh={"AI Agent 用量已暂停，因此跳过 Remotion 地址检查。"} />{" "}
+            <Localized en={"AI Agent usage is paused, so the avatar URL check is skipped."} zh={"AI Agent 用量已暂停，因此跳过形象地址检查。"} />{" "}
             <a href="/dashboard/settings?tab=general&openclawAi=paused"><Localized en={"Resume AI usage in Settings"} zh={"在设置中恢复 AI 用量"} /></a> <Localized en="to continue." zh="以继续。" />
           </span>
         </p>
       ) : null}
-      {lastError && !isPaused ? <p className="workspace-status-card__hint"><Localized en={"Remotion URL check:"} zh={"Remotion 地址检查："} />{" "}<LocalizedMessage text={lastError} /></p> : null}
+      {lastError && !isPaused ? <p className="workspace-status-card__hint"><Localized en={"Avatar URL check:"} zh={"形象地址检查："} />{" "}<LocalizedMessage text={lastError} /></p> : null}
       <div className="workspace-status-actions">
         {remotionUrl ? (
           <a className="btn-primary" href={remotionUrl} rel="noreferrer" target="_blank">
-            <Localized en={"Open Remotion AI Assistant"} zh={"打开 Remotion AI 助手"} /><span className="arrow">-&gt;</span>
+            <Localized en={"Open AI Assistant Avatar"} zh={"打开 AI 助手形象"} /><span className="arrow">-&gt;</span>
           </a>
         ) : (
           <span aria-disabled="true" className="btn-primary is-disabled" role="link">
-            <Localized en={"Waiting for Remotion URL"} zh={"正在等待 Remotion 地址"} /></span>
+            <Localized en={"Waiting for avatar URL"} zh={"正在等待形象地址"} /></span>
         )}
         <button className="btn-ghost" disabled={isRefreshing} onClick={refreshNow} type="button">
           <RefreshCw className={isRefreshing ? "spin-icon" : undefined} size={16} strokeWidth={1.8} />

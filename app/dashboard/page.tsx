@@ -2,6 +2,7 @@ import { LanguageToggle, Localized, LocalizedMessage } from "@/components/langua
 import { redirect } from "next/navigation";
 import { AnnouncementPill } from "@/components/announcement-pill";
 import { Atmosphere } from "@/components/atmosphere";
+import { BrandLogo } from "@/components/brand-logo";
 import { DashboardSidebar } from "@/components/dashboard-sidebar";
 import { OpenClawGatewayStatus } from "@/components/openclaw-gateway-status";
 import { RemotionAvatarStatus } from "@/components/remotion-avatar-status";
@@ -99,9 +100,13 @@ export default async function DashboardPage() {
             </div>
           </div>
           <section className="dashboard-center">
-            <h1 className="dashboard-heading"><Localized en={`${firstName}’s AI CUBER workspace`} zh={`${firstName}的 AI CUBER 工作空间`} /></h1>
+            <h1 className="dashboard-heading">
+              <Localized en={`${firstName}’s`} zh={`${firstName}的`} />{" "}
+              <BrandLogo className="dashboard-heading__logo" />{" "}
+              <Localized en="workspace" zh="工作空间" />
+            </h1>
             <p className="dashboard-copy">
-              <Localized en="Launch AI Agent, review the Remotion AI Assistant setup, and decide how the Nth Brain should be delivered from one dashboard shell." zh="在同一工作空间中启动 AI Agent、查看 Remotion AI 助手设置，并选择 Nth Brain 的交付方式。" />
+              <Localized en="Launch AI Agent, review the AI Assistant Avatar setup, and decide how the Nth Brain should be delivered from one dashboard shell." zh="在同一工作空间中启动 AI Agent、查看 AI 助手形象设置，并选择 Nth Brain 的交付方式。" />
             </p>
             <div className="workspace-status-grid">
               <OpenClawGatewayStatus initialGatewayUrl={openclawGatewayUrl} instance={openclawInstance} />

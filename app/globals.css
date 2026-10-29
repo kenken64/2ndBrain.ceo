@@ -3100,6 +3100,12 @@ svg {
   line-height: 1.15;
 }
 
+.dashboard-heading__logo {
+  display: inline-block;
+  height: 1.4em;
+  vertical-align: middle;
+}
+
 .dashboard-copy {
   width: min(100%, 590px);
   margin: 12px auto 0;
@@ -4466,7 +4472,7 @@ svg {
 }
 
 .wiki-empty-panel__chat {
-  width: 100%;
+  width: min(100%, 720px);
   margin-top: 10px;
 }
 
