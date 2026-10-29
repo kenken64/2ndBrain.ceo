@@ -1,5 +1,6 @@
 "use client";
 
+import { useLanguage } from "@/components/language-provider";
 import { useState } from "react";
 import { Eye, EyeOff } from "lucide-react";
 
@@ -9,6 +10,7 @@ type TelegramTokenInputProps = {
 };
 
 export function TelegramTokenInput({ ariaDescribedBy, isInvalid = false }: TelegramTokenInputProps) {
+  const { language } = useLanguage();
   const [isVisible, setIsVisible] = useState(false);
 
   return (
@@ -22,7 +24,7 @@ export function TelegramTokenInput({ ariaDescribedBy, isInvalid = false }: Teleg
         type={isVisible ? "text" : "password"}
       />
       <button
-        aria-label={isVisible ? "Hide Telegram bot token" : "Show Telegram bot token"}
+        aria-label={language === "zh" ? (isVisible ? "隐藏 Telegram 机器人令牌" : "显示 Telegram 机器人令牌") : (isVisible ? "Hide Telegram bot token" : "Show Telegram bot token")}
         className="secret-input__toggle"
         onClick={() => setIsVisible((current) => !current)}
         type="button"

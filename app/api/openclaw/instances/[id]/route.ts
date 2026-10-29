@@ -111,6 +111,18 @@ export async function DELETE(_request: Request, context: InstanceRouteContext) {
     }
   }
 
+  if (instanceRow.instance?.trim()) {
+    const { error: profileError } = await adminSupabase.from("profiles").update({
+      openclaw_instance: null,
+      openclaw_provision_status: null,
+      openclaw_provision_completed_at: null,
+      openclaw_telegram_pair_status: null,
+      openclaw_telegram_pair_completed_at: null,
+      onboarding_completed_at: null
+    }).eq("id", auth.userId).eq("openclaw_instance", instanceRow.instance.trim());
+    if (profileError) return NextResponse.json({ error: "save_failed" }, { status: 500 });
+  }
+
   const { error: deleteError } = await adminSupabase
     .from("openclaw_instances")
     .delete()

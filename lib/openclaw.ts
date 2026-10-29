@@ -1,5 +1,5 @@
-import { execFile } from "node:child_process";
-import { randomUUID } from "node:crypto";
+import { execFile, spawn } from "node:child_process";
+import { randomBytes, randomUUID } from "node:crypto";
 import fs from "node:fs/promises";
 import net from "node:net";
 import os from "node:os";
@@ -7,6 +7,7 @@ import path from "node:path";
 import { promisify } from "node:util";
 import { normalizeWikiPath, titleFromWikiPath, type WikiPage, type WikiTreeItem } from "@/lib/wiki";
 import { buildAttachmentPromptContext, type ConvertedWikiAttachment } from "@/lib/wiki-attachments";
+import { HERMES_REGION, hermesRestoreArgs, hermesRestoreHostname } from "@/lib/hermes-restore";
 
 const execFileAsync = promisify(execFile);
 
@@ -204,6 +205,7 @@ type ClawmacdoDeployRecord = {
   hostname?: string;
   id?: string;
   ip_address?: string;
+  ssh_key_path?: string;
 };
 
 type ClawmacdoDeployRecordMatch = {
@@ -596,13 +598,13 @@ export function isOpenClawInstanceMissingError(error: unknown) {
   );
 }
 
-async function runClawmacdo(args: string[], extraEnv: Record<string, string>) {
+async function runClawmacdo(args: string[], extraEnv: Record<string, string>, onOutput?: (output: string) => void | Promise<void>) {
   const binary = getClawmacdoBinaryPath();
   const timeoutMs = clawmacdoTimeout();
   const startedAt = Date.now();
   const sanitizedArgs = sanitizeArgs(args);
   const releaseClawmacdoSlot = await acquireClawmacdoSlot(sanitizedArgs);
-  const maxAttempts = clawmacdoSpawnRetries() + 1;
+  const maxAttempts = onOutput ? 1 : clawmacdoSpawnRetries() + 1;
   const retryDelayMs = clawmacdoSpawnRetryDelayMs();
 
   consoleClawmacdo("start", {
@@ -618,11 +620,30 @@ async function runClawmacdo(args: string[], extraEnv: Record<string, string>) {
   try {
     for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
       try {
-        const { stdout, stderr } = await execFileAsync(binary, args, {
+        const execution = execFileAsync(binary, args, {
           env: clawmacdoRuntimeEnv(extraEnv),
           maxBuffer: 1024 * 1024 * 4,
           timeout: timeoutMs
         });
+        let outputWork = Promise.resolve();
+        let outputError: unknown;
+        execution.child.stdout?.on("data", (chunk: Buffer | string) => {
+          if (!onOutput) return;
+          outputWork = outputWork.then(() => onOutput(String(chunk))).catch(error => {
+            outputError = error;
+            execution.child.kill();
+          });
+        });
+        let result: Awaited<typeof execution>;
+        try {
+          result = await execution;
+        } catch (error) {
+          await outputWork;
+          throw outputError ?? error;
+        }
+        await outputWork;
+        if (outputError) throw outputError;
+        const { stdout, stderr } = result;
 
         const output = `${stdout ?? ""}${stderr ? `\n${stderr}` : ""}`.trim();
 
@@ -2001,6 +2022,82 @@ export async function provisionOpenClaw(input: OpenClawProvisionInput) {
     restoreOutput,
     snapshotName
   };
+}
+
+async function runHermesSsh(instance: string, python: string, input: object) {
+  const record = await readClawmacdoDeployRecord(instance);
+  const key = record?.record.ssh_key_path?.trim();
+  const awsEnv = { ...getAwsEnv(), AWS_REGION: HERMES_REGION, AWS_DEFAULT_REGION: HERMES_REGION };
+  const lightsail = await getExistingLightsailInstance(instance, HERMES_REGION, awsEnv);
+  const ip = lightsail?.publicIpAddress?.trim();
+  if (!key || !ip) throw new Error("hermes_ssh_target_not_found");
+  const encoded = Buffer.from(python).toString("base64");
+  const remote = `sudo python3 -c 'import base64;exec(base64.b64decode("${encoded}"))'`;
+  return new Promise<string>((resolve, reject) => {
+    const child = spawn("ssh", ["-i", key, "-o", "BatchMode=yes", "-o", "StrictHostKeyChecking=accept-new", "-o", "ConnectTimeout=15", `ubuntu@${ip}`, remote], { stdio: ["pipe", "pipe", "pipe"] });
+    let output = "";
+    const timer = setTimeout(() => child.kill("SIGTERM"), 35 * 60 * 1000);
+    child.stdout.on("data", chunk => { output = (output + String(chunk)).slice(-4000); });
+    child.stderr.on("data", () => {});
+    child.on("error", () => { clearTimeout(timer); reject(new Error("hermes_ssh_failed")); });
+    child.on("close", code => {
+      clearTimeout(timer);
+      if (code !== 0) reject(new Error("hermes_setup_failed"));
+      else resolve(output.trim());
+    });
+    child.stdin.on("error", () => {});
+    child.stdin.end(JSON.stringify(input));
+  });
+}
+
+/** Restore and configure a sanitized native Hermes snapshot for one user. */
+export async function provisionHermes(input: OpenClawProvisionInput) {
+  // Require an explicit snapshot selection: the original template contains
+  // existing users and must be replaced with a sanitized, stopped gateway.
+  const snapshotName = requireEnv("HERMES_LIGHTSAIL_SNAPSHOT_NAME");
+  const awsEnv = { ...getAwsEnv(), AWS_REGION: HERMES_REGION, AWS_DEFAULT_REGION: HERMES_REGION };
+  const consumerName = input.consumerName?.trim();
+  // Never copy the application's Redis administrator credential to a user VM.
+  // Operators must provide a separate worker credential for the same Redis.
+  const redisUrl = optionalEnv("HERMES_GYNE_REDIS_URL");
+  if (!consumerName) throw new Error("missing_gyne_consumer_name");
+  if (!redisUrl) throw new Error("missing_hermes_gyne_redis_url");
+  let instance = input.existingInstance?.trim() || "";
+  let restoreOutput = "";
+  if (instance && !(await getExistingLightsailInstance(instance, HERMES_REGION, awsEnv))) instance = "";
+  if (!instance) {
+    let observed = "";
+    restoreOutput = await runClawmacdo(hermesRestoreArgs(snapshotName), awsEnv, async chunk => {
+      observed = (observed + chunk).slice(-16000);
+      const hostname = hermesRestoreHostname(observed);
+      if (hostname && !instance) {
+        instance = hostname;
+        consoleClawmacdo("hermes_restore_hostname", { instance, region: HERMES_REGION });
+        await input.onInstanceRestored?.({ instance, region: HERMES_REGION, snapshotName, restoreOutput: "Snapshot restore started." });
+      }
+    });
+    instance ||= hermesRestoreHostname(restoreOutput) ?? "";
+  } else {
+    restoreOutput = `Reusing existing Hermes instance ${instance}`;
+  }
+  if (!instance) throw new Error("hermes_instance_not_found");
+  await input.onInstanceRestored?.({ instance, region: HERMES_REGION, snapshotName, restoreOutput });
+  const script = await fs.readFile(path.join(process.cwd(), "scripts", "hermes-instance-setup.py"), "utf8");
+  const setupOutput = await runHermesSsh(instance, script, {
+    apiKey: randomBytes(32).toString("hex"), consumerName, redisUrl, telegramBotToken: input.telegramBotToken
+  });
+  return { instance, region: HERMES_REGION, snapshotName, consumerName, restoreOutput: `${restoreOutput}\n${setupOutput}` };
+}
+
+export async function pairHermesTelegram(input: OpenClawTelegramPairInput) {
+  if (!/^[A-Za-z0-9]{8}$/.test(input.code)) throw new Error("invalid_telegram_pair_code");
+  const output = await runHermesSsh(input.instance, `import json, subprocess, sys\ncode=json.load(sys.stdin)["code"]\np=subprocess.run(["sudo","-u","ubuntu","env","HOME=/home/ubuntu","HERMES_HOME=/home/ubuntu/.hermes","/home/ubuntu/.local/bin/hermes","pairing","approve","telegram",code],capture_output=True,text=True)\nif p.returncode != 0 or "Approved!" not in p.stdout: sys.exit(1)\nprint("Telegram pairing approved")`, { code: input.code });
+  return { output };
+}
+
+export async function setupHermesTelegramBot(input: OpenClawTelegramSetupInput) {
+  const output = await runHermesSsh(input.instance, `import json, pathlib, subprocess, sys\nx=json.load(sys.stdin)\np=pathlib.Path('/home/ubuntu/.hermes/.env')\nsubprocess.run(['systemctl','stop','hermes-gateway.service'],check=True)\nlines=[line for line in p.read_text().splitlines() if line.split('=',1)[0].strip().removeprefix('export ').strip() not in ('TELEGRAM_BOT_TOKEN','TELEGRAM_ALLOWED_USERS','TELEGRAM_HOME_CHANNEL','GATEWAY_ALLOW_ALL_USERS')]\nlines.append('TELEGRAM_BOT_TOKEN='+json.dumps(x['token']))\np.write_text('\\n'.join(lines)+'\\n')\np.chmod(0o600)\nsubprocess.run(['chown','ubuntu:ubuntu',str(p)],check=True)\nfor d in ('pairing','platforms/pairing'):\n for f in ('telegram-pending.json','telegram-approved.json'):\n  (pathlib.Path('/home/ubuntu/.hermes')/d/f).unlink(missing_ok=True)\nsubprocess.run(['systemctl','restart','hermes-gateway.service'],check=True)\nprint('Telegram bot configured')`, { token: input.telegramBotToken });
+  return { output };
 }
 
 export async function setupOpenClawIdentity(input: OpenClawIdentityInput) {

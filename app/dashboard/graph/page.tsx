@@ -1,3 +1,4 @@
+import { Localized, LocalizedMessage } from "@/components/language-provider";
 import { redirect } from "next/navigation";
 import { AnnouncementPill } from "@/components/announcement-pill";
 import { Atmosphere } from "@/components/atmosphere";
@@ -56,8 +57,8 @@ type GraphPageNodeRow = {
   role: string;
 };
 
-function formatProjectDate(value: string) {
-  return new Intl.DateTimeFormat("en", {
+function formatProjectDate(value: string, locale = "en") {
+  return new Intl.DateTimeFormat(locale, {
     day: "numeric",
     month: "short",
     year: "numeric"
@@ -169,7 +170,7 @@ export default async function DashboardGraphPage({ searchParams }: GraphPageProp
           />
           <main className="dashboard-main">
             <div className="dashboard-topbar">
-              <AnnouncementPill>Knowledge Graph</AnnouncementPill>
+              <AnnouncementPill><Localized en="Knowledge Graph" zh="知识图谱" /></AnnouncementPill>
               <a className="btn-primary" href="/dashboard/wiki">
                 Nth Brain
               </a>
@@ -177,49 +178,46 @@ export default async function DashboardGraphPage({ searchParams }: GraphPageProp
             <section className="graph-workbench">
               <div className="graph-workbench__header">
                 <div>
-                  <p className="workspace-status-card__eyebrow">Intent-scoped graphs</p>
-                  <h1>Select a Nth Brain intent</h1>
+                  <p className="workspace-status-card__eyebrow"><Localized en={"Intent-scoped graphs"} zh={"按项目划分的图谱"} /></p>
+                  <h1><Localized en="Select a Nth Brain intent" zh="选择 Nth Brain 项目" /></h1>
                 </div>
                 <span className="project-status project-status--ready">
-                  {graphProjects.length} Nth Brain projects
-                </span>
+                  {graphProjects.length} <Localized en={"Nth Brain projects"} zh={"Nth Brain 项目"} /></span>
               </div>
               <div className="projects-grid">
                 {graphProjects.length > 0 ? (
                   graphProjects.map((project) => (
                     <article className="project-card wiki-project-card" key={project.id}>
                       <span className={`project-status project-status--${project.status}`}>
-                        {project.status}
+                        <LocalizedMessage text={project.status} />
                       </span>
                       <h3>{project.title}</h3>
                       <p>{project.prompt}</p>
                       <dl className="project-card__details">
                         <div>
-                          <dt>Project UUID</dt>
+                          <dt><Localized en={"Project UUID"} zh={"项目 UUID"} /></dt>
                           <dd>{project.id}</dd>
                         </div>
                         <div>
-                          <dt>AI Agent folder</dt>
-                          <dd>{project.openclaw_project_slug ?? "Pending"}</dd>
+                          <dt><Localized en={"AI Agent folder"} zh={"AI Agent 文件夹"} /></dt>
+                          <dd>{project.openclaw_project_slug ?? <Localized en="Pending" zh="待处理" />}</dd>
                         </div>
                       </dl>
                       <div className="project-card__meta">
-                        <time dateTime={project.created_at}>{formatProjectDate(project.created_at)}</time>
+                        <time dateTime={project.created_at}><Localized en={formatProjectDate(project.created_at)} zh={formatProjectDate(project.created_at, "zh-CN")} /></time>
                       </div>
                       <div className="project-card__actions">
                         <a className="btn-primary btn-primary--compact" href={`/dashboard/graph?projectId=${project.id}`}>
-                          Open graph <span className="arrow">-&gt;</span>
+                          <Localized en={"Open graph"} zh={"打开图谱"} /><span className="arrow">-&gt;</span>
                         </a>
                         <a className="btn-ghost" href={`/dashboard/wiki?projectId=${project.id}`}>
-                          Open Nth Brain
-                        </a>
+                          <Localized en={"Open Nth Brain"} zh={"打开 Nth Brain"} /></a>
                       </div>
                     </article>
                   ))
                 ) : (
                   <div className="empty-state">
-                    No ready Nth Brain projects yet. Generate a Nth Brain from an intent before opening its graph.
-                  </div>
+                    <Localized en={"No ready Nth Brain projects yet. Generate a Nth Brain from an intent before opening its graph."} zh={"尚无已就绪的 Nth Brain 项目。请先根据需求生成 Nth Brain，然后打开其图谱。"} /></div>
                 )}
               </div>
             </section>
@@ -302,7 +300,7 @@ export default async function DashboardGraphPage({ searchParams }: GraphPageProp
           <section className="graph-workbench graph-workbench--visualization">
             <KnowledgeGraph
               edges={(edges ?? []) as GraphEdge[]}
-              heading={<div className="graph-workbench__header"><div><p className="workspace-status-card__eyebrow">Knowledge Graph</p><h1>Node map</h1></div><span className="project-status project-status--running">{graphNodes.length} nodes</span></div>}
+              heading={<div className="graph-workbench__header"><div><p className="workspace-status-card__eyebrow"><Localized en="Knowledge Graph" zh="知识图谱" /></p><h1><Localized en="Node map" zh="节点地图" /></h1></div><span className="project-status project-status--running"><Localized en={`${graphNodes.length} nodes`} zh={`${graphNodes.length} 个节点`} /></span></div>}
               nodes={graphNodes}
               highlightPath={highlightPath}
               projectId={projectId}

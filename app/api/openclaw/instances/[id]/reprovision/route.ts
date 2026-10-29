@@ -3,7 +3,7 @@ import { addConsumerOwner } from "@/lib/gyne-consumer-registry";
 import { isAdminUser } from "@/lib/admin";
 import { hasSupabaseEnv } from "@/lib/env";
 import { getUserIdFromClaims, onboardingProfileSelect, type OnboardingProfile } from "@/lib/onboarding";
-import { provisionOpenClaw } from "@/lib/openclaw";
+import { provisionHermes, provisionOpenClaw } from "@/lib/openclaw";
 import { createAdminClient, hasSupabaseServiceRoleEnv } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 
@@ -17,6 +17,7 @@ type InstanceRouteContext = {
 };
 
 type InstanceRow = {
+  agent_type: string;
   consumer_name: string;
   created_at: string | null;
   id: string;
@@ -37,7 +38,7 @@ type ProvisionProfile = OnboardingProfile & {
 };
 
 const INSTANCE_COLUMNS =
-  "id,consumer_name,label,instance,region,provision_status,provision_error,created_at,updated_at";
+  "id,agent_type,consumer_name,label,instance,region,provision_status,provision_error,created_at,updated_at";
 
 function numericTokenValue(value: number | string | null | undefined) {
   const number = Number(value ?? 0);
@@ -51,6 +52,7 @@ function outputSummary(value: string) {
 
 function serializeInstance(row: InstanceRow) {
   return {
+    agentType: row.agent_type,
     consumerName: row.consumer_name,
     createdAt: row.created_at,
     error: row.provision_error,
@@ -154,7 +156,14 @@ export async function POST(_request: Request, context: InstanceRouteContext) {
   const avatarName = provisionProfile.avatar_name?.trim();
   const avatarGender = provisionProfile.avatar_gender?.trim();
   // Re-provisioning reuses the profile's Telegram bot token; approve the fresh pairing code afterwards.
-  const telegramBotToken = provisionProfile.telegram_bot_token?.trim();
+  let telegramBotToken = provisionProfile.telegram_bot_token?.trim();
+  if (instanceRow.agent_type === "hermes_agent") {
+    const { data: secret, error: secretError } = await adminSupabase.from("agent_instance_secrets")
+      .select("telegram_bot_token").eq("instance_id", instanceRow.id).maybeSingle();
+    if (secretError) return NextResponse.json({ error: "save_failed" }, { status: 500 });
+    const storedToken = (secret as { telegram_bot_token: string } | null)?.telegram_bot_token?.trim();
+    telegramBotToken = storedToken || (instanceRow.label === "Onboarding workspace" ? telegramBotToken : undefined);
+  }
 
   if (
     !ownerName ||
@@ -205,14 +214,14 @@ export async function POST(_request: Request, context: InstanceRouteContext) {
     .eq("id", instanceRow.id);
 
   try {
-    const provisioned = await provisionOpenClaw({
+    const provisioned = await (instanceRow.agent_type === "hermes_agent" ? provisionHermes : provisionOpenClaw)({
       avatarGender,
       avatarName,
       consumerName: instanceRow.consumer_name,
       // Self-heal: reuse the box if it still exists in Lightsail, else restore fresh from the snapshot.
       existingInstance: instanceRow.instance,
       onInstanceRestored: async (details) => {
-        await adminSupabase
+        const { error: saveError } = await adminSupabase
           .from("openclaw_instances")
           .update({
             instance: details.instance,
@@ -221,6 +230,7 @@ export async function POST(_request: Request, context: InstanceRouteContext) {
             snapshot_name: details.snapshotName
           })
           .eq("id", instanceRow.id);
+        if (saveError) throw new Error("save_failed");
       },
       ownerName,
       telegramBotToken
@@ -247,12 +257,29 @@ export async function POST(_request: Request, context: InstanceRouteContext) {
     }
 
     // Re-assert ownership (idempotent) so the consumer stays visible in the user's Gyne Agent.
-    await addConsumerOwner(auth.userId, instanceRow.consumer_name);
+    const mapped = await addConsumerOwner(auth.userId, instanceRow.consumer_name);
+    if (!mapped && instanceRow.agent_type === "hermes_agent") throw new Error("gyne_owner_registration_failed");
 
     // A different instance name means the snapshot was restored fresh (the old host was missing), which
     // resets Telegram pairing. A matching name means the healthy host was reused and pairing is intact.
     const previousInstance = instanceRow.instance?.trim() ?? "";
     const restored = !previousInstance || provisioned.instance !== previousInstance;
+
+    if (previousInstance && instanceRow.label === "Onboarding workspace") {
+      const { error: profileUpdateError } = await adminSupabase.from("profiles").update({
+        openclaw_instance: provisioned.instance,
+        openclaw_region: provisioned.region,
+        openclaw_snapshot_name: provisioned.snapshotName,
+        openclaw_provision_status: "ready",
+        openclaw_provision_completed_at: completedAt,
+        ...(restored ? {
+          onboarding_completed_at: null,
+          openclaw_telegram_pair_completed_at: null,
+          openclaw_telegram_pair_status: "pending"
+        } : {})
+      }).eq("id", auth.userId).eq("openclaw_instance", previousInstance);
+      if (profileUpdateError) throw profileUpdateError;
+    }
 
     return NextResponse.json(
       { instance: serializeInstance(readyRow as InstanceRow), restored },

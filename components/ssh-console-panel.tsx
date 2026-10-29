@@ -1,5 +1,8 @@
 "use client";
 
+import { Localized, useLanguage, LocalizedMessage } from "@/components/language-provider";
+
+
 import { Maximize2, PlugZap, TerminalSquare, X } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 
@@ -55,6 +58,7 @@ async function fetchSshToken() {
 }
 
 export function SshConsolePanel() {
+  const _uiLanguage = useLanguage().language;
   const [isOpen, setIsOpen] = useState(false);
   const [status, setStatus] = useState<ConsoleStatus>("closed");
   const [statusText, setStatusText] = useState("Console closed");
@@ -310,12 +314,11 @@ export function SshConsolePanel() {
     <>
       <button className="btn-ghost ssh-console-trigger" onClick={() => setIsOpen(true)} type="button">
         <TerminalSquare size={16} strokeWidth={2} />
-        SSH Console
-      </button>
+        <Localized en={"SSH Console"} zh={"SSH 控制台"} /></button>
       {isOpen ? (
         <div aria-modal="true" className="ssh-console" role="dialog">
           <button
-            aria-label="Close SSH console"
+            aria-label={_uiLanguage === "zh" ? "关闭 SSH 控制台" : "Close SSH console"}
             className="ssh-console__scrim"
             onClick={() => setIsOpen(false)}
             type="button"
@@ -325,15 +328,14 @@ export function SshConsolePanel() {
               <div>
                 <span className="ssh-console__eyebrow">
                   <PlugZap size={15} strokeWidth={2} />
-                  AI Agent secure shell
-                </span>
-                <h2>SSH Console</h2>
-                <p>{statusText}</p>
+                  <Localized en={"AI Agent secure shell"} zh={"AI Agent 安全终端"} /></span>
+                <h2><Localized en={"SSH Console"} zh={"SSH 控制台"} /></h2>
+                <p><LocalizedMessage text={statusText} /></p>
               </div>
               <div className="ssh-console__actions">
-                <span className={`ssh-console__status is-${status}`}>{status}</span>
+                <span className={`ssh-console__status is-${status}`}><LocalizedMessage text={status} /></span>
                 <button
-                  aria-label="Resize terminal"
+                  aria-label={_uiLanguage === "zh" ? "调整终端大小" : "Resize terminal"}
                   className="btn-icon"
                   onClick={() => {
                     const terminal = terminalRef.current;
@@ -349,7 +351,7 @@ export function SshConsolePanel() {
                   <Maximize2 size={16} strokeWidth={2} />
                 </button>
                 <button
-                  aria-label="Close SSH console"
+                  aria-label={_uiLanguage === "zh" ? "关闭 SSH 控制台" : "Close SSH console"}
                   className="btn-icon"
                   onClick={() => setIsOpen(false)}
                   type="button"
@@ -358,11 +360,10 @@ export function SshConsolePanel() {
                 </button>
               </div>
             </header>
-            {error ? <p className="ssh-console__error">{error}</p> : null}
+            {error ? <p className="ssh-console__error"><LocalizedMessage text={error} /></p> : null}
             <div className="ssh-console__terminal" ref={terminalHostRef} />
             <footer className="ssh-console__footer">
-              Session is proxied through this app. Closing the panel terminates the SSH connection.
-            </footer>
+              <Localized en={"Session is proxied through this app. Closing the panel terminates the SSH connection."} zh={"会话通过此应用代理。关闭面板将终止 SSH 连接。"} /></footer>
           </section>
         </div>
       ) : null}

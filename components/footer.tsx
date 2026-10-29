@@ -1,3 +1,6 @@
+"use client";
+
+import { useLanguage } from "@/components/language-provider";
 import { BrandLogo } from "@/components/brand-logo";
 
 const columns = [
@@ -34,8 +37,9 @@ const chineseColumns = [
   { title: "项目", links: [["源代码", "https://github.com/kenken64/2ndBrain.ceo"], ["系统状态", "/status"]] }
 ];
 
-export function Footer({ locale = "en" }: { locale?: "en" | "zh" }) {
-  const chinese = locale === "zh";
+export function Footer({ locale }: { locale?: "en" | "zh" }) {
+  const { language } = useLanguage();
+  const chinese = (locale ?? language) === "zh";
   return (
     <footer className="footer">
       <div className="container">

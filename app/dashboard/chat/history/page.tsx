@@ -1,3 +1,4 @@
+import { Localized } from "@/components/language-provider";
 import { redirect } from "next/navigation";
 import { ArrowLeft, LogOut } from "lucide-react";
 import { AnnouncementPill } from "@/components/announcement-pill";
@@ -38,10 +39,10 @@ export default async function ChatHistoryPage({ searchParams }: ChatHistoryPageP
         <DashboardSidebar activeItem="chat" avatarName={onboardingProfile?.avatar_name} email={email} ownerName={onboardingProfile?.owner_name} showAdmin={showAdmin} />
         <main className="dashboard-main">
           <div className="dashboard-topbar">
-            <AnnouncementPill>Chat history</AnnouncementPill>
+            <AnnouncementPill><Localized en={"Chat history"} zh={"对话记录"} /></AnnouncementPill>
             <div className="dashboard-topbar__actions chat-topbar__actions">
-              <a className="btn-ghost chat-topbar__logout" href="/dashboard/chat"><ArrowLeft size={16} aria-hidden="true" /> Back to chat</a>
-              <a className="btn-ghost chat-topbar__logout" href="/auth/logout"><LogOut size={16} aria-hidden="true" /> Log out</a>
+              <a className="btn-ghost chat-topbar__logout" href="/dashboard/chat"><ArrowLeft size={16} aria-hidden="true" /> <Localized en={"Back to chat"} zh={"返回对话"} /></a>
+              <a className="btn-ghost chat-topbar__logout" href="/auth/logout"><LogOut size={16} aria-hidden="true" /> <Localized en={"Log out"} zh={"退出登录"} /></a>
             </div>
           </div>
           <ChatHistoryBrowser initialPage={initialPage} initialQuery={initialQuery} userId={userId} />

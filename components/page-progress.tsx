@@ -1,5 +1,8 @@
 "use client";
 
+import { Localized } from "@/components/language-provider";
+
+
 import { useEffect, useRef, useState } from "react";
 import { usePathname, useSearchParams } from "next/navigation";
 
@@ -54,5 +57,5 @@ export function PageProgress() {
     return () => { document.removeEventListener("click", onClick); window.removeEventListener("pageshow", clear); window.removeEventListener("aicuber:page-navigation", start); clear(); };
   }, []);
 
-  return visible ? <div className="page-progress" role="status" aria-live="polite"><span className="page-progress__track" aria-hidden="true" /><span className="page-progress__label">Loading page…</span></div> : null;
+  return visible ? <div className="page-progress" role="status" aria-live="polite"><span className="page-progress__track" aria-hidden="true" /><span className="page-progress__label"><Localized en={"Loading page…"} zh={"正在加载页面…"} /></span></div> : null;
 }

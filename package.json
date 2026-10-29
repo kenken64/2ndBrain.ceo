@@ -33,7 +33,7 @@
     "3d-force-graph": "^1.80.1",
     "buffer": "^6.0.3",
     "chart.js": "^4.6.1",
-    "clawmacdo": "^0.93.0",
+    "clawmacdo": "^1.0.0",
     "clsx": "latest",
     "cytoscape": "^3.33.3",
     "cytoscape-fcose": "^2.2.0",

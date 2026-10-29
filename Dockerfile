@@ -61,6 +61,7 @@ COPY --from=builder --chown=nextjs:nodejs /app/public ./public
 COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
 COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
 COPY --from=builder --chown=nextjs:nodejs /app/server ./server
+COPY --from=builder --chown=nextjs:nodejs /app/scripts/hermes-instance-setup.py ./scripts/hermes-instance-setup.py
 COPY --from=deps --chown=nextjs:nodejs /app/node_modules/@clawmacdo ./node_modules/@clawmacdo
 COPY --from=deps --chown=nextjs:nodejs /app/node_modules/@napi-rs ./node_modules/@napi-rs
 COPY --from=deps --chown=nextjs:nodejs /app/node_modules/@supabase ./node_modules/@supabase

@@ -1,5 +1,9 @@
 "use client";
 
+import {Localized, LocalizedMessage, useLanguage } from "@/components/language-provider";
+
+
+import { uiMessagesZh } from "@/lib/ui-messages";
 import { ZoomConnection } from "@/components/zoom-connection";
 import { navigateToPage } from "@/lib/page-navigation";
 import { useEffect, useRef, useState } from "react";
@@ -175,6 +179,7 @@ export function SettingsIntegrations({
   initialGoogleWorkspaceAuthPrompt = false,
   initialGoogleWorkspaceEnabled = false
 }: SettingsIntegrationsProps) {
+  const _uiLanguage = useLanguage().language;
   const [enabled, setEnabled] = useState<Record<string, boolean>>({
     "google-workspace": initialGoogleWorkspaceEnabled
   });
@@ -430,17 +435,17 @@ export function SettingsIntegrations({
   return (
     <section className="settings-integrations" aria-labelledby="settings-integrations-title">
       <div className="settings-integrations__header">
-        <p className="workspace-status-card__eyebrow">Integrations</p>
-        <h2 id="settings-integrations-title">Connected data and advertising channels</h2>
-        <p>Enable the channels you want this workspace to support. Backend OAuth and sync jobs can be wired per platform after the product flow is confirmed.</p>
+        <p className="workspace-status-card__eyebrow"><Localized en={"Integrations"} zh={"集成"} /></p>
+        <h2 id="settings-integrations-title"><Localized en={"Connected data and advertising channels"} zh={"已连接的数据和广告渠道"} /></h2>
+        <p><Localized en={"Enable the channels you want this workspace to support. Backend OAuth and sync jobs can be wired per platform after the product flow is confirmed."} zh={"启用此工作空间需要支持的渠道。产品流程确认后，可以按平台接入后台 OAuth 和同步任务。"} /></p>
       </div>
       {integrationStatus ? (
         <div className="settings-toggle-card__status">
           <CheckCircle2 size={16} strokeWidth={1.8} />
-          {integrationStatus}
+          <LocalizedMessage text={integrationStatus} />
         </div>
       ) : null}
-      {integrationError ? <p className="form-error" role="alert">{integrationError}</p> : null}
+      {integrationError ? <p className="form-error" role="alert"><LocalizedMessage text={integrationError} /></p> : null}
 
       <div className="settings-integrations__grid">
         <ZoomConnection />
@@ -453,10 +458,10 @@ export function SettingsIntegrations({
             (googleWorkspaceAuthPhase === "starting" ||
               googleWorkspaceAuthPhase === "waiting" ||
               googleWorkspaceAuthPhase === "installing");
-          const switchLabel =
-            integration.id === "google-workspace" && isEnabled
-              ? `Reconnect ${integration.label}`
-              : `${isEnabled ? "Disable" : "Enable"} ${integration.label}`;
+          const integrationLabel = _uiLanguage === "zh" ? (uiMessagesZh[integration.label] ?? integration.label) : integration.label;
+          const switchLabel = integration.id === "google-workspace" && isEnabled
+            ? (_uiLanguage === "zh" ? `重新连接 ${integrationLabel}` : `Reconnect ${integrationLabel}`)
+            : (_uiLanguage === "zh" ? `${isEnabled ? "停用" : "启用"} ${integrationLabel}` : `${isEnabled ? "Disable" : "Enable"} ${integrationLabel}`);
 
           return (
             <div className="settings-toggle-card" key={integration.id}>
@@ -464,10 +469,10 @@ export function SettingsIntegrations({
                 <Icon size={24} strokeWidth={1.8} />
               </div>
               <div className="settings-toggle-card__body">
-                <p className="workspace-status-card__eyebrow">{integration.label}</p>
-                <h3>{integration.name}</h3>
-                <p>{integration.copy}</p>
-                <p className="settings-toggle-card__note">{integration.note}</p>
+                <p className="workspace-status-card__eyebrow"><LocalizedMessage text={integration.label} /></p>
+                <h3><LocalizedMessage text={integration.name} /></h3>
+                <p><LocalizedMessage text={integration.copy} /></p>
+                <p className="settings-toggle-card__note"><LocalizedMessage text={integration.note} /></p>
               </div>
               <button
                 aria-checked={isEnabled}
@@ -487,7 +492,7 @@ export function SettingsIntegrations({
                   onClick={handleGoogleWorkspaceDisconnect}
                   type="button"
                 >
-                  {isSaving ? "Disconnecting..." : "Disconnect"}
+                  {isSaving ? <Localized en={"Disconnecting..."} zh={"正在断开..."} /> : <Localized en={"Disconnect"} zh={"断开连接"} />}
                 </button>
               ) : null}
               {integration.id === "google-workspace" && isEnabled && (googleWorkspaceAuthPhase !== "idle" || googleWorkspaceAuthMessage) ? (
@@ -495,7 +500,7 @@ export function SettingsIntegrations({
                   {googleWorkspaceAuthPhase === "starting" ||
                   googleWorkspaceAuthPhase === "waiting" ||
                   googleWorkspaceAuthPhase === "installing" ? (
-                    <progress aria-label="Google Workspace auth progress" className="settings-dialog__progress" />
+                    <progress aria-label={_uiLanguage === "zh" ? "Google Workspace 授权进度" : "Google Workspace auth progress"} className="settings-dialog__progress" />
                   ) : null}
 
                   {googleWorkspaceAuthMessage ? (
@@ -503,7 +508,7 @@ export function SettingsIntegrations({
                       aria-live="polite"
                       className={`claude-auth-card__message${googleWorkspaceAuthPhase === "failed" ? " claude-auth-card__message--error" : ""}`}
                     >
-                      {googleWorkspaceAuthMessage}
+                      <LocalizedMessage text={googleWorkspaceAuthMessage} />
                     </p>
                   ) : null}
                 </div>
@@ -511,7 +516,7 @@ export function SettingsIntegrations({
               {isEnabled || isSaving ? (
                 <div className="settings-toggle-card__status">
                   <CheckCircle2 size={16} strokeWidth={1.8} />
-                  {isSaving ? `Saving ${integration.label}...` : `${integration.label} enabled`}
+                  {isSaving ? (_uiLanguage === "zh" ? `正在保存 ${integrationLabel}...` : `Saving ${integrationLabel}...`) : (_uiLanguage === "zh" ? `已启用 ${integrationLabel}` : `${integrationLabel} enabled`)}
                 </div>
               ) : null}
             </div>

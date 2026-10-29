@@ -1,5 +1,8 @@
 "use client";
 
+import {Localized, useLanguage } from "@/components/language-provider";
+
+
 import { useState } from "react";
 import { LoaderCircle, Trash2 } from "lucide-react";
 import { ConfirmDialog } from "@/components/confirm-dialog";
@@ -17,6 +20,7 @@ export function DeleteWikiProjectButton({
   projectSlug,
   title
 }: DeleteWikiProjectButtonProps) {
+  const _uiLanguage = useLanguage().language;
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [error, setError] = useState("");
@@ -56,7 +60,7 @@ export function DeleteWikiProjectButton({
         type="button"
       >
         {isDeleting ? <LoaderCircle className="spin-icon" size={15} strokeWidth={1.8} /> : <Trash2 size={15} strokeWidth={1.8} />}
-        {isDeleting ? "Deleting..." : "Delete"}
+        {isDeleting ? <Localized en={"Deleting..."} zh={"正在删除..."} /> : <Localized en={"Delete"} zh={"删除"} />}
       </button>
       <ConfirmDialog
         busy={isDeleting}
@@ -66,7 +70,7 @@ export function DeleteWikiProjectButton({
         confirmWord="DELETE"
         description={
           <p>
-            This deletes <strong>{title}</strong> from Supabase and removes its AI Agent workspace directory.
+            <Localized en={<>This deletes <strong>{title}</strong> from Supabase and removes its AI Agent workspace directory.</>} zh={<>这将从 Supabase 删除 <strong>{title}</strong> 并移除其 AI Agent 工作空间目录。</>} />
           </p>
         }
         error={error}
@@ -77,8 +81,8 @@ export function DeleteWikiProjectButton({
         }}
         onConfirm={() => void handleDelete()}
         open={isDialogOpen}
-        title="Delete this Nth Brain?"
-        warning={<>AI Agent folder: {projectSlug ?? "No folder attached"}. This action cannot be undone.</>}
+        title={_uiLanguage === "zh" ? "删除此 Nth Brain？" : "Delete this Nth Brain?"}
+        warning={<Localized en={`AI Agent folder: ${projectSlug ?? "No folder attached"}. This action cannot be undone.`} zh={`AI Agent 文件夹：${projectSlug ?? "无关联文件夹"}。此操作无法撤销。`} />}
       />
     </>
   );

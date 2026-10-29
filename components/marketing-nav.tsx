@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { useLanguage } from "@/components/language-provider";
 import { Menu } from "lucide-react";
 import { BrandLogo } from "@/components/brand-logo";
 import { LoginDialog } from "@/components/login-dialog";
@@ -13,10 +14,12 @@ type MarketingNavProps = {
 };
 
 export function MarketingNav({ anchorPrefix = "", supabaseConfigured = true, wechatEnabled = false, locale }: MarketingNavProps) {
+  const { language, setLanguage } = useLanguage();
+  useEffect(() => { if (locale) setLanguage(locale); }, [locale]);
   const [isLoginOpen, setIsLoginOpen] = useState(false);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const sectionHref = (hash: string) => `${anchorPrefix}${hash}`;
-  const chinese = locale === "zh";
+  const chinese = (locale ?? language) === "zh";
 
   return (
     <>

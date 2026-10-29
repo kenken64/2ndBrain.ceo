@@ -1,5 +1,8 @@
 "use client";
 
+import { Localized, LocalizedMessage, useLanguage } from "@/components/language-provider";
+
+
 import { useEffect, useMemo, useState } from "react";
 import { Buffer } from "buffer";
 import { CreditCard, Loader2, Wallet } from "lucide-react";
@@ -176,6 +179,7 @@ export function SolanaCreditPurchase({
   packageTokens,
   packageUsdCents
 }: SolanaCreditPurchaseProps) {
+  const zh = useLanguage().language === "zh";
   const [walletAddress, setWalletAddress] = useState<string | null>(null);
   const [estimate, setEstimate] = useState<SolanaEstimate | null>(null);
   const [quote, setQuote] = useState<SolanaQuote | null>(null);
@@ -200,46 +204,46 @@ export function SolanaCreditPurchase({
   );
   const packageSummaryCopy = useMemo(() => {
     if (quote) {
-      return `Minimum spend is ${formatUsdPlain(packageUsd)}, approximately ${formatSol(quote.solAmount)} Solana at the current payment quote, for ${formatInteger(packageTokens)} AI credits.`;
+      return zh ? `最低消费 ${formatUsdPlain(packageUsd)}，按当前付款报价约为 ${formatSol(quote.solAmount)} Solana，可获得 ${formatInteger(packageTokens)} AI 积分。` : `Minimum spend is ${formatUsdPlain(packageUsd)}, approximately ${formatSol(quote.solAmount)} Solana at the current payment quote, for ${formatInteger(packageTokens)} AI credits.`;
     }
 
     if (estimate) {
-      return `Minimum spend is ${formatUsdPlain(packageUsd)}, approximately ${formatSol(estimate.solAmount)} Solana at the current estimate, for ${formatInteger(packageTokens)} AI credits.`;
+      return zh ? `最低消费 ${formatUsdPlain(packageUsd)}，按当前估算约为 ${formatSol(estimate.solAmount)} Solana，可获得 ${formatInteger(packageTokens)} AI 积分。` : `Minimum spend is ${formatUsdPlain(packageUsd)}, approximately ${formatSol(estimate.solAmount)} Solana at the current estimate, for ${formatInteger(packageTokens)} AI credits.`;
     }
 
     if (isEstimating) {
-      return `Minimum spend is ${formatUsdPlain(packageUsd)}. Calculating the approximate Solana amount for ${formatInteger(packageTokens)} AI credits.`;
+      return zh ? `最低消费 ${formatUsdPlain(packageUsd)}。正在计算购买 ${formatInteger(packageTokens)} AI 积分所需的 Solana 估算金额。` : `Minimum spend is ${formatUsdPlain(packageUsd)}. Calculating the approximate Solana amount for ${formatInteger(packageTokens)} AI credits.`;
     }
 
-    return `Minimum spend is ${formatUsdPlain(packageUsd)}, paid in Solana, for ${formatInteger(packageTokens)} AI credits.`;
-  }, [estimate, isEstimating, packageTokens, packageUsd, quote]);
+    return zh ? `最低消费 ${formatUsdPlain(packageUsd)}，以 Solana 支付，可获得 ${formatInteger(packageTokens)} AI 积分。` : `Minimum spend is ${formatUsdPlain(packageUsd)}, paid in Solana, for ${formatInteger(packageTokens)} AI credits.`;
+  }, [estimate, isEstimating, packageTokens, packageUsd, quote, zh]);
   const statusCopy = useMemo(() => {
     if (!billingConfigured) {
-      return "Treasury wallet missing";
+      return zh ? "缺少收款钱包" : "Treasury wallet missing";
     }
 
     if (quote) {
       if (isRefreshingBlockhash || !hasFreshBlockhash) {
-        return "Refreshing Solana";
+        return zh ? "正在刷新 Solana" : "Refreshing Solana";
       }
 
-      return `${formatSol(quote.solAmount)} Solana estimated`;
+      return zh ? `估算 ${formatSol(quote.solAmount)} Solana` : `${formatSol(quote.solAmount)} Solana estimated`;
     }
 
     if (isQuoting || isEstimating) {
-      return "Calculating Solana";
+      return zh ? "正在计算 Solana" : "Calculating Solana";
     }
 
     if (estimate) {
-      return `${formatSol(estimate.solAmount)} Solana estimated`;
+      return zh ? `估算 ${formatSol(estimate.solAmount)} Solana` : `${formatSol(estimate.solAmount)} Solana estimated`;
     }
 
     if (walletAddress) {
-      return "Wallet connected";
+      return zh ? "钱包已连接" : "Wallet connected";
     }
 
-    return "Ready";
-  }, [billingConfigured, estimate, hasFreshBlockhash, isEstimating, isQuoting, isRefreshingBlockhash, quote, walletAddress]);
+    return zh ? "已就绪" : "Ready";
+  }, [billingConfigured, estimate, hasFreshBlockhash, isEstimating, isQuoting, isRefreshingBlockhash, quote, walletAddress, zh]);
 
   useEffect(() => {
     if (!billingConfigured) {
@@ -381,14 +385,14 @@ export function SolanaCreditPurchase({
 
   function primaryActionLabel() {
     if (isQuoting && !quote) {
-      return "Calculating...";
+      return zh ? "正在计算..." : "Calculating...";
     }
 
     if (isRefreshingBlockhash) {
-      return "Refreshing...";
+      return zh ? "正在刷新..." : "Refreshing...";
     }
 
-    return quote ? "Pay with Phantom" : hasCompletedPayment ? "Buy again" : "Calculate payment";
+    return quote ? (zh ? "使用 Phantom 支付" : "Pay with Phantom") : hasCompletedPayment ? (zh ? "再次购买" : "Buy again") : (zh ? "计算付款" : "Calculate payment");
   }
 
   async function createQuoteForWallet(address: string | null, options?: { silent?: boolean }) {
@@ -577,8 +581,8 @@ export function SolanaCreditPurchase({
           <CreditCard size={22} strokeWidth={1.8} />
         </span>
         <div>
-          <p className="workspace-status-card__eyebrow">AI credits</p>
-          <h2>Buy AI credits with Solana</h2>
+          <p className="workspace-status-card__eyebrow"><Localized en={"AI credits"} zh={"AI 积分"} /></p>
+          <h2><Localized en={"Buy AI credits with Solana"} zh={"使用 Solana 购买 AI 积分"} /></h2>
           <p>{packageSummaryCopy}</p>
         </div>
         <span className="settings-toggle-card__status">{statusCopy}</span>
@@ -586,15 +590,15 @@ export function SolanaCreditPurchase({
 
       <dl className="solana-credit-card__metrics">
         <div>
-          <dt>Available</dt>
+          <dt><Localized en={"Available"} zh={"可用"} /></dt>
           <dd>{formatInteger(remaining)}</dd>
         </div>
         <div>
-          <dt>Quota</dt>
+          <dt><Localized en={"Quota"} zh={"配额"} /></dt>
           <dd>{formatInteger(quota)}</dd>
         </div>
         <div>
-          <dt>Used</dt>
+          <dt><Localized en={"Used"} zh={"已使用"} /></dt>
           <dd>{formatInteger(used)}</dd>
         </div>
       </dl>
@@ -602,15 +606,15 @@ export function SolanaCreditPurchase({
       {quote ? (
         <dl className="solana-credit-card__quote">
           <div>
-            <dt>Solana price</dt>
+            <dt><Localized en={"Solana price"} zh={"Solana 价格"} /></dt>
             <dd>{formatUsd(quote.solUsdPrice)}</dd>
           </div>
           <div>
-            <dt>Pay</dt>
+            <dt><Localized en={"Pay"} zh={"支付"} /></dt>
             <dd>{formatSol(quote.solAmount)} Solana</dd>
           </div>
           <div>
-            <dt>Network</dt>
+            <dt><Localized en={"Network"} zh={"网络"} /></dt>
             <dd>{quote.solanaNetwork}</dd>
           </div>
         </dl>
@@ -624,7 +628,7 @@ export function SolanaCreditPurchase({
           type="button"
         >
           {isConnecting ? <Loader2 size={16} strokeWidth={1.8} /> : <Wallet size={16} strokeWidth={1.8} />}
-          {walletAddress ? "Disconnect Phantom" : "Connect Phantom"}
+          {walletAddress ? <Localized en={"Disconnect Phantom"} zh={"断开 Phantom"} /> : <Localized en={"Connect Phantom"} zh={"连接 Phantom"} />}
         </button>
         <button
           className="btn-primary"
@@ -640,11 +644,11 @@ export function SolanaCreditPurchase({
       {walletAddress ? <p className="solana-credit-card__wallet">{walletAddress}</p> : null}
       {quote ? (
         <p className="settings-toggle-card__note">
-          Phantom must be set to {quote.solanaNetwork} before payment.
+          <Localized en={`Phantom must be set to ${quote.solanaNetwork} before payment.`} zh={`付款前，Phantom 必须设置为 ${quote.solanaNetwork}。`} />
         </p>
       ) : null}
-      {message ? <p className="settings-toggle-card__note">{message}</p> : null}
-      {error ? <p className="form-error" role="alert">{error}</p> : null}
+      {message ? <p className="settings-toggle-card__note"><LocalizedMessage text={message} /></p> : null}
+      {error ? <p className="form-error" role="alert"><LocalizedMessage text={error} /></p> : null}
     </article>
   );
 }

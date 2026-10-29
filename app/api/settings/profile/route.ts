@@ -109,7 +109,7 @@ export async function PATCH(request: Request) {
   if (profileName) {
     const { data: currentProfile, error: currentProfileError } = await supabase
       .from("profiles")
-      .select("openclaw_instance")
+      .select("openclaw_instance,provision_target")
       .eq("id", userId)
       .maybeSingle();
 
@@ -129,25 +129,27 @@ export async function PATCH(request: Request) {
       );
     }
 
-    try {
-      await updateGyneConsumerProfile({
-        instance: openClawInstance,
-        name: profileName
-      });
-    } catch (error) {
-      const message = error instanceof Error ? error.message : "gyne_consumer_profile_update_failed";
+    if (currentProfile?.provision_target !== "hermes_agent") {
+      try {
+        await updateGyneConsumerProfile({
+          instance: openClawInstance,
+          name: profileName
+        });
+      } catch (error) {
+        const message = error instanceof Error ? error.message : "gyne_consumer_profile_update_failed";
 
-      return NextResponse.json(
-        { error: `Gyne consumer profile could not be updated: ${outputSummary(message)}` },
-        { status: 502 }
-      );
+        return NextResponse.json(
+          { error: `Gyne consumer profile could not be updated: ${outputSummary(message)}` },
+          { status: 502 }
+        );
+      }
     }
   }
 
   if (disablingGoogleWorkspace) {
     const { data: gwsProfile, error: gwsProfileError } = await supabase
       .from("profiles")
-      .select("openclaw_instance")
+      .select("openclaw_instance,provision_target")
       .eq("id", userId)
       .maybeSingle();
 
@@ -160,7 +162,7 @@ export async function PATCH(request: Request) {
         ? gwsProfile.openclaw_instance.trim()
         : "";
 
-    if (openClawInstance) {
+    if (openClawInstance && gwsProfile?.provision_target !== "hermes_agent") {
       try {
         await logoutOpenClawGoogleWorkspace({ instance: openClawInstance });
       } catch (error) {

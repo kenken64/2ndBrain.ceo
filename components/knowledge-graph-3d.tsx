@@ -1,6 +1,10 @@
 "use client";
 
+import { Localized, useLanguage, LocalizedMessage } from "@/components/language-provider";
+
+
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { graphTypeLabel, graphRelationLabel } from "@/lib/graph-labels";
 import { CircleHelp, ExternalLink, Maximize, Maximize2, Minimize, Pause, Play, RotateCcw, Search, X } from "lucide-react";
 import type { ForceGraph3DInstance, LinkObject, NodeObject } from "3d-force-graph";
 
@@ -13,7 +17,6 @@ type Props = { nodes: InputNode[]; edges: InputEdge[]; projectId?: string | null
 
 const TYPE_COLORS: Record<string, string> = { intent: "#facc15", page: "#60a5fa", tag: "#34d399", owner: "#fb923c", person: "#fb923c", decision: "#f472b6", source: "#a78bfa" };
 function colorFor(type: string) { return TYPE_COLORS[type] ?? "#a78bfa"; }
-function displayType(type: string) { return type.replace(/_/g, " ").replace(/^./, (value) => value.toUpperCase()); }
 function number(value: number | undefined) { return typeof value === "number" && Number.isFinite(value) ? value : 0; }
 function wikiPageHref(projectId: string, sourcePath: string) { return `/dashboard/wiki?${new URLSearchParams({ path: sourcePath, projectId })}`; }
 
@@ -40,6 +43,9 @@ function spaceBackground() {
 }
 
 export function KnowledgeGraph3D({ nodes, edges, projectId, highlightPath, componentCount, directEdgeCount }: Props) {
+  const _uiLanguage = useLanguage().language;
+  const languageRef = useRef(_uiLanguage);
+  languageRef.current = _uiLanguage;
   const shellRef = useRef<HTMLDivElement>(null);
   const helpRef = useRef<HTMLDialogElement>(null);
   const viewportRef = useRef<HTMLDivElement>(null);
@@ -103,8 +109,8 @@ export function KnowledgeGraph3D({ nodes, edges, projectId, highlightPath, compo
   const matches = useMemo(() => {
     const value = query.trim().toLowerCase();
     if (!value) return [];
-    return visibleGraph.nodes.filter(node => [node.label, node.node_type, node.slug, node.source_path].filter(Boolean).join(" ").toLowerCase().includes(value)).slice(0, 30);
-  }, [visibleGraph.nodes, query]);
+    return visibleGraph.nodes.filter(node => [node.label, node.node_type, graphTypeLabel(node.node_type, _uiLanguage), node.slug, node.source_path].filter(Boolean).join(" ").toLowerCase().includes(value)).slice(0, 30);
+  }, [visibleGraph.nodes, query, _uiLanguage]);
 
   const focus = useCallback((id: string) => {
     const instance = graphRef.current;
@@ -144,7 +150,7 @@ export function KnowledgeGraph3D({ nodes, edges, projectId, highlightPath, compo
         instance.width(container.clientWidth).height(container.clientHeight).backgroundColor("rgba(0, 0, 0, 0)").showNavInfo(false)
           .nodeId("id").nodeVal("val").nodeRelSize(5.5).nodeResolution(12)
           .nodeColor(node => selectedRef.current && !connectedRef.current.has(node.id) ? "#263747" : node.color)
-          .nodeLabel(node => { const label = document.createElement("span"); label.textContent = `${node.label} · ${displayType(node.node_type)}`; return label; })
+          .nodeLabel(node => { const label = document.createElement("span"); label.textContent = `${node.label} · ${graphTypeLabel(node.node_type, languageRef.current)}`; return label; })
           .linkColor(link => selectedRef.current ? (link.sourceId === selectedRef.current || link.targetId === selectedRef.current ? "#83ebd2" : "#263a46") : link.synthetic ? "#496275" : "#4f9b8c")
           .linkOpacity(0.65)
           .linkWidth(link => selectedRef.current && (link.sourceId === selectedRef.current || link.targetId === selectedRef.current) ? 1.3 : 0.35)
@@ -234,30 +240,30 @@ export function KnowledgeGraph3D({ nodes, edges, projectId, highlightPath, compo
     } catch { setDisplayError("Full screen is unavailable. Try opening the graph in a new window instead."); }
   };
   return <div ref={shellRef} className={`graph3d-shell${showControls ? " graph3d-shell--controls-open" : ""}`}>
-    <div className="graph3d-viewport" ref={viewportRef} aria-label="Interactive 3D knowledge graph" />
-    {loading ? <p className="graph3d-state" role="status">Preparing your 3D graph…</p> : null}
-    {error ? <p className="graph3d-state graph3d-state--error" role="alert">{error} Switch to 2D view to explore this graph.</p> : null}
+    <div className="graph3d-viewport" ref={viewportRef} aria-label={_uiLanguage === "zh" ? "交互式 3D 知识图谱" : "Interactive 3D knowledge graph"} />
+    {loading ? <p className="graph3d-state" role="status"><Localized en={"Preparing your 3D graph…"} zh={"正在准备 3D 图谱…"} /></p> : null}
+    {error ? <p className="graph3d-state graph3d-state--error" role="alert"><LocalizedMessage text={error} /> <Localized en={"Switch to 2D view to explore this graph."} zh={"切换到 2D 视图以浏览此图谱。"} /></p> : null}
     <div className="graph3d-controls">
-      <div className="graph3d-panel-header"><div><span className="graph3d-eyebrow">KNOWLEDGE GALAXY</span><div className="graph3d-node-count"><strong>{nodes.filter(node => !node.synthetic).length} nodes <span>·</span> {directEdgeCount} links</strong><button type="button" className="graph3d-help-trigger" aria-label="About the knowledge graph" title="About the knowledge graph" onClick={() => helpRef.current?.showModal()}><CircleHelp size={16} /></button></div></div><button type="button" onClick={() => setShowControls(value => !value)} aria-label={showControls ? "Collapse graph controls" : "Expand graph controls"}>{showControls ? "−" : "+"}</button></div>
+      <div className="graph3d-panel-header"><div><span className="graph3d-eyebrow"><Localized en={"KNOWLEDGE GALAXY"} zh={"知识星系"} /></span><div className="graph3d-node-count"><strong>{_uiLanguage === "zh" ? `${nodes.filter(node => !node.synthetic).length} 个节点 · ${directEdgeCount} 条链接` : `${nodes.filter(node => !node.synthetic).length} nodes · ${directEdgeCount} links`}</strong><button type="button" className="graph3d-help-trigger" aria-label={_uiLanguage === "zh" ? "关于知识图谱" : "About the knowledge graph"} title={_uiLanguage === "zh" ? "关于知识图谱" : "About the knowledge graph"} onClick={() => helpRef.current?.showModal()}><CircleHelp size={16} /></button></div></div><button type="button" onClick={() => setShowControls(value => !value)} aria-label={_uiLanguage === "zh" ? (showControls ? "收起图谱控制" : "展开图谱控制") : (showControls ? "Collapse graph controls" : "Expand graph controls")}>{showControls ? "−" : "+"}</button></div>
       {showControls ? <>
-        <label className="graph3d-search"><Search size={15} /><input type="search" placeholder="Search your graph…" value={query} onChange={event => setQuery(event.target.value)} aria-label="Search graph nodes" />{query ? <button type="button" aria-label="Clear graph search" onClick={() => setQuery("")}><X size={14} /></button> : null}</label>
-        {query.trim() ? <div className="graph3d-results" role="region" aria-label="Graph search results">{matches.length ? matches.map(node => <button type="button" key={node.id} onClick={() => { focus(node.id); setQuery(""); }}><span style={{ background: node.color }} />{node.label}</button>) : <p>No matching nodes.</p>}</div> : <p className="graph3d-hint">Drag to orbit · scroll to zoom · click a node to explore its connections.</p>}
-        <div className="graph3d-filter-title">FILTER BY TYPE</div>
-        <div className="graph3d-filters">{types.map(([type, count]) => <label key={type}><input type="checkbox" checked={!hiddenTypes.includes(type)} onChange={() => { setSelectedId(null); setHiddenTypes(current => current.includes(type) ? current.filter(item => item !== type) : [...current, type]); }} /><span className="graph3d-dot" style={{ background: colorFor(type) }} /><span>{displayType(type)}</span><small>{count}</small></label>)}</div>
-        <p className="graph3d-hint">{componentCount} original cluster{componentCount === 1 ? "" : "s"}. Project-scope links are visual guides.</p>
+        <label className="graph3d-search"><Search size={15} /><input type="search" placeholder={_uiLanguage === "zh" ? "搜索图谱…" : "Search your graph…"} value={query} onChange={event => setQuery(event.target.value)} aria-label={_uiLanguage === "zh" ? "搜索图谱节点" : "Search graph nodes"} />{query ? <button type="button" aria-label={_uiLanguage === "zh" ? "清除图谱搜索" : "Clear graph search"} onClick={() => setQuery("")}><X size={14} /></button> : null}</label>
+        {query.trim() ? <div className="graph3d-results" role="region" aria-label={_uiLanguage === "zh" ? "图谱搜索结果" : "Graph search results"}>{matches.length ? matches.map(node => <button type="button" key={node.id} onClick={() => { focus(node.id); setQuery(""); }}><span style={{ background: node.color }} />{node.label}</button>) : <p><Localized en={"No matching nodes."} zh={"没有匹配的节点。"} /></p>}</div> : <p className="graph3d-hint"><Localized en={"Drag to orbit · scroll to zoom · click a node to explore its connections."} zh={"拖动旋转 · 滚动缩放 · 点击节点查看其关联。"} /></p>}
+        <div className="graph3d-filter-title"><Localized en={"FILTER BY TYPE"} zh={"按类型筛选"} /></div>
+        <div className="graph3d-filters">{types.map(([type, count]) => <label key={type}><input type="checkbox" checked={!hiddenTypes.includes(type)} onChange={() => { setSelectedId(null); setHiddenTypes(current => current.includes(type) ? current.filter(item => item !== type) : [...current, type]); }} /><span className="graph3d-dot" style={{ background: colorFor(type) }} /><span>{graphTypeLabel(type, _uiLanguage)}</span><small>{count}</small></label>)}</div>
+        <p className="graph3d-hint">{_uiLanguage === "zh" ? `${componentCount} 个原始聚类。项目范围链接仅用于视觉分组。` : `${componentCount} original cluster${componentCount === 1 ? "" : "s"}. Project-scope links are visual guides.`}</p>
       </> : null}
     </div>
-    <div className="graph3d-actions"><button type="button" onClick={() => setDrifting(value => !value)} aria-pressed={drifting} title={drifting ? "Pause galaxy drift" : "Resume galaxy drift"}>{drifting ? <Pause size={15} /> : <Play size={15} />} {drifting ? "Pause" : "Drift"}</button><button type="button" onClick={() => { setSelectedId(null); graphRef.current?.zoomToFit(600, 40); }} title="Fit graph"><Maximize2 size={15} /> Fit</button><button type="button" onClick={() => graphRef.current?.d3ReheatSimulation()} title="Re-run force layout"><RotateCcw size={15} /> Reflow</button>{projectId ? <button type="button" onClick={openWindow} aria-label="Open graph in new window" title="Open graph in new window"><ExternalLink size={15} /><span className="graph3d-action-label">Window</span></button> : null}<button type="button" onClick={toggleFullscreen} aria-label={fullscreen ? "Exit full screen" : "Enter full screen"} title={fullscreen ? "Exit full screen" : "Enter full screen"}>{fullscreen ? <Minimize size={15} /> : <Maximize size={15} />}<span className="graph3d-action-label">{fullscreen ? "Exit full screen" : "Full screen"}</span></button></div>
-    {displayError ? <div className="graph3d-display-error" role="alert">{displayError}<button type="button" onClick={() => setDisplayError("")} aria-label="Dismiss message"><X size={14} /></button></div> : null}
+    <div className="graph3d-actions"><button type="button" onClick={() => setDrifting(value => !value)} aria-pressed={drifting} title={_uiLanguage === "zh" ? (drifting ? "暂停星系漂移" : "恢复星系漂移") : (drifting ? "Pause galaxy drift" : "Resume galaxy drift")}>{drifting ? <Pause size={15} /> : <Play size={15} />} {drifting ? <Localized en={"Pause"} zh={"暂停"} /> : <Localized en={"Drift"} zh={"漂移"} />}</button><button type="button" onClick={() => { setSelectedId(null); graphRef.current?.zoomToFit(600, 40); }} title={_uiLanguage === "zh" ? "使图谱适合画面" : "Fit graph"}><Maximize2 size={15} /> <Localized en={"Fit"} zh={"适合画面"} /></button><button type="button" onClick={() => graphRef.current?.d3ReheatSimulation()} title={_uiLanguage === "zh" ? "重新运行力导向布局" : "Re-run force layout"}><RotateCcw size={15} /> <Localized en={"Reflow"} zh={"重新布局"} /></button>{projectId ? <button type="button" onClick={openWindow} aria-label={_uiLanguage === "zh" ? "在新窗口打开图谱" : "Open graph in new window"} title={_uiLanguage === "zh" ? "在新窗口打开图谱" : "Open graph in new window"}><ExternalLink size={15} /><span className="graph3d-action-label"><Localized en={"Window"} zh={"窗口"} /></span></button> : null}<button type="button" onClick={toggleFullscreen} aria-label={_uiLanguage === "zh" ? (fullscreen ? "退出全屏" : "进入全屏") : (fullscreen ? "Exit full screen" : "Enter full screen")} title={_uiLanguage === "zh" ? (fullscreen ? "退出全屏" : "进入全屏") : (fullscreen ? "Exit full screen" : "Enter full screen")}>{fullscreen ? <Minimize size={15} /> : <Maximize size={15} />}<span className="graph3d-action-label">{fullscreen ? <Localized en={"Exit full screen"} zh={"退出全屏"} /> : <Localized en={"Full screen"} zh={"全屏"} />}</span></button></div>
+    {displayError ? <div className="graph3d-display-error" role="alert"><LocalizedMessage text={displayError} /><button type="button" onClick={() => setDisplayError("")} aria-label={_uiLanguage === "zh" ? "关闭消息" : "Dismiss message"}><X size={14} /></button></div> : null}
     <dialog ref={helpRef} className="graph3d-help-dialog" aria-labelledby="graph-help-title">
-      <div className="graph3d-help-header"><div><span className="graph3d-eyebrow">KNOWLEDGE GALAXY</span><h2 id="graph-help-title">What is this graph for?</h2></div><button type="button" aria-label="Close graph help" onClick={() => helpRef.current?.close()}><X size={18} /></button></div>
-      <p>The graph helps you explore how pages, people, decisions and topics in your knowledge base are connected. As your knowledge base grows, it can help you discover related information you might otherwise miss.</p>
-      <p>For example, search for a customer, select their node, and follow its connections to related meeting notes or decisions. Clusters can show groups of related material, and you can open a node’s source page for more detail.</p>
-      <p>The graph is only as useful as its underlying links. A line does not automatically mean AI has discovered an important relationship. <strong>Project-scope links</strong> are visual guides for grouping disconnected nodes. If you already know the page you want, ordinary search may be quicker.</p>
-      <p>Use <strong>Fit</strong> to return to the full overview after exploring a node.</p>
-      <button type="button" className="graph3d-help-done" onClick={() => helpRef.current?.close()}>Got it</button>
+      <div className="graph3d-help-header"><div><span className="graph3d-eyebrow"><Localized en={"KNOWLEDGE GALAXY"} zh={"知识星系"} /></span><h2 id="graph-help-title"><Localized en={"What is this graph for?"} zh={"此图谱有什么用途？"} /></h2></div><button type="button" aria-label={_uiLanguage === "zh" ? "关闭图谱帮助" : "Close graph help"} onClick={() => helpRef.current?.close()}><X size={18} /></button></div>
+      <p><Localized en={"The graph helps you explore how pages, people, decisions and topics in your knowledge base are connected. As your knowledge base grows, it can help you discover related information you might otherwise miss."} zh={"图谱帮助您了解知识库中的页面、人物、决策和主题如何关联。随着知识库增长，它可以帮助您发现可能被忽略的相关信息。"} /></p>
+      <p><Localized en={"For example, search for a customer, select their node, and follow its connections to related meeting notes or decisions. Clusters can show groups of related material, and you can open a node’s source page for more detail."} zh={"例如，搜索客户并选择其节点，然后沿关联查看相关会议记录或决策。聚类可以显示相关资料，您也可以打开节点的源页面了解详情。"} /></p>
+      <p><Localized en="The graph is only as useful as its underlying links. A line does not automatically mean AI has discovered an important relationship. Project-scope links are visual guides for grouping disconnected nodes. If you already know the page you want, ordinary search may be quicker." zh="图谱的价值取决于底层链接。一条连线并不一定意味着 AI 发现了重要关系。项目范围链接只是将未连接的节点分组的视觉提示。如果已经知道要找的页面，普通搜索可能更快。" /></p>
+      <p><Localized en="Use Fit to return to the full overview after exploring a node." zh="浏览节点后，使用“适合画面”返回完整视图。" /></p>
+      <button type="button" className="graph3d-help-done" onClick={() => helpRef.current?.close()}><Localized en={"Got it"} zh={"知道了"} /></button>
     </dialog>
-    {selected ? <aside className="graph3d-inspector" aria-label="Selected node details"><button className="graph3d-inspector-close" type="button" aria-label="Close node details" onClick={() => setSelectedId(null)}><X size={16} /></button><span className="graph3d-eyebrow"><span className="graph3d-dot" style={{ background: selected.color }} /> {displayType(selected.node_type)}</span><h3>{selected.label}</h3><p>{selected.synthetic ? "Project anchor · visual grouping" : `${selected.degree} visible connection${selected.degree === 1 ? "" : "s"}`}</p>{projectId && selected.source_path ? <a href={wikiPageHref(projectId, selected.source_path)}>Open source page <ExternalLink size={14} /></a> : null}{neighbors.length ? <div className="graph3d-neighbors"><strong>Connections</strong>{neighbors.map(edge => { const otherId = edge.sourceId === selected.id ? edge.targetId : edge.sourceId; const other = nodeById.get(otherId); return other ? <button key={edge.id} type="button" onClick={() => focus(other.id)}><span>{other.label}</span><small>{edge.synthetic ? "project scope" : edge.relation.replace(/_/g, " ")}</small></button> : null; })}{selected.degree > neighbors.length ? <small>Showing {neighbors.length} connections.</small> : null}</div> : null}</aside> : null}
-    {!visibleGraph.nodes.length ? <div className="graph3d-empty">All node types are hidden. Select a type in the filter to show it again.</div> : null}
+    {selected ? <aside className="graph3d-inspector" aria-label={_uiLanguage === "zh" ? "所选节点详情" : "Selected node details"}><button className="graph3d-inspector-close" type="button" aria-label={_uiLanguage === "zh" ? "关闭节点详情" : "Close node details"} onClick={() => setSelectedId(null)}><X size={16} /></button><span className="graph3d-eyebrow"><span className="graph3d-dot" style={{ background: selected.color }} /> {graphTypeLabel(selected.node_type, _uiLanguage)}</span><h3>{selected.label}</h3><p>{selected.synthetic ? <Localized en={"Project anchor · visual grouping"} zh={"项目锚点 · 视觉分组"} /> : (_uiLanguage === "zh" ? `${selected.degree} 条可见关联` : `${selected.degree} visible connection${selected.degree === 1 ? "" : "s"}`)}</p>{projectId && selected.source_path ? <a href={wikiPageHref(projectId, selected.source_path)}><Localized en={"Open source page"} zh={"打开源页面"} /><ExternalLink size={14} /></a> : null}{neighbors.length ? <div className="graph3d-neighbors"><strong><Localized en={"Connections"} zh={"关联"} /></strong>{neighbors.map(edge => { const otherId = edge.sourceId === selected.id ? edge.targetId : edge.sourceId; const other = nodeById.get(otherId); return other ? <button key={edge.id} type="button" onClick={() => focus(other.id)}><span>{other.label}</span><small>{edge.synthetic ? <Localized en={"project scope"} zh={"项目范围"} /> : graphRelationLabel(edge.relation, _uiLanguage)}</small></button> : null; })}{selected.degree > neighbors.length ? <small>{_uiLanguage === "zh" ? `显示 ${neighbors.length} 条关联。` : `Showing ${neighbors.length} connections.`}</small> : null}</div> : null}</aside> : null}
+    {!visibleGraph.nodes.length ? <div className="graph3d-empty"><Localized en={"All node types are hidden. Select a type in the filter to show it again."} zh={"所有节点类型均已隐藏。请在筛选器中选择类型以重新显示。"} /></div> : null}
   </div>;
 }

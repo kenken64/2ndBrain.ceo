@@ -3,7 +3,7 @@ import { addConsumerOwner } from "@/lib/gyne-consumer-registry";
 import { isAdminUser } from "@/lib/admin";
 import { hasSupabaseEnv } from "@/lib/env";
 import { getUserIdFromClaims, onboardingProfileSelect, type OnboardingProfile } from "@/lib/onboarding";
-import { generateConsumerName, provisionOpenClaw } from "@/lib/openclaw";
+import { generateConsumerName, provisionHermes, provisionOpenClaw } from "@/lib/openclaw";
 import { createAdminClient, hasSupabaseServiceRoleEnv } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 
@@ -15,6 +15,7 @@ const DEFAULT_MAX_INSTANCES = 5;
 const ACTIVE_STATUSES = ["provisioning", "ready", "deprovisioning"];
 
 type InstanceRow = {
+  agent_type: string;
   consumer_name: string;
   created_at: string | null;
   id: string;
@@ -56,6 +57,7 @@ function outputSummary(value: string) {
 
 function serializeInstance(row: InstanceRow) {
   return {
+    agentType: row.agent_type,
     consumerName: row.consumer_name,
     createdAt: row.created_at,
     error: row.provision_error,
@@ -106,7 +108,7 @@ export async function GET() {
   const adminSupabase = createAdminClient();
   const { data, error } = await adminSupabase
     .from("openclaw_instances")
-    .select("id,consumer_name,label,instance,region,provision_status,provision_error,created_at,updated_at")
+    .select("id,agent_type,consumer_name,label,instance,region,provision_status,provision_error,created_at,updated_at")
     .eq("user_id", auth.userId)
     .order("created_at", { ascending: false });
 
@@ -136,7 +138,11 @@ export async function POST(request: Request) {
     );
   }
 
-  const body = (await request.json().catch(() => ({}))) as { label?: unknown; telegramBotToken?: unknown };
+  const body = (await request.json().catch(() => ({}))) as { agentType?: unknown; label?: unknown; telegramBotToken?: unknown };
+  const agentType = body.agentType ?? "openclaw";
+  if (agentType !== "openclaw" && agentType !== "hermes_agent") {
+    return NextResponse.json({ error: "invalid_provision_target" }, { status: 400 });
+  }
   const label = typeof body.label === "string" ? body.label.trim().slice(0, 120) || null : null;
   const bodyTelegramBotToken = typeof body.telegramBotToken === "string" ? body.telegramBotToken.trim() : "";
 
@@ -223,12 +229,13 @@ export async function POST(request: Request) {
     .from("openclaw_instances")
     .insert({
       consumer_name: consumerName,
+      agent_type: agentType,
       label,
       provision_started_at: new Date().toISOString(),
       provision_status: "provisioning",
       user_id: auth.userId
     })
-    .select("id,consumer_name,label,instance,region,provision_status,provision_error,created_at,updated_at")
+    .select("id,agent_type,consumer_name,label,instance,region,provision_status,provision_error,created_at,updated_at")
     .single();
 
   if (insertError || !inserted) {
@@ -237,13 +244,24 @@ export async function POST(request: Request) {
 
   const instanceRow = inserted as InstanceRow;
 
+  if (agentType === "hermes_agent") {
+    const { error: secretError } = await adminSupabase.from("agent_instance_secrets").insert({
+      instance_id: instanceRow.id,
+      telegram_bot_token: telegramBotToken
+    });
+    if (secretError) {
+      await adminSupabase.from("openclaw_instances").delete().eq("id", instanceRow.id);
+      return NextResponse.json({ error: "save_failed" }, { status: 500 });
+    }
+  }
+
   try {
-    const provisioned = await provisionOpenClaw({
+    const provisioned = await (agentType === "hermes_agent" ? provisionHermes : provisionOpenClaw)({
       avatarGender,
       avatarName,
       consumerName,
       onInstanceRestored: async (details) => {
-        await adminSupabase
+        const { error: saveError } = await adminSupabase
           .from("openclaw_instances")
           .update({
             instance: details.instance,
@@ -252,6 +270,7 @@ export async function POST(request: Request) {
             snapshot_name: details.snapshotName
           })
           .eq("id", instanceRow.id);
+        if (saveError) throw new Error("save_failed");
       },
       ownerName,
       telegramBotToken
@@ -270,7 +289,7 @@ export async function POST(request: Request) {
         snapshot_name: provisioned.snapshotName
       })
       .eq("id", instanceRow.id)
-      .select("id,consumer_name,label,instance,region,provision_status,provision_error,created_at,updated_at")
+      .select("id,agent_type,consumer_name,label,instance,region,provision_status,provision_error,created_at,updated_at")
       .single();
 
     if (readyError || !readyRow) {
@@ -279,7 +298,8 @@ export async function POST(request: Request) {
 
     // Ownership map is authoritative here: only after a successful provision does the consumer become
     // visible to this user in the Gyne Agent.
-    await addConsumerOwner(auth.userId, consumerName);
+    const mapped = await addConsumerOwner(auth.userId, consumerName);
+    if (!mapped && agentType === "hermes_agent") throw new Error("gyne_owner_registration_failed");
 
     return NextResponse.json({ instance: serializeInstance(readyRow as InstanceRow) }, { status: 201 });
   } catch (error) {
@@ -291,6 +311,6 @@ export async function POST(request: Request) {
       .update({ provision_error: message.slice(0, 2000), provision_status: "failed" })
       .eq("id", instanceRow.id);
 
-    return NextResponse.json({ error: "openclaw_provision_failed" }, { status: 500 });
+    return NextResponse.json({ error: message.startsWith("missing_") ? message : "openclaw_provision_failed" }, { status: 500 });
   }
 }

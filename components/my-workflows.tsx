@@ -1,5 +1,7 @@
 "use client";
 
+import { Localized, useLanguage, LocalizedMessage } from "@/components/language-provider";
+
 import { useEffect, useMemo, useState } from "react";
 import { AlertTriangle, ExternalLink, RefreshCw, Rocket, Store, Trash2 } from "lucide-react";
 import {
@@ -51,15 +53,15 @@ type LaunchResponse = {
   launchUrl: string;
 };
 
-function formatTokens(value: number | null | undefined) {
+function formatTokens(value: number | null | undefined, zh = false) {
   if (value === null || value === undefined || !Number.isFinite(value)) {
-    return "Unlimited";
+    return zh ? "无限" : "Unlimited";
   }
 
   return new Intl.NumberFormat("en").format(Math.max(0, Math.trunc(value)));
 }
 
-function formatDate(value: string | null | undefined) {
+function formatDate(value: string | null | undefined, zh = false) {
   if (!value) {
     return null;
   }
@@ -70,7 +72,7 @@ function formatDate(value: string | null | undefined) {
     return null;
   }
 
-  return new Intl.DateTimeFormat("en", {
+  return new Intl.DateTimeFormat(zh ? "zh-CN" : "en", {
     day: "numeric",
     month: "short",
     year: "numeric"
@@ -105,6 +107,8 @@ function workflowFromInstall(install: MarketplaceInstall) {
 }
 
 export function MyWorkflows() {
+  const { language } = useLanguage();
+  const zh = language === "zh";
   const [installs, setInstalls] = useState<MarketplaceInstall[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
@@ -143,7 +147,7 @@ export function MyWorkflows() {
   }, []);
 
   async function unsubscribeWorkflow(itemId: string, title: string) {
-    const confirmed = window.confirm(`Unsubscribe ${title}? Future recurring AI credit charges will stop.`);
+    const confirmed = window.confirm(zh ? `取消订阅 ${title}？后续定期 AI 积分扣费将停止。` : `Unsubscribe ${title}? Future recurring AI credit charges will stop.`);
 
     if (!confirmed) {
       return;
@@ -206,15 +210,15 @@ export function MyWorkflows() {
     return (
       <article className="workflow-empty">
         <div>
-          <p className="workspace-status-card__eyebrow">My Workflows</p>
-          <h2>No workflow tools installed</h2>
-          <p>Install workflow tools from Marketplace, then manage their allocations here.</p>
-          {error ? <p className="form-error" role="alert">{error}</p> : null}
-          {message ? <p className="form-success" role="status">{message}</p> : null}
+          <p className="workspace-status-card__eyebrow"><Localized en="My Workflows" zh="我的工作流" /></p>
+          <h2><Localized en="No workflow tools installed" zh="尚未安装工作流工具" /></h2>
+          <p><Localized en="Install workflow tools from Marketplace, then manage their allocations here." zh="从应用市场安装工作流工具，然后在此管理其积分分配。" /></p>
+          {error ? <p className="form-error" role="alert"><LocalizedMessage text={error} /></p> : null}
+          {message ? <p className="form-success" role="status"><LocalizedMessage text={message} /></p> : null}
         </div>
         <a className="btn-primary" href="/dashboard/marketplace">
           <Store size={16} strokeWidth={1.8} />
-          Open Marketplace
+          <Localized en="Open Marketplace" zh="打开应用市场" />
         </a>
       </article>
     );
@@ -224,74 +228,74 @@ export function MyWorkflows() {
     <div className="workflow-marketplace-stack">
       <div className="workflow-marketplace-summary">
         <div>
-          <p className="workspace-status-card__eyebrow">Installed tools</p>
-          <h2>{loading ? "Loading workflow tools" : `${workflows.length} installed`}</h2>
-          <p>Each workflow tool has a dedicated AI credit allocation for its own runs.</p>
+          <p className="workspace-status-card__eyebrow"><Localized en="Installed tools" zh="已安装的工具" /></p>
+          <h2>{loading ? (zh ? "正在加载工作流工具" : "Loading workflow tools") : (zh ? `已安装 ${workflows.length} 个` : `${workflows.length} installed`)}</h2>
+          <p><Localized en="Each workflow tool has a dedicated AI credit allocation for its own runs." zh="每个工作流工具都有专用的 AI 积分供其运行。" /></p>
         </div>
         <button className="btn-ghost" disabled={loading} onClick={refreshInstalls} type="button">
           <RefreshCw size={16} strokeWidth={1.8} />
-          Refresh
+          <Localized en="Refresh" zh="刷新" />
         </button>
       </div>
 
-      {error ? <p className="form-error" role="alert">{error}</p> : null}
-      {message ? <p className="form-success" role="status">{message}</p> : null}
+      {error ? <p className="form-error" role="alert"><LocalizedMessage text={error} /></p> : null}
+      {message ? <p className="form-success" role="status"><LocalizedMessage text={message} /></p> : null}
 
       <div className="workflow-grid">
         {workflows.map(({ install, item }) => {
           const isDisabled = install.status === "disabled";
           const isLaunching = launchingId === item.id;
           const isUnsubscribing = unsubscribingId === item.id;
-          const installedDate = formatDate(install.installedAt);
-          const nextChargeDate = formatDate(install.nextChargeAt);
+          const installedDate = formatDate(install.installedAt, zh);
+          const nextChargeDate = formatDate(install.nextChargeAt, zh);
           const billingCopy = install.allocation?.quotaExempt
-            ? "Admin exempt from recurring AI credit charges."
+            ? (zh ? "管理员无需支付定期 AI 积分费用。" : "Admin exempt from recurring AI credit charges.")
             : isDisabled
-              ? "Renewal disabled until enough AI credits are available."
+              ? (zh ? "积分充足前无法续费。" : "Renewal disabled until enough AI credits are available.")
               : nextChargeDate
-                ? `Next charge: ${nextChargeDate}`
-                : "Monthly renewal active.";
+                ? (zh ? `下次扣费：${nextChargeDate}` : `Next charge: ${nextChargeDate}`)
+                : (zh ? "每月自动续费已启用。" : "Monthly renewal active.");
 
           return (
             <article className="workflow-card" key={item.id}>
               <div className="workflow-card__header">
                 <div>
-                  <span className="workspace-status-card__eyebrow">{item.category}</span>
-                  <h2>{item.title}</h2>
+                  <span className="workspace-status-card__eyebrow"><LocalizedMessage text={item.category} /></span>
+                  <h2><LocalizedMessage text={item.title} /></h2>
                 </div>
                 <span className={`project-status ${isDisabled ? "project-status--failed" : "project-status--ready"}`}>
-                  {isDisabled ? "disabled" : "installed"}
+                  {isDisabled ? (zh ? "已停用" : "disabled") : (zh ? "已安装" : "installed")}
                 </span>
               </div>
-              <p>{item.description}</p>
+              <p><LocalizedMessage text={item.description} /></p>
               {install.allocation ? (
                 <dl className="workflow-card__allocation">
                   <div>
-                    <dt>Allocated</dt>
-                    <dd>{install.allocation.quotaExempt ? "Quota exempt" : formatTokens(install.allocation.allocatedTokens)}</dd>
+                    <dt><Localized en="Allocated" zh="已分配" /></dt>
+                    <dd>{install.allocation.quotaExempt ? (zh ? "免配额" : "Quota exempt") : formatTokens(install.allocation.allocatedTokens, zh)}</dd>
                   </div>
                   <div>
-                    <dt>Used</dt>
-                    <dd>{formatTokens(install.allocation.usedTokens)}</dd>
+                    <dt><Localized en="Used" zh="已使用" /></dt>
+                    <dd>{formatTokens(install.allocation.usedTokens, zh)}</dd>
                   </div>
                   <div>
-                    <dt>Available</dt>
-                    <dd>{formatTokens(install.allocation.availableTokens)}</dd>
+                    <dt><Localized en="Available" zh="可用" /></dt>
+                    <dd>{formatTokens(install.allocation.availableTokens, zh)}</dd>
                   </div>
                 </dl>
               ) : null}
               <p className="workflow-card__billing">
-                {installedDate ? `Installed: ${installedDate}. ` : null}
+                {installedDate ? (zh ? `安装日期：${installedDate}。` : `Installed: ${installedDate}. `) : null}
                 {billingCopy}
               </p>
               {isDisabled ? (
                 <p className="workflow-card__hint">
-                  Add AI credits, then refresh My Workflows to reactivate this workflow tool.
+                  <Localized en="Add AI credits, then refresh My Workflows to reactivate this workflow tool." zh="添加 AI 积分，然后刷新“我的工作流”以重新启用此工具。" />
                 </p>
               ) : null}
               <ol className="workflow-card__steps">
                 {item.steps.map((step) => (
-                  <li key={step}>{step}</li>
+                  <li key={step}><LocalizedMessage text={step} /></li>
                 ))}
               </ol>
               <div className="workflow-card__actions">
@@ -303,17 +307,17 @@ export function MyWorkflows() {
                     type="button"
                   >
                     {isLaunching ? <RefreshCw size={16} strokeWidth={1.8} /> : <Rocket size={16} strokeWidth={1.8} />}
-                    {isLaunching ? "Launching..." : item.launchLabel}
+                    {isLaunching ? (zh ? "正在启动..." : "Launching...") : <LocalizedMessage text={item.launchLabel} />}
                   </button>
                 ) : null}
                 <a className={item.launchLabel ? "btn-ghost" : "btn-primary"} href="/dashboard/marketplace">
                   <Store size={16} strokeWidth={1.8} />
-                  Marketplace
+                  <Localized en="Marketplace" zh="应用市场" />
                 </a>
                 {item.repoUrl ? (
                   <a className="btn-ghost" href={item.repoUrl} rel="noreferrer" target="_blank">
                     <ExternalLink size={16} strokeWidth={1.8} />
-                    {item.sourceLabel ?? "Source"}
+                    {item.sourceLabel ?? (zh ? "来源" : "Source")}
                   </a>
                 ) : null}
                 <button
@@ -323,7 +327,7 @@ export function MyWorkflows() {
                   type="button"
                 >
                   {isDisabled ? <AlertTriangle size={16} strokeWidth={1.8} /> : <Trash2 size={16} strokeWidth={1.8} />}
-                  {isUnsubscribing ? "Unsubscribing..." : "Unsubscribe"}
+                  {isUnsubscribing ? (zh ? "正在取消订阅..." : "Unsubscribing...") : (zh ? "取消订阅" : "Unsubscribe")}
                 </button>
               </div>
             </article>

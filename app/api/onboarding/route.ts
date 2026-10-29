@@ -111,7 +111,7 @@ export async function POST(request: Request) {
   if (step === "agent") {
     const provisionTarget = String(formData.get("provisionTarget") ?? "").trim();
 
-    if (provisionTarget !== "openclaw") {
+    if (provisionTarget !== "openclaw" && provisionTarget !== "hermes_agent") {
       return onboardingRedirect(request, "invalid_provision_target", next, "agent");
     }
 

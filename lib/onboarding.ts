@@ -50,7 +50,7 @@ export function isOnboardingComplete(profile: OnboardingProfile | null | undefin
       profile?.enrolment_completed_at &&
       profile?.avatar_glb_path?.trim() &&
       profile?.avatar_completed_at &&
-      getSelectedProvisionTarget(profile) === "openclaw" &&
+      ["openclaw", "hermes_agent"].includes(getSelectedProvisionTarget(profile) ?? "") &&
       profile?.openclaw_instance?.trim() &&
       profile?.openclaw_provision_completed_at &&
       profile?.openclaw_telegram_pair_completed_at &&
@@ -78,7 +78,7 @@ export function getRequiredOnboardingStep(
     return "avatar";
   }
 
-  if (getSelectedProvisionTarget(profile) !== "openclaw") {
+  if (!["openclaw", "hermes_agent"].includes(getSelectedProvisionTarget(profile) ?? "")) {
     return "agent";
   }
 

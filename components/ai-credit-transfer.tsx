@@ -1,5 +1,8 @@
 "use client";
 
+import { Localized, LocalizedMessage, useLanguage } from "@/components/language-provider";
+
+
 import { useMemo, useState, type FormEvent } from "react";
 import { CheckCircle2, Loader2, Search, Send, UserRound } from "lucide-react";
 
@@ -46,6 +49,7 @@ async function readJson<T>(response: Response) {
 }
 
 export function AiCreditTransfer({ balance, onBalanceChange }: AiCreditTransferProps) {
+  const zh = useLanguage().language === "zh";
   const [recipientEmail, setRecipientEmail] = useState("");
   const [recipient, setRecipient] = useState<TransferRecipient | null>(null);
   const [amount, setAmount] = useState("");
@@ -160,16 +164,16 @@ export function AiCreditTransfer({ balance, onBalanceChange }: AiCreditTransferP
           <UserRound size={22} strokeWidth={1.8} />
         </span>
         <div>
-          <p className="workspace-status-card__eyebrow">AI credits</p>
-          <h2>Transfer AI credits</h2>
-          <p>Move unused AI credits to another user in this system.</p>
+          <p className="workspace-status-card__eyebrow"><Localized en={"AI credits"} zh={"AI 积分"} /></p>
+          <h2><Localized en={"Transfer AI credits"} zh={"转移 AI 积分"} /></h2>
+          <p><Localized en={"Move unused AI credits to another user in this system."} zh={"将未使用的 AI 积分转移给系统中的另一位用户。"} /></p>
         </div>
-        <span className="settings-toggle-card__status">{formatInteger(available)} available</span>
+        <span className="settings-toggle-card__status">{zh ? `可用 ${formatInteger(available)}` : `${formatInteger(available)} available`}</span>
       </div>
 
       <form className="ai-credit-transfer-card__form" noValidate onSubmit={searchRecipient}>
         <label className="field-stack">
-          <span>Recipient email</span>
+          <span><Localized en={"Recipient email"} zh={"接收人邮箱"} /></span>
           <input
             autoComplete="email"
             disabled={isSearching || isTransferring}
@@ -187,7 +191,7 @@ export function AiCreditTransfer({ balance, onBalanceChange }: AiCreditTransferP
         </label>
         <button className="btn-ghost" disabled={isSearching || isTransferring} type="submit">
           {isSearching ? <Loader2 size={16} strokeWidth={1.8} /> : <Search size={16} strokeWidth={1.8} />}
-          {isSearching ? "Searching..." : "Find user"}
+          {isSearching ? <Localized en={"Searching..."} zh={"正在搜索..."} /> : <Localized en={"Find user"} zh={"查找用户"} />}
         </button>
       </form>
 
@@ -197,13 +201,13 @@ export function AiCreditTransfer({ balance, onBalanceChange }: AiCreditTransferP
             <strong>{recipient.displayName ?? recipient.email}</strong>
             <span>{recipient.email}</span>
           </div>
-          <span>Recipient confirmed</span>
+          <span><Localized en={"Recipient confirmed"} zh={"接收人已确认"} /></span>
         </div>
       ) : null}
 
       <form className="ai-credit-transfer-card__form" noValidate onSubmit={transferCredits}>
         <label className="field-stack">
-          <span>AI credits</span>
+          <span><Localized en={"AI credits"} zh={"AI 积分"} /></span>
           <div className="ai-credit-transfer-card__amount-field">
             <input
               disabled={!recipient || isTransferring}
@@ -231,23 +235,22 @@ export function AiCreditTransfer({ balance, onBalanceChange }: AiCreditTransferP
               }}
               type="button"
             >
-              Max
-            </button>
+              <Localized en={"Max"} zh={"最大"} /></button>
           </div>
         </label>
         <button className="btn-primary" disabled={!canTransfer} type="submit">
           {isTransferring ? <Loader2 size={16} strokeWidth={1.8} /> : <Send size={16} strokeWidth={1.8} />}
-          {isTransferring ? "Transferring..." : "Transfer credits"}
+          {isTransferring ? <Localized en={"Transferring..."} zh={"正在转移..."} /> : <Localized en={"Transfer credits"} zh={"转移积分"} />}
         </button>
       </form>
 
       {message ? (
         <div className="settings-toggle-card__status">
           <CheckCircle2 size={16} strokeWidth={1.8} />
-          {message}
+          <LocalizedMessage text={message} />
         </div>
       ) : null}
-      {error ? <p className="form-error" role="alert">{error}</p> : null}
+      {error ? <p className="form-error" role="alert"><LocalizedMessage text={error} /></p> : null}
     </article>
   );
 }

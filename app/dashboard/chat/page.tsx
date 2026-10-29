@@ -1,3 +1,4 @@
+import { Localized } from "@/components/language-provider";
 import { redirect } from "next/navigation";
 import { LogOut } from "lucide-react";
 import { ChatSavedFiles } from "@/components/chat-saved-files";
@@ -36,11 +37,11 @@ export default async function ChatPage({ searchParams }: { searchParams: Promise
         <DashboardSidebar activeItem="chat" avatarName={onboardingProfile?.avatar_name} email={email} ownerName={onboardingProfile?.owner_name} showAdmin={showAdmin} showChatActions />
         <main className="dashboard-main">
           <div className="dashboard-topbar">
-            <AnnouncementPill>AI Chat</AnnouncementPill>
+            <AnnouncementPill><Localized en="AI Chat" zh="AI 对话" /></AnnouncementPill>
             <div className="dashboard-topbar__actions chat-topbar__actions">
               <ChatSavedFiles disabled={false} label="My files" triggerClass="chat-usage-trigger" />
               <ChatUsageButton />
-              <a className="btn-ghost chat-topbar__logout" href="/auth/logout"><LogOut size={16} aria-hidden="true" /> Log out</a>
+              <a className="btn-ghost chat-topbar__logout" href="/auth/logout"><LogOut size={16} aria-hidden="true" /> <Localized en="Log out" zh="退出登录" /></a>
             </div>
           </div>
           <WorkspaceChat userId={userId} configured={chatConfigured} initialChatId={initialChatId} />

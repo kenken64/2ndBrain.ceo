@@ -1,5 +1,8 @@
 "use client";
 
+import { Localized, LocalizedMessage } from "@/components/language-provider";
+
+
 import { useEffect, useId, useRef, useState, type ReactNode } from "react";
 import { AlertTriangle, LoaderCircle, Trash2, X } from "lucide-react";
 
@@ -98,13 +101,13 @@ function ConfirmDialogPanel({
         <div className="destroy-dialog__icon" aria-hidden="true">
           <AlertTriangle size={28} strokeWidth={1.9} />
         </div>
-        <p className="workspace-status-card__eyebrow">{eyebrow}</p>
-        <h2 id={titleId}>{title}</h2>
-        {typeof description === "string" ? <p>{description}</p> : description}
-        {warning ? <div className="destroy-dialog__warning">{warning}</div> : null}
+        <p className="workspace-status-card__eyebrow"><LocalizedMessage text={eyebrow} /></p>
+        <h2 id={titleId}><LocalizedMessage text={title} /></h2>
+        {typeof description === "string" ? <p><LocalizedMessage text={description} /></p> : description}
+        {warning ? <div className="destroy-dialog__warning">{typeof warning === "string" ? <LocalizedMessage text={warning} /> : warning}</div> : null}
         {confirmWord ? (
           <label className="field-stack" htmlFor={confirmFieldId}>
-            <span>Type {confirmWord} to confirm</span>
+            <span><Localized en={`Type ${confirmWord} to confirm`} zh={`输入 ${confirmWord} 以确认`} /></span>
             <input
               autoCapitalize="characters"
               autoComplete="off"
@@ -118,11 +121,10 @@ function ConfirmDialogPanel({
             />
           </label>
         ) : null}
-        {error ? <p className="form-error">{error}</p> : null}
+        {error ? <p className="form-error"><LocalizedMessage text={error} /></p> : null}
         <div className="destroy-dialog__actions">
           <button className="btn-ghost" disabled={busy} onClick={onCancel} type="button">
-            Cancel
-          </button>
+            <Localized en={"Cancel"} zh={"取消"} /></button>
           <button
             className="btn-danger"
             disabled={busy || !isConfirmed}
@@ -135,7 +137,7 @@ function ConfirmDialogPanel({
             ) : (
               confirmIcon ?? <Trash2 size={17} strokeWidth={1.8} />
             )}
-            {busy ? busyLabel ?? confirmLabel : confirmLabel}
+            <LocalizedMessage text={busy ? busyLabel ?? confirmLabel : confirmLabel} />
           </button>
         </div>
       </section>

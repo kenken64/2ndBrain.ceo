@@ -1,6 +1,8 @@
 import type { Metadata, Viewport } from "next";
 import { Manrope } from "next/font/google";
 import { Suspense } from "react";
+import { cookies } from "next/headers";
+import { LanguageProvider } from "@/components/language-provider";
 import { PageProgress } from "@/components/page-progress";
 import "@xterm/xterm/css/xterm.css";
 import "highlight.js/styles/github-dark.css";
@@ -32,14 +34,15 @@ export const viewport: Viewport = {
   width: "device-width"
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const language = (await cookies()).get("aicuber_landing_locale")?.value === "zh" ? "zh" : "en";
   return (
-    <html className={manrope.variable} lang="en">
-      <body><Suspense fallback={null}><PageProgress /></Suspense>{children}</body>
+    <html className={manrope.variable} lang={language === "zh" ? "zh-CN" : "en"}>
+      <body><LanguageProvider initialLanguage={language}><Suspense fallback={null}><PageProgress /></Suspense>{children}</LanguageProvider></body>
     </html>
   );
 }

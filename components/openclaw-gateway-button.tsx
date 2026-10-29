@@ -1,5 +1,8 @@
 "use client";
 
+import { Localized } from "@/components/language-provider";
+
+
 import { useEffect, useState } from "react";
 
 type GatewayPayload = {
@@ -57,10 +60,9 @@ export function OpenClawGatewayButton({ initialGatewayUrl }: OpenClawGatewayButt
   if (gatewayUrl) {
     return (
       <a className="btn-primary" href={gatewayUrl} rel="noreferrer" target="_blank">
-        Open Gateway
-      </a>
+        <Localized en={"Open Gateway"} zh={"打开网关"} /></a>
     );
   }
 
-  return <span className="btn-ghost is-disabled">Waiting for Gateway URL</span>;
+  return <span className="btn-ghost is-disabled"><Localized en={"Waiting for Gateway URL"} zh={"正在等待网关地址"} /></span>;
 }

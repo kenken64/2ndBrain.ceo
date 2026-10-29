@@ -1,3 +1,4 @@
+import { LanguageToggle, Localized, LocalizedContainer } from "@/components/language-provider";
 import { redirect } from "next/navigation";
 import { AgentSelectionForm } from "@/components/agent-selection-form";
 import { Atmosphere } from "@/components/atmosphere";
@@ -42,7 +43,7 @@ const errors: Record<string, string> = {
   invalid_avatar_url: "Avaturn did not return a valid secure GLB URL yet.",
   missing_avatar_storage_root: "AI Assistant storage is not configured on the server.",
   insufficient_ai_credits: "You need AI credits before provisioning AI Agent. Ask an admin to grant credits, then try again.",
-  invalid_provision_target: "Select AI Agent to continue. HermesAgent is coming soon.",
+  invalid_provision_target: "Select an agent to continue.",
   invalid_telegram_pair_code: "Enter the 8-character approval code from Telegram.",
   missing_avatar: "Create and export your Avaturn AI Assistant to continue.",
   missing_fields: "Add the required field to continue.",
@@ -50,6 +51,8 @@ const errors: Record<string, string> = {
   missing_aws_region: "Cloud region is not configured on the server.",
   missing_aws_secret_access_key: "Cloud secret access key is not configured on the server.",
   missing_openclaw_lightsail_snapshot_name: "AI Agent provisioning template is not configured.",
+  missing_hermes_lightsail_snapshot_name: "The Hermes provisioning template is not configured.",
+  missing_hermes_gyne_redis_url: "The Gyne connection is not configured on the server.",
   missing_openai_api_key: "OpenAI API key is not configured on the server.",
   openclaw_instance_not_found: "AI Agent provisioning completed but the instance name could not be detected.",
   openclaw_provision_failed: "AI Agent provisioning failed. Check AI credits first, then Cloud provisioning and clawmacdo output.",
@@ -78,13 +81,13 @@ const stepMeta: Record<OnboardingStep, { index: number; kicker: string; title: s
     index: 2,
     kicker: "Step 3 of 5",
     title: "Choose your agent",
-    copy: "Pick the workspace agent you want to provision. AI Agent is available now; HermesAgent is queued for a later rollout."
+    copy: "Pick the workspace agent you want to provision."
   },
   provision: {
     index: 3,
     kicker: "Step 4 of 5",
-    title: "Provision AI Agent in the Cloud",
-    copy: "Provision the Cloud environment quickly and prepare Telegram, AI Agent identity, and Remotion environment settings."
+    title: "Provision your agent in the cloud",
+    copy: "Prepare your agent, Telegram bot, and cloud workspace."
   },
   approval: {
     index: 4,
@@ -94,18 +97,27 @@ const stepMeta: Record<OnboardingStep, { index: number; kicker: string; title: s
   }
 };
 
+const chineseStepMeta: Record<OnboardingStep, { title: string; copy: string }> = {
+  enrolment: { title: "设置您的 AI CUBER 资料", copy: "填写所有者信息、AI 助手身份和 Telegram 机器人令牌，为创建助手准备工作空间。" },
+  avatar: { title: "创建您的 Avaturn AI 助手", copy: "创建 AI 助手并导出 GLB 文件，我们会在本地保存以供 AI Agent 上传。" },
+  agent: { title: "选择您的智能体", copy: "选择要配置的工作空间智能体。" },
+  provision: { title: "在云端配置智能体", copy: "准备您的智能体、Telegram 机器人和云端工作空间。" },
+  approval: { title: "批准 Telegram 配对", copy: "向 Telegram 机器人发送消息，例如“hi”，它会回复批准码。创建第一个工作空间前请输入该代码。" }
+};
+const chineseStepNames: Record<OnboardingStep, string> = { enrolment: "注册", avatar: "形象", agent: "智能体", provision: "配置", approval: "批准" };
+
 function Stepper({ current }: { current: OnboardingStep }) {
   const currentIndex = stepMeta[current].index;
 
   return (
-    <ol aria-label="Setup progress" className="wizard-stepper">
+    <LocalizedContainer as="ol" labelEn="Setup progress" labelZh="设置进度" className="wizard-stepper">
       {onboardingSteps.map((step) => (
         <li className={stepMeta[step].index <= currentIndex ? "is-active" : ""} key={step}>
           <span>{stepMeta[step].index + 1}</span>
-          {step}
+          <Localized en={step} zh={chineseStepNames[step]} />
         </li>
       ))}
-    </ol>
+    </LocalizedContainer>
   );
 }
 
@@ -116,11 +128,13 @@ function ProgressBar({ current }: { current: OnboardingStep }) {
   return (
     <div className="wizard-progress-wrap">
       <div className="wizard-progress__meta">
-        <span>Setup progress</span>
-        <strong>{progress}% complete</strong>
+        <span><Localized en="Setup progress" zh="设置进度" /></span>
+        <strong><Localized en={`${progress}% complete`} zh={`已完成 ${progress}%`} /></strong>
       </div>
-      <div
-        aria-label={`Setup progress ${progress}%`}
+      <LocalizedContainer
+        as="div"
+        labelEn={`Setup progress ${progress}%`}
+        labelZh={`设置进度 ${progress}%`}
         aria-valuemax={100}
         aria-valuemin={0}
         aria-valuenow={progress}
@@ -128,7 +142,7 @@ function ProgressBar({ current }: { current: OnboardingStep }) {
         role="progressbar"
       >
         <span style={{ width: `${progress}%` }} />
-      </div>
+      </LocalizedContainer>
     </div>
   );
 }
@@ -158,17 +172,19 @@ function EnrolmentStep({
 }
 
 function ProvisionStep({
+  agentType,
   errorMessage,
   next,
   startedAt,
   status
 }: {
+  agentType?: string | null;
   errorMessage: string | null;
   next: string;
   startedAt?: string | null;
   status?: string | null;
 }) {
-  return <ProvisionForm errorMessage={errorMessage} next={next} startedAt={startedAt} status={status} />;
+  return <ProvisionForm agentType={agentType} errorMessage={errorMessage} next={next} startedAt={startedAt} status={status} />;
 }
 
 function AgentStep({
@@ -253,12 +269,13 @@ export default async function OnboardingPage({ searchParams }: OnboardingPagePro
       <Atmosphere />
       <main className="onboarding-page">
         <section className={`onboarding-card onboarding-card--${currentStep}`}>
+          <LanguageToggle />
           <BrandLogo size={currentStep === "avatar" ? 88 : 120} />
           <Stepper current={currentStep} />
           <ProgressBar current={currentStep} />
-          <p className="wizard-kicker">{meta.kicker}</p>
-          <h1 className="onboarding-title">{meta.title}</h1>
-          <p className="onboarding-copy">{meta.copy}</p>
+          <p className="wizard-kicker"><Localized en={meta.kicker} zh={`第 ${meta.index + 1} 步，共 5 步`} /></p>
+          <h1 className="onboarding-title"><Localized en={meta.title} zh={chineseStepMeta[currentStep].title} /></h1>
+          <p className="onboarding-copy"><Localized en={meta.copy} zh={chineseStepMeta[currentStep].copy} /></p>
 
           {currentStep === "enrolment" ? (
             <EnrolmentStep
@@ -280,6 +297,7 @@ export default async function OnboardingPage({ searchParams }: OnboardingPagePro
 
           {currentStep === "provision" ? (
             <ProvisionStep
+              agentType={onboardingProfile?.provision_target}
               errorMessage={errorMessage}
               next={next}
               startedAt={onboardingProfile?.openclaw_provision_started_at}

@@ -9,6 +9,7 @@ import {
   ShieldCheck,
   GitBranch,
   ListChecks,
+  Languages,
   PanelLeftClose,
   PanelLeftOpen,
   Plus,
@@ -19,6 +20,7 @@ import {
   Store,
   X
 } from "lucide-react";
+import { useLanguage } from "@/components/language-provider";
 import { BrandLogo } from "@/components/brand-logo";
 
 type DashboardSidebarProps = {
@@ -51,11 +53,12 @@ type SidebarNavItemProps = {
 };
 
 function SidebarNavItem({ active, disabled = false, href, icon, label, title }: SidebarNavItemProps) {
+  const { language } = useLanguage();
   const className = `sidebar-item${active ? " is-active" : ""}${disabled ? " is-disabled" : ""}`;
 
   if (disabled) {
     return (
-      <span aria-disabled="true" className={className} role="link" title="AI credits required">
+      <span aria-disabled="true" className={className} role="link" title={language === "zh" ? "需要 AI 积分" : "AI credits required"}>
         {icon}
         <span className="sidebar-item__label">{label}</span>
       </span>
@@ -78,14 +81,16 @@ export function DashboardSidebar({
   showAdmin = false,
   showChatActions = false
 }: DashboardSidebarProps) {
+  const { language, setLanguage } = useLanguage();
+  const zh = language === "zh";
   const sidebarRef = useRef<HTMLElement>(null);
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [isMobileOpen, setIsMobileOpen] = useState(false);
   const [hasLoadedPreference, setHasLoadedPreference] = useState(false);
-  const workspaceOwner = ownerName?.trim() || email?.split("@")[0] || "Personal";
-  const workspaceName = `${workspaceOwner}'s workspace`;
-  const toggleLabel = isCollapsed ? "Expand sidebar" : "Collapse sidebar";
-  const mobileToggleLabel = isMobileOpen ? "Close menu" : "Open menu";
+  const workspaceOwner = ownerName?.trim() || email?.split("@")[0] || (zh ? "个人" : "Personal");
+  const workspaceName = zh ? `${workspaceOwner}的工作空间` : `${workspaceOwner}'s workspace`;
+  const toggleLabel = isCollapsed ? (zh ? "展开侧栏" : "Expand sidebar") : (zh ? "收起侧栏" : "Collapse sidebar");
+  const mobileToggleLabel = isMobileOpen ? (zh ? "关闭菜单" : "Close menu") : (zh ? "打开菜单" : "Open menu");
   const settingsHref = creditLocked ? "/dashboard/settings?tab=payment" : "/dashboard/settings";
 
   function closeMobileMenuOnLink(event: MouseEvent<HTMLElement>) {
@@ -131,7 +136,7 @@ export function DashboardSidebar({
           <BrandLogo size={50} />
         </a>
         <div className="sidebar-header__actions">
-          {showChatActions ? <button aria-label="New chat" className="btn-icon sidebar-new-chat" disabled={!hasLoadedPreference} onClick={() => window.dispatchEvent(new CustomEvent("ai-cuber:new-chat"))} title="New chat" type="button"><Plus size={18} strokeWidth={2} /></button> : null}
+          {showChatActions ? <button aria-label={zh ? "新对话" : "New chat"} className="btn-icon sidebar-new-chat" disabled={!hasLoadedPreference} onClick={() => window.dispatchEvent(new CustomEvent("ai-cuber:new-chat"))} title={zh ? "新对话" : "New chat"} type="button"><Plus size={18} strokeWidth={2} /></button> : null}
           <button
             aria-controls="dashboard-sidebar-nav"
             aria-expanded={!isCollapsed}
@@ -166,19 +171,19 @@ export function DashboardSidebar({
         <ChevronDown size={15} strokeWidth={1.8} />
       </button>
       <nav
-        aria-label="Dashboard navigation"
+        aria-label={zh ? "工作空间导航" : "Dashboard navigation"}
         className="sidebar-nav"
         id="dashboard-sidebar-nav"
         onClick={closeMobileMenuOnLink}
       >
-        <span className="sidebar-section-label">WORKSPACE</span>
+        <span className="sidebar-section-label">{zh ? "工作空间" : "WORKSPACE"}</span>
         <SidebarNavItem
           active={activeItem === "chat"}
           disabled={creditLocked}
           href="/dashboard/chat"
           icon={<MessageSquare size={18} strokeWidth={1.7} />}
-          label="AI Chat"
-          title="AI Chat"
+          label={zh ? "AI 对话" : "AI Chat"}
+          title={zh ? "AI 对话" : "AI Chat"}
         />
         {showChatActions ? <div className="sidebar-chat-history-slot" id="sidebar-chat-history-slot" /> : null}
         <SidebarNavItem
@@ -186,59 +191,60 @@ export function DashboardSidebar({
           disabled={creditLocked}
           href="/dashboard/openclaw"
           icon={<Plug size={18} strokeWidth={1.7} />}
-          label="AI Assistant Gateway UI"
-          title="AI Assistant Gateway UI"
+          label={zh ? "AI 助手网关" : "AI Assistant Gateway UI"}
+          title={zh ? "AI 助手网关" : "AI Assistant Gateway UI"}
         />
         <SidebarNavItem
           active={activeItem === "remotion"}
           disabled={creditLocked}
           href="/dashboard#remotion-avatar"
           icon={<Clapperboard size={18} strokeWidth={1.7} />}
-          label="My AI Avatar"
-          title="My AI Avatar"
+          label={zh ? "我的 AI 形象" : "My AI Avatar"}
+          title={zh ? "我的 AI 形象" : "My AI Avatar"}
         />
         <SidebarNavItem
           active={activeItem === "wiki"}
           disabled={creditLocked}
           href="/dashboard/wiki"
           icon={<ScrollText size={18} strokeWidth={1.7} />}
-          label="Nth Brain"
-          title="Nth Brain"
+          label={zh ? "Nth Brain" : "Nth Brain"}
+          title={zh ? "Nth Brain" : "Nth Brain"}
         />
         <SidebarNavItem
           active={activeItem === "graph"}
           disabled={creditLocked}
           href="/dashboard/graph"
           icon={<GitBranch size={18} strokeWidth={1.7} />}
-          label="Knowledge Graph"
-          title="Knowledge Graph"
+          label={zh ? "知识图谱" : "Knowledge Graph"}
+          title={zh ? "知识图谱" : "Knowledge Graph"}
         />
-        <span className="sidebar-section-label sidebar-section-label--nested">WORKFLOW</span>
+        <span className="sidebar-section-label sidebar-section-label--nested">{zh ? "工作流" : "WORKFLOW"}</span>
         <SidebarNavItem
           active={activeItem === "marketplace"}
           disabled={creditLocked}
           href="/dashboard/marketplace"
           icon={<Store size={18} strokeWidth={1.7} />}
-          label="Marketplace"
-          title="Marketplace"
+          label={zh ? "应用市场" : "Marketplace"}
+          title={zh ? "应用市场" : "Marketplace"}
         />
         <SidebarNavItem
           active={activeItem === "workflows"}
           disabled={creditLocked}
           href="/dashboard/workflows"
           icon={<ListChecks size={18} strokeWidth={1.7} />}
-          label="My Workflows"
-          title="My Workflows"
+          label={zh ? "我的工作流" : "My Workflows"}
+          title={zh ? "我的工作流" : "My Workflows"}
         />
       </nav>
       <div className="sidebar-spacer" />
       <div className="sidebar-footer" onClick={closeMobileMenuOnLink}>
+        <button className="sidebar-item sidebar-language" type="button" onClick={() => setLanguage(zh ? "en" : "zh")} aria-label={zh ? "Switch to English" : "切换到中文"} title={zh ? "Switch to English" : "切换到中文"}><Languages size={18} strokeWidth={1.7} /><span className="sidebar-item__label">{zh ? "English" : "中文"}</span></button>
         <SidebarNavItem
           active={activeItem === "settings"}
           href={settingsHref}
           icon={<Settings size={18} strokeWidth={1.7} />}
-          label="Settings"
-          title="Settings"
+          label={zh ? "设置" : "Settings"}
+          title={zh ? "设置" : "Settings"}
         />
         {showAdmin || activeItem === "admin" ? (
           <SidebarNavItem
@@ -246,13 +252,13 @@ export function DashboardSidebar({
             disabled={creditLocked}
             href="/admin"
             icon={<ShieldCheck size={18} strokeWidth={1.7} />}
-            label="Admin"
-            title="Admin"
+            label={zh ? "管理" : "Admin"}
+            title={zh ? "管理" : "Admin"}
           />
         ) : null}
-        <a className="sidebar-item sidebar-item--logout" href="/auth/logout" title="Log out">
+        <a className="sidebar-item sidebar-item--logout" href="/auth/logout" title={zh ? "退出登录" : "Log out"}>
           <Power size={18} strokeWidth={1.7} />
-          <span className="sidebar-item__label">Log out</span>
+          <span className="sidebar-item__label">{zh ? "退出登录" : "Log out"}</span>
         </a>
       </div>
     </aside>

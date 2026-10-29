@@ -1,3 +1,4 @@
+import { Localized } from "@/components/language-provider";
 import { redirect } from "next/navigation";
 import { AnnouncementPill } from "@/components/announcement-pill";
 import { Atmosphere } from "@/components/atmosphere";
@@ -136,16 +137,16 @@ export default async function DashboardSettingsPage({ searchParams }: DashboardS
         />
         <main className="dashboard-main">
           <div className="dashboard-topbar">
-            <AnnouncementPill>Workspace settings</AnnouncementPill>
+            <AnnouncementPill><Localized en="Workspace settings" zh="工作空间设置" /></AnnouncementPill>
             <a className="btn-primary" href="/auth/logout">
-              Log out
+              <Localized en="Log out" zh="退出登录" />
             </a>
           </div>
           <section className="dashboard-workbench settings-workbench" aria-labelledby="settings-title">
             <div className="settings-workbench__header">
-              <p className="workspace-status-card__eyebrow">Admin controls</p>
-              <h1 id="settings-title">Workspace settings</h1>
-              <p>Manage external integrations and destructive workspace actions from one protected page.</p>
+              <p className="workspace-status-card__eyebrow"><Localized en="Admin controls" zh="管理控制" /></p>
+              <h1 id="settings-title"><Localized en="Workspace settings" zh="工作空间设置" /></h1>
+              <p><Localized en="Manage external integrations and destructive workspace actions from one protected page." zh="在一个受保护的页面中管理外部集成和工作空间操作。" /></p>
             </div>
 
             {isCreditLocked && optionalSettings?.ai_credits_exhausted_at && optionalSettings.openclaw_instance ? (

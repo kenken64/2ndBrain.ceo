@@ -1,5 +1,8 @@
 "use client";
 
+import { LocalizedMessage, useLanguage } from "@/components/language-provider";
+
+import { uiMessagesZh, translateUiMessage } from "@/lib/ui-messages";
 import { navigateToPage } from "@/lib/page-navigation";
 
 import { ChangeEvent, FormEvent, useEffect, useId, useRef, useState } from "react";
@@ -62,9 +65,10 @@ export function ChatInput({
   pendingCopy,
   pendingTitle,
   returnTo = "/dashboard",
-  locale = "en"
+  locale
 }: ChatInputProps) {
-  const chinese = locale === "zh";
+  const language = useLanguage().language;
+  const chinese = (locale ?? language) === "zh";
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isListening, setIsListening] = useState(false);
   const [promptValue, setPromptValue] = useState(defaultPrompt ?? "");
@@ -156,7 +160,7 @@ export function ChatInput({
     const Recognition = window.SpeechRecognition ?? window.webkitSpeechRecognition;
 
     if (!Recognition) {
-      setSubmitError(chinese ? "此浏览器不支持语音输入。请在 HTTPS 或本地地址使用 Chrome 或 Edge。" : "Speech-to-text is not supported in this browser. Try Chrome or Edge on HTTPS/localhost.");
+      setSubmitError("Speech-to-text is not supported in this browser. Try Chrome or Edge on HTTPS/localhost.");
       return;
     }
 
@@ -176,8 +180,8 @@ export function ChatInput({
     recognition.onerror = (event) => {
       setSubmitError(
         event.error === "not-allowed"
-          ? (chinese ? "麦克风权限被拒绝，请允许访问麦克风后重试。" : "Microphone permission was denied. Allow microphone access to use speech-to-text.")
-          : (chinese ? "语音输入失败，请重试或手动输入。" : "Speech-to-text failed. Try again or type the prompt manually.")
+          ? "Microphone permission was denied. Allow microphone access to use speech-to-text."
+          : "Speech-to-text failed. Try again or type the prompt manually."
       );
       setIsListening(false);
     };
@@ -210,7 +214,7 @@ export function ChatInput({
 
     if (!prompt) {
       event.preventDefault();
-      setSubmitError(chinese ? "请输入您的需求。" : "Enter a prompt to continue.");
+      setSubmitError("Enter a prompt to continue.");
       return;
     }
 
@@ -268,7 +272,7 @@ export function ChatInput({
         disabled={isSubmitting}
         name="prompt"
         onChange={(event) => setPromptValue(event.target.value)}
-        placeholder={placeholder}
+        placeholder={chinese ? (uiMessagesZh[placeholder] ?? placeholder) : placeholder}
         rows={3}
         value={promptValue}
       />
@@ -284,14 +288,14 @@ export function ChatInput({
         />
       ) : null}
       {selectedFiles.length > 0 ? (
-        <div className="chat-input__attachments" aria-label="Selected attachments">
+        <div className="chat-input__attachments" aria-label={chinese ? "已选附件" : "Selected attachments"}>
           {selectedFiles.map((file, index) => (
             <span className="chat-input__attachment" key={`${file.name}-${file.size}-${index}`}>
               <FileText size={14} strokeWidth={1.8} />
               <span>{file.name}</span>
               <small>{formatFileSize(file.size)}</small>
               <button
-                aria-label={`Remove ${file.name}`}
+                aria-label={chinese ? `移除 ${file.name}` : `Remove ${file.name}`}
                 disabled={isProgressVisible}
                 onClick={() => removeSelectedFile(index)}
                 type="button"
@@ -305,7 +309,7 @@ export function ChatInput({
       {method === "post" ? <input name="returnTo" type="hidden" value={returnTo} /> : null}
       {submitError ? (
         <p className="form-error" id={errorId}>
-          {submitError}
+          {translateUiMessage(submitError, chinese ? "zh" : "en")}
         </p>
       ) : null}
       {isProgressVisible ? (
@@ -318,8 +322,8 @@ export function ChatInput({
           role="progressbar"
         >
           <div className="submit-progress__meta">
-            <strong>{pendingTitle}</strong>
-            <span>{pendingCopy ?? "Working on the request."}</span>
+            <strong>{pendingTitle ? <LocalizedMessage text={pendingTitle} /> : null}</strong>
+            <span><LocalizedMessage text={pendingCopy ?? "Working on the request."} /></span>
           </div>
           <div className="submit-progress__track">
             <span className="submit-progress__bar" />
@@ -330,7 +334,7 @@ export function ChatInput({
         <div className="chat-input__group">
           {supportsAttachments ? (
             <button
-              aria-label="Attach image, PDF, text, markdown, or DOCX file"
+              aria-label={chinese ? "添加图片、PDF、文本、Markdown 或 DOCX 文件" : "Attach image, PDF, text, markdown, or DOCX file"}
               className="btn-icon"
               disabled={isProgressVisible}
               onClick={handleAttachClick}

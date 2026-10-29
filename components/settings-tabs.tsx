@@ -1,6 +1,8 @@
 "use client";
 
 import { useState, type ReactNode } from "react";
+import { translateUiMessage } from "@/lib/ui-messages";
+import { useLanguage } from "@/components/language-provider";
 import { CreditCard, PlugZap, Settings } from "lucide-react";
 
 export type SettingsTabId = "general" | "integrations" | "payment";
@@ -42,6 +44,8 @@ export function SettingsTabs({
   integrations,
   payment
 }: SettingsTabsProps) {
+  const { language } = useLanguage();
+  const labels = language === "zh" ? { general: "常规", integrations: "集成", payment: "付款" } : { general: "General", integrations: "Integrations", payment: "Payment" };
   const [activeTab, setActiveTab] = useState<SettingsTabId>(() =>
     resolveActiveTab(initialTab, disabledTabs)
   );
@@ -56,7 +60,7 @@ export function SettingsTabs({
 
   return (
     <div className="settings-tabs">
-      <div aria-label="Settings sections" className="settings-tabs__list" role="tablist">
+      <div aria-label={language === "zh" ? "设置分类" : "Settings sections"} className="settings-tabs__list" role="tablist">
         {tabs.map((tab) => {
           const Icon = tab.icon;
           const isActive = activeTabId === tab.id;
@@ -73,11 +77,11 @@ export function SettingsTabs({
               key={tab.id}
               onClick={() => setActiveTab(tab.id)}
               role="tab"
-              title={isDisabled ? disabledReason : tab.label}
+              title={isDisabled ? translateUiMessage(disabledReason, language) : labels[tab.id]}
               type="button"
             >
               <Icon size={16} strokeWidth={1.8} />
-              {tab.label}
+              {labels[tab.id]}
             </button>
           );
         })}

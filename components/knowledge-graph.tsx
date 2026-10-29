@@ -1,5 +1,9 @@
 "use client";
 
+import { graphRelationLabel, graphTypeLabel } from "@/lib/graph-labels";
+import {Localized, useLanguage } from "@/components/language-provider";
+
+
 import { navigateToPage } from "@/lib/page-navigation";
 
 import cytoscape, { type Core, type ElementDefinition, type LayoutOptions } from "cytoscape";
@@ -277,7 +281,8 @@ function buildElements(
         classes: "cluster-shell",
         data: {
           id: parentId,
-          label: `Cluster ${index + 1}`
+          label: `Cluster ${index + 1}`,
+          clusterNumber: index + 1
         }
       });
 
@@ -335,6 +340,8 @@ function buildElements(
         color,
         id: edge.id,
         label: relationLabel(edge.relation, edge.synthetic),
+        relation: edge.relation,
+        synthetic: Boolean(edge.synthetic),
         source: edge.from_node_id,
         target: edge.to_node_id,
         weight: edge.synthetic ? 1.5 : Math.max(1.4, Math.min(4.2, edge.weight + 0.6))
@@ -520,7 +527,7 @@ function normalizedSearch(value: string) {
   return value.trim().replace(/\s+/g, " ").toLowerCase();
 }
 
-function searchNodeIds(nodes: GraphNode[], value: string) {
+function searchNodeIds(nodes: GraphNode[], value: string, language: "en" | "zh") {
   const query = normalizedSearch(value);
 
   if (!query) {
@@ -529,7 +536,7 @@ function searchNodeIds(nodes: GraphNode[], value: string) {
 
   return nodes
     .filter((node) =>
-      [node.label, node.slug, node.node_type, node.source_path]
+      [node.label, node.slug, node.node_type, graphTypeLabel(node.node_type, language), node.source_path]
         .filter(Boolean)
         .join(" ")
         .toLowerCase()
@@ -539,13 +546,14 @@ function searchNodeIds(nodes: GraphNode[], value: string) {
 }
 
 function KnowledgeGraph2D({ edges, highlightPath, nodes, projectId, rootLabel }: KnowledgeGraphProps) {
+  const _uiLanguage = useLanguage().language;
   const containerRef = useRef<HTMLDivElement | null>(null);
   const cyRef = useRef<Core | null>(null);
   const [activeSearchIndex, setActiveSearchIndex] = useState(0);
   const [runCount, setRunCount] = useState(0);
   const [searchQuery, setSearchQuery] = useState("");
   const graph = useMemo(() => buildElements(nodes, edges, rootLabel, highlightPath), [edges, highlightPath, nodes, rootLabel]);
-  const searchMatches = useMemo(() => searchNodeIds(nodes, searchQuery), [nodes, searchQuery]);
+  const searchMatches = useMemo(() => searchNodeIds(nodes, searchQuery, _uiLanguage), [nodes, searchQuery, _uiLanguage]);
   const trimmedSearchQuery = searchQuery.trim();
 
   function focusNodeById(nodeId: string) {
@@ -662,6 +670,20 @@ function KnowledgeGraph2D({ edges, highlightPath, nodes, projectId, rootLabel }:
   }, [graph.elements, highlightPath, nodes.length, projectId, runCount]);
 
   useEffect(() => {
+    const instance = cyRef.current;
+    if (!instance) return;
+    instance.nodes(".cluster-shell").forEach(node => {
+      const number = node.data("clusterNumber") as number;
+      node.data("label", _uiLanguage === "zh" ? `聚类 ${number}` : `Cluster ${number}`);
+    });
+    instance.edges().forEach(edge => {
+      const relation = edge.data("relation") as string;
+      const synthetic = edge.data("synthetic") as boolean;
+      edge.data("label", synthetic || relation === "links_to" || relation === "tagged" ? "" : graphRelationLabel(relation, _uiLanguage));
+    });
+  }, [_uiLanguage, graph.elements, runCount]);
+
+  useEffect(() => {
     setActiveSearchIndex(0);
   }, [trimmedSearchQuery]);
 
@@ -693,17 +715,16 @@ function KnowledgeGraph2D({ edges, highlightPath, nodes, projectId, rootLabel }:
   if (nodes.length === 0) {
     return (
       <div className="empty-state">
-        No graph nodes indexed yet. Open the Nth Brain and run Generate knowledge graph.
-      </div>
+        <Localized en={"No graph nodes indexed yet. Open the Nth Brain and run Generate knowledge graph."} zh={"尚未索引图谱节点。请打开 Nth Brain 并运行“生成知识图谱”。"} /></div>
     );
   }
 
   return (
     <div className="knowledge-graph-shell knowledge-graph-shell--cytoscape">
       <div className="graph-controls-panel graph-controls-panel--cytoscape">
-        <strong>{nodes.length} nodes</strong>
+        <strong>{_uiLanguage === "zh" ? `${nodes.length} 个节点` : `${nodes.length} nodes`}</strong>
         <span>
-          {graph.directEdgeCount} semantic links. {graph.componentCount} cluster{graph.componentCount === 1 ? "" : "s"} tied to the Nth Brain intent.
+          {_uiLanguage === "zh" ? `${graph.directEdgeCount} 条语义链接，${graph.componentCount} 个与 Nth Brain 需求关联的聚类。` : `${graph.directEdgeCount} semantic links. ${graph.componentCount} cluster${graph.componentCount === 1 ? "" : "s"} tied to the Nth Brain intent.`}
         </span>
         <label className="graph-search-field">
           <Search size={14} strokeWidth={1.9} />
@@ -711,13 +732,13 @@ function KnowledgeGraph2D({ edges, highlightPath, nodes, projectId, rootLabel }:
             onChange={(event) => {
               setSearchQuery(event.target.value);
             }}
-            placeholder="Search markdown graph..."
+            placeholder={_uiLanguage === "zh" ? "搜索 Markdown 图谱..." : "Search markdown graph..."}
             type="search"
             value={searchQuery}
           />
           {searchQuery ? (
             <button
-              aria-label="Clear graph search"
+              aria-label={_uiLanguage === "zh" ? "清除图谱搜索" : "Clear graph search"}
               className="graph-search-clear"
               onClick={() => {
                 setSearchQuery("");
@@ -732,17 +753,17 @@ function KnowledgeGraph2D({ edges, highlightPath, nodes, projectId, rootLabel }:
           {trimmedSearchQuery ? (
             searchMatches.length > 0 ? (
               <span>
-                {Math.min(activeSearchIndex + 1, searchMatches.length)} of {searchMatches.length} matches
+                {_uiLanguage === "zh" ? `第 ${Math.min(activeSearchIndex + 1, searchMatches.length)} 项，共 ${searchMatches.length} 项匹配` : `${Math.min(activeSearchIndex + 1, searchMatches.length)} of ${searchMatches.length} matches`}
               </span>
             ) : (
-              <span>No matches</span>
+              <span><Localized en={"No matches"} zh={"无匹配结果"} /></span>
             )
           ) : (
-            <span>Search indexed markdown nodes and file paths</span>
+            <span><Localized en={"Search indexed markdown nodes and file paths"} zh={"搜索已索引的 Markdown 节点和文件路径"} /></span>
           )}
           <div className="graph-search-nav">
             <button
-              aria-label="Previous graph search result"
+              aria-label={_uiLanguage === "zh" ? "上一个图谱搜索结果" : "Previous graph search result"}
               disabled={searchMatches.length === 0}
               onClick={() => moveSearch(-1)}
               type="button"
@@ -750,7 +771,7 @@ function KnowledgeGraph2D({ edges, highlightPath, nodes, projectId, rootLabel }:
               <ChevronLeft size={14} strokeWidth={2} />
             </button>
             <button
-              aria-label="Next graph search result"
+              aria-label={_uiLanguage === "zh" ? "下一个图谱搜索结果" : "Next graph search result"}
               disabled={searchMatches.length === 0}
               onClick={() => moveSearch(1)}
               type="button"
@@ -766,16 +787,14 @@ function KnowledgeGraph2D({ edges, highlightPath, nodes, projectId, rootLabel }:
             }}
             type="button"
           >
-            Fit view
-          </button>
+            <Localized en={"Fit view"} zh={"适合画面"} /></button>
           <button
             onClick={() => {
               setRunCount((current) => current + 1);
             }}
             type="button"
           >
-            Re-run layout
-          </button>
+            <Localized en={"Re-run layout"} zh={"重新布局"} /></button>
         </div>
       </div>
       <div className="knowledge-graph-cytoscape" ref={containerRef} />
@@ -784,13 +803,14 @@ function KnowledgeGraph2D({ edges, highlightPath, nodes, projectId, rootLabel }:
 }
 
 export function KnowledgeGraph(props: KnowledgeGraphProps) {
+  const _uiLanguage = useLanguage().language;
   const [view, setView] = useState<"3d" | "2d">("3d");
   const graph = useMemo(() => buildConnectedGraph(props.nodes, props.edges, props.rootLabel), [props.nodes, props.edges, props.rootLabel]);
-  if (props.nodes.length === 0) return <>{props.heading}<div className="empty-state">No graph nodes indexed yet. Open the Nth Brain and run Generate knowledge graph.</div></>;
+  if (props.nodes.length === 0) return <>{props.heading}<div className="empty-state"><Localized en={"No graph nodes indexed yet. Open the Nth Brain and run Generate knowledge graph."} zh={"尚未索引图谱节点。请打开 Nth Brain 并运行“生成知识图谱”。"} /></div></>;
   return <div className="graph-explorer">
-    <div className="graph-explorer__heading">{props.heading}<div className="graph-view-switch" role="group" aria-label="Graph view">
-      <button type="button" aria-pressed={view === "3d"} onClick={() => setView("3d")}>3D galaxy</button>
-      <button type="button" aria-pressed={view === "2d"} onClick={() => setView("2d")}>2D map</button>
+    <div className="graph-explorer__heading">{props.heading}<div className="graph-view-switch" role="group" aria-label={_uiLanguage === "zh" ? "图谱视图" : "Graph view"}>
+      <button type="button" aria-pressed={view === "3d"} onClick={() => setView("3d")}><Localized en={"3D galaxy"} zh={"3D 星系"} /></button>
+      <button type="button" aria-pressed={view === "2d"} onClick={() => setView("2d")}><Localized en={"2D map"} zh={"2D 地图"} /></button>
     </div></div>
     {view === "3d" ? <KnowledgeGraph3D nodes={graph.nodes} edges={graph.edges} directEdgeCount={graph.directEdgeCount} componentCount={graph.componentCount} projectId={props.projectId} highlightPath={props.highlightPath} /> : <KnowledgeGraph2D {...props} />}
   </div>;

@@ -1,5 +1,8 @@
 "use client";
 
+import { Localized, useLanguage, LocalizedMessage } from "@/components/language-provider";
+
+
 import { navigateToPage } from "@/lib/page-navigation";
 
 import { useState } from "react";
@@ -11,6 +14,7 @@ type DestroyWorkspaceButtonProps = {
 };
 
 export function DestroyWorkspaceButton({ variant = "sidebar" }: DestroyWorkspaceButtonProps) {
+  const _uiLanguage = useLanguage().language;
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [isDestroying, setIsDestroying] = useState(false);
   const [error, setError] = useState("");
@@ -57,9 +61,9 @@ export function DestroyWorkspaceButton({ variant = "sidebar" }: DestroyWorkspace
         type="button"
       >
         {isDestroying ? <LoaderCircle className="spin-icon" size={18} strokeWidth={1.7} /> : <Trash2 size={18} strokeWidth={1.7} />}
-        {isDestroying ? "Destroying..." : idleLabel}
+        {isDestroying ? <Localized en={"Destroying..."} zh={"正在销毁..."} /> : idleLabel}
       </button>
-      {error ? <span className="destroy-workspace__error">{error}</span> : null}
+      {error ? <span className="destroy-workspace__error"><LocalizedMessage text={error} /></span> : null}
       <ConfirmDialog
         busy={isDestroying}
         busyLabel="Destroying..."
@@ -71,7 +75,7 @@ export function DestroyWorkspaceButton({ variant = "sidebar" }: DestroyWorkspace
         onCancel={() => setIsDialogOpen(false)}
         onConfirm={() => void handleDestroy()}
         open={isDialogOpen}
-        title="Destroy this workspace?"
+        title={_uiLanguage === "zh" ? "销毁此工作空间？" : "Destroy this workspace?"}
         warning="This action is destructive. Use it only when you want this account to return to enrolment and provision a fresh workspace."
       />
     </div>

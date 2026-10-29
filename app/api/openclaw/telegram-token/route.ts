@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { hasSupabaseEnv } from "@/lib/env";
 import { getUserIdFromClaims, onboardingPath } from "@/lib/onboarding";
-import { setupOpenClawTelegramBot } from "@/lib/openclaw";
+import { setupHermesTelegramBot, setupOpenClawTelegramBot } from "@/lib/openclaw";
 import { createClient } from "@/lib/supabase/server";
 import { safeNextPath } from "@/lib/url";
 
@@ -66,7 +66,7 @@ export async function POST(request: Request) {
 
   const { data: profile, error: profileError } = await supabase
     .from("profiles")
-    .select("openclaw_instance,openclaw_provision_status,openclaw_provision_completed_at")
+    .select("openclaw_instance,openclaw_provision_status,openclaw_provision_completed_at,provision_target")
     .eq("id", userId)
     .maybeSingle();
 
@@ -86,7 +86,7 @@ export async function POST(request: Request) {
   });
 
   try {
-    const configured = await setupOpenClawTelegramBot({
+    const configured = await (profile.provision_target === "hermes_agent" ? setupHermesTelegramBot : setupOpenClawTelegramBot)({
       instance,
       telegramBotToken
     });

@@ -1,7 +1,10 @@
 "use client";
 
+import { Localized, useLanguage, LocalizedMessage } from "@/components/language-provider";
+
 import { useEffect, useMemo, useState } from "react";
 import { AlertTriangle, Check, ChevronLeft, ChevronRight, Coins, ExternalLink, Plus, RefreshCw, Search } from "lucide-react";
+import { uiMessagesZh } from "@/lib/ui-messages";
 import { WORKFLOW_TEMPLATES } from "@/lib/workflow-templates";
 
 const PAGE_SIZE_OPTIONS = [6, 12] as const;
@@ -57,15 +60,15 @@ const emptyState: MarketplaceState = {
   isAdmin: false
 };
 
-function formatTokens(value: number | null | undefined) {
+function formatTokens(value: number | null | undefined, zh = false) {
   if (value === null || value === undefined || !Number.isFinite(value)) {
-    return "Unlimited";
+    return zh ? "无限" : "Unlimited";
   }
 
   return new Intl.NumberFormat("en").format(Math.max(0, Math.trunc(value)));
 }
 
-function formatDate(value: string | null | undefined) {
+function formatDate(value: string | null | undefined, zh = false) {
   if (!value) {
     return null;
   }
@@ -76,7 +79,7 @@ function formatDate(value: string | null | undefined) {
     return null;
   }
 
-  return new Intl.DateTimeFormat("en", {
+  return new Intl.DateTimeFormat(zh ? "zh-CN" : "en", {
     day: "numeric",
     month: "short",
     year: "numeric"
@@ -98,6 +101,8 @@ async function readJson<T>(response: Response) {
 }
 
 export function WorkflowMarketplace() {
+  const { language } = useLanguage();
+  const zh = language === "zh";
   const [marketplace, setMarketplace] = useState<MarketplaceState>(emptyState);
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
@@ -118,7 +123,7 @@ export function WorkflowMarketplace() {
     }
 
     return WORKFLOW_TEMPLATES.filter((template) =>
-      [template.category, template.title].some((value) => value.toLowerCase().includes(needle))
+      [template.category, template.title, uiMessagesZh[template.category] ?? "", uiMessagesZh[template.title] ?? ""].some((value) => value.toLowerCase().includes(needle))
     );
   }, [searchTerm]);
   const totalTemplates = filteredTemplates.length;
@@ -200,44 +205,44 @@ export function WorkflowMarketplace() {
     <div className="workflow-marketplace-stack">
       <div className="workflow-marketplace-summary">
         <div>
-          <p className="workspace-status-card__eyebrow">AI credits</p>
-          <h2>{marketplace.isAdmin ? "Admin free installs" : `${formatTokens(marketplace.balance.availableTokens)} available`}</h2>
+          <p className="workspace-status-card__eyebrow"><Localized en="AI credits" zh="AI 积分" /></p>
+          <h2>{marketplace.isAdmin ? (zh ? "管理员免费安装" : "Admin free installs") : (zh ? `可用 ${formatTokens(marketplace.balance.availableTokens)}` : `${formatTokens(marketplace.balance.availableTokens)} available`)}</h2>
           <p>
             {marketplace.isAdmin
-              ? "Admin accounts can install workflow tools without spending AI credits."
-              : "Workflow tool purchases move AI credits into a tool-specific allocation."}
+              ? (zh ? "管理员账户安装工作流工具无需消耗 AI 积分。" : "Admin accounts can install workflow tools without spending AI credits.")
+              : (zh ? "购买工作流工具时，AI 积分会转入该工具的专用配额。" : "Workflow tool purchases move AI credits into a tool-specific allocation.")}
           </p>
         </div>
         <button className="btn-ghost" disabled={loading} onClick={refreshMarketplace} type="button">
           <RefreshCw size={16} strokeWidth={1.9} />
-          Refresh
+          <Localized en="Refresh" zh="刷新" />
         </button>
       </div>
 
-      {error ? <p className="form-error" role="alert">{error}</p> : null}
-      {message ? <p className="form-success" role="status">{message}</p> : null}
+      {error ? <p className="form-error" role="alert"><LocalizedMessage text={error} /></p> : null}
+      {message ? <p className="form-success" role="status"><LocalizedMessage text={message} /></p> : null}
 
-      <div className="workflow-marketplace-pagination" aria-label="Marketplace pagination">
+      <div className="workflow-marketplace-pagination" aria-label={zh ? "应用市场分页" : "Marketplace pagination"}>
         <label className="workflow-marketplace-search">
           <Search size={16} strokeWidth={1.9} />
           <input
-            aria-label="Search marketplace tools by category or tool name"
+            aria-label={zh ? "按类别或名称搜索应用市场工具" : "Search marketplace tools by category or tool name"}
             onChange={(event) => {
               setSearchTerm(event.target.value);
               setPage(1);
             }}
-            placeholder="Search category or tool"
+            placeholder={zh ? "搜索类别或工具" : "Search category or tool"}
             type="search"
             value={searchTerm}
           />
         </label>
         <span>
-          Showing {showingStart}-{pageEnd} of {totalTemplates}
+          {zh ? `显示 ${showingStart}-${pageEnd}，共 ${totalTemplates} 个` : `Showing ${showingStart}-${pageEnd} of ${totalTemplates}`}
         </span>
         <label>
-          Per page
+          <Localized en="Per page" zh="每页" />
           <select
-            aria-label="Marketplace tools per page"
+            aria-label={zh ? "每页显示的应用市场工具数" : "Marketplace tools per page"}
             onChange={(event) => {
               setPageSize(Number(event.target.value) as (typeof PAGE_SIZE_OPTIONS)[number]);
               setPage(1);
@@ -252,7 +257,7 @@ export function WorkflowMarketplace() {
           </select>
         </label>
         <button
-          aria-label="Previous marketplace page"
+          aria-label={zh ? "应用市场上一页" : "Previous marketplace page"}
           className="btn-ghost"
           disabled={currentPage <= 1}
           onClick={() => setPage((current) => Math.max(1, current - 1))}
@@ -261,10 +266,10 @@ export function WorkflowMarketplace() {
           <ChevronLeft size={16} strokeWidth={1.9} />
         </button>
         <span>
-          Page {currentPage} of {pageCount}
+          {zh ? `第 ${currentPage} 页，共 ${pageCount} 页` : `Page ${currentPage} of ${pageCount}`}
         </span>
         <button
-          aria-label="Next marketplace page"
+          aria-label={zh ? "应用市场下一页" : "Next marketplace page"}
           className="btn-ghost"
           disabled={currentPage >= pageCount}
           onClick={() => setPage((current) => Math.min(pageCount, current + 1))}
@@ -277,9 +282,9 @@ export function WorkflowMarketplace() {
       {totalTemplates === 0 ? (
         <article className="workflow-empty">
           <div>
-            <p className="workspace-status-card__eyebrow">Marketplace</p>
-            <h2>No matching workflow tools</h2>
-            <p>Search by category or workflow tool name.</p>
+            <p className="workspace-status-card__eyebrow"><Localized en="Marketplace" zh="应用市场" /></p>
+            <h2><Localized en="No matching workflow tools" zh="没有匹配的工作流工具" /></h2>
+            <p><Localized en="Search by category or workflow tool name." zh="按类别或工作流工具名称搜索。" /></p>
           </div>
         </article>
       ) : null}
@@ -301,71 +306,71 @@ export function WorkflowMarketplace() {
               ? " project-status--failed"
               : " project-status--running";
           const priceCopy = marketplace.isAdmin
-            ? `Listed price: ${formatTokens(template.priceTokens)} AI credits. Admin install: free`
-            : `Requires ${formatTokens(template.priceTokens)} AI credits`;
-          const installedDate = formatDate(install?.installedAt);
-          const nextChargeDate = formatDate(install?.nextChargeAt);
+            ? (zh ? `标价：${formatTokens(template.priceTokens)} AI 积分。管理员免费安装` : `Listed price: ${formatTokens(template.priceTokens)} AI credits. Admin install: free`)
+            : (zh ? `需要 ${formatTokens(template.priceTokens)} AI 积分` : `Requires ${formatTokens(template.priceTokens)} AI credits`);
+          const installedDate = formatDate(install?.installedAt, zh);
+          const nextChargeDate = formatDate(install?.nextChargeAt, zh);
           const billingCopy = install?.allocation?.quotaExempt
-            ? "Admin exempt from recurring AI credit charges."
+            ? (zh ? "管理员无需支付定期 AI 积分费用。" : "Admin exempt from recurring AI credit charges.")
             : nextChargeDate
-              ? `Next charge: ${nextChargeDate}`
-              : "Monthly renewal active.";
+              ? (zh ? `下次扣费：${nextChargeDate}` : `Next charge: ${nextChargeDate}`)
+              : (zh ? "每月自动续费已启用。" : "Monthly renewal active.");
 
           return (
             <article className="workflow-card" key={template.id}>
               <div className="workflow-card__header">
                 <div>
-                  <span className="workspace-status-card__eyebrow">{template.category}</span>
-                  <h2>{template.title}</h2>
+                  <span className="workspace-status-card__eyebrow"><LocalizedMessage text={template.category} /></span>
+                  <h2><LocalizedMessage text={template.title} /></h2>
                 </div>
                 <span className={`project-status${statusClass}`}>
                   {isDisabled
-                    ? "disabled"
+                    ? (zh ? "已停用" : "disabled")
                     : isInstalled
-                      ? "installed"
+                      ? (zh ? "已安装" : "installed")
                       : !loading && !marketplace.isAdmin && !hasEnoughCredits
-                        ? "locked"
-                        : "available"}
+                        ? (zh ? "未解锁" : "locked")
+                        : (zh ? "可用" : "available")}
                 </span>
               </div>
-              <p>{template.description}</p>
+              <p><LocalizedMessage text={template.description} /></p>
               <div className="workflow-card__price">
                 <Coins size={16} strokeWidth={1.9} />
                 <span>{priceCopy}</span>
               </div>
               {!marketplace.isAdmin && !install ? (
                 <p className="workflow-card__billing">
-                  Need {formatTokens(template.priceTokens)} AI credits to install.{" "}
+                  {zh ? `安装需要 ${formatTokens(template.priceTokens)} AI 积分。` : `Need ${formatTokens(template.priceTokens)} AI credits to install. `}
                   {hasEnoughCredits
-                    ? `${formatTokens(marketplace.balance.availableTokens)} available now.`
-                    : `${formatTokens(missingTokens)} more needed.`}
+                    ? (zh ? `目前可用 ${formatTokens(marketplace.balance.availableTokens)}。` : `${formatTokens(marketplace.balance.availableTokens)} available now.`)
+                    : (zh ? `还需 ${formatTokens(missingTokens)}。` : `${formatTokens(missingTokens)} more needed.`)}
                 </p>
               ) : null}
               {install?.allocation ? (
                 <dl className="workflow-card__allocation">
                   <div>
-                    <dt>Allocated</dt>
-                    <dd>{install.allocation.quotaExempt ? "Quota exempt" : formatTokens(install.allocation.allocatedTokens)}</dd>
+                    <dt><Localized en="Allocated" zh="已分配" /></dt>
+                    <dd>{install.allocation.quotaExempt ? (zh ? "免配额" : "Quota exempt") : formatTokens(install.allocation.allocatedTokens, zh)}</dd>
                   </div>
                   <div>
-                    <dt>Used</dt>
-                    <dd>{formatTokens(install.allocation.usedTokens)}</dd>
+                    <dt><Localized en="Used" zh="已使用" /></dt>
+                    <dd>{formatTokens(install.allocation.usedTokens, zh)}</dd>
                   </div>
                   <div>
-                    <dt>Available</dt>
-                    <dd>{formatTokens(install.allocation.availableTokens)}</dd>
+                    <dt><Localized en="Available" zh="可用" /></dt>
+                    <dd>{formatTokens(install.allocation.availableTokens, zh)}</dd>
                   </div>
                 </dl>
               ) : null}
               {install ? (
                 <p className="workflow-card__billing">
-                  {installedDate ? `Installed: ${installedDate}. ` : null}
+                  {installedDate ? (zh ? `安装日期：${installedDate}。` : `Installed: ${installedDate}. `) : null}
                   {billingCopy}
                 </p>
               ) : null}
               <ol className="workflow-card__steps">
                 {template.steps.map((step) => (
-                  <li key={step}>{step}</li>
+                  <li key={step}><LocalizedMessage text={step} /></li>
                 ))}
               </ol>
               <div className="workflow-card__actions">
@@ -384,23 +389,23 @@ export function WorkflowMarketplace() {
                   ) : (
                     <Plus size={16} strokeWidth={1.9} />
                   )}
-                  {isDisabled ? "Disabled" : isInstalled ? "Installed" : isInstalling ? "Installing..." : "Install"}
+                  {isDisabled ? (zh ? "已停用" : "Disabled") : isInstalled ? (zh ? "已安装" : "Installed") : isInstalling ? (zh ? "正在安装..." : "Installing...") : (zh ? "安装" : "Install")}
                 </button>
                 {template.repoUrl ? (
                   <a className="btn-ghost" href={template.repoUrl} rel="noreferrer" target="_blank">
                     <ExternalLink size={16} strokeWidth={1.9} />
-                    {template.sourceLabel ?? "Source"}
+                    {template.sourceLabel ?? (zh ? "来源" : "Source")}
                   </a>
                 ) : null}
               </div>
               {!loading && !marketplace.isAdmin && !isInstalled && !hasEnoughCredits ? (
                 <p className="workflow-card__hint">
-                  Add {formatTokens(missingTokens)} more AI credits to install this workflow tool.
+                  {zh ? `再添加 ${formatTokens(missingTokens)} AI 积分即可安装此工具。` : `Add ${formatTokens(missingTokens)} more AI credits to install this workflow tool.`}
                 </p>
               ) : null}
               {isDisabled ? (
                 <p className="workflow-card__hint">
-                  Add AI credits, then refresh Marketplace to reactivate this workflow tool.
+                  <Localized en="Add AI credits, then refresh Marketplace to reactivate this workflow tool." zh="添加 AI 积分，然后刷新应用市场以重新启用此工具。" />
                 </p>
               ) : null}
             </article>

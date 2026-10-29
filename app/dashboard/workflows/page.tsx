@@ -1,3 +1,4 @@
+import { Localized } from "@/components/language-provider";
 import { redirect } from "next/navigation";
 import { AnnouncementPill } from "@/components/announcement-pill";
 import { Atmosphere } from "@/components/atmosphere";
@@ -68,16 +69,16 @@ export default async function MyWorkflowsPage() {
         />
         <main className="dashboard-main">
           <div className="dashboard-topbar">
-            <AnnouncementPill>My Workflows</AnnouncementPill>
+            <AnnouncementPill><Localized en="My Workflows" zh="我的工作流" /></AnnouncementPill>
             <a className="btn-primary" href="/dashboard/marketplace">
-              Marketplace
+              <Localized en="Marketplace" zh="应用市场" />
             </a>
           </div>
           <section className="dashboard-workbench workflow-workbench" aria-labelledby="my-workflows-title">
             <div className="settings-workbench__header">
-              <p className="workspace-status-card__eyebrow">Workflow</p>
-              <h1 id="my-workflows-title">My Workflows</h1>
-              <p>Manage workflow tools installed from Marketplace and review their AI credit allocations.</p>
+              <p className="workspace-status-card__eyebrow"><Localized en="Workflow" zh="工作流" /></p>
+              <h1 id="my-workflows-title"><Localized en="My Workflows" zh="我的工作流" /></h1>
+              <p><Localized en="Manage workflow tools installed from Marketplace and review their AI credit allocations." zh="管理从应用市场安装的工作流工具并查看其 AI 积分分配。" /></p>
             </div>
 
             <MyWorkflows />

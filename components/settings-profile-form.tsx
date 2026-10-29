@@ -1,5 +1,7 @@
 "use client";
 
+import { Localized, useLanguage, LocalizedMessage } from "@/components/language-provider";
+
 import { useState, type FormEvent } from "react";
 import { CheckCircle2 } from "lucide-react";
 
@@ -36,11 +38,12 @@ export function SettingsProfileForm({
   initialProfileName = "",
   userEmail = null
 }: SettingsProfileFormProps) {
+  const _uiLanguage = useLanguage().language;
   const [profileName, setProfileName] = useState(initialProfileName?.trim() ?? "");
   const [profileError, setProfileError] = useState<string | null>(null);
   const [profileStatus, setProfileStatus] = useState<string | null>(null);
   const [savingProfile, setSavingProfile] = useState(false);
-  const accountEmail = userEmail?.trim() || "Not available";
+  const accountEmail = userEmail?.trim() || (_uiLanguage === "zh" ? "不可用" : "Not available");
 
   async function handleProfileSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -75,17 +78,17 @@ export function SettingsProfileForm({
   return (
     <form className="settings-profile-card" noValidate onSubmit={handleProfileSubmit}>
       <div>
-        <p className="workspace-status-card__eyebrow">Profile</p>
-        <h3>Account profile</h3>
-        <p>View the sign-in email and save the display name used for this workspace profile.</p>
+        <p className="workspace-status-card__eyebrow"><Localized en="Profile" zh="个人资料" /></p>
+        <h3><Localized en="Account profile" zh="账户资料" /></h3>
+        <p><Localized en="View the sign-in email and save the display name used for this workspace profile." zh="查看登录邮箱并保存此工作空间资料使用的显示名称。" /></p>
       </div>
       <div className="settings-profile-card__fields">
         <div className="settings-profile-card__email">
-          <span>Email address</span>
+          <span><Localized en="Email address" zh="电子邮箱" /></span>
           <strong>{accountEmail}</strong>
         </div>
         <label className="field-stack">
-          <span>Profile name</span>
+          <span><Localized en="Profile name" zh="资料名称" /></span>
           <input
             aria-invalid={profileError ? "true" : "false"}
             disabled={disabled || savingProfile}
@@ -96,20 +99,20 @@ export function SettingsProfileForm({
               setProfileError(null);
               setProfileStatus(null);
             }}
-            placeholder="Kenneth's workspace"
+            placeholder={_uiLanguage === "zh" ? "您的工作空间" : "Kenneth's workspace"}
             type="text"
             value={profileName}
           />
-          {profileError ? <span className="field-error">{profileError}</span> : null}
+          {profileError ? <span className="field-error"><LocalizedMessage text={profileError} /></span> : null}
         </label>
       </div>
       <button className="settings-action-button settings-action-button--telegram" disabled={disabled || savingProfile} type="submit">
-        {savingProfile ? "Saving..." : "Save profile"}
+        {savingProfile ? <Localized en="Saving..." zh="正在保存..." /> : <Localized en="Save profile" zh="保存资料" />}
       </button>
       {profileStatus ? (
         <div className="settings-toggle-card__status">
           <CheckCircle2 size={16} strokeWidth={1.8} />
-          {profileStatus}
+          <LocalizedMessage text={profileStatus} />
         </div>
       ) : null}
     </form>

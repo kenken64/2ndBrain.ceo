@@ -1,5 +1,7 @@
 "use client";
 
+import { useLanguage } from "@/components/language-provider";
+
 import { useState, type ReactNode } from "react";
 import { CreditCard, Users } from "lucide-react";
 
@@ -26,12 +28,13 @@ const tabs: Array<{
  * .settings-tabs rules, which are presentational rather than settings-specific.
  */
 export function AdminTabs({ billing, initialTab, users }: AdminTabsProps) {
+  const _uiLanguage = useLanguage().language;
   const [activeTab, setActiveTab] = useState<AdminTabId>(initialTab ?? "users");
   const panels: Record<AdminTabId, ReactNode> = { billing, users };
 
   return (
     <div className="settings-tabs">
-      <div aria-label="Admin sections" className="settings-tabs__list" role="tablist">
+      <div aria-label={_uiLanguage === "zh" ? "管理分类" : "Admin sections"} className="settings-tabs__list" role="tablist">
         {tabs.map((tab) => {
           const Icon = tab.icon;
           const isActive = activeTab === tab.id;
@@ -48,7 +51,7 @@ export function AdminTabs({ billing, initialTab, users }: AdminTabsProps) {
               type="button"
             >
               <Icon size={16} strokeWidth={1.8} />
-              {tab.label}
+              {_uiLanguage === "zh" ? (tab.id === "users" ? "用户" : "账单") : tab.label}
             </button>
           );
         })}

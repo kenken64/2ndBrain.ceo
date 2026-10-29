@@ -1,5 +1,8 @@
 "use client";
 
+import { Localized, LocalizedMessage, useLanguage } from "@/components/language-provider";
+
+
 import { ExternalLink, ReceiptText } from "lucide-react";
 import type { SolanaPaymentHistoryItem } from "@/types/solana-payment-history";
 
@@ -31,18 +34,18 @@ function formatUsdFromCents(value: number) {
   }).format(value / 100);
 }
 
-function formatDateTime(value: string | null) {
+function formatDateTime(value: string | null, zh = false) {
   if (!value) {
-    return "Pending timestamp";
+    return zh ? "时间戳待确认" : "Pending timestamp";
   }
 
   const timestamp = Date.parse(value);
 
   if (!Number.isFinite(timestamp)) {
-    return "Invalid timestamp";
+    return zh ? "无效时间戳" : "Invalid timestamp";
   }
 
-  return new Intl.DateTimeFormat("en", {
+  return new Intl.DateTimeFormat(zh ? "zh-CN" : "en", {
     day: "numeric",
     hour: "numeric",
     minute: "2-digit",
@@ -74,6 +77,7 @@ export function SolanaPaymentHistory({
   showUser = false,
   title = "Top-up history"
 }: SolanaPaymentHistoryProps) {
+  const zh = useLanguage().language === "zh";
   const totalUsdCents = payments.reduce((sum, payment) => sum + payment.usdAmountCents, 0);
   const totalTokens = payments.reduce((sum, payment) => sum + payment.packageTokens, 0);
 
@@ -84,12 +88,12 @@ export function SolanaPaymentHistory({
           <ReceiptText size={22} strokeWidth={1.8} />
         </span>
         <div>
-          <p className="workspace-status-card__eyebrow">{eyebrow}</p>
-          <h2>{title}</h2>
+          <p className="workspace-status-card__eyebrow"><LocalizedMessage text={eyebrow} /></p>
+          <h2><LocalizedMessage text={title} /></h2>
           <p>
             {payments.length > 0
-              ? `${formatInteger(totalTokens)} AI credits purchased across ${formatInteger(payments.length)} confirmed Solana top-ups.`
-              : emptyCopy}
+              ? (zh ? `通过 ${formatInteger(payments.length)} 笔已确认的 Solana 充值购买了 ${formatInteger(totalTokens)} AI 积分。` : `${formatInteger(totalTokens)} AI credits purchased across ${formatInteger(payments.length)} confirmed Solana top-ups.`)
+              : <LocalizedMessage text={emptyCopy} />}
           </p>
         </div>
         <span className="settings-toggle-card__status">{formatUsdFromCents(totalUsdCents)}</span>
@@ -98,40 +102,40 @@ export function SolanaPaymentHistory({
       {payments.length > 0 ? (
         <div className={`solana-payment-history__table${showUser ? " solana-payment-history__table--admin" : ""}`}>
           <div className="solana-payment-history__head" role="row">
-            <span>Date</span>
-            {showUser ? <span>User</span> : null}
-            <span>Top-up</span>
-            <span>Wallet</span>
-            <span>Transaction</span>
+            <span><Localized en={"Date"} zh={"日期"} /></span>
+            {showUser ? <span><Localized en={"User"} zh={"用户"} /></span> : null}
+            <span><Localized en={"Top-up"} zh={"充值"} /></span>
+            <span><Localized en={"Wallet"} zh={"钱包"} /></span>
+            <span><Localized en={"Transaction"} zh={"交易"} /></span>
           </div>
           {payments.map((payment) => (
             <div className="solana-payment-history__row" key={payment.id} role="row">
               <div>
-                <strong>{formatDateTime(payment.transactionBlockTime ?? payment.createdAt)}</strong>
-                <span>{payment.solanaNetwork ?? "network unknown"}</span>
+                <strong>{formatDateTime(payment.transactionBlockTime ?? payment.createdAt, zh)}</strong>
+                <span>{payment.solanaNetwork ?? (zh ? "网络未知" : "network unknown")}</span>
               </div>
               {showUser ? (
                 <div>
-                  <strong>{payment.userEmail ?? "No email"}</strong>
+                  <strong>{payment.userEmail ?? (zh ? "无邮箱" : "No email")}</strong>
                   <span>{payment.userName ?? shortenMiddle(payment.userId, 8, 8)}</span>
                 </div>
               ) : null}
               <div>
                 <strong>{formatUsdFromCents(payment.usdAmountCents)}</strong>
                 <span>
-                  {formatSol(payment.solAmount)} SOL for {formatInteger(payment.packageTokens)} credits
+                  {zh ? `${formatSol(payment.solAmount)} SOL 购买 ${formatInteger(payment.packageTokens)} 积分` : `${formatSol(payment.solAmount)} SOL for ${formatInteger(payment.packageTokens)} credits`}
                 </span>
               </div>
               <div>
                 <strong>{shortenMiddle(payment.walletAddress)}</strong>
-                <span>{shortenMiddle(payment.treasuryWallet)} treasury</span>
+                <span>{shortenMiddle(payment.treasuryWallet)} {zh ? "收款钱包" : "treasury"}</span>
               </div>
               <div>
                 <a href={explorerUrl(payment.signature, payment.solanaNetwork)} rel="noreferrer" target="_blank">
                   {shortenMiddle(payment.signature)}
                   <ExternalLink aria-hidden="true" size={13} strokeWidth={2} />
                 </a>
-                <span>{payment.status}</span>
+                <span><LocalizedMessage text={payment.status} /></span>
               </div>
             </div>
           ))}

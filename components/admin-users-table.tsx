@@ -1,5 +1,8 @@
 "use client";
 
+import { Localized, useLanguage, LocalizedMessage } from "@/components/language-provider";
+
+
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { ChevronLeft, ChevronRight, Coins, Search } from "lucide-react";
@@ -38,18 +41,18 @@ function formatNumber(value: number) {
   return new Intl.NumberFormat("en").format(value);
 }
 
-function formatDateTime(value: string | null) {
+function formatDateTime(value: string | null, zh = false) {
   if (!value) {
-    return "Not recorded";
+    return zh ? "未记录" : "Not recorded";
   }
 
   const date = new Date(value);
 
   if (Number.isNaN(date.getTime())) {
-    return "Not recorded";
+    return zh ? "未记录" : "Not recorded";
   }
 
-  return new Intl.DateTimeFormat("en", {
+  return new Intl.DateTimeFormat(zh ? "zh-CN" : "en", {
     day: "numeric",
     hour: "numeric",
     minute: "2-digit",
@@ -96,6 +99,7 @@ async function postJson(url: string, body: Record<string, unknown>) {
 }
 
 export function AdminUsersTable({ adminAvailableTokens, adminUserId, users }: AdminUsersTableProps) {
+  const _uiLanguage = useLanguage().language;
   const router = useRouter();
   const [busyUserId, setBusyUserId] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
@@ -196,30 +200,30 @@ export function AdminUsersTable({ adminAvailableTokens, adminUserId, users }: Ad
   return (
     <section className="admin-table-shell" aria-labelledby="admin-users-title">
       <div className="projects-section__header">
-        <h2 id="admin-users-title">AI CUBER users</h2>
-        {message ? <p className="login-dialog__message" role="status">{message}</p> : null}
+        <h2 id="admin-users-title"><Localized en={"AI CUBER users"} zh={"AI CUBER 用户"} /></h2>
+        {message ? <p className="login-dialog__message" role="status"><LocalizedMessage text={message} /></p> : null}
       </div>
 
       <div className="admin-users-toolbar">
         <label className="admin-users-toolbar__search">
           <Search aria-hidden="true" size={16} strokeWidth={1.8} />
           <input
-            aria-label="Search users by email, name, or instance"
+            aria-label={_uiLanguage === "zh" ? "按邮箱、姓名或实例搜索用户" : "Search users by email, name, or instance"}
             onChange={(event) => {
               setQuery(event.target.value);
               setPage(1);
             }}
-            placeholder="Search by email, name, or instance..."
+            placeholder={_uiLanguage === "zh" ? "按邮箱、姓名或实例搜索..." : "Search by email, name, or instance..."}
             type="search"
             value={query}
           />
         </label>
         <span className="admin-users-toolbar__count">
-          {formatNumber(filteredUsers.length)} of {formatNumber(users.length)} users
+          {_uiLanguage === "zh" ? `${formatNumber(filteredUsers.length)} / ${formatNumber(users.length)} 位用户` : `${formatNumber(filteredUsers.length)} of ${formatNumber(users.length)} users`}
         </span>
         <div className="admin-users-pagination">
           <button
-            aria-label="Previous page"
+            aria-label={_uiLanguage === "zh" ? "上一页" : "Previous page"}
             className="btn-ghost"
             disabled={currentPage <= 1}
             onClick={() => setPage(currentPage - 1)}
@@ -228,10 +232,10 @@ export function AdminUsersTable({ adminAvailableTokens, adminUserId, users }: Ad
             <ChevronLeft size={16} strokeWidth={1.8} />
           </button>
           <span>
-            Page {currentPage} of {pageCount}
+            {_uiLanguage === "zh" ? `第 ${currentPage} 页，共 ${pageCount} 页` : `Page ${currentPage} of ${pageCount}`}
           </span>
           <button
-            aria-label="Next page"
+            aria-label={_uiLanguage === "zh" ? "下一页" : "Next page"}
             className="btn-ghost"
             disabled={currentPage >= pageCount}
             onClick={() => setPage(currentPage + 1)}
@@ -244,13 +248,13 @@ export function AdminUsersTable({ adminAvailableTokens, adminUserId, users }: Ad
 
       <div className="admin-users-table">
         <div className="admin-users-table__head" role="row">
-          <span>User</span>
-          <span>Usage</span>
+          <span><Localized en={"User"} zh={"用户"} /></span>
+          <span><Localized en={"Usage"} zh={"用量"} /></span>
           <span>AI Agent</span>
-          <span>Controls</span>
+          <span><Localized en={"Controls"} zh={"控制"} /></span>
         </div>
         {pageUsers.length === 0 ? (
-          <p className="admin-users-empty">No users match your search.</p>
+          <p className="admin-users-empty"><Localized en={"No users match your search."} zh={"没有符合搜索条件的用户。"} /></p>
         ) : null}
         {pageUsers.map((user) => {
           const remaining = remainingCredits(user);
@@ -260,52 +264,51 @@ export function AdminUsersTable({ adminAvailableTokens, adminUserId, users }: Ad
           return (
             <article className="admin-user-row" key={user.id}>
               <div>
-                <strong>{user.email ?? "No email"}</strong>
+                <strong>{user.email ?? (_uiLanguage === "zh" ? "无邮箱" : "No email")}</strong>
                 <span>{user.fullName ?? user.id}</span>
-                {user.isAdmin ? <span className="project-status project-status--running">admin</span> : null}
+                {user.isAdmin ? <span className="project-status project-status--running"><Localized en={"admin"} zh={"管理员"} /></span> : null}
                 <span className={`project-status${user.disabled ? " project-status--failed" : " project-status--ready"}`}>
-                  {user.adminDeletedAt ? "deleted" : user.disabled ? "disabled" : "active"}
+                  {user.adminDeletedAt ? <Localized en={"deleted"} zh={"已删除"} /> : user.disabled ? <Localized en={"disabled"} zh={"已停用"} /> : <Localized en={"active"} zh={"运行中"} />}
                 </span>
               </div>
 
               <div>
                 {user.isAdmin ? (
                   <>
-                    <strong>Quota exempt</strong>
-                    <span>Admin account</span>
-                    <span>No AI credit quota required</span>
+                    <strong><Localized en={"Quota exempt"} zh={"免配额"} /></strong>
+                    <span><Localized en={"Admin account"} zh={"管理员账户"} /></span>
+                    <span><Localized en={"No AI credit quota required"} zh={"无需 AI 积分配额"} /></span>
                   </>
                 ) : (
                   <>
-                    <strong>{formatNumber(remaining)} remaining</strong>
-                    <span>{formatNumber(user.llmTokenUsed)} used</span>
-                    <span>{formatNumber(user.llmTokenQuota)} assigned</span>
+                    <strong>{_uiLanguage === "zh" ? `剩余 ${formatNumber(remaining)}` : `${formatNumber(remaining)} remaining`}</strong>
+                    <span>{_uiLanguage === "zh" ? `已使用 ${formatNumber(user.llmTokenUsed)}` : `${formatNumber(user.llmTokenUsed)} used`}</span>
+                    <span>{_uiLanguage === "zh" ? `已分配 ${formatNumber(user.llmTokenQuota)}` : `${formatNumber(user.llmTokenQuota)} assigned`}</span>
                   </>
                 )}
               </div>
 
               <div>
-                <strong>{user.openclawInstance ?? "No instance"}</strong>
-                <span>{user.openclawProvisionStatus ?? "not provisioned"}</span>
+                <strong>{user.openclawInstance ?? (_uiLanguage === "zh" ? "无实例" : "No instance")}</strong>
+                <span><LocalizedMessage text={user.openclawProvisionStatus ?? "not provisioned"} /></span>
                 <span className={`project-status${user.openclawTokensPaused ? " project-status--failed" : " project-status--ready"}`}>
-                  {user.openclawTokensPaused ? "AI paused" : "AI active"}
+                  {user.openclawTokensPaused ? <Localized en={"AI paused"} zh={"AI 已暂停"} /> : <Localized en={"AI active"} zh={"AI 运行中"} />}
                 </span>
-                <span>Paused: {formatDateTime(user.openclawTokensPausedAt)}</span>
-                <span>Resumed: {formatDateTime(user.openclawTokensResumedAt)}</span>
+                <span>{_uiLanguage === "zh" ? "已暂停：" : "Paused: "}{formatDateTime(user.openclawTokensPausedAt, _uiLanguage === "zh")}</span>
+                <span>{_uiLanguage === "zh" ? "已恢复：" : "Resumed: "}{formatDateTime(user.openclawTokensResumedAt, _uiLanguage === "zh")}</span>
                 {user.openclawTokensPaused ? (
                   <span>
-                    Reason: {user.openclawTokensPauseReason ?? "paused"}
+                    {_uiLanguage === "zh" ? "原因：" : "Reason: "}{user.openclawTokensPauseReason ?? (_uiLanguage === "zh" ? "已暂停" : "paused")}
                     {user.openclawTokensPauseActorEmail ? ` by ${user.openclawTokensPauseActorEmail}` : ""}
                   </span>
                 ) : null}
-                <span>{user.projectCount} projects</span>
+                <span>{_uiLanguage === "zh" ? `${user.projectCount} 个项目` : `${user.projectCount} projects`}</span>
               </div>
 
               <div className="admin-user-row__controls">
                 {user.isAdmin ? (
                   <span className="admin-field-hint">
-                    Admin accounts are exempt from AI credit quotas, so no token quota is required.
-                  </span>
+                    <Localized en={"Admin accounts are exempt from AI credit quotas, so no token quota is required."} zh={"管理员账户不受 AI 积分配额限制，因此无需 Token 配额。"} /></span>
                 ) : (
                   <form
                     onSubmit={(event) => {
@@ -315,7 +318,7 @@ export function AdminUsersTable({ adminAvailableTokens, adminUserId, users }: Ad
                       void runAction(user.id, () => postJson(`/api/admin/users/${user.id}/quota`, { quota }));
                     }}
                   >
-                    <label htmlFor={`quota-${user.id}`}>Token quota</label>
+                    <label htmlFor={`quota-${user.id}`}><Localized en={"Token quota"} zh={"Token 配额"} /></label>
                     <input
                       defaultValue={user.llmTokenQuota}
                       disabled={isBusy}
@@ -326,19 +329,16 @@ export function AdminUsersTable({ adminAvailableTokens, adminUserId, users }: Ad
                       type="number"
                     />
                     <button className="btn-ghost" disabled={isBusy} type="submit">
-                      Save
-                    </button>
+                      <Localized en={"Save"} zh={"保存"} /></button>
                   </form>
                 )}
 
                 {user.isAdmin ? (
                   <span className="admin-field-hint">
-                    Credit transfers are not required for admin accounts.
-                  </span>
+                    <Localized en={"Credit transfers are not required for admin accounts."} zh={"管理员账户无需转移积分。"} /></span>
                 ) : isSelf ? (
                   <span className="admin-field-hint">
-                    This is your account. Use Settings to transfer your own AI credits.
-                  </span>
+                    <Localized en={"This is your account. Use Settings to transfer your own AI credits."} zh={"这是您的账户。请在设置中转移自己的 AI 积分。"} /></span>
                 ) : user.email ? (
                   <form
                     onSubmit={(event) => {
@@ -368,7 +368,7 @@ export function AdminUsersTable({ adminAvailableTokens, adminUserId, users }: Ad
                       formElement.reset();
                     }}
                   >
-                    <label htmlFor={`transfer-${user.id}`}>Send AI credits</label>
+                    <label htmlFor={`transfer-${user.id}`}><Localized en={"Send AI credits"} zh={"发送 AI 积分"} /></label>
                     <input
                       disabled={isBusy || adminAvailableTokens <= 0}
                       id={`transfer-${user.id}`}
@@ -376,19 +376,18 @@ export function AdminUsersTable({ adminAvailableTokens, adminUserId, users }: Ad
                       min={1}
                       max={adminAvailableTokens || undefined}
                       name="transferAmount"
-                      placeholder={`Up to ${formatNumber(adminAvailableTokens)}`}
+                      placeholder={_uiLanguage === "zh" ? `最多 ${formatNumber(adminAvailableTokens)}` : `Up to ${formatNumber(adminAvailableTokens)}`}
                       step={1}
                       type="number"
                     />
                     <button className="btn-ghost" disabled={isBusy || adminAvailableTokens <= 0} type="submit">
-                      Send
-                    </button>
+                      <Localized en={"Send"} zh={"发送"} /></button>
                     {adminAvailableTokens <= 0 ? (
-                      <span className="admin-field-hint">You have no available AI credits to send.</span>
+                      <span className="admin-field-hint"><Localized en={"You have no available AI credits to send."} zh={"您没有可发送的 AI 积分。"} /></span>
                     ) : null}
                   </form>
                 ) : (
-                  <span className="admin-field-hint">No email on file; AI credits cannot be sent.</span>
+                  <span className="admin-field-hint"><Localized en={"No email on file; AI credits cannot be sent."} zh={"未记录电子邮箱，无法发送 AI 积分。"} /></span>
                 )}
 
                 <form
@@ -400,30 +399,27 @@ export function AdminUsersTable({ adminAvailableTokens, adminUserId, users }: Ad
                     event.currentTarget.reset();
                   }}
                 >
-                  <label htmlFor={`bedrock-${user.id}`}>AWS Bedrock bearer token</label>
+                  <label htmlFor={`bedrock-${user.id}`}><Localized en={"AWS Bedrock bearer token"} zh={"AWS Bedrock 访问令牌"} /></label>
                   <input
                     autoComplete="off"
                     disabled={isBusy || !user.openclawInstance}
                     id={`bedrock-${user.id}`}
                     name="bearerToken"
-                    placeholder={user.bedrockTokenLast4 ? `Last updated ...${user.bedrockTokenLast4}` : "Paste token"}
+                    placeholder={user.bedrockTokenLast4 ? (_uiLanguage === "zh" ? `上次更新 ...${user.bedrockTokenLast4}` : `Last updated ...${user.bedrockTokenLast4}`) : (_uiLanguage === "zh" ? "粘贴令牌" : "Paste token")}
                     type="password"
                   />
                   <button className="btn-ghost" disabled={isBusy || !user.openclawInstance} type="submit">
-                    Overwrite
-                  </button>
+                    <Localized en={"Overwrite"} zh={"覆盖"} /></button>
                   {!user.openclawInstance ? (
                     <span className="admin-field-hint">
-                      Disabled until this user has a provisioned AI Agent instance to install the token on.
-                    </span>
+                      <Localized en={"Disabled until this user has a provisioned AI Agent instance to install the token on."} zh={"此用户配置 AI Agent 实例以安装令牌后才能使用。"} /></span>
                   ) : null}
                 </form>
 
                 <div className="admin-user-row__buttons">
                   {isSelf ? (
                     <span className="admin-field-hint">
-                      Self access controls are locked so you cannot disable or delete your own admin account.
-                    </span>
+                      <Localized en={"Self access controls are locked so you cannot disable or delete your own admin account."} zh={"自身访问控制已锁定，因此您不能停用或删除自己的管理员账户。"} /></span>
                   ) : (
                     <>
                       <button
@@ -436,18 +432,17 @@ export function AdminUsersTable({ adminAvailableTokens, adminUserId, users }: Ad
                         }
                         type="button"
                       >
-                        {user.disabled ? "Enable" : "Disable"}
+                        {user.disabled ? <Localized en={"Enable"} zh={"启用"} /> : <Localized en={"Disable"} zh={"停用"} />}
                       </button>
                       {!user.isAdmin ? (
                         <button
                           className="btn-ghost"
                           disabled={isBusy || remaining <= 0}
                           onClick={() => openDialog(() => setPendingDrain(user))}
-                          title={remaining <= 0 ? "This user has no unused AI credits to drain." : "Drain unused AI credits to your admin account."}
+                          title={_uiLanguage === "zh" ? (remaining <= 0 ? "此用户没有可收回的未使用 AI 积分。" : "将未使用的 AI 积分收回到您的管理员账户。") : (remaining <= 0 ? "This user has no unused AI credits to drain." : "Drain unused AI credits to your admin account.")}
                           type="button"
                         >
-                          Drain credits
-                        </button>
+                          <Localized en={"Drain credits"} zh={"收回积分"} /></button>
                       ) : null}
                       <button
                         className="btn-ghost danger-button"
@@ -455,8 +450,7 @@ export function AdminUsersTable({ adminAvailableTokens, adminUserId, users }: Ad
                         onClick={() => openDialog(() => setPendingDelete(user))}
                         type="button"
                       >
-                        Delete
-                      </button>
+                        <Localized en={"Delete"} zh={"删除"} /></button>
                     </>
                   )}
                 </div>
@@ -474,10 +468,7 @@ export function AdminUsersTable({ adminAvailableTokens, adminUserId, users }: Ad
         confirmWord="DELETE"
         description={
           <p>
-            This deletes the account for <strong>{pendingDelete ? describeUser(pendingDelete) : ""}</strong>, tears down their AI
-            Agent instance
-            {pendingDelete?.openclawInstance ? <> (<strong>{pendingDelete.openclawInstance}</strong>)</> : null}, and erases their
-            Nth Brains, wiki, and AI credits.
+            <Localized en={<>This deletes the account for <strong>{pendingDelete ? describeUser(pendingDelete) : ""}</strong>, tears down their AI Agent instance {pendingDelete?.openclawInstance ? <> (<strong>{pendingDelete.openclawInstance}</strong>)</> : null}, and erases their Nth Brains, wiki, and AI credits.</>} zh={<>这将删除 <strong>{pendingDelete ? describeUser(pendingDelete) : ""}</strong> 的账户、销毁其 AI Agent 实例{pendingDelete?.openclawInstance ? <>（<strong>{pendingDelete.openclawInstance}</strong>）</> : null}，并清除其 Nth Brain、知识库和 AI 积分。</>} />
           </p>
         }
         error={dialogError}
@@ -485,12 +476,10 @@ export function AdminUsersTable({ adminAvailableTokens, adminUserId, users }: Ad
         onCancel={() => setPendingDelete(null)}
         onConfirm={() => void confirmDelete()}
         open={pendingDelete !== null}
-        title="Delete this account?"
+        title={_uiLanguage === "zh" ? "删除此账户？" : "Delete this account?"}
         warning={
           <>
-            This cannot be undone. {formatNumber(pendingDelete?.projectCount ?? 0)}{" "}
-            {pendingDelete?.projectCount === 1 ? "Nth Brain project" : "Nth Brain projects"} will be destroyed. They can sign up
-            again with the same Google account as a new user.
+            <Localized en={`This cannot be undone. ${formatNumber(pendingDelete?.projectCount ?? 0)} Nth Brain project${pendingDelete?.projectCount === 1 ? "" : "s"} will be destroyed. They can sign up again with the same Google account as a new user.`} zh={`此操作无法撤销。将销毁 ${formatNumber(pendingDelete?.projectCount ?? 0)} 个 Nth Brain 项目。此用户可以使用同一 Google 账户重新注册为新用户。`} />
           </>
         }
       />
@@ -503,8 +492,7 @@ export function AdminUsersTable({ adminAvailableTokens, adminUserId, users }: Ad
         confirmLabel="Drain credits"
         description={
           <p>
-            This moves <strong>{formatNumber(pendingDrain ? remainingCredits(pendingDrain) : 0)}</strong> unused AI credits from{" "}
-            <strong>{pendingDrain ? describeUser(pendingDrain) : ""}</strong> back to your admin account.
+            <Localized en={<>This moves <strong>{formatNumber(pendingDrain ? remainingCredits(pendingDrain) : 0)}</strong> unused AI credits from <strong>{pendingDrain ? describeUser(pendingDrain) : ""}</strong> back to your admin account.</>} zh={<>这将从 <strong>{pendingDrain ? describeUser(pendingDrain) : ""}</strong> 收回 <strong>{formatNumber(pendingDrain ? remainingCredits(pendingDrain) : 0)}</strong> 个未使用的 AI 积分至您的管理员账户。</>} />
           </p>
         }
         error={dialogError}
@@ -512,7 +500,7 @@ export function AdminUsersTable({ adminAvailableTokens, adminUserId, users }: Ad
         onCancel={() => setPendingDrain(null)}
         onConfirm={() => void confirmDrain()}
         open={pendingDrain !== null}
-        title="Drain unused credits?"
+        title={_uiLanguage === "zh" ? "收回未使用的积分？" : "Drain unused credits?"}
         warning="The user keeps credits they have already spent, but loses the unused balance immediately."
       />
     </section>

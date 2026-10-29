@@ -1,5 +1,8 @@
 "use client";
 
+import { Localized, useLanguage, LocalizedMessage } from "@/components/language-provider";
+
+
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createBrowserClient } from "@supabase/ssr";
@@ -69,6 +72,7 @@ function factorLabel(factor: TotpFactor, index: number) {
 }
 
 export function AdminMfaPanel({ nextPath, supabasePublishableKey, supabaseUrl }: AdminMfaPanelProps) {
+  const _uiLanguage = useLanguage().language;
   const router = useRouter();
   const supabase = useMemo(
     () => createBrowserClient(supabaseUrl, supabasePublishableKey),
@@ -208,19 +212,18 @@ export function AdminMfaPanel({ nextPath, supabasePublishableKey, supabaseUrl }:
 
   return (
     <section className="auth-panel admin-mfa-panel">
-      <h1>{hasVerifiedFactor && !enrollment ? "Verify admin TOTP" : "Set up admin TOTP"}</h1>
+      <h1>{hasVerifiedFactor && !enrollment ? <Localized en={"Verify admin TOTP"} zh={"验证管理员 TOTP"} /> : <Localized en={"Set up admin TOTP"} zh={"设置管理员 TOTP"} />}</h1>
       <p>
         {hasVerifiedFactor && !enrollment
-          ? "Use your existing authenticator code to unlock admin controls for this session."
-          : "Create and verify a Supabase TOTP factor before using admin controls."}
+          ? <Localized en={"Use your existing authenticator code to unlock admin controls for this session."} zh={"使用现有身份验证器验证码，解锁本次会话的管理员控制。"} />
+          : <Localized en={"Create and verify a Supabase TOTP factor before using admin controls."} zh={"使用管理员控制前，请创建并验证 Supabase TOTP 验证方式。"} />}
       </p>
 
       {enrollment && qrCodeSrc ? (
         <div className="admin-mfa-panel__setup">
-          <img alt="TOTP setup QR code" src={qrCodeSrc} />
+          <img alt={_uiLanguage === "zh" ? "TOTP 设置二维码" : "TOTP setup QR code"} src={qrCodeSrc} />
           <p>
-            Scan the QR code in an authenticator app, or enter this secret manually:
-            <code>{enrollment.secret}</code>
+            <Localized en={"Scan the QR code in an authenticator app, or enter this secret manually:"} zh={"使用身份验证器应用扫描二维码，或手动输入此密钥："} /><code>{enrollment.secret}</code>
           </p>
         </div>
       ) : null}
@@ -229,7 +232,7 @@ export function AdminMfaPanel({ nextPath, supabasePublishableKey, supabaseUrl }:
         <form className="settings-dialog__form" onSubmit={verify}>
           {factors.length > 1 && !enrollment ? (
             <>
-              <label htmlFor="totp-factor">Authenticator</label>
+              <label htmlFor="totp-factor"><Localized en={"Authenticator"} zh={"身份验证器"} /></label>
               <select
                 id="totp-factor"
                 name="factorId"
@@ -245,7 +248,7 @@ export function AdminMfaPanel({ nextPath, supabasePublishableKey, supabaseUrl }:
               </select>
             </>
           ) : null}
-          <label htmlFor="totp-code">Authenticator code</label>
+          <label htmlFor="totp-code"><Localized en={"Authenticator code"} zh={"身份验证器验证码"} /></label>
           <input
             autoComplete="one-time-code"
             disabled={isBusy}
@@ -255,39 +258,38 @@ export function AdminMfaPanel({ nextPath, supabasePublishableKey, supabaseUrl }:
             name="code"
             onChange={(event) => setCode(event.target.value)}
             pattern="[0-9 ]*"
-            placeholder="6-digit code"
+            placeholder={_uiLanguage === "zh" ? "6 位验证码" : "6-digit code"}
             value={code}
           />
           <div
-            aria-label="TOTP code time remaining"
+            aria-label={_uiLanguage === "zh" ? "TOTP 验证码剩余时间" : "TOTP code time remaining"}
             aria-valuemax={TOTP_PERIOD_SECONDS}
             aria-valuemin={0}
             aria-valuenow={totpWindow.secondsRemaining}
-            aria-valuetext={`${totpWindow.secondsRemaining} seconds remaining`}
+            aria-valuetext={_uiLanguage === "zh" ? `剩余 ${totpWindow.secondsRemaining} 秒` : `${totpWindow.secondsRemaining} seconds remaining`}
             className="admin-mfa-panel__totp-progress"
             role="progressbar"
           >
             <div className="admin-mfa-panel__totp-meta">
-              <span>{busyAction === "verify" ? "Verifying current code" : "Current code window"}</span>
-              <strong>{totpWindow.secondsRemaining}s remaining</strong>
+              <span>{busyAction === "verify" ? <Localized en={"Verifying current code"} zh={"正在验证当前验证码"} /> : <Localized en={"Current code window"} zh={"当前验证码有效期"} />}</span>
+              <strong>{_uiLanguage === "zh" ? `剩余 ${totpWindow.secondsRemaining} 秒` : `${totpWindow.secondsRemaining}s remaining`}</strong>
             </div>
             <div className="admin-mfa-panel__totp-track">
               <span style={{ width: `${totpWindow.percentRemaining}%` }} />
             </div>
           </div>
           <button className="btn-primary admin-mfa-panel__button" disabled={isBusy} type="submit">
-            {busyAction === "verify" ? "Verifying..." : "Verify admin access"}
+            {busyAction === "verify" ? <Localized en={"Verifying..."} zh={"正在验证..."} /> : <Localized en={"Verify admin access"} zh={"验证管理员访问权限"} />}
           </button>
         </form>
       ) : null}
 
       <div className="admin-mfa-panel__actions">
         <a className="btn-ghost admin-mfa-panel__button" href="/dashboard">
-          Cancel
-        </a>
+          <Localized en={"Cancel"} zh={"取消"} /></a>
         {!enrollment && !hasVerifiedFactor ? (
           <button className="btn-primary admin-mfa-panel__button" disabled={isBusy} onClick={startEnrollment} type="button">
-            {busyAction === "enroll" ? "Setting up..." : "Set up TOTP"}
+            {busyAction === "enroll" ? <Localized en={"Setting up..."} zh={"正在设置..."} /> : <Localized en={"Set up TOTP"} zh={"设置 TOTP"} />}
           </button>
         ) : enrollment && hasVerifiedFactor ? (
           <button
@@ -301,12 +303,11 @@ export function AdminMfaPanel({ nextPath, supabasePublishableKey, supabaseUrl }:
             }}
             type="button"
           >
-            Use existing TOTP
-          </button>
+            <Localized en={"Use existing TOTP"} zh={"使用现有 TOTP"} /></button>
         ) : null}
       </div>
 
-      {message ? <p className="login-dialog__message" role="alert">{message}</p> : null}
+      {message ? <p className="login-dialog__message" role="alert"><LocalizedMessage text={message} /></p> : null}
     </section>
   );
 }

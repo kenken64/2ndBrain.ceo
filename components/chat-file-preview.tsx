@@ -1,5 +1,8 @@
 "use client";
 
+import { Localized, useLanguage, LocalizedMessage } from "@/components/language-provider";
+
+
 import { useEffect, useRef, useState } from "react";
 import { Download, X } from "lucide-react";
 
@@ -12,16 +15,18 @@ type Preview =
 type Props = { file: { id: string; name: string }; onClose: () => void };
 
 export function ChatFilePreview({ file, onClose }: Props) {
+  const _uiLanguage = useLanguage().language;
   const dialog = useRef<HTMLDialogElement>(null);
   useEffect(() => { dialog.current?.showModal(); }, []);
   const base = `/api/chat/files/${encodeURIComponent(file.id)}`;
   return <dialog ref={dialog} className="chat-file-preview" aria-labelledby="chat-file-preview-title" onClose={onClose}>
-    <div className="chat-file-preview__header"><div><span>FILE PREVIEW</span><h2 id="chat-file-preview-title">{file.name}</h2></div><div className="chat-file-preview__actions"><a href={base} className="chat-file-icon" aria-label={`Download ${file.name}`} title="Download"><Download size={18} /></a><button type="button" className="chat-file-icon" aria-label="Close file preview" title="Close" onClick={() => dialog.current?.close()}><X size={19} /></button></div></div>
+    <div className="chat-file-preview__header"><div><span><Localized en={"FILE PREVIEW"} zh={"文件预览"} /></span><h2 id="chat-file-preview-title">{file.name}</h2></div><div className="chat-file-preview__actions"><a href={base} className="chat-file-icon" aria-label={_uiLanguage === "zh" ? `下载 ${file.name}` : `Download ${file.name}`} title={_uiLanguage === "zh" ? "下载" : "Download"}><Download size={18} /></a><button type="button" className="chat-file-icon" aria-label={_uiLanguage === "zh" ? "关闭文件预览" : "Close file preview"} title={_uiLanguage === "zh" ? "关闭" : "Close"} onClick={() => dialog.current?.close()}><X size={19} /></button></div></div>
     <ChatFilePreviewContent file={file} />
   </dialog>;
 }
 
 export function ChatFilePreviewContent({ file }: { file: { id: string; name: string } }) {
+  const _uiLanguage = useLanguage().language;
   const [preview, setPreview] = useState<Preview | null>(null);
   const [error, setError] = useState("");
   const [videoError, setVideoError] = useState(false);
@@ -43,18 +48,19 @@ export function ChatFilePreviewContent({ file }: { file: { id: string; name: str
   }, [base]);
   const sheet = preview?.kind === "spreadsheet" ? preview.sheets[sheetIndex] : null;
   return <>
-    {error ? <p className="chat-file-preview__status" role="alert">{error}</p> : !preview ? <p className="chat-file-preview__status" role="status">Loading preview…</p> : null}
-    {preview?.kind === "image" ? <div className="chat-file-preview__image"><img src={`${base}/preview?inline=1`} alt={`Preview of ${preview.name}`} /></div> : null}
-    {preview?.kind === "video" ? <div className="chat-file-preview__video"><video controls playsInline preload="metadata" src={`${base}/preview?inline=1`} aria-label={`Preview of ${preview.name}`} onError={() => setVideoError(true)} />{videoError ? <p role="alert">The video could not be played in this browser. Try downloading the file.</p> : null}</div> : null}
-    {preview?.kind === "pdf" ? <iframe className="chat-file-preview__pdf" title={`Preview of ${preview.name}`} src={`${base}/preview?inline=1`} /> : null}
+    {error ? <p className="chat-file-preview__status" role="alert"><LocalizedMessage text={error} /></p> : !preview ? <p className="chat-file-preview__status" role="status"><Localized en={"Loading preview…"} zh={"正在加载预览…"} /></p> : null}
+    {preview?.kind === "image" ? <div className="chat-file-preview__image"><img src={`${base}/preview?inline=1`} alt={_uiLanguage === "zh" ? `${preview.name} 的预览` : `Preview of ${preview.name}`} /></div> : null}
+    {preview?.kind === "video" ? <div className="chat-file-preview__video"><video controls playsInline preload="metadata" src={`${base}/preview?inline=1`} aria-label={_uiLanguage === "zh" ? `${preview.name} 的预览` : `Preview of ${preview.name}`} onError={() => setVideoError(true)} />{videoError ? <p role="alert"><Localized en={"The video could not be played in this browser. Try downloading the file."} zh={"无法在此浏览器中播放视频。请尝试下载文件。"} /></p> : null}</div> : null}
+    {preview?.kind === "pdf" ? <iframe className="chat-file-preview__pdf" title={_uiLanguage === "zh" ? `${preview.name} 的预览` : `Preview of ${preview.name}`} src={`${base}/preview?inline=1`} /> : null}
     {preview?.kind === "document" ? <FormattedDocx file={file} /> : null}
     {preview?.kind === "presentation" ? <VisualPresentation file={file} text={preview.text} truncated={preview.truncated} /> : null}
-    {preview?.kind === "text" ? <div className="chat-file-preview__body"><p>Text preview; original formatting and embedded images may not be shown.{preview.truncated ? " Preview is truncated; download the full file." : ""}</p><pre>{preview.text || "No text available in this file."}</pre></div> : null}
-    {preview?.kind === "spreadsheet" ? <div className="chat-file-preview__body"><p>Preview shows up to 100 rows and 50 columns per sheet.{preview.truncated ? " Some content is not shown; download the full file." : ""}</p>{preview.sheets.length > 1 ? <label>Sheet <select value={sheetIndex} onChange={event => setSheetIndex(Number(event.target.value))}>{preview.sheets.map((item, index) => <option key={index} value={index}>{item.name}</option>)}</select></label> : null}{sheet?.rows.length ? <div className="chat-file-preview__table"><table><tbody>{sheet.rows.map((row, index) => <tr key={index}>{row.map((value, column) => <td key={column}>{value}</td>)}</tr>)}</tbody></table></div> : <p>No spreadsheet rows to preview.</p>}</div> : null}
+    {preview?.kind === "text" ? <div className="chat-file-preview__body"><p><Localized en={"Text preview; original formatting and embedded images may not be shown."} zh={"文本预览可能不显示原始格式和嵌入图片。"} />{preview.truncated ? <Localized en={" Preview is truncated; download the full file."} zh={"预览已截断；请下载完整文件。"} /> : ""}</p><pre>{preview.text || (_uiLanguage === "zh" ? "此文件没有可用文本。" : "No text available in this file.")}</pre></div> : null}
+    {preview?.kind === "spreadsheet" ? <div className="chat-file-preview__body"><p><Localized en={"Preview shows up to 100 rows and 50 columns per sheet."} zh={"每个工作表最多预览 100 行和 50 列。"} />{preview.truncated ? <Localized en={" Some content is not shown; download the full file."} zh={"部分内容未显示；请下载完整文件。"} /> : ""}</p>{preview.sheets.length > 1 ? <label><Localized en={"Sheet"} zh={"工作表"} /><select value={sheetIndex} onChange={event => setSheetIndex(Number(event.target.value))}>{preview.sheets.map((item, index) => <option key={index} value={index}>{item.name}</option>)}</select></label> : null}{sheet?.rows.length ? <div className="chat-file-preview__table"><table><tbody>{sheet.rows.map((row, index) => <tr key={index}>{row.map((value, column) => <td key={column}>{value}</td>)}</tr>)}</tbody></table></div> : <p><Localized en={"No spreadsheet rows to preview."} zh={"没有可预览的电子表格行。"} /></p>}</div> : null}
   </>;
 }
 
 function VisualPresentation({ file, text, truncated }: { file: { id: string; name: string }; text: string; truncated: boolean }) {
+  const _uiLanguage = useLanguage().language;
   const canvas = useRef<HTMLCanvasElement>(null);
   const viewer = useRef<import("pptxviewjs").PPTXViewer | null>(null);
   const [count, setCount] = useState(0), [index, setIndex] = useState(0), [busy, setBusy] = useState(true), [error, setError] = useState("");
@@ -87,10 +93,11 @@ function VisualPresentation({ file, text, truncated }: { file: { id: string; nam
     catch { setError("This slide could not be rendered. You can read the slide text or download the presentation."); }
     finally { setBusy(false); }
   }
-  return <div className="chat-file-preview__presentation"><p>Visual preview may differ from PowerPoint. Download the file to review the original.</p>{busy && !count ? <p role="status">Rendering presentation…</p> : null}{error ? <p role="alert">{error}</p> : null}<canvas ref={canvas} aria-label={`Slide ${index + 1} of ${count} in ${file.name}`} />{count ? <div className="chat-file-preview__slide-controls"><button type="button" className="btn-ghost" disabled={busy || index === 0} onClick={() => void goTo(index - 1)}>Previous</button><span>Slide {index + 1} of {count}</span><button type="button" className="btn-ghost" disabled={busy || index + 1 >= count} onClick={() => void goTo(index + 1)}>Next</button></div> : null}<details><summary>Slide text</summary><pre>{text || "No slide text available."}</pre>{truncated ? <p>Text preview is truncated.</p> : null}</details></div>;
+  return <div className="chat-file-preview__presentation"><p><Localized en={"Visual preview may differ from PowerPoint. Download the file to review the original."} zh={"视觉预览可能与 PowerPoint 不同。请下载文件查看原件。"} /></p>{busy && !count ? <p role="status"><Localized en={"Rendering presentation…"} zh={"正在渲染演示文稿…"} /></p> : null}{error ? <p role="alert"><LocalizedMessage text={error} /></p> : null}<canvas ref={canvas} aria-label={_uiLanguage === "zh" ? `${file.name} 的第 ${index + 1} 张幻灯片，共 ${count} 张` : `Slide ${index + 1} of ${count} in ${file.name}`} />{count ? <div className="chat-file-preview__slide-controls"><button type="button" className="btn-ghost" disabled={busy || index === 0} onClick={() => void goTo(index - 1)}><Localized en={"Previous"} zh={"上一页"} /></button><span><Localized en={"Slide"} zh={"幻灯片"} />{" "}{index + 1} / {count}</span><button type="button" className="btn-ghost" disabled={busy || index + 1 >= count} onClick={() => void goTo(index + 1)}><Localized en={"Next"} zh={"下一页"} /></button></div> : null}<details><summary><Localized en={"Slide text"} zh={"幻灯片文本"} /></summary><pre>{text || (_uiLanguage === "zh" ? "没有可用的幻灯片文本。" : "No slide text available.")}</pre>{truncated ? <p><Localized en={"Text preview is truncated."} zh={"文本预览已截断。"} /></p> : null}</details></div>;
 }
 
 function FormattedDocx({ file }: { file: { id: string; name: string } }) {
+  const _uiLanguage = useLanguage().language;
   const [html, setHtml] = useState<string | null>(null);
   const [error, setError] = useState("");
   useEffect(() => {
@@ -114,7 +121,7 @@ function FormattedDocx({ file }: { file: { id: string; name: string } }) {
     })();
     return () => controller.abort();
   }, [file.id]);
-  if (error) return <p className="chat-file-preview__status" role="alert">{error}</p>;
-  if (!html) return <p className="chat-file-preview__status" role="status">Rendering document…</p>;
-  return <iframe className="chat-file-preview__pdf" title={`Preview of ${file.name}`} sandbox="" srcDoc={html} />;
+  if (error) return <p className="chat-file-preview__status" role="alert"><LocalizedMessage text={error} /></p>;
+  if (!html) return <p className="chat-file-preview__status" role="status"><Localized en={"Rendering document…"} zh={"正在渲染文档…"} /></p>;
+  return <iframe className="chat-file-preview__pdf" title={_uiLanguage === "zh" ? `${file.name} 的预览` : `Preview of ${file.name}`} sandbox="" srcDoc={html} />;
 }

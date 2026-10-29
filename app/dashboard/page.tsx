@@ -1,3 +1,4 @@
+import { Localized, LocalizedMessage } from "@/components/language-provider";
 import { redirect } from "next/navigation";
 import { AnnouncementPill } from "@/components/announcement-pill";
 import { Atmosphere } from "@/components/atmosphere";
@@ -27,8 +28,8 @@ type Project = {
   openclaw_project_slug?: string | null;
 };
 
-function formatProjectDate(value: string) {
-  return new Intl.DateTimeFormat("en", {
+function formatProjectDate(value: string, locale = "en") {
+  return new Intl.DateTimeFormat(locale, {
     month: "short",
     day: "numeric",
     year: "numeric"
@@ -89,16 +90,15 @@ export default async function DashboardPage() {
         <DashboardSidebar activeItem="gateway" avatarName={avatarName} email={email} ownerName={ownerName} showAdmin={showAdmin} />
         <main className="dashboard-main">
           <div className="dashboard-topbar">
-            <AnnouncementPill>Workspace is provisioned</AnnouncementPill>
+            <AnnouncementPill><Localized en="Workspace is provisioned" zh="工作空间已配置" /></AnnouncementPill>
             <a className="btn-primary" href="/auth/logout">
-              Log out
+              <Localized en="Log out" zh="退出登录" />
             </a>
           </div>
           <section className="dashboard-center">
-            <h1 className="dashboard-heading">{firstName}&apos;s AI CUBER workspace</h1>
+            <h1 className="dashboard-heading"><Localized en={`${firstName}’s AI CUBER workspace`} zh={`${firstName}的 AI CUBER 工作空间`} /></h1>
             <p className="dashboard-copy">
-              Launch AI Agent, review the Remotion AI Assistant setup, and decide how the Nth Brain
-              should be delivered from one dashboard shell.
+              <Localized en="Launch AI Agent, review the Remotion AI Assistant setup, and decide how the Nth Brain should be delivered from one dashboard shell." zh="在同一工作空间中启动 AI Agent、查看 Remotion AI 助手设置，并选择 Nth Brain 的交付方式。" />
             </p>
             <div className="workspace-status-grid">
               <OpenClawGatewayStatus initialGatewayUrl={openclawGatewayUrl} instance={openclawInstance} />
@@ -109,29 +109,29 @@ export default async function DashboardPage() {
                 <div className="workspace-status-card__header">
                   <div>
                     <p className="workspace-status-card__eyebrow">Nth Brain</p>
-                    <h2>Markdown workspace and graph</h2>
+                    <h2><Localized en="Markdown workspace and graph" zh="Markdown 工作空间和图谱" /></h2>
                   </div>
-                  <span className="project-status project-status--running">foundation ready</span>
+                  <span className="project-status project-status--running"><Localized en="foundation ready" zh="基础已就绪" /></span>
                 </div>
                 <p className="workspace-status-card__copy">
-                  Generate and edit project-specific Nth Brain markdown, then index linked pages into the knowledge graph.
+                  <Localized en="Generate and edit project-specific Nth Brain markdown, then index linked pages into the knowledge graph." zh="生成和编辑项目专属的 Nth Brain Markdown，然后将关联页面索引到知识图谱。" />
                 </p>
                 <div className="wiki-decision-grid">
                   <div className="wiki-decision-card">
-                    <strong>Hosted Nth Brain</strong>
-                    <span>Best for continuous access from the workspace, direct navigation, and future collaboration.</span>
+                    <strong><Localized en="Hosted Nth Brain" zh="托管的 Nth Brain" /></strong>
+                    <span><Localized en="Best for continuous access from the workspace, direct navigation, and future collaboration." zh="适合在工作空间中持续访问、直接导航和未来协作。" /></span>
                   </div>
                   <div className="wiki-decision-card">
-                    <strong>Downloadable Nth Brain</strong>
-                    <span>Best for portability, backup, and sharing generated project bundles outside the app.</span>
+                    <strong><Localized en="Downloadable Nth Brain" zh="可下载的 Nth Brain" /></strong>
+                    <span><Localized en="Best for portability, backup, and sharing generated project bundles outside the app." zh="适合迁移、备份以及在应用外分享生成的项目包。" /></span>
                   </div>
                 </div>
                 <div className="workspace-status-actions">
                   <a className="btn-primary" href="/dashboard/wiki">
-                    Open Nth Brain <span className="arrow">-&gt;</span>
+                    <Localized en="Open Nth Brain" zh="打开 Nth Brain" /> <span className="arrow">-&gt;</span>
                   </a>
                   <a className="text-link" href="/dashboard/graph">
-                    Knowledge graph -&gt;
+                    <Localized en="Knowledge graph →" zh="知识图谱 →" />
                   </a>
                 </div>
               </article>
@@ -139,7 +139,7 @@ export default async function DashboardPage() {
 
             <section className="projects-section" aria-labelledby="projects-title">
               <div className="projects-section__header">
-                <h2 id="projects-title">Recent Nth Brain jobs</h2>
+                <h2 id="projects-title"><Localized en="Recent Nth Brain jobs" zh="最近的 Nth Brain 任务" /></h2>
                 <a className="text-link" href="/api/projects">
                   API JSON -&gt;
                 </a>
@@ -147,25 +147,25 @@ export default async function DashboardPage() {
               <div className="projects-grid">
                 {projectsError ? (
                   <div className="empty-state">
-                    Run the SQL migration in <code>supabase/migrations</code> to enable projects.
+                    <Localized en={<>Run the SQL migration in <code>supabase/migrations</code> to enable projects.</>} zh={<>请运行 <code>supabase/migrations</code> 中的 SQL 迁移以启用项目。</>} />
                   </div>
                 ) : projects && projects.length > 0 ? (
                   (projects as Project[]).map((project) => (
                     <article className="project-card" key={project.id}>
                       <span className={`project-status project-status--${project.status}`}>
-                        {project.status}
+                        <LocalizedMessage text={project.status} />
                       </span>
                       <h3>{project.title}</h3>
                       <p className="project-card__preview">{project.prompt}</p>
                       <div className="project-card__meta">
                         <span>{project.openclaw_project_slug ?? "Slug pending"}</span>
-                        <time dateTime={project.created_at}>{formatProjectDate(project.created_at)}</time>
+                        <time dateTime={project.created_at}><Localized en={formatProjectDate(project.created_at)} zh={formatProjectDate(project.created_at, "zh-CN")} /></time>
                       </div>
                     </article>
                   ))
                 ) : (
                   <div className="empty-state">
-                    No Nth Brain jobs yet. Your hosted versus download decision can stay open while projects start accumulating here.
+                    <Localized en="No Nth Brain jobs yet. Your hosted versus download decision can stay open while projects start accumulating here." zh="暂无 Nth Brain 任务。创建项目后，任务将显示在这里。" />
                   </div>
                 )}
               </div>

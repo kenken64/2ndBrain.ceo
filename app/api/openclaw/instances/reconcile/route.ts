@@ -17,6 +17,7 @@ const INSTANCE_MISSING_MESSAGE =
 const PROVISION_TIMED_OUT_MESSAGE = "Provisioning did not finish in time. Re-provision to try again.";
 
 type InstanceRow = {
+  agent_type: string;
   consumer_name: string;
   created_at: string | null;
   id: string;
@@ -30,7 +31,7 @@ type InstanceRow = {
 };
 
 const INSTANCE_COLUMNS =
-  "id,consumer_name,label,instance,region,provision_status,provision_error,provision_started_at,created_at,updated_at";
+  "id,agent_type,consumer_name,label,instance,region,provision_status,provision_error,provision_started_at,created_at,updated_at";
 
 function maxInstancesPerUser() {
   const raw = Number(process.env.OPENCLAW_MAX_INSTANCES_PER_USER);
@@ -40,6 +41,7 @@ function maxInstancesPerUser() {
 
 function serializeInstance(row: InstanceRow) {
   return {
+    agentType: row.agent_type,
     consumerName: row.consumer_name,
     createdAt: row.created_at,
     error: row.provision_error,
@@ -60,7 +62,8 @@ function isStaleProvisioning(row: InstanceRow, now: number) {
   const startedAt = row.provision_started_at ? Date.parse(row.provision_started_at) : Number.NaN;
 
   // Without a start time we cannot prove it is stale; leave it alone.
-  return Number.isFinite(startedAt) && now - startedAt > STALE_PROVISION_MS;
+  const limit = row.agent_type === "hermes_agent" ? 65 * 60 * 1000 : STALE_PROVISION_MS;
+  return Number.isFinite(startedAt) && now - startedAt > limit;
 }
 
 async function requireUserId() {

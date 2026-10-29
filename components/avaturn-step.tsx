@@ -1,5 +1,8 @@
 "use client";
 
+import { Localized, useLanguage, LocalizedMessage } from "@/components/language-provider";
+
+
 import { FormEvent, useEffect, useMemo, useState } from "react";
 
 function getAvaturnConfig() {
@@ -83,6 +86,7 @@ type AvaturnStepProps = {
 };
 
 export function AvaturnStep({ errorMessage, next }: AvaturnStepProps) {
+  const _uiLanguage = useLanguage().language;
   const avaturnConfig = useMemo(() => getAvaturnConfig(), []);
   const [avatarUrl, setAvatarUrl] = useState("");
   const [avaturnMessage, setAvaturnMessage] = useState("");
@@ -132,8 +136,7 @@ export function AvaturnStep({ errorMessage, next }: AvaturnStepProps) {
   if (!avaturnConfig) {
     return (
       <p className="form-error">
-        Avaturn is not configured. Set NEXT_PUBLIC_AVATURN_URL in the environment.
-      </p>
+        <Localized en={"Avaturn is not configured. Set NEXT_PUBLIC_AVATURN_URL in the environment."} zh={"尚未配置 Avaturn。请在环境中设置 NEXT_PUBLIC_AVATURN_URL。"} /></p>
     );
   }
 
@@ -145,13 +148,11 @@ export function AvaturnStep({ errorMessage, next }: AvaturnStepProps) {
           allowFullScreen
           className="avaturn-frame"
           src={avaturnConfig.iframeUrl}
-          title="Avaturn AI Assistant creator"
+          title={_uiLanguage === "zh" ? "Avaturn AI 助手创建器" : "Avaturn AI Assistant creator"}
         />
       </div>
       <p className="avaturn-helper">
-        Complete the Avaturn flow and export the AI Assistant as GLB. We will capture the exported
-        AI Assistant automatically and save it for AI Agent.
-      </p>
+        <Localized en={"Complete the Avaturn flow and export the AI Assistant as GLB. We will capture the exported AI Assistant automatically and save it for AI Agent."} zh={"完成 Avaturn 流程并将 AI 助手导出为 GLB。系统会自动获取导出的 AI 助手并保存供 AI Agent 使用。"} /></p>
       <form
         action="/api/onboarding"
         className="onboarding-form onboarding-form--center"
@@ -173,22 +174,22 @@ export function AvaturnStep({ errorMessage, next }: AvaturnStepProps) {
             role="progressbar"
           >
             <div className="submit-progress__meta">
-              <strong>Saving AI Assistant</strong>
-              <span>Export received. Downloading the GLB and storing it for AI Agent.</span>
+              <strong><Localized en={"Saving AI Assistant"} zh={"正在保存 AI 助手"} /></strong>
+              <span><Localized en={"Export received. Downloading the GLB and storing it for AI Agent."} zh={"已收到导出文件。正在下载 GLB 并保存供 AI Agent 使用。"} /></span>
             </div>
             <div className="submit-progress__track">
               <span className="submit-progress__bar" />
             </div>
           </div>
         ) : avatarUrl ? (
-          <p className="form-success">AI Assistant exported. You can finish setup now.</p>
+          <p className="form-success"><Localized en={"AI Assistant exported. You can finish setup now."} zh={"AI 助手已导出。现在可以完成设置。"} /></p>
         ) : avaturnMessage ? (
-          <p className="form-error">{avaturnMessage}</p>
+          <p className="form-error"><LocalizedMessage text={avaturnMessage} /></p>
         ) : errorMessage ? (
-          <p className="form-error">{errorMessage}</p>
+          <p className="form-error"><LocalizedMessage text={errorMessage} /></p>
         ) : null}
         <button className="btn-primary onboarding-submit" disabled={!canSubmit || isSubmitting} type="submit">
-          {isSubmitting ? "Saving AI Assistant..." : "Finish setup"} <span className="arrow">-&gt;</span>
+          {isSubmitting ? <Localized en={"Saving AI Assistant..."} zh={"正在保存 AI 助手..."} /> : <Localized en={"Finish setup"} zh={"完成设置"} />} <span className="arrow">-&gt;</span>
         </button>
       </form>
     </>

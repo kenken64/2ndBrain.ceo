@@ -1,5 +1,8 @@
 "use client";
 
+import { Localized, LocalizedMessage, useLanguage } from "@/components/language-provider";
+
+
 import { useState } from "react";
 import { Coins, Pause, Play, RefreshCw } from "lucide-react";
 
@@ -47,18 +50,18 @@ function formatInteger(value: number) {
   return new Intl.NumberFormat("en").format(normalizeTokenValue(value));
 }
 
-function formatDateTime(value: string | null | undefined) {
+function formatDateTime(value: string | null | undefined, zh = false) {
   if (!value) {
-    return "Not recorded";
+    return zh ? "未记录" : "Not recorded";
   }
 
   const date = new Date(value);
 
   if (Number.isNaN(date.getTime())) {
-    return "Not recorded";
+    return zh ? "未记录" : "Not recorded";
   }
 
-  return new Intl.DateTimeFormat("en", {
+  return new Intl.DateTimeFormat(zh ? "zh-CN" : "en", {
     day: "numeric",
     hour: "numeric",
     minute: "2-digit",
@@ -77,6 +80,7 @@ export function SettingsTokenUsageCard({
   tokenQuota,
   tokenUsed
 }: SettingsTokenUsageCardProps) {
+  const zh = useLanguage().language === "zh";
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
@@ -84,7 +88,7 @@ export function SettingsTokenUsageCard({
   const used = normalizeTokenValue(tokenUsed);
   const remaining = Math.max(0, granted - used);
   const usagePercent = granted > 0 ? Math.min(100, Math.round((used / granted) * 100)) : 0;
-  const statusCopy = tokensPaused ? "AI paused" : isAdmin ? "Quota exempt" : `${usagePercent}% used`;
+  const statusCopy = tokensPaused ? (zh ? "AI 已暂停" : "AI paused") : isAdmin ? (zh ? "免配额" : "Quota exempt") : (zh ? `已使用 ${usagePercent}%` : `${usagePercent}% used`);
 
   async function setPaused(nextPaused: boolean) {
     setBusy(true);
@@ -132,14 +136,14 @@ export function SettingsTokenUsageCard({
           <Coins size={22} strokeWidth={1.8} />
         </span>
         <div>
-          <p className="workspace-status-card__eyebrow">AI credits</p>
-          <h2 id="settings-token-usage-title">Token balance</h2>
+          <p className="workspace-status-card__eyebrow"><Localized en={"AI credits"} zh={"AI 积分"} /></p>
+          <h2 id="settings-token-usage-title"><Localized en={"Token balance"} zh={"Token 余额"} /></h2>
           <p>
             {tokensPaused
-              ? "AI Agent usage is paused. Existing AI credits remain unchanged until you resume."
+              ? <Localized en={"AI Agent usage is paused. Existing AI credits remain unchanged until you resume."} zh={"AI Agent 用量已暂停。恢复之前，现有 AI 积分保持不变。"} />
               : isAdmin
-              ? "Admin accounts are quota-exempt; stored credits are still shown for transfers."
-              : "Granted tokens, consumed usage, and remaining balance for this account."}
+              ? <Localized en={"Admin accounts are quota-exempt; stored credits are still shown for transfers."} zh={"管理员账户免配额；保存的积分仍显示供转移使用。"} />
+              : <Localized en={"Granted tokens, consumed usage, and remaining balance for this account."} zh={"此账户获授的 Token、已消耗用量和剩余余额。"} />}
           </p>
         </div>
         <span className="settings-toggle-card__status">{statusCopy}</span>
@@ -147,21 +151,21 @@ export function SettingsTokenUsageCard({
 
       <dl className="settings-token-usage-card__metrics">
         <div>
-          <dt>Available</dt>
+          <dt><Localized en={"Available"} zh={"可用"} /></dt>
           <dd>{formatInteger(remaining)}</dd>
         </div>
         <div>
-          <dt>Granted</dt>
+          <dt><Localized en={"Granted"} zh={"已授予"} /></dt>
           <dd>{formatInteger(granted)}</dd>
         </div>
         <div>
-          <dt>Used</dt>
+          <dt><Localized en={"Used"} zh={"已使用"} /></dt>
           <dd>{formatInteger(used)}</dd>
         </div>
       </dl>
 
       <div
-        aria-label={`${usagePercent}% of granted tokens used`}
+        aria-label={zh ? `已使用所授予 Token 的 ${usagePercent}%` : `${usagePercent}% of granted tokens used`}
         className="settings-token-usage-card__bar"
         role="img"
       >
@@ -170,16 +174,16 @@ export function SettingsTokenUsageCard({
 
       <dl className="settings-token-usage-card__pause">
         <div>
-          <dt>Paused</dt>
-          <dd>{formatDateTime(tokensPausedAt)}</dd>
+          <dt><Localized en={"Paused"} zh={"已暂停"} /></dt>
+          <dd>{formatDateTime(tokensPausedAt, zh)}</dd>
         </div>
         <div>
-          <dt>Resumed</dt>
-          <dd>{formatDateTime(tokensResumedAt)}</dd>
+          <dt><Localized en={"Resumed"} zh={"已恢复"} /></dt>
+          <dd>{formatDateTime(tokensResumedAt, zh)}</dd>
         </div>
         <div>
-          <dt>Status</dt>
-          <dd>{tokensPaused ? tokensPauseReason ?? "Paused" : "Active"}</dd>
+          <dt><Localized en={"Status"} zh={"状态"} /></dt>
+          <dd>{tokensPaused ? tokensPauseReason ?? "Paused" : <Localized en={"Active"} zh={"运行中"} />}</dd>
         </div>
       </dl>
 
@@ -197,12 +201,12 @@ export function SettingsTokenUsageCard({
           ) : (
             <Pause size={16} strokeWidth={1.8} />
           )}
-          {busy ? "Updating..." : tokensPaused ? "Resume AI usage" : "Pause AI usage"}
+          {busy ? <Localized en={"Updating..."} zh={"正在更新..."} /> : tokensPaused ? <Localized en={"Resume AI usage"} zh={"恢复 AI 用量"} /> : <Localized en={"Pause AI usage"} zh={"暂停 AI 用量"} />}
         </button>
       </div>
 
-      {error ? <p className="form-error" role="alert">{error}</p> : null}
-      {message ? <p className="form-success" role="status">{message}</p> : null}
+      {error ? <p className="form-error" role="alert"><LocalizedMessage text={error} /></p> : null}
+      {message ? <p className="form-success" role="status"><LocalizedMessage text={message} /></p> : null}
     </article>
   );
 }

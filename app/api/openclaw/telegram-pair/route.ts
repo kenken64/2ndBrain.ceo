@@ -2,12 +2,14 @@ import { NextResponse } from "next/server";
 import { hasSupabaseEnv } from "@/lib/env";
 import {
   getUserIdFromClaims,
+  getSelectedProvisionTarget,
   onboardingPath,
   onboardingProfileSelect,
   type OnboardingProfile
 } from "@/lib/onboarding";
 import {
   pairOpenClawTelegram,
+  pairHermesTelegram,
   setOpenClawTtyProxyInstance,
   setupOpenClawAvatar,
   setupOpenClawIdentity
@@ -118,7 +120,8 @@ export async function POST(request: Request) {
     .eq("id", userId);
 
   try {
-    const paired = await pairOpenClawTelegram({
+    const isHermes = getSelectedProvisionTarget(onboardingProfile) === "hermes_agent";
+    const paired = await (isHermes ? pairHermesTelegram : pairOpenClawTelegram)({
       code,
       instance
     });
@@ -137,6 +140,8 @@ export async function POST(request: Request) {
     if (error) {
       return redirectToApproval(request, next, "save_failed");
     }
+
+    if (isHermes) return NextResponse.redirect(appUrl(next, request), { status: 303 });
 
     // Re-assert the tty proxy's OPENCLAW_INSTANCE (the Lightsail hostname)
     // after pairing in case the instance still carries the snapshot default.

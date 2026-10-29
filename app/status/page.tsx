@@ -1,3 +1,4 @@
+import { LanguageToggle, Localized, LocalizedMessage, LocalizedContainer } from "@/components/language-provider";
 import type { Metadata } from "next";
 import { Atmosphere } from "@/components/atmosphere";
 import { Footer } from "@/components/footer";
@@ -134,39 +135,38 @@ export default async function StatusPage() {
         <MarketingNav anchorPrefix="/" supabaseConfigured={supabaseConfigured} />
         <main className="status-page">
           <section className="container status-hero">
-            <p className="status-eyebrow">SYSTEM STATUS</p>
+            <LanguageToggle /><p className="status-eyebrow"><Localized en="SYSTEM STATUS" zh="系统状态" /></p>
             <div className="status-hero__header">
               <div>
-                <h1>Health check</h1>
+                <h1><Localized en="Health check" zh="健康检查" /></h1>
                 <p>
-                  A human-readable view of the public app, deployment health endpoint, and
-                  required runtime configuration.
+                  <Localized en="A human-readable view of the public app, deployment health endpoint, and required runtime configuration." zh="以易读的方式查看公开应用、部署健康检查端点和所需的运行时配置。" />
                 </p>
               </div>
-              <span className={`status-badge status-badge--${tone}`}>{statusLabel(tone)}</span>
+              <span className={`status-badge status-badge--${tone}`}><LocalizedMessage text={statusLabel(tone)} /></span>
             </div>
             <div className="status-actions">
               <a className="btn-primary" href="/api/health">
-                Raw JSON
+                <Localized en="Raw JSON" zh="原始 JSON" />
               </a>
               <a className="btn-ghost" href="/">
-                Back to landing
+                <Localized en="Back to landing" zh="返回首页" />
               </a>
             </div>
           </section>
 
-          <section aria-label="Status checks" className="container status-grid">
+          <LocalizedContainer as="section" labelEn="Status checks" labelZh="状态检查" className="container status-grid">
             {checks.map((check) => (
               <article className="status-card" key={check.label}>
                 <div className="status-card__header">
-                  <h2>{check.label}</h2>
+                  <h2><LocalizedMessage text={check.label} /></h2>
                   <span className={`status-dot status-dot--${check.tone}`} />
                 </div>
-                <p>{check.summary}</p>
-                <code>{check.detail}</code>
+                <p><LocalizedMessage text={check.summary} /></p>
+                <code><Localized en={check.detail} zh={check.detail.replace(/^Generated at /, "生成时间：").replaceAll("Source: not configured", "来源：未配置").replaceAll("Source: ", "来源：").replace("configure NEXT_PUBLIC_SITE_URL or RAILWAY_PUBLIC_DOMAIN", "配置 NEXT_PUBLIC_SITE_URL 或 RAILWAY_PUBLIC_DOMAIN")} /></code>
               </article>
             ))}
-          </section>
+          </LocalizedContainer>
         </main>
         <Footer />
       </div>

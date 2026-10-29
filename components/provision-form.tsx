@@ -1,11 +1,15 @@
 "use client";
 
+import { Localized, LocalizedMessage, useLanguage } from "@/components/language-provider";
+
+
 import { navigateToPage } from "@/lib/page-navigation";
 
 import { useRouter } from "next/navigation";
 import { FormEvent, useEffect, useState } from "react";
 
 type ProvisionFormProps = {
+  agentType?: string | null;
   errorMessage: string | null;
   next: string;
   startedAt?: string | null;
@@ -93,7 +97,8 @@ function formatTimer(totalSeconds: number) {
   return `${minutes}:${seconds}`;
 }
 
-export function ProvisionForm({ errorMessage, next, startedAt, status }: ProvisionFormProps) {
+export function ProvisionForm({ agentType, errorMessage, next, startedAt, status }: ProvisionFormProps) {
+  const _uiLanguage = useLanguage().language;
   const router = useRouter();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [localStartedAt, setLocalStartedAt] = useState<number | null>(null);
@@ -177,30 +182,29 @@ export function ProvisionForm({ errorMessage, next, startedAt, status }: Provisi
     <form className="onboarding-form" method="post" noValidate onSubmit={handleSubmit}>
       <input name="next" type="hidden" value={next} />
       <div className="provision-summary">
-        <strong>Fast Cloud provisioning</strong>
-        <span>Prepares the AI Agent environment with Telegram, identity, and Remotion settings in one streamlined provisioning flow.</span>
+        <strong>{agentType === "hermes_agent" ? <Localized en="Hermes cloud provisioning" zh="Hermes 云端配置" /> : <Localized en={"Fast Cloud provisioning"} zh={"快速云端配置"} />}</strong>
+        <span>{agentType === "hermes_agent" ? <Localized en="Restores Hermes and configures your Telegram bot and Gyne worker." zh="恢复 Hermes 并配置您的 Telegram 机器人和 Gyne 工作进程。" /> : <Localized en={"Prepares the AI Agent environment with Telegram, identity, and Remotion settings in one streamlined provisioning flow."} zh={"通过精简的配置流程准备 AI Agent 环境，包括 Telegram、身份和 Remotion 设置。"} />}</span>
       </div>
-      {errorMessage ? <p className="form-error">{errorMessage}</p> : null}
-      {submitError ? <p className="form-error">{submitError}</p> : null}
+      {errorMessage ? <p className="form-error"><LocalizedMessage text={errorMessage} /></p> : null}
+      {submitError ? <p className="form-error"><LocalizedMessage text={submitError} /></p> : null}
       {isRunning ? (
         <p className="form-success">
-          Provisioning is running. This page will refresh automatically and move to approval when the instance is ready.
-        </p>
+          <Localized en={"Provisioning is running. This page will refresh automatically and move to approval when the instance is ready."} zh={"正在配置。实例就绪后，此页面将自动刷新并进入批准步骤。"} /></p>
       ) : null}
       {showPending ? (
         <div aria-live="polite" className="provision-pending">
-          <span>Fast provisioning AI Agent. Preparing the Cloud environment and gateway.</span>
+          <span>{agentType === "hermes_agent" ? <Localized en="Restoring Hermes and installing the Gyne worker. This can take several minutes." zh="正在恢复 Hermes 并安装 Gyne 工作进程，可能需要数分钟。" /> : <Localized en={"Fast provisioning AI Agent. Preparing the Cloud environment and gateway."} zh={"正在快速配置 AI Agent，并准备云环境和网关。"} />}</span>
           <div aria-live="off" className="provision-timer">
             <div className="provision-timer__meta">
-              <strong>{remainingSeconds > 0 ? `${formatTimer(remainingSeconds)} target remaining` : `${formatTimer(elapsedSeconds)} elapsed`}</strong>
+              <strong>{remainingSeconds > 0 ? (_uiLanguage === "zh" ? `预计剩余 ${formatTimer(remainingSeconds)}` : `${formatTimer(remainingSeconds)} target remaining`) : (_uiLanguage === "zh" ? `已用时 ${formatTimer(elapsedSeconds)}` : `${formatTimer(elapsedSeconds)} elapsed`)}</strong>
               <span>
                 {remainingSeconds > 0
-                  ? "Expected to finish in under 3 minutes."
-                  : "Cloud provisioning is taking longer than expected. Keep this page open while SSH becomes ready."}
+                  ? agentType === "hermes_agent" ? <Localized en="Building and starting the worker may take longer." zh="构建并启动工作进程可能需要更长时间。" /> : <Localized en={"Expected to finish in under 3 minutes."} zh={"预计在 3 分钟内完成。"} />
+                  : <Localized en={"Cloud provisioning is taking longer than expected. Keep this page open while SSH becomes ready."} zh={"云端配置所需时间比预期更长。请保持页面打开，等待 SSH 就绪。"} />}
               </span>
             </div>
             <div
-              aria-label={`Provisioning timer ${timerProgress}%`}
+              aria-label={_uiLanguage === "zh" ? `配置进度 ${timerProgress}%` : `Provisioning timer ${timerProgress}%`}
               aria-valuemax={100}
               aria-valuemin={0}
               aria-valuenow={timerProgress}
@@ -216,7 +220,7 @@ export function ProvisionForm({ errorMessage, next, startedAt, status }: Provisi
         </div>
       ) : null}
       <button className="btn-primary onboarding-submit" disabled={isDisabled} type="submit">
-        {isSubmitting || isRunning ? "Provisioning..." : "Fast Provision AI Agent"}{" "}
+        {isSubmitting || isRunning ? <Localized en={"Provisioning..."} zh={"正在配置..."} /> : agentType === "hermes_agent" ? <Localized en="Provision Hermes Agent" zh="配置 Hermes Agent" /> : <Localized en={"Fast Provision AI Agent"} zh={"快速配置 AI Agent"} />}{" "}
         <span className="arrow">-&gt;</span>
       </button>
     </form>

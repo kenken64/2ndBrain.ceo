@@ -6698,3 +6698,5 @@ svg {
   .graph-workbench--visualization .graph-workbench__header { flex-basis: 100%; }
   .graph-workbench--visualization .graph-view-switch { margin-left: auto; }
 }
+
+.sidebar-language { width: 100%; border: 0; background: transparent; text-align: left; cursor: pointer; }

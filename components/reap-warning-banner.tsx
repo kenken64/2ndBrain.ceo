@@ -1,3 +1,4 @@
+import { Localized } from "@/components/language-provider";
 import { AlertTriangle } from "lucide-react";
 import { REAPER_GRACE_DAYS } from "@/lib/instance-reaper-shared";
 
@@ -6,7 +7,7 @@ type ReapWarningBannerProps = {
   instance: string;
 };
 
-function formatRemaining(deadline: number) {
+function formatRemaining(deadline: number, zh = false) {
   const msLeft = deadline - Date.now();
 
   if (msLeft <= 0) {
@@ -17,14 +18,14 @@ function formatRemaining(deadline: number) {
 
   if (hours >= 24) {
     const days = Math.floor(hours / 24);
-    return `${days} ${days === 1 ? "day" : "days"}`;
+    return zh ? `${days} 天` : `${days} ${days === 1 ? "day" : "days"}`;
   }
 
   if (hours >= 1) {
-    return `${hours} ${hours === 1 ? "hour" : "hours"}`;
+    return zh ? `${hours} 小时` : `${hours} ${hours === 1 ? "hour" : "hours"}`;
   }
 
-  return "less than an hour";
+  return zh ? "不到一小时" : "less than an hour";
 }
 
 /**
@@ -48,13 +49,10 @@ export function ReapWarningBanner({ exhaustedAt, instance }: ReapWarningBannerPr
       </div>
       <div className="reap-warning__body">
         <h2>
-          {remaining
-            ? `Your workspace will be deleted in ${remaining}`
-            : "Your workspace is being deleted"}
+          {remaining ? <Localized en={`Your workspace will be deleted in ${remaining}`} zh={`您的工作空间将在 ${formatRemaining(stamped + REAPER_GRACE_DAYS * 24 * 60 * 60 * 1000, true)}后删除`} /> : <Localized en="Your workspace is being deleted" zh="您的工作空间正在删除" />}
         </h2>
         <p>
-          <strong>{instance}</strong> is running without AI credits. Add credits to keep it — otherwise it is torn down and
-          its files cannot be recovered. Your wiki pages stay readable here, but anything only on the instance is lost.
+          <Localized en={<><strong>{instance}</strong> is running without AI credits. Add credits to keep it — otherwise it is torn down and its files cannot be recovered. Your wiki pages stay readable here, but anything only on the instance is lost.</>} zh={<><strong>{instance}</strong> 的 AI 积分已耗尽。请添加积分以保留实例，否则实例将被销毁，文件无法恢复。知识库页面仍可在此阅读，但仅保存在实例上的内容将丢失。</>} />
         </p>
       </div>
     </section>

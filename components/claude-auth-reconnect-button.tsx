@@ -1,5 +1,8 @@
 "use client";
 
+import { Localized, useLanguage, LocalizedMessage } from "@/components/language-provider";
+
+
 import { useEffect, useRef, useState } from "react";
 import { ExternalLink, RefreshCw, ShieldCheck } from "lucide-react";
 
@@ -27,6 +30,7 @@ async function postJson(path: string) {
 }
 
 export function ClaudeAuthReconnectButton() {
+  const _uiLanguage = useLanguage().language;
   const [authUrl, setAuthUrl] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
   const [phase, setPhase] = useState<Phase>("idle");
@@ -144,27 +148,23 @@ export function ClaudeAuthReconnectButton() {
           {phase === "starting" ? (
             <>
               <RefreshCw className="spin-icon" size={16} strokeWidth={2} />
-              Starting...
-            </>
+              <Localized en={"Starting..."} zh={"正在启动..."} /></>
           ) : (
             <>
               <ShieldCheck size={16} strokeWidth={2} />
-              Reconnect Claude
-            </>
+              <Localized en={"Reconnect Claude"} zh={"重新连接 Claude"} /></>
           )}
         </button>
         <button className="btn-ghost btn-ghost--compact" disabled={phase === "starting"} onClick={checkNow} type="button">
-          Check status
-        </button>
+          <Localized en={"Check status"} zh={"检查状态"} /></button>
       </div>
 
-      {isBusy ? <progress aria-label="Claude auth progress" className="settings-dialog__progress" /> : null}
+      {isBusy ? <progress aria-label={_uiLanguage === "zh" ? "Claude 授权进度" : "Claude auth progress"} className="settings-dialog__progress" /> : null}
 
       {authUrl ? (
         <a className="claude-auth-card__link" href={authUrl} rel="noreferrer" target="_blank">
           <ExternalLink size={16} strokeWidth={2} />
-          Open Claude login
-        </a>
+          <Localized en={"Open Claude login"} zh={"打开 Claude 登录"} /></a>
       ) : null}
 
       {message ? (
@@ -172,7 +172,7 @@ export function ClaudeAuthReconnectButton() {
           aria-live="polite"
           className={`claude-auth-card__message${phase === "failed" ? " claude-auth-card__message--error" : ""}`}
         >
-          {message}
+          <LocalizedMessage text={message} />
         </p>
       ) : null}
     </div>

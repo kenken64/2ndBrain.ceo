@@ -1,3 +1,4 @@
+import { Localized, LocalizedMessage } from "@/components/language-provider";
 import { KeyRound } from "lucide-react";
 import type { OpenRouterKeyUsage } from "@/lib/openrouter-key-usage";
 
@@ -53,38 +54,38 @@ export function OpenRouterKeyUsageCard({ usage }: OpenRouterKeyUsageCardProps) {
         </span>
         <div>
           <p className="workspace-status-card__eyebrow">OpenRouter</p>
-          <h2>Chat API key spending</h2>
-          <p>{summary(usage)}</p>
+          <h2><Localized en={"Chat API key spending"} zh={"对话 API 密钥支出"} /></h2>
+          <p><LocalizedMessage text={summary(usage)} /></p>
         </div>
-        <span className="settings-toggle-card__status">{statusLabel(usage)}</span>
+        <span className="settings-toggle-card__status"><Localized en={statusLabel(usage)} zh={usage.status === "unconfigured" ? "未配置" : usage.status === "unavailable" ? "不可用" : usage.remainingUsd === null ? "无上限" : `剩余 ${formatUsd(usage.remainingUsd)}`} /></span>
       </div>
 
       {usage.status === "ok" ? (
         <div className="solana-payment-history__table">
           <div className="solana-payment-history__head" role="row">
-            <span>Key</span>
-            <span>Limit</span>
-            <span>Used</span>
-            <span>Remaining</span>
+            <span><Localized en={"Key"} zh={"密钥"} /></span>
+            <span><Localized en={"Limit"} zh={"上限"} /></span>
+            <span><Localized en={"Used"} zh={"已使用"} /></span>
+            <span><Localized en={"Remaining"} zh={"剩余"} /></span>
           </div>
           <div className="solana-payment-history__row" role="row">
             <div>
-              <strong>This key&apos;s spending cap</strong>
+              <strong><Localized en="This key’s spending cap" zh="此密钥的支出上限" /></strong>
               <span>{usage.label ?? "OPENROUTER_API_KEY"}</span>
             </div>
             <div>
-              <strong>{usage.limitUsd === null ? "No cap" : formatUsd(usage.limitUsd)}</strong>
-              <span>{usage.limitReset ? `Resets ${usage.limitReset}` : "Does not reset"}</span>
+              <strong>{usage.limitUsd === null ? <Localized en={"No cap"} zh={"无上限"} /> : formatUsd(usage.limitUsd)}</strong>
+              <span>{usage.limitReset ? <Localized en={`Resets ${usage.limitReset}`} zh={`重置周期：${usage.limitReset}`} /> : <Localized en={"Does not reset"} zh={"不重置"} />}</span>
             </div>
             <div>
               <strong>{formatUsd(usage.usedUsd)}</strong>
               <span>
-                {usage.limitUsd ? `${Math.round((usage.usedUsd / usage.limitUsd) * 100)}% of cap` : "Lifetime usage"}
+                {usage.limitUsd ? <Localized en={`${Math.round((usage.usedUsd / usage.limitUsd) * 100)}% of cap`} zh={`已使用上限的 ${Math.round((usage.usedUsd / usage.limitUsd) * 100)}%`} /> : <Localized en={"Lifetime usage"} zh={"累计用量"} />}
               </span>
             </div>
             <div>
-              <strong>{usage.remainingUsd === null ? "Unlimited" : formatUsd(usage.remainingUsd)}</strong>
-              <span>{usage.remainingUsd === null ? "No per-key limit" : "Before chat stops"}</span>
+              <strong>{usage.remainingUsd === null ? <Localized en={"Unlimited"} zh={"无限"} /> : formatUsd(usage.remainingUsd)}</strong>
+              <span>{usage.remainingUsd === null ? <Localized en={"No per-key limit"} zh={"无单密钥限制"} /> : <Localized en={"Before chat stops"} zh={"对话停止前"} />}</span>
             </div>
           </div>
         </div>

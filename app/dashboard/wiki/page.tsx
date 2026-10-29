@@ -1,3 +1,4 @@
+import { Localized, LocalizedInput, LocalizedMessage, LocalizedContainer } from "@/components/language-provider";
 import { redirect } from "next/navigation";
 import { AnnouncementPill } from "@/components/announcement-pill";
 import { Atmosphere } from "@/components/atmosphere";
@@ -48,8 +49,8 @@ const WIKI_GENERATION_STALE_AFTER_MS = 60 * 60 * 1000;
 const WIKI_GENERATION_STALE_MESSAGE =
   "Generation timed out before AI Agent returned markdown. This stale job was closed automatically; create a new Nth Brain or delete this one.";
 
-function formatProjectDate(value: string) {
-  return new Intl.DateTimeFormat("en", {
+function formatProjectDate(value: string, locale = "en") {
+  return new Intl.DateTimeFormat(locale, {
     day: "numeric",
     month: "short",
     year: "numeric"
@@ -228,17 +229,16 @@ export default async function DashboardWikiPage({ searchParams }: WikiPageProps)
             <div className="dashboard-topbar">
               <AnnouncementPill>Nth Brain</AnnouncementPill>
               <a className="btn-primary" href="/auth/logout">
-                Log out
+                <Localized en="Log out" zh="退出登录" />
               </a>
             </div>
             <section className="dashboard-workbench wiki-hub">
               <div className="wiki-empty-panel wiki-generator-panel">
-                <h1>Generate a Nth Brain</h1>
-                <p>Describe a new Nth Brain project. Each generated Nth Brain gets its own workspace, markdown pages, and graph-ready structure.</p>
+                <h1><Localized en="Generate a Nth Brain" zh="生成 Nth Brain" /></h1>
+                <p><Localized en="Describe a new Nth Brain project. Each generated Nth Brain gets its own workspace, markdown pages, and graph-ready structure." zh="描述一个新的 Nth Brain 项目。每个生成的项目都有自己的工作空间、Markdown 页面和可用于图谱的结构。" /></p>
                 {params.error ? (
                   <p className="form-error">
-                    Nth Brain generation failed on the previous attempt. Try again; the app will create a markdown scaffold even if Claude refinement is unavailable.
-                  </p>
+                    <Localized en={"Nth Brain generation failed on the previous attempt. Try again; the app will create a markdown scaffold even if Claude refinement is unavailable."} zh={"上次生成 Nth Brain 失败。请重试；即使 Claude 优化不可用，应用也会创建 Markdown 基础结构。"} /></p>
                 ) : null}
                 <ChatInput
                   className="wiki-empty-panel__chat"
@@ -252,36 +252,34 @@ export default async function DashboardWikiPage({ searchParams }: WikiPageProps)
               <section className="projects-section wiki-projects-section" aria-labelledby="wiki-projects-title">
                 <div className="projects-section__header">
                   <div>
-                    <p className="workspace-status-card__eyebrow">Generated Nth Brains</p>
-                    <h2 id="wiki-projects-title">Nth Brain - Augmented Memory</h2>
+                    <p className="workspace-status-card__eyebrow"><Localized en={"Generated Nth Brains"} zh={"已生成的 Nth Brain"} /></p>
+                    <h2 id="wiki-projects-title"><Localized en={"Nth Brain - Augmented Memory"} zh={"Nth Brain - 增强记忆"} /></h2>
                   </div>
                   <span className="project-status project-status--ready">
-                    {searchQuery ? `${totalProjects} matched` : `${totalProjects} total`}
+                    <Localized en={searchQuery ? `${totalProjects} matched` : `${totalProjects} total`} zh={searchQuery ? `匹配 ${totalProjects} 项` : `共 ${totalProjects} 项`} />
                   </span>
                 </div>
                 <div className="wiki-projects-toolbar">
                   <form action="/dashboard/wiki" className="wiki-projects-search" method="get" noValidate>
-                    <label htmlFor="wiki-title-search">Search by title</label>
+                    <label htmlFor="wiki-title-search"><Localized en={"Search by title"} zh={"按标题搜索"} /></label>
                     <div className="wiki-projects-search__controls">
-                      <input
+                      <LocalizedInput
                         defaultValue={searchQuery}
                         id="wiki-title-search"
                         name="q"
-                        placeholder="Search generated Nth Brain title..."
+                        placeholderEn="Search generated Nth Brain title..." placeholderZh="搜索已生成的 Nth Brain 标题..."
                         type="search"
                       />
                       <button className="btn-primary btn-primary--compact" type="submit">
-                        Search
-                      </button>
+                        <Localized en={"Search"} zh={"搜索"} /></button>
                       {searchQuery ? (
                         <a className="btn-ghost" href="/dashboard/wiki">
-                          Clear
-                        </a>
+                          <Localized en={"Clear"} zh={"清除"} /></a>
                       ) : null}
                     </div>
                   </form>
                   <p>
-                    Showing {firstVisibleProject}-{lastVisibleProject} of {totalProjects}
+                    <Localized en={`Showing ${firstVisibleProject}-${lastVisibleProject} of ${totalProjects}`} zh={`显示 ${firstVisibleProject}-${lastVisibleProject}，共 ${totalProjects} 项`} />
                   </p>
                 </div>
                 <div className="projects-grid">
@@ -296,37 +294,37 @@ export default async function DashboardWikiPage({ searchParams }: WikiPageProps)
                       return (
                         <article className="project-card wiki-project-card" key={project.id}>
                           <span className={`project-status project-status--${displayStatus}`}>
-                            {displayStatus}
+                            <LocalizedMessage text={displayStatus} />
                           </span>
                           <h3>{project.title}</h3>
                           <p>{project.prompt}</p>
                           <dl className="project-card__details">
                             <div>
-                              <dt>Project UUID</dt>
+                              <dt><Localized en={"Project UUID"} zh={"项目 UUID"} /></dt>
                               <dd>{project.id}</dd>
                             </div>
                             <div>
-                              <dt>AI Agent folder</dt>
-                              <dd>{project.openclaw_project_slug ?? "Pending"}</dd>
+                              <dt><Localized en={"AI Agent folder"} zh={"AI Agent 文件夹"} /></dt>
+                              <dd>{project.openclaw_project_slug ?? <Localized en="Pending" zh="待处理" />}</dd>
                             </div>
                           </dl>
                           {displayError ? (
                             <details className="project-error" open>
-                              <summary>Generation error</summary>
+                              <summary><Localized en={"Generation error"} zh={"生成错误"} /></summary>
                               <pre>{displayError}</pre>
                             </details>
                           ) : null}
                           <div className="project-card__meta">
-                            <time dateTime={project.created_at}>{formatProjectDate(project.created_at)}</time>
+                            <time dateTime={project.created_at}><Localized en={formatProjectDate(project.created_at)} zh={formatProjectDate(project.created_at, "zh-CN")} /></time>
                           </div>
                           <div className="project-card__actions">
                             {displayStatus === "ready" && project.openclaw_project_slug ? (
                               <a className="btn-primary btn-primary--compact" href={`/dashboard/wiki?projectId=${project.id}`}>
-                                Open markdown <span className="arrow">-&gt;</span>
+                                <Localized en={"Open markdown"} zh={"打开 Markdown"} /><span className="arrow">-&gt;</span>
                               </a>
                             ) : (
                               <span className="text-link is-disabled">
-                                {displayStatus === "running" ? "Generating..." : "Markdown unavailable"}
+                                {displayStatus === "running" ? <Localized en={"Generating..."} zh={"正在生成..."} /> : <Localized en={"Markdown unavailable"} zh={"Markdown 不可用"} />}
                               </span>
                             )}
                             <DeleteWikiProjectButton
@@ -343,19 +341,18 @@ export default async function DashboardWikiPage({ searchParams }: WikiPageProps)
                   ) : (
                     <div className="empty-state">
                       {searchQuery
-                        ? "No Nth Brain projects match that title search."
-                        : "No generated Nth Brain projects yet. Create the first one from the prompt above."}
+                        ? <Localized en={"No Nth Brain projects match that title search."} zh={"没有匹配该标题的 Nth Brain 项目。"} />
+                        : <Localized en={"No generated Nth Brain projects yet. Create the first one from the prompt above."} zh={"尚未生成 Nth Brain 项目。请使用上方提示创建第一个项目。"} />}
                     </div>
                   )}
                 </div>
                 {totalPages > 1 ? (
-                  <nav aria-label="Nth Brain pagination" className="wiki-pagination">
+                  <LocalizedContainer as="nav" labelEn="Nth Brain pagination" labelZh="Nth Brain 分页" className="wiki-pagination">
                     {currentPage > 1 ? (
                       <a className="btn-ghost" href={wikiListHref(searchQuery, currentPage - 1)}>
-                        Previous
-                      </a>
+                        <Localized en={"Previous"} zh={"上一页"} /></a>
                     ) : (
-                      <span className="btn-ghost is-disabled">Previous</span>
+                      <span className="btn-ghost is-disabled"><Localized en={"Previous"} zh={"上一页"} /></span>
                     )}
                     <div className="wiki-pagination__pages">
                       {visiblePageNumbers(currentPage, totalPages).map((page) =>
@@ -372,12 +369,11 @@ export default async function DashboardWikiPage({ searchParams }: WikiPageProps)
                     </div>
                     {currentPage < totalPages ? (
                       <a className="btn-ghost" href={wikiListHref(searchQuery, currentPage + 1)}>
-                        Next
-                      </a>
+                        <Localized en={"Next"} zh={"下一页"} /></a>
                     ) : (
-                      <span className="btn-ghost is-disabled">Next</span>
+                      <span className="btn-ghost is-disabled"><Localized en={"Next"} zh={"下一页"} /></span>
                     )}
-                  </nav>
+                  </LocalizedContainer>
                 ) : null}
               </section>
             </section>
@@ -434,7 +430,7 @@ export default async function DashboardWikiPage({ searchParams }: WikiPageProps)
           <div className="dashboard-topbar">
             <AnnouncementPill>{context.project?.title ?? "Nth Brain"}</AnnouncementPill>
             <a className="btn-primary" href="/auth/logout">
-              Log out
+              <Localized en="Log out" zh="退出登录" />
             </a>
           </div>
           <section className="dashboard-workbench">

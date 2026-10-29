@@ -1,3 +1,4 @@
+import { LanguageToggle, Localized, LocalizedMessage } from "@/components/language-provider";
 import { redirect } from "next/navigation";
 import { AdminMfaPanel } from "@/components/admin-mfa-panel";
 import { Atmosphere } from "@/components/atmosphere";
@@ -35,8 +36,9 @@ export default async function AdminMfaPage({ searchParams }: AdminMfaPageProps) 
         <Atmosphere />
         <main className="auth-page">
           <section className="auth-panel">
-            <h1>Admin unavailable</h1>
-            <p>{access.message}</p>
+            <LanguageToggle />
+            <h1><Localized en={"Admin unavailable"} zh={"管理功能不可用"} /></h1>
+            <p><LocalizedMessage text={access.message} /></p>
           </section>
         </main>
       </>
@@ -53,6 +55,7 @@ export default async function AdminMfaPage({ searchParams }: AdminMfaPageProps) 
     <>
       <Atmosphere />
       <main className="auth-page">
+        <LanguageToggle />
         <AdminMfaPanel
           nextPath={nextPath}
           supabasePublishableKey={supabasePublishableKey}

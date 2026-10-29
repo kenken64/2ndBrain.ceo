@@ -1,3 +1,4 @@
+import { LanguageToggle, Localized } from "@/components/language-provider";
 import { redirect } from "next/navigation";
 import { Atmosphere } from "@/components/atmosphere";
 import { BrandLogo } from "@/components/brand-logo";
@@ -81,11 +82,12 @@ export default async function IntentPage({ searchParams }: IntentPageProps) {
       <Atmosphere />
       <main className="intent-page">
         <section className="intent-panel">
+          <LanguageToggle />
           <BrandLogo size={96} />
-          <p className="wizard-kicker">Nth Brain intent</p>
-          <h1 className="onboarding-title">Describe the Nth Brain you want to build</h1>
+          <p className="wizard-kicker"><Localized en="Nth Brain intent" zh="Nth Brain 需求" /></p>
+          <h1 className="onboarding-title"><Localized en="Describe the Nth Brain you want to build" zh="描述您想创建的 Nth Brain" /></h1>
           <p className="onboarding-copy">
-            This prompt seeds the AI Agent Nth Brain project. The generated markdown will appear in the Nth Brain dashboard after creation.
+            <Localized en="This prompt seeds the AI Agent Nth Brain project. The generated markdown will appear in the Nth Brain dashboard after creation." zh="此需求将用于创建 AI Agent Nth Brain 项目。创建完成后，生成的 Markdown 将显示在 Nth Brain 工作台中。" />
           </p>
           <ChatInput
             className="intent-chat"

@@ -1,5 +1,8 @@
 "use client";
 
+import { Localized, LocalizedMessage } from "@/components/language-provider";
+
+
 import { useState } from "react";
 import { LoaderCircle, RotateCcw } from "lucide-react";
 
@@ -50,9 +53,9 @@ export function BackfillWikiIngestButton({ projectId }: BackfillWikiIngestButton
         type="button"
       >
         {isBackfilling ? <LoaderCircle className="spin-icon" size={15} strokeWidth={1.8} /> : <RotateCcw size={15} strokeWidth={1.8} />}
-        {isBackfilling ? "Backfilling..." : "Backfill upload"}
+        {isBackfilling ? <Localized en={"Backfilling..."} zh={"正在回填..."} /> : <Localized en={"Backfill upload"} zh={"回填上传"} />}
       </button>
-      {error ? <span className="form-error">{error}</span> : null}
+      {error ? <span className="form-error"><LocalizedMessage text={error} /></span> : null}
     </span>
   );
 }

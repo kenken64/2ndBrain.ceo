@@ -1,3 +1,4 @@
+import { Localized, LocalizedMessage } from "@/components/language-provider";
 import { redirect } from "next/navigation";
 import { AdminTabs, type AdminTabId } from "@/components/admin-tabs";
 import { AdminUsersTable, type AdminUserRow } from "@/components/admin-users-table";
@@ -49,7 +50,7 @@ function metric(label: string, value: number) {
   return (
     <article className="workspace-card admin-metric-card" key={label}>
       <strong>{formatNumber(value)}</strong>
-      <span>{label}</span>
+      <span><LocalizedMessage text={label} /></span>
     </article>
   );
 }
@@ -87,20 +88,18 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
         <Atmosphere />
         <main className="auth-page">
           <section className="auth-panel">
-            <h1>Admin unavailable</h1>
+            <h1><Localized en={"Admin unavailable"} zh={"管理功能不可用"} /></h1>
             <p>{access.message}</p>
             {access.email ? (
               <p className="login-dialog__message">
-                Signed in as {access.email}. Use the Google account loaded in the admin allowlist.
+                <Localized en={`Signed in as ${access.email}. Use the Google account loaded in the admin allowlist.`} zh={`当前登录账户：${access.email}。请使用管理员允许列表中的 Google 账户。`} />
               </p>
             ) : null}
             <div className="auth-actions">
               <a className="btn-primary" href={switchAccountPath}>
-                Switch Google account
-              </a>
+                <Localized en={"Switch Google account"} zh={"切换 Google 账户"} /></a>
               <a className="btn-ghost" href="/api/admin/access-check">
-                Check admin session
-              </a>
+                <Localized en={"Check admin session"} zh={"检查管理员会话"} /></a>
             </div>
           </section>
         </main>
@@ -211,16 +210,15 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
         <DashboardSidebar activeItem="admin" email={access.email} ownerName="Admin" />
         <main className="dashboard-main">
           <div className="dashboard-topbar">
-            <AnnouncementPill>TOTP verified admin</AnnouncementPill>
+            <AnnouncementPill><Localized en={"TOTP verified admin"} zh={"已通过 TOTP 验证的管理员"} /></AnnouncementPill>
             <a className="btn-primary" href="/auth/logout">
-              Log out
-            </a>
+              <Localized en={"Log out"} zh={"退出登录"} /></a>
           </div>
           <section className="dashboard-workbench admin-workbench" aria-labelledby="admin-title">
             <div className="settings-workbench__header">
-              <p className="workspace-status-card__eyebrow">Admin module</p>
-              <h1 id="admin-title">AI CUBER administration</h1>
-              <p>Assign LLM token quotas for non-admin users, send or drain AI credits, disable access, delete workspace data, and overwrite per-user AWS Bedrock bearer tokens.</p>
+              <p className="workspace-status-card__eyebrow"><Localized en={"Admin module"} zh={"管理模块"} /></p>
+              <h1 id="admin-title"><Localized en={"AI CUBER administration"} zh={"AI CUBER 管理"} /></h1>
+              <p><Localized en={"Assign LLM token quotas for non-admin users, send or drain AI credits, disable access, delete workspace data, and overwrite per-user AWS Bedrock bearer tokens."} zh={"为非管理员用户分配 LLM Token 配额、发送或收回 AI 积分、停用访问权限、删除工作空间数据，以及覆盖用户的 AWS Bedrock 访问令牌。"} /></p>
             </div>
 
             <div className="admin-metrics-grid">
@@ -239,7 +237,7 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
               billing={
                 <div className="settings-grid">
                   <OpenRouterKeyUsageCard usage={openRouterKeyUsage} />
-                  <article className="settings-action-card"><h2>Itemized AI usage</h2><p>Review per-user OpenRouter requests, costs and credit charges.</p><a className="btn-ghost" href="/admin/ai-usage">View AI usage</a></article>
+                  <article className="settings-action-card"><h2><Localized en={"Itemized AI usage"} zh={"AI 用量明细"} /></h2><p><Localized en={"Review per-user OpenRouter requests, costs and credit charges."} zh={"查看每位用户的 OpenRouter 请求、费用和积分扣除。"} /></p><a className="btn-ghost" href="/admin/ai-usage"><Localized en={"View AI usage"} zh={"查看 AI 用量"} /></a></article>
                   <SolanaPaymentHistory
                     emptyCopy="No confirmed Solana top-ups have been recorded yet."
                     eyebrow="Admin billing"

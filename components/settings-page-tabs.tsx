@@ -1,5 +1,8 @@
 "use client";
 
+import { Localized } from "@/components/language-provider";
+
+
 import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { AiCreditsPaymentPanel, type AiCreditBalance } from "@/components/ai-credits-payment-panel";
@@ -183,11 +186,10 @@ export function SettingsPageTabs({
 
             <article className="settings-action-card settings-action-card--danger">
               <div>
-                <p className="workspace-status-card__eyebrow">Danger zone</p>
-                <h2>Destroy instance</h2>
+                <p className="workspace-status-card__eyebrow"><Localized en={"Danger zone"} zh={"危险操作"} /></p>
+                <h2><Localized en={"Destroy instance"} zh={"销毁实例"} /></h2>
                 <p>
-                  Destroy the Cloud AI Agent instance, clear generated Nth Brain project history, reset onboarding, and log out.
-                </p>
+                  <Localized en={"Destroy the Cloud AI Agent instance, clear generated Nth Brain project history, reset onboarding, and log out."} zh={"销毁云端 AI Agent 实例、清除生成的 Nth Brain 项目记录、重置设置流程并退出登录。"} /></p>
               </div>
               <DestroyWorkspaceButton variant="panel" />
             </article>
@@ -210,22 +212,20 @@ export function SettingsPageTabs({
 
           <article className="settings-action-card">
             <div>
-              <p className="workspace-status-card__eyebrow">Telegram bot</p>
-              <h2>Reconfigure Telegram bot</h2>
+              <p className="workspace-status-card__eyebrow"><Localized en={"Telegram bot"} zh={"Telegram 机器人"} /></p>
+              <h2><Localized en={"Reconfigure Telegram bot"} zh={"重新配置 Telegram 机器人"} /></h2>
               <p>
-                Update the Telegram bot token on the current AI Agent instance and restart the pairing flow for approval.
-              </p>
+                <Localized en={"Update the Telegram bot token on the current AI Agent instance and restart the pairing flow for approval."} zh={"更新当前 AI Agent 实例上的 Telegram 机器人令牌，并重新启动配对审批流程。"} /></p>
             </div>
             <ChangeTelegramBotTokenButton variant="panel" />
           </article>
 
           <article className="settings-action-card">
             <div>
-              <p className="workspace-status-card__eyebrow">Claude Code auth</p>
-              <h2>Reconnect Claude on AI Agent</h2>
+              <p className="workspace-status-card__eyebrow"><Localized en={"Claude Code auth"} zh={"Claude Code 授权"} /></p>
+              <h2><Localized en={"Reconnect Claude on AI Agent"} zh={"在 AI Agent 上重新连接 Claude"} /></h2>
               <p>
-                Start the Claude sign-in flow on the AI Agent instance, open the returned login URL, and poll until Claude Code auth is restored.
-              </p>
+                <Localized en={"Start the Claude sign-in flow on the AI Agent instance, open the returned login URL, and poll until Claude Code auth is restored."} zh={"在 AI Agent 实例上启动 Claude 登录流程，打开返回的登录地址，并持续检查直到 Claude Code 授权恢复。"} /></p>
             </div>
             <ClaudeAuthReconnectButton />
           </article>

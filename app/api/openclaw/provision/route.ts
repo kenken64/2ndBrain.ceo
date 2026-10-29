@@ -4,11 +4,12 @@ import { hasSupabaseEnv } from "@/lib/env";
 import { addConsumerOwner } from "@/lib/gyne-consumer-registry";
 import {
   getUserIdFromClaims,
+  getSelectedProvisionTarget,
   onboardingPath,
   onboardingProfileSelect,
   type OnboardingProfile
 } from "@/lib/onboarding";
-import { generateConsumerName, provisionOpenClaw, setOpenClawTtyProxyInstance } from "@/lib/openclaw";
+import { generateConsumerName, provisionHermes, provisionOpenClaw, setOpenClawTtyProxyInstance } from "@/lib/openclaw";
 import { createAdminClient, hasSupabaseServiceRoleEnv } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 import { appUrl, safeNextPath } from "@/lib/url";
@@ -25,7 +26,7 @@ const STALE_PROVISION_MS = 30 * 60 * 1000;
  * openclaw_instances is RLS-protected with a select-only policy, so this needs
  * the service-role client the same way the instances panel does.
  */
-async function resolveConsumerName(userId: string) {
+async function resolveConsumerName(userId: string, agentType: string) {
   if (!hasSupabaseServiceRoleEnv()) {
     return generateConsumerName(userId);
   }
@@ -38,6 +39,7 @@ async function resolveConsumerName(userId: string) {
     .select("consumer_name")
     .eq("user_id", userId)
     .eq("label", "Onboarding workspace")
+    .eq("agent_type", agentType)
     .limit(1)
     .maybeSingle();
 
@@ -58,6 +60,7 @@ async function resolveConsumerName(userId: string) {
  * here is logged rather than failing an otherwise successful provision.
  */
 async function registerProvisionedInstance(input: {
+  agentType: string;
   consumerName: string;
   instance: string;
   region: string;
@@ -66,6 +69,7 @@ async function registerProvisionedInstance(input: {
   userId: string;
 }) {
   if (!hasSupabaseServiceRoleEnv()) {
+    if (input.agentType === "hermes_agent") throw new Error("missing_supabase_service_role_key");
     console.warn("[openclaw:provision] service role missing; instance not registered for usage tracking", {
       instance: input.instance
     });
@@ -76,9 +80,10 @@ async function registerProvisionedInstance(input: {
     const adminSupabase = createAdminClient();
     const completedAt = new Date().toISOString();
 
-    await adminSupabase.from("openclaw_instances").upsert(
+    const { error } = await adminSupabase.from("openclaw_instances").upsert(
       {
         consumer_name: input.consumerName,
+        agent_type: input.agentType,
         instance: input.instance,
         label: "Onboarding workspace",
         provision_completed_at: completedAt,
@@ -94,12 +99,16 @@ async function registerProvisionedInstance(input: {
       { onConflict: "user_id,consumer_name" }
     );
 
-    await addConsumerOwner(input.userId, input.consumerName);
+    if (error) throw error;
+
+    const mapped = await addConsumerOwner(input.userId, input.consumerName);
+    if (!mapped && input.agentType === "hermes_agent") throw new Error("gyne_owner_registration_failed");
   } catch (error) {
     console.error("[openclaw:provision] instance registration failed", {
       error: error instanceof Error ? error.message : "unknown",
       instance: input.instance
     });
+    if (input.agentType === "hermes_agent") throw error;
   }
 }
 
@@ -207,7 +216,8 @@ function isStaleProvision(profile: OnboardingProfile | null) {
     ? Date.parse(profile.openclaw_provision_started_at)
     : Number.NaN;
 
-  return !Number.isFinite(startedAt) || Date.now() - startedAt > STALE_PROVISION_MS;
+  const limit = getSelectedProvisionTarget(profile) === "hermes_agent" ? 65 * 60 * 1000 : STALE_PROVISION_MS;
+  return !Number.isFinite(startedAt) || Date.now() - startedAt > limit;
 }
 
 export async function POST(request: Request) {
@@ -239,6 +249,13 @@ export async function POST(request: Request) {
     .eq("id", userId)
     .maybeSingle();
   const onboardingProfile = profile as ProvisionProfile | null;
+  const agentType = getSelectedProvisionTarget(onboardingProfile);
+  if (agentType !== "openclaw" && agentType !== "hermes_agent") {
+    return redirectToProvision(request, next, "invalid_provision_target");
+  }
+  if (agentType === "hermes_agent" && !hasSupabaseServiceRoleEnv()) {
+    return redirectToProvision(request, next, "missing_supabase_service_role_key");
+  }
   const ownerName = onboardingProfile?.owner_name?.trim();
   const avatarName = onboardingProfile?.avatar_name?.trim();
   const avatarGender = onboardingProfile?.avatar_gender?.trim();
@@ -338,15 +355,15 @@ export async function POST(request: Request) {
     // Binds the co-located gyne consumer to a known name. Without it the
     // consumer registers under its default name and token usage cannot be
     // scoped back to this user.
-    const consumerName = await resolveConsumerName(userId);
+    const consumerName = await resolveConsumerName(userId, agentType);
 
-    const provisioned = await provisionOpenClaw({
+    const provisioned = await (agentType === "hermes_agent" ? provisionHermes : provisionOpenClaw)({
       avatarGender,
       avatarName,
       consumerName,
       existingInstance,
       onInstanceRestored: async (details) => {
-        await supabase
+        const { error: saveError } = await supabase
           .from("profiles")
           .update({
             openclaw_instance: details.instance,
@@ -355,6 +372,7 @@ export async function POST(request: Request) {
             openclaw_snapshot_name: details.snapshotName
           })
           .eq("id", userId);
+        if (saveError) throw new Error("save_failed");
       },
       ownerName,
       telegramBotToken
@@ -390,6 +408,7 @@ export async function POST(request: Request) {
     }
 
     await registerProvisionedInstance({
+      agentType: agentType === "hermes_agent" ? "hermes_agent" : "openclaw",
       consumerName,
       instance: provisioned.instance,
       region: provisioned.region,
@@ -407,7 +426,7 @@ export async function POST(request: Request) {
     // The snapshot's tty proxy still carries the image's OPENCLAW_INSTANCE;
     // repoint it at this instance's Lightsail hostname. Best effort in the
     // background — a proxy fix must not fail an otherwise ready provision.
-    void setOpenClawTtyProxyInstance({
+    if (agentType !== "hermes_agent") void setOpenClawTtyProxyInstance({
       instance: provisioned.instance,
       openclawInstance: provisioned.instance
     })

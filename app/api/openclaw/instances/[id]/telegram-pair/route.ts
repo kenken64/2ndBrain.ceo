@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { hasSupabaseEnv } from "@/lib/env";
 import { getUserIdFromClaims } from "@/lib/onboarding";
-import { pairOpenClawTelegram } from "@/lib/openclaw";
+import { pairHermesTelegram, pairOpenClawTelegram } from "@/lib/openclaw";
 import { createAdminClient, hasSupabaseServiceRoleEnv } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 
@@ -15,6 +15,7 @@ type InstanceRouteContext = {
 };
 
 type InstanceRow = {
+  agent_type: string;
   id: string;
   instance: string | null;
   provision_status: string;
@@ -71,7 +72,7 @@ export async function POST(request: Request, context: InstanceRouteContext) {
   const adminSupabase = createAdminClient();
   const { data: row, error: rowError } = await adminSupabase
     .from("openclaw_instances")
-    .select("id,instance,provision_status")
+    .select("id,agent_type,instance,provision_status")
     .eq("id", instanceId)
     .eq("user_id", auth.userId)
     .maybeSingle();
@@ -92,7 +93,7 @@ export async function POST(request: Request, context: InstanceRouteContext) {
   }
 
   try {
-    await pairOpenClawTelegram({ code, instance });
+    await (instanceRow.agent_type === "hermes_agent" ? pairHermesTelegram : pairOpenClawTelegram)({ code, instance });
 
     return NextResponse.json({ ok: true }, { headers: { "Cache-Control": "no-store" } });
   } catch (error) {

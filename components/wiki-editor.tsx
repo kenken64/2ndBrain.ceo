@@ -1,5 +1,8 @@
 "use client";
 
+import { Localized, useLanguage, LocalizedMessage } from "@/components/language-provider";
+
+
 import { navigateToPage } from "@/lib/page-navigation";
 
 import { useRouter } from "next/navigation";
@@ -564,6 +567,7 @@ export function WikiEditor({
   showSync = true,
   tree
 }: WikiEditorProps) {
+  const _uiLanguage = useLanguage().language;
   const router = useRouter();
   const files = flattenTree(tree);
   const treeItems = displayTree(tree);
@@ -930,16 +934,16 @@ export function WikiEditor({
 
   return (
     <div className="wiki-workspace">
-      <aside className="wiki-tree" aria-label="Nth Brain pages">
+      <aside className="wiki-tree" aria-label={_uiLanguage === "zh" ? "Nth Brain 页面" : "Nth Brain pages"}>
         <div className="wiki-panel-header">
           <FileText size={17} strokeWidth={1.8} />
-          <span>Pages</span>
+          <span><Localized en={"Pages"} zh={"页面"} /></span>
         </div>
         {canUploadDocuments ? (
           <form aria-busy={isUploading} className="wiki-upload-form" encType="multipart/form-data" noValidate onSubmit={ingestDocuments}>
             <div className="wiki-upload-form__header">
-              <strong>Upload to this Nth Brain</strong>
-              <span>DOC, DOCX, Excel, CSV, PDF, images, text, and markdown are converted before AI Agent sees them.</span>
+              <strong><Localized en={"Upload to this Nth Brain"} zh={"上传到此 Nth Brain"} /></strong>
+              <span><Localized en={"DOC, DOCX, Excel, CSV, PDF, images, text, and markdown are converted before AI Agent sees them."} zh={"DOC、DOCX、Excel、CSV、PDF、图片、文本和 Markdown 文件会先转换，再交给 AI Agent 处理。"} /></span>
             </div>
             <input
               accept={WIKI_UPLOAD_ACCEPT}
@@ -957,8 +961,7 @@ export function WikiEditor({
               type="button"
             >
               <FileUp size={15} strokeWidth={1.8} />
-              Attach documents
-            </button>
+              <Localized en={"Attach documents"} zh={"添加文档"} /></button>
             {uploadFiles.length > 0 ? (
               <div className="wiki-upload-form__files">
                 {uploadFiles.map((file, index) => (
@@ -967,7 +970,7 @@ export function WikiEditor({
                     disabled={isBusy}
                     key={`${file.name}-${file.size}-${index}`}
                     onClick={() => removeUploadFile(index)}
-                    title="Remove file"
+                    title={_uiLanguage === "zh" ? "移除文件" : "Remove file"}
                     type="button"
                   >
                     {file.name}
@@ -976,32 +979,32 @@ export function WikiEditor({
               </div>
             ) : null}
             <label className="wiki-upload-form__prompt">
-              <span>Instruction for AI ingestion</span>
+              <span><Localized en={"Instruction for AI ingestion"} zh={"AI 导入指令"} /></span>
               <textarea
                 disabled={isBusy}
                 onChange={(event) => setUploadPrompt(event.target.value)}
-                placeholder="Ask the AI to decide where these sources belong, update existing pages if useful, and modify the Nth Brain index/log."
+                placeholder={_uiLanguage === "zh" ? "请 AI 决定这些资料应放在哪里，根据需要更新现有页面，并修改 Nth Brain 索引和日志。" : "Ask the AI to decide where these sources belong, update existing pages if useful, and modify the Nth Brain index/log."}
                 rows={3}
                 value={uploadPrompt}
               />
             </label>
-            {uploadError ? <p className="form-error">{uploadError}</p> : null}
+            {uploadError ? <p className="form-error"><LocalizedMessage text={uploadError} /></p> : null}
             {uploadSuccess ? <p className="form-success">{uploadSuccess}</p> : null}
             {uploadJob && (uploadJob.status === "queued" || uploadJob.status === "running") ? (
               <p className="form-success">
-                Background ingest is {uploadJob.status}. You can keep editing while the documents are processed.
+                <Localized en={`Background ingest is ${uploadJob.status}. You can keep editing while the documents are processed.`} zh={`后台导入状态：${uploadJob.status}。处理文档时您可以继续编辑。`} />
               </p>
             ) : null}
             {isUploading ? (
               <div
                 aria-live="polite"
-                aria-valuetext="Upload in progress"
+                aria-valuetext={_uiLanguage === "zh" ? "正在上传" : "Upload in progress"}
                 className="submit-progress wiki-upload-form__progress"
                 role="progressbar"
               >
                 <div className="submit-progress__meta">
-                  <strong>Uploading artifacts</strong>
-                  <span>Sending files to the app so they can be queued for background processing.</span>
+                  <strong><Localized en={"Uploading artifacts"} zh={"正在上传文件"} /></strong>
+                  <span><Localized en={"Sending files to the app so they can be queued for background processing."} zh={"正在将文件发送到应用，以便排队进行后台处理。"} /></span>
                 </div>
                 <div className="submit-progress__track">
                   <span className="submit-progress__bar" />
@@ -1009,19 +1012,19 @@ export function WikiEditor({
               </div>
             ) : null}
             <button className="btn-primary btn-primary--compact" disabled={isBusy || uploadFiles.length === 0} type="submit">
-              {isUploading ? "Uploading..." : "Upload into Nth Brain"}
+              {isUploading ? <Localized en={"Uploading..."} zh={"正在上传..."} /> : <Localized en={"Upload into Nth Brain"} zh={"上传到 Nth Brain"} />}
             </button>
           </form>
         ) : null}
         {projectId ? (
-          <section className="wiki-brain-panel" aria-label="Brain search and follow-ups">
+          <section className="wiki-brain-panel" aria-label={_uiLanguage === "zh" ? "知识库搜索和后续事项" : "Brain search and follow-ups"}>
             <div className="wiki-brain-panel__header">
               <div>
-                <strong>Brain search</strong>
-                <span>{brainPageCount > 0 ? `${brainPageCount} markdown pages` : brainStatus}</span>
+                <strong><Localized en={"Brain search"} zh={"知识库搜索"} /></strong>
+                <span>{brainPageCount > 0 ? (_uiLanguage === "zh" ? `${brainPageCount} 个 Markdown 页面` : `${brainPageCount} markdown pages`) : <LocalizedMessage text={brainStatus} />}</span>
               </div>
               <button
-                aria-label="Refresh brain workspace"
+                aria-label={_uiLanguage === "zh" ? "刷新知识库工作空间" : "Refresh brain workspace"}
                 disabled={isBrainLoading}
                 onClick={() => loadBrainWorkspace(brainQuery)}
                 type="button"
@@ -1041,16 +1044,15 @@ export function WikiEditor({
               <input
                 disabled={isBrainLoading}
                 onChange={(event) => setBrainQuery(event.target.value)}
-                placeholder="Search lessons, notes, tasks..."
+                placeholder={_uiLanguage === "zh" ? "搜索经验、笔记和任务..." : "Search lessons, notes, tasks..."}
                 type="search"
                 value={brainQuery}
               />
               <button disabled={isBrainLoading} type="submit">
-                Search
-              </button>
+                <Localized en={"Search"} zh={"搜索"} /></button>
             </form>
-            <p className="wiki-brain-panel__status">{isBrainLoading ? "Loading..." : brainStatus}</p>
-            {brainError ? <p className="form-error">{brainError}</p> : null}
+            <p className="wiki-brain-panel__status">{isBrainLoading ? <Localized en={"Loading..."} zh={"正在加载..."} /> : <LocalizedMessage text={brainStatus} />}</p>
+            {brainError ? <p className="form-error"><LocalizedMessage text={brainError} /></p> : null}
             {brainResults.length > 0 ? (
               <div className="wiki-brain-results">
                 {brainResults.slice(0, 6).map((result) => (
@@ -1072,7 +1074,7 @@ export function WikiEditor({
             <div className="wiki-brain-followups">
               <div className="wiki-brain-followups__title">
                 <ListChecks size={15} strokeWidth={1.9} />
-                <strong>Open follow-ups</strong>
+                <strong><Localized en={"Open follow-ups"} zh={"待处理的后续事项"} /></strong>
               </div>
               {brainFollowUps.length > 0 ? (
                 brainFollowUps.slice(0, 8).map((item) => (
@@ -1084,12 +1086,12 @@ export function WikiEditor({
                   >
                     <span>{item.line}</span>
                     <small>
-                      {item.kind === "follow_up" ? "Follow-up" : "Task"} · {item.title}
+                      {item.kind === "follow_up" ? <Localized en={"Follow-up"} zh={"后续事项"} /> : <Localized en={"Task"} zh={"任务"} />} · {item.title}
                     </small>
                   </button>
                 ))
               ) : (
-                <p className="wiki-empty-note">No open follow-ups found.</p>
+                <p className="wiki-empty-note"><Localized en={"No open follow-ups found."} zh={"未找到待处理的后续事项。"} /></p>
               )}
             </div>
           </section>
@@ -1107,7 +1109,7 @@ export function WikiEditor({
               />
             ))
           ) : (
-            <p className="wiki-empty-note">No markdown pages returned yet.</p>
+            <p className="wiki-empty-note"><Localized en={"No markdown pages returned yet."} zh={"尚未返回 Markdown 页面。"} /></p>
           )}
         </div>
       </aside>
@@ -1115,50 +1117,46 @@ export function WikiEditor({
       <section className="wiki-editor-panel">
         <header className="wiki-toolbar">
           <div>
-            <p className="workspace-status-card__eyebrow">{eyebrow}</p>
+            <p className="workspace-status-card__eyebrow"><LocalizedMessage text={eyebrow} /></p>
             <h1>{page?.title ?? "Markdown workspace"}</h1>
             <span>{selectedPath || "No page selected"}</span>
           </div>
           <div className="wiki-toolbar-actions">
-            <div className="segmented-control" aria-label="Editor mode">
+            <div className="segmented-control" aria-label={_uiLanguage === "zh" ? "编辑器模式" : "Editor mode"}>
               <button className={mode === "edit" ? "is-active" : ""} onClick={() => setMode("edit")} type="button">
                 <SquarePen size={15} strokeWidth={1.8} />
-                Edit
-              </button>
+                <Localized en={"Edit"} zh={"编辑"} /></button>
               <button className={mode === "preview" ? "is-active" : ""} onClick={() => setMode("preview")} type="button">
                 <Eye size={15} strokeWidth={1.8} />
-                Preview
-              </button>
+                <Localized en={"Preview"} zh={"预览"} /></button>
             </div>
             {showSync ? (
-              <button className="btn-icon" disabled={!selectedPath || isPending} onClick={syncPage} title="Sync graph" type="button">
+              <button className="btn-icon" disabled={!selectedPath || isPending} onClick={syncPage} title={_uiLanguage === "zh" ? "同步图谱" : "Sync graph"} type="button">
                 <RefreshCw size={17} strokeWidth={1.8} />
               </button>
             ) : null}
             {showExport ? (
-              <a aria-label="Export Nth Brain" className="btn-icon" href={wikiUrl(`${apiBase}/export`)} title="Export Nth Brain">
+              <a aria-label={_uiLanguage === "zh" ? "导出 Nth Brain" : "Export Nth Brain"} className="btn-icon" href={wikiUrl(`${apiBase}/export`)} title={_uiLanguage === "zh" ? "导出 Nth Brain" : "Export Nth Brain"}>
                 <Download size={17} strokeWidth={1.8} />
               </a>
             ) : null}
             <button className="btn-primary btn-primary--compact" disabled={!selectedPath || isPending} onClick={savePage} type="button">
               <Save size={16} strokeWidth={1.8} />
-              Save
-            </button>
+              <Localized en={"Save"} zh={"保存"} /></button>
           </div>
         </header>
 
         <div className="wiki-sync-strip">
           <span className="wiki-sync-strip__status">
             {isPending ? <Loader2 className="spin-icon" size={14} strokeWidth={1.8} /> : null}
-            {status}
+            <LocalizedMessage text={status} />
           </span>
           {graphHref !== null ? (
             <div className="wiki-sync-strip__actions">
               {selectedPath ? (
                 <a className="wiki-graph-action" href={graphUrl(selectedPath)}>
                   <GitBranch size={15} strokeWidth={1.8} />
-                  View in graph
-                </a>
+                  <Localized en={"View in graph"} zh={"在图谱中查看"} /></a>
               ) : null}
               <button
                 className="wiki-graph-action"
@@ -1167,18 +1165,18 @@ export function WikiEditor({
                 type="button"
               >
                 <GitBranch size={15} strokeWidth={1.8} />
-                {isPending && status.startsWith("Indexing") ? "Generating graph..." : "Generate knowledge graph"}
+                {isPending && status.startsWith("Indexing") ? <Localized en={"Generating graph..."} zh={"正在生成图谱..."} /> : <Localized en={"Generate knowledge graph"} zh={"生成知识图谱"} />}
               </button>
             </div>
           ) : null}
         </div>
 
-        {error ? <p className="form-error">{error}</p> : null}
+        {error ? <p className="form-error"><LocalizedMessage text={error} /></p> : null}
 
         {isPageLoading ? (
           <div className="wiki-loading-panel" role="status">
             <Loader2 className="spin-icon" size={18} strokeWidth={1.8} />
-            <span>Loading {selectedPath || "page"}…</span>
+            <span><Localized en={`Loading ${selectedPath || "page"}…`} zh={`正在加载 ${selectedPath || "页面"}…`} /></span>
           </div>
         ) : mode === "edit" ? (
           <textarea
@@ -1189,7 +1187,7 @@ export function WikiEditor({
             value={content}
           />
         ) : (
-          <div className="wiki-preview">{content ? markdownBlocks(content) : <p>No content loaded.</p>}</div>
+          <div className="wiki-preview">{content ? markdownBlocks(content) : <p><Localized en={"No content loaded."} zh={"尚未加载内容。"} /></p>}</div>
         )}
       </section>
     </div>

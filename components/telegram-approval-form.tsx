@@ -1,5 +1,8 @@
 "use client";
 
+import { Localized, useLanguage, LocalizedMessage } from "@/components/language-provider";
+
+
 import { navigateToPage } from "@/lib/page-navigation";
 
 import { FormEvent, useEffect, useId, useState } from "react";
@@ -12,6 +15,7 @@ type TelegramApprovalFormProps = {
 };
 
 export function TelegramApprovalForm({ errorMessage, next, status }: TelegramApprovalFormProps) {
+  const _uiLanguage = useLanguage().language;
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState("");
   const [remoteStatus, setRemoteStatus] = useState(status ?? null);
@@ -142,8 +146,7 @@ export function TelegramApprovalForm({ errorMessage, next, status }: TelegramApp
       <label className="field-stack">
         <span>
           <KeyRound size={18} strokeWidth={1.8} />
-          Telegram approval code
-        </span>
+          <Localized en={"Telegram approval code"} zh={"Telegram 批准码"} /></span>
         <input
           aria-describedby={submitError ? codeErrorId : undefined}
           aria-invalid={Boolean(submitError)}
@@ -152,24 +155,23 @@ export function TelegramApprovalForm({ errorMessage, next, status }: TelegramApp
           inputMode="text"
           maxLength={8}
           name="telegramPairCode"
-          placeholder="8-character code"
+          placeholder={_uiLanguage === "zh" ? "8 位验证码" : "8-character code"}
           type="text"
         />
       </label>
       <div className="provision-summary">
-        <strong>Telegram approval required</strong>
+        <strong><Localized en={"Telegram approval required"} zh={"需要 Telegram 批准"} /></strong>
         <span>
-          Open your Telegram bot and send it any message, like &ldquo;hi&rdquo; (or tap Start) &mdash; the bot cannot message
-          you first. It replies with the 8-character approval code; enter it here before creating the Nth Brain.
+          <Localized en="Open your Telegram bot and send it any message, like “hi” (or tap Start) — the bot cannot message you first. It replies with the 8-character approval code; enter it here before creating the Nth Brain." zh="打开 Telegram 机器人并发送任意消息，例如“hi”（或点击开始）；机器人无法主动向您发送消息。机器人会回复 8 位批准码；创建 Nth Brain 前请在此输入。" />
         </span>
       </div>
-      {errorMessage ? <p className="form-error">{errorMessage}</p> : null}
+      {errorMessage ? <p className="form-error"><LocalizedMessage text={errorMessage} /></p> : null}
       {submitError ? (
         <p className="form-error" id={codeErrorId}>
-          {submitError}
+          <LocalizedMessage text={submitError} />
         </p>
       ) : null}
-      {isRunning ? <p className="form-success">Approving Telegram pairing.</p> : null}
+      {isRunning ? <p className="form-success"><Localized en={"Approving Telegram pairing."} zh={"正在批准 Telegram 配对。"} /></p> : null}
       {isSubmitting ? (
         <div
           aria-live="polite"
@@ -180,8 +182,8 @@ export function TelegramApprovalForm({ errorMessage, next, status }: TelegramApp
           role="progressbar"
         >
           <div className="submit-progress__meta">
-            <strong>Approving Telegram</strong>
-            <span>Pairing the bot and completing your dashboard handoff.</span>
+            <strong><Localized en={"Approving Telegram"} zh={"正在批准 Telegram"} /></strong>
+            <span><Localized en={"Pairing the bot and completing your dashboard handoff."} zh={"正在配对机器人并完成工作台交接。"} /></span>
           </div>
           <div className="submit-progress__track">
             <span className="submit-progress__bar" />
@@ -189,7 +191,7 @@ export function TelegramApprovalForm({ errorMessage, next, status }: TelegramApp
         </div>
       ) : null}
       <button className="btn-primary onboarding-submit" disabled={isDisabled} type="submit">
-        {isSubmitting ? "Approving..." : "Approve Telegram"} <span className="arrow">-&gt;</span>
+        {isSubmitting ? <Localized en={"Approving..."} zh={"正在批准..."} /> : <Localized en={"Approve Telegram"} zh={"批准 Telegram"} />} <span className="arrow">-&gt;</span>
       </button>
     </form>
   );

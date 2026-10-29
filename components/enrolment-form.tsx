@@ -1,5 +1,7 @@
 "use client";
 
+import { Localized, LocalizedMessage } from "@/components/language-provider";
+
 import { navigateToPage } from "@/lib/page-navigation";
 
 import { FormEvent, useId, useState } from "react";
@@ -108,7 +110,7 @@ export function EnrolmentForm({
         <label className="field-stack">
           <span>
             <UserRound size={18} strokeWidth={1.8} />
-            Owner name
+            <Localized en="Owner name" zh="所有者姓名" />
           </span>
           <input
             aria-describedby={errors.ownerName ? ownerErrorId : undefined}
@@ -122,14 +124,14 @@ export function EnrolmentForm({
           />
           {errors.ownerName ? (
             <span className="field-error" id={ownerErrorId}>
-              {errors.ownerName}
+              <LocalizedMessage text={errors.ownerName} />
             </span>
           ) : null}
         </label>
         <label className="field-stack">
           <span>
             <Sparkles size={18} strokeWidth={1.8} />
-            AI Assistant name
+            <Localized en="AI Assistant name" zh="AI 助手名称" />
           </span>
           <input
             aria-describedby={errors.avatarName ? avatarErrorId : undefined}
@@ -143,7 +145,7 @@ export function EnrolmentForm({
           />
           {errors.avatarName ? (
             <span className="field-error" id={avatarErrorId}>
-              {errors.avatarName}
+              <LocalizedMessage text={errors.avatarName} />
             </span>
           ) : null}
         </label>
@@ -151,7 +153,7 @@ export function EnrolmentForm({
       <label className="field-stack">
         <span>
           <UsersRound size={18} strokeWidth={1.8} />
-          Gender of the AI Assistant
+          <Localized en="Gender of the AI Assistant" zh="AI 助手性别" />
         </span>
         <select
           aria-describedby={errors.avatarGender ? genderErrorId : undefined}
@@ -160,21 +162,21 @@ export function EnrolmentForm({
           name="avatarGender"
         >
           <option value="" disabled>
-            Select gender
+            <Localized en="Select gender" zh="选择性别" />
           </option>
-          <option value="female">Female</option>
-          <option value="male">Male</option>
+          <option value="female"><Localized en="Female" zh="女性" /></option>
+          <option value="male"><Localized en="Male" zh="男性" /></option>
         </select>
         {errors.avatarGender ? (
           <span className="field-error" id={genderErrorId}>
-            {errors.avatarGender}
+            <LocalizedMessage text={errors.avatarGender} />
           </span>
         ) : null}
       </label>
       <label className="field-stack">
         <span>
           <Bot size={18} strokeWidth={1.8} />
-          Telegram bot token
+          <Localized en="Telegram bot token" zh="Telegram 机器人令牌" />
         </span>
         <TelegramTokenInput
           ariaDescribedBy={errors.telegramBotToken ? tokenErrorId : undefined}
@@ -182,18 +184,18 @@ export function EnrolmentForm({
         />
         {errors.telegramBotToken ? (
           <span className="field-error" id={tokenErrorId}>
-            {errors.telegramBotToken}
+            <LocalizedMessage text={errors.telegramBotToken} />
           </span>
         ) : null}
       </label>
-      {errorMessage ? <p className="form-error">{errorMessage}</p> : null}
+      {errorMessage ? <p className="form-error"><LocalizedMessage text={errorMessage} /></p> : null}
       {errors.submit ? (
         <p className="form-error" id={submitErrorId}>
-          {errors.submit}
+          <LocalizedMessage text={errors.submit} />
         </p>
       ) : null}
       <button className="btn-primary onboarding-submit" disabled={isSubmitting} type="submit">
-        {isSubmitting ? "Saving..." : "Continue"} <span className="arrow">-&gt;</span>
+        {isSubmitting ? <Localized en="Saving..." zh="正在保存..." /> : <Localized en="Continue" zh="继续" />} <span className="arrow">-&gt;</span>
       </button>
     </form>
   );
