@@ -2,8 +2,9 @@ import Automizer, { modify } from "pptx-automizer";
 import PizZip from "pizzip";
 import { DOMParser, XMLSerializer } from "@xmldom/xmldom";
 import { posix } from "node:path";
-import { createHash } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
 import { checkOfficeArchive } from "@/lib/chat-attachments";
+import { planSlideLayout, rectanglesOverlap, type Rect } from "@/lib/chat-pptx-layout";
 
 const P = "http://schemas.openxmlformats.org/presentationml/2006/main";
 const A = "http://schemas.openxmlformats.org/drawingml/2006/main";
@@ -61,6 +62,51 @@ function slideSize(zip: PizZip): string {
   const node = xmlAt(zip, "ppt/presentation.xml").getElementsByTagNameNS(P, "sldSz").item(0);
   if (!node?.getAttribute("cx") || !node.getAttribute("cy")) throw new Error("The PowerPoint slide size could not be determined.");
   return `${node.getAttribute("cx")},${node.getAttribute("cy")}`;
+}
+
+function dimensions(zip: PizZip) {
+  const [width, height] = slideSize(zip).split(",").map(Number);
+  if (!Number.isFinite(width) || !Number.isFinite(height) || width <= 0 || height <= 0) throw new Error("The PowerPoint slide size could not be determined.");
+  return { width, height };
+}
+
+function inheritedPart(zip: PizZip, part: string, kind: string): string | null {
+  const relPath = `${posix.dirname(part)}/_rels/${posix.basename(part)}.rels`;
+  if (!zip.file(relPath)) return null;
+  const relations = xmlAt(zip, relPath).getElementsByTagNameNS(PR, "Relationship");
+  const relation = Array.from(relations).find(item => item.getAttribute("Type")?.endsWith(`/${kind}`));
+  const target = relation?.getAttribute("Target");
+  if (!target) return null;
+  const path = target.startsWith("/") ? posix.normalize(target.slice(1)) : posix.normalize(posix.join(posix.dirname(part), target));
+  return path.startsWith("ppt/") && zip.file(path) ? path : null;
+}
+
+function inheritedObstacles(zip: PizZip, slideNumber: number): Rect[] | null {
+  const slide = `ppt/slides/slide${slideNumber}.xml`;
+  const layout = inheritedPart(zip, slide, "slideLayout");
+  const master = layout && inheritedPart(zip, layout, "slideMaster");
+  if (!layout || !master) return null;
+  const obstacles: Rect[] = [];
+  for (const part of [layout, master]) {
+    const tree = xmlAt(zip, part).getElementsByTagNameNS(P, "spTree").item(0);
+    if (!tree) return null;
+    for (const node of Array.from(tree.childNodes)) {
+      if (node.nodeType !== 1 || !["sp", "pic", "graphicFrame", "cxnSp", "grpSp"].includes(node.localName ?? "")) continue;
+      const item = node as import("@xmldom/xmldom").Element;
+      if (item.localName === "grpSp") return null;
+      const placeholder = item.getElementsByTagNameNS(P, "ph").item(0);
+      const placeholderType = placeholder?.getAttribute("type") ?? "";
+      if (placeholder && !["dt", "ftr", "sldNum", "hdr"].includes(placeholderType)) continue;
+      const transform = item.getElementsByTagNameNS(A, "xfrm").item(0) ?? item.getElementsByTagNameNS(P, "xfrm").item(0);
+      if (!transform || Number(transform.getAttribute("rot") ?? 0) !== 0) return null;
+      const off = transform.getElementsByTagNameNS(A, "off").item(0), ext = transform.getElementsByTagNameNS(A, "ext").item(0);
+      if (!off || !ext) return null;
+      const rect = { x: Number(off.getAttribute("x")), y: Number(off.getAttribute("y")), w: Number(ext.getAttribute("cx")), h: Number(ext.getAttribute("cy")) };
+      if (![rect.x, rect.y, rect.w, rect.h].every(Number.isFinite) || rect.w <= 0 || rect.h <= 0) return null;
+      obstacles.push(rect);
+    }
+  }
+  return obstacles;
 }
 
 function targetTextColor(zip: PizZip, slideNumber: number): string {
@@ -145,12 +191,31 @@ function verifyPartRelationships(zip: PizZip, partPath: string) {
   }
 }
 
+function verifyContentPositions(zip: PizZip, path: string, prefix: string, positions: Rect[], obstacles: Rect[]) {
+  const nodes = xmlAt(zip, path).getElementsByTagNameNS(P, "cNvPr");
+  const actual: Rect[] = [];
+  for (let index = 0; index < positions.length; index++) {
+    const name = `${prefix}-${index}`;
+    const matches = Array.from(nodes).filter(item => item.getAttribute("name") === name);
+    if (matches.length !== 1) throw new Error("A source object could not be checked for overlap.");
+    const shape = matches[0].parentNode?.parentNode as import("@xmldom/xmldom").Element | null;
+    const transform = shape?.getElementsByTagNameNS(A, "xfrm").item(0) ?? shape?.getElementsByTagNameNS(P, "xfrm").item(0);
+    const off = transform?.getElementsByTagNameNS(A, "off").item(0), ext = transform?.getElementsByTagNameNS(A, "ext").item(0);
+    if (!off || !ext || Number(transform?.getAttribute("rot") ?? 0) !== 0) throw new Error("A source object could not be checked for overlap.");
+    const rect = { x: Number(off.getAttribute("x")), y: Number(off.getAttribute("y")), w: Number(ext.getAttribute("cx")), h: Number(ext.getAttribute("cy")) };
+    if (![rect.x, rect.y, rect.w, rect.h].every(Number.isFinite) || (Object.keys(rect) as Array<keyof Rect>).some(key => Math.abs(rect[key] - positions[index][key]) > 2)) throw new Error("A source object could not be positioned safely.");
+    if (obstacles.some(obstacle => rectanglesOverlap(rect, obstacle)) || actual.some(other => rectanglesOverlap(rect, other))) throw new Error("The result contains overlapping objects and was not saved.");
+    actual.push(rect);
+  }
+}
+
 export async function restyleChatPresentation(sourceBytes: Buffer, templateBytes: Buffer) {
   if (!sourceBytes.length || sourceBytes.length > PPTX_LIMIT || !templateBytes.length || templateBytes.length > PPTX_LIMIT) throw new Error("Each PowerPoint must be between 1 byte and 20 MB.");
   await Promise.all([checkOfficeArchive(sourceBytes, "PPTX"), checkOfficeArchive(templateBytes, "PPTX")]);
   const source = normalizedPackage(sourceBytes), template = normalizedPackage(templateBytes);
   const sourceZip = new PizZip(source), templateZip = new PizZip(template);
   if (slideSize(sourceZip) !== slideSize(templateZip)) throw new Error("The two presentations have different slide sizes. Make them the same size in PowerPoint and try again.");
+  const { width, height } = dimensions(templateZip);
   const automizer = new Automizer({ removeExistingSlides: true, cleanupPlaceholders: false, verbosity: 0, continueOnError: false })
     .loadRoot(template).load(template, "design").load(source, "source");
   const info = await automizer.getInfo();
@@ -174,22 +239,55 @@ export async function restyleChatPresentation(sourceBytes: Buffer, templateBytes
     if (xml.getElementsByTagNameNS(P, "timing").length || xml.getElementsByTagNameNS(P, "transition").length || hasNotes) containsNotesOrAnimations = true;
     if (slide.elements.some(element => !element.name)) throw new Error("A slide has an unnamed object that cannot be transferred safely.");
   }
+  const candidates = designs.flatMap(design => {
+    const xml = xmlAt(templateZip, `ppt/slides/slide${design.number}.xml`);
+    if (xml.getElementsByTagNameNS(P, "grpSp").length || design.elements.some(item => ["chart", "chartEx", "table"].includes(item.type))) return [];
+    const inherited = inheritedObstacles(templateZip, design.number);
+    if (!inherited) return [];
+    const retained = design.elements.filter(item => !item.hasTextBody);
+    if (retained.some(item => (item.position.rot ?? 0) !== 0)) return [];
+    return [{ slideNumber: design.number, obstacles: [...inherited, ...retained.map(item => ({ x: item.position.x, y: item.position.y, w: item.position.cx, h: item.position.cy }))] }];
+  });
+  if (!candidates.length) throw new Error("No template slide has a simple layout that can be checked for overlap. Choose a simpler template.");
+  const plans = slides.map((slide, index) => {
+    if (slide.elements.some(item => (item.position.rot ?? 0) !== 0)) throw new Error(`Source slide ${index + 1} has rotated objects that cannot be checked for overlap. Remove the rotation and try again.`);
+    try { return planSlideLayout(width, height, slide.elements.map(item => ({ x: item.position.x, y: item.position.y, w: item.position.cx, h: item.position.cy })), candidates); }
+    catch (error) { throw new Error(`Source slide ${index + 1}: ${error instanceof Error ? error.message : "could not be arranged without overlaps."}`); }
+  });
+  const contentPrefix = `2ndbrain-content-${randomUUID()}`;
   for (let index = 0; index < slides.length; index++) {
-    const sourceSlide = slides[index], design = designs[Math.min(index, designs.length - 1)];
+    const sourceSlide = slides[index], plan = plans[index], design = designs.find(item => item.number === plan.slideNumber)!;
     const textColor = targetTextColor(templateZip, design.number);
     automizer.addSlide("design", design.number, slide => {
-      for (const element of design.elements.filter(item => item.hasTextBody)) slide.modifyElement({ name: element.name, nameIdx: element.nameIdx }, modify.setText(""));
-      for (const element of sourceSlide.elements) {
+      for (const element of design.elements.filter(item => item.hasTextBody)) slide.removeElement({ name: element.name, nameIdx: element.nameIdx });
+      for (const [elementIndex, element] of sourceSlide.elements.entries()) {
         slide.addElement("source", sourceSlide.number, { name: element.name, nameIdx: element.nameIdx }, (shape: any) => {
+          const position = plan.positions[elementIndex];
+          modify.setPosition(position)(shape);
+          const identifier = shape.getElementsByTagNameNS(P, "cNvPr").item(0);
+          if (!identifier) throw new Error("A source object could not be checked for overlap.");
+          identifier.setAttribute("name", `${contentPrefix}-${index}-${elementIndex}`);
           // Give unfilled source text the template's contrast; filled boxes keep their own formatting.
           const properties = shape.getElementsByTagNameNS(P, "spPr").item(0);
           const hasFill = properties && (Array.from(properties.childNodes) as any[]).some(node => ["solidFill", "gradFill", "pattFill", "blipFill"].includes(node.localName));
-          if (!element.hasTextBody || hasFill) return;
+          if (!element.hasTextBody) return;
+          const body = shape.getElementsByTagNameNS(A, "bodyPr").item(0);
+          if (body) {
+            for (const child of Array.from(body.childNodes) as any[]) if (["spAutoFit", "noAutofit", "normAutofit"].includes(child.localName)) body.removeChild(child);
+            const fit = body.ownerDocument!.createElementNS(A, "a:normAutofit");
+            const before = (Array.from(body.childNodes) as any[]).find(child => ["scene3d", "sp3d", "flatTx", "extLst"].includes(child.localName));
+            if (before) body.insertBefore(fit, before); else body.appendChild(fit);
+          }
           for (const tag of ["rPr", "defRPr", "endParaRPr"]) {
             for (const run of Array.from(shape.getElementsByTagNameNS(A, tag)) as any[]) {
-              for (const child of Array.from(run.childNodes) as any[]) if (child.localName === "solidFill") run.removeChild(child);
+              const size = Number(run.getAttribute("sz"));
+              if (plan.scale < 1 && Number.isFinite(size) && size > 0) run.setAttribute("sz", String(Math.max(100, Math.round(size * plan.scale))));
+              if (hasFill) continue;
+              for (const child of Array.from(run.childNodes) as any[]) if (["noFill", "solidFill", "gradFill", "blipFill", "pattFill", "grpFill"].includes(child.localName)) run.removeChild(child);
               const fill = run.ownerDocument!.createElementNS(A, "a:solidFill"), color = run.ownerDocument!.createElementNS(A, "a:srgbClr");
-              color.setAttribute("val", textColor); fill.appendChild(color); run.appendChild(fill);
+              color.setAttribute("val", textColor); fill.appendChild(color);
+              const before = (Array.from(run.childNodes) as any[]).find(child => child.nodeType === 1 && child.localName !== "ln");
+              if (before) run.insertBefore(fill, before); else run.appendChild(fill);
             }
           }
         });
@@ -204,8 +302,10 @@ export async function restyleChatPresentation(sourceBytes: Buffer, templateBytes
   if (resultSlides.length !== slides.length) throw new Error("The transferred slide count could not be verified.");
   removeUnusedSlidesAndNotes(result, resultSlides);
   for (let index = 0; index < slides.length; index++) {
+    verifyContentPositions(result, resultSlides[index], `${contentPrefix}-${index}`, plans[index].positions, candidates.find(item => item.slideNumber === plans[index].slideNumber)!.obstacles);
     const expected = textCounts(sourceZip, `ppt/slides/slide${slides[index].number}.xml`), actual = textCounts(result, resultSlides[index]);
     if ([...expected].some(([value, count]) => (actual.get(value) ?? 0) < count)) throw new Error(`Some text on slide ${index + 1} could not be transferred safely.`);
+    if ([...actual].some(([value, count]) => (expected.get(value) ?? 0) < count)) throw new Error(`Some template sample text on slide ${index + 1} could not be removed safely.`);
     const chartNodes = xmlAt(result, resultSlides[index]).getElementsByTagNameNS(A, "graphicData");
     if (Array.from(chartNodes).filter(node => node.getAttribute("uri")?.endsWith("/chart")).length < sourceChartCounts[index]) throw new Error(`Some charts on slide ${index + 1} could not be transferred safely.`);
     verifyPartRelationships(result, resultSlides[index]);

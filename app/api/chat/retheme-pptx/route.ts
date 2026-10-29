@@ -47,10 +47,10 @@ export async function POST(request: Request) {
     try { savedOutput = await saveChatGeneratedPptx(admin, userId, source.metadata.id, name, result.data); }
     catch { return errorResponse("The presentation could not be saved. Please try again.", 503); }
     const note = result.containsNotesOrAnimations ? " Speaker notes, transitions, or animations were detected and are not transferred." : "";
-    return NextResponse.json({ message: `Applied the template to ${result.slideCount} slide${result.slideCount === 1 ? "" : "s"}. The editable presentation is saved in My files. Review every slide for overlap and styling.${note} This transfer did not use AI credits.`, savedOutput });
+    return NextResponse.json({ message: `Applied a clear template layout to ${result.slideCount} slide${result.slideCount === 1 ? "" : "s"} and checked the transferred object positions. The editable presentation is saved in My files. Review text, charts and styling in PowerPoint, since rendering can vary.${note} This transfer did not use AI credits.`, savedOutput });
   } catch (reason) {
     console.error("[chat:pptx-retheme] Transfer failed", reason instanceof Error ? reason.message : "unknown");
-    return errorResponse(reason instanceof Error && /^(Each PowerPoint|PowerPoint files|A required PowerPoint|The PowerPoint|The two presentations|Both presentations|Use presentations|Grouped objects|This presentation|A slide|Some text|Some charts|Some source images|A slide image|The resulting PowerPoint|The transferred slide)/.test(reason.message) ? reason.message : "Could not transfer this PowerPoint. Please simplify the presentations or try another template.", 422);
+    return errorResponse(reason instanceof Error && /^(Each PowerPoint|PowerPoint files|A required PowerPoint|The PowerPoint|The two presentations|Both presentations|Use presentations|Grouped objects|This presentation|A slide|A source object|Source slide|No template|The selected template|The result|Some text|Some template|Some charts|Some source images|A slide image|The resulting PowerPoint|The transferred slide)/.test(reason.message) ? reason.message : "Could not transfer this PowerPoint. Please simplify the presentations or try another template.", 422);
   } finally {
     activeUsers.delete(userId);
   }

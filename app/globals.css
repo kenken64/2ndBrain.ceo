@@ -6318,6 +6318,15 @@ svg {
 .workspace-chat__mode:disabled[aria-pressed="true"] { opacity: 1; }
 .workspace-chat__form.is-dragging { border-color: var(--brand-blue); background: #f3f8ff; }
 .workspace-chat__drop-hint { margin: 0 0 6px; color: #175285; font-size: 13px; font-weight: 700; }
+.workspace-chat__transfer { display: grid; gap: 9px; margin: 10px 0; padding: 12px; border: 1px solid #d4e5f5; border-radius: 10px; background: #f8fbff; color: #29445b; font-size: 12px; }
+.workspace-chat__transfer > p, .workspace-chat__transfer-roles p { margin: 0; line-height: 1.45; }
+.workspace-chat__transfer > button { justify-self: start; }
+.workspace-chat__transfer-roles { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+.workspace-chat__transfer-roles p { padding: 8px; border: 1px solid #dbe7f1; border-radius: 8px; background: #fff; overflow-wrap: anywhere; font-weight: 650; }
+.workspace-chat__transfer-roles span { display: block; margin-bottom: 3px; color: #6a8195; font-size: 10px; letter-spacing: .06em; }
+.workspace-chat__transfer-confirm { display: flex; align-items: center; gap: 8px; font-weight: 650; }
+.workspace-chat__transfer-confirm input { accent-color: #1769c2; }
+.workspace-chat__transfer-warning { color: #805819; font-weight: 650; }
 .workspace-chat__send.workspace-chat__send--label { width: auto; min-width: max-content; padding: 0 12px; font: inherit; font-size: 12px; font-weight: 700; white-space: nowrap; }
 .chat-batch-mapping { margin: 8px 0; padding: 12px; border: 1px solid #d4e5f5; border-radius: 10px; background: #f8fbff; font-size: 12px; }
 .chat-batch-mapping__header { display: flex; align-items: flex-start; justify-content: space-between; gap: 8px; }
@@ -6353,6 +6362,7 @@ svg {
   .workspace-chat__mode-label { display: none; }
   .workspace-chat__mode { padding-inline: 8px; }
   .workspace-chat__attachment-actions, .workspace-chat__submit-actions { flex: 1 1 auto; }
+  .workspace-chat__transfer-roles { grid-template-columns: 1fr; }
 }
 
 .workspace-chat__layout { display: grid; grid-template-columns: minmax(190px, 240px) minmax(0, 1fr); gap: 18px; align-items: start; }

@@ -52,6 +52,7 @@ export function WorkspaceChat({ userId, configured, initialChatId }: { userId: s
   const [videoJobs, setVideoJobs] = useState<Array<{ id: string; status: string; output_file_id: string | null }>>([]);
   const [videoRefresh, setVideoRefresh] = useState(0);
   const [files, setFiles] = useState<SavedChatFile[]>([]);
+  const [confirmedPowerPointRoles, setConfirmedPowerPointRoles] = useState("");
   const [followUpFile, setFollowUpFile] = useState<{ id: string; name: string } | null>(null);
   const [batchReview, setBatchReview] = useState<{ fileKey: string; data: BatchReview } | null>(null);
   const [batchProgress, setBatchProgress] = useState<BatchProgress | null>(null);
@@ -131,6 +132,7 @@ export function WorkspaceChat({ userId, configured, initialChatId }: { userId: s
     setChats([]);
     setPrompt("");
     setFiles([]);
+    setConfirmedPowerPointRoles("");
     setFollowUpFile(null);
     setBatchReview(null);
     setBatchProgress(null);
@@ -236,6 +238,7 @@ export function WorkspaceChat({ userId, configured, initialChatId }: { userId: s
       setShowJumpToLatest(false);
       setChat(selected);
       setFiles([]);
+      setConfirmedPowerPointRoles("");
       setFollowUpFile(null);
       setBatchReview(null);
       setBatchProgress(null);
@@ -256,6 +259,7 @@ export function WorkspaceChat({ userId, configured, initialChatId }: { userId: s
     const review = batchReview?.fileKey === fileKey ? batchReview.data : null;
     const value = isPowerPointTransfer ? "Apply the second PowerPoint's design to the first presentation." : batch ? "Fill the document template for each spreadsheet record." : prompt.trim() || (files.length === 2 ? "Fill the document template for each spreadsheet record." : (files[0] || followUpFile) ? `Extract and review ${(files[0] || followUpFile)!.name}` : "");
     if (!chat || !configured || busyRef.current || selecting || cacheState === "loading" || uploading || !value) return;
+    if (isPowerPointTransfer && confirmedPowerPointRoles !== fileKey) { setError("Confirm which presentation contains the content and which is the design template."); return; }
     if (value.length > CHAT_MAX_MESSAGE_CHARS) { setError(`Messages can contain up to ${CHAT_MAX_MESSAGE_CHARS.toLocaleString()} characters.`); return; }
     if (batch && !review) {
       busyRef.current = true; setBusy(true); setError(""); setNotice(""); setBatchProgress(null);
@@ -314,6 +318,7 @@ export function WorkspaceChat({ userId, configured, initialChatId }: { userId: s
         if (generationMode === "video") setVideoRefresh(current => current + 1);
         const missingOcr = !batch && file && !artifact && /\.(pdf|png|jpe?g|webp)$/i.test(file.name);
         setFiles([]);
+        setConfirmedPowerPointRoles("");
         setFollowUpFile(null);
         setBatchReview(null);
         if (fileInputRef.current) fileInputRef.current.value = "";
@@ -358,6 +363,7 @@ export function WorkspaceChat({ userId, configured, initialChatId }: { userId: s
     setShowJumpToLatest(false);
     setChat(draft);
     setFiles([]);
+    setConfirmedPowerPointRoles("");
     setFollowUpFile(null);
     setBatchReview(null);
     setBatchProgress(null);
@@ -453,7 +459,7 @@ export function WorkspaceChat({ userId, configured, initialChatId }: { userId: s
     if (files.length >= 2 || !isBatchPair([...files.map(item => item.name), selected.name])) { setError("Choose two PowerPoint files, or one document template and one spreadsheet."); return; }
     if (selected.origin === "output" && files.some(item => /\.(xlsx|csv)$/i.test(item.name))) { setError("Use an uploaded template with a spreadsheet. Generated PowerPoints can be used with another PowerPoint."); return; }
     if (/\.(xlsx|csv)$/i.test(selected.name) && files.some(item => item.origin === "output")) { setError("Use an uploaded template with a spreadsheet. Generated PowerPoints can be used with another PowerPoint."); return; }
-    setBatchProgress(null);
+    setBatchProgress(null); setConfirmedPowerPointRoles("");
     showAttachedFile(selected, files.length === 0);
     setFiles(current => [...current, selected]); setError("");
   }
@@ -463,7 +469,7 @@ export function WorkspaceChat({ userId, configured, initialChatId }: { userId: s
     if (files.length + selected.length > 2 || !isBatchPair([...files.map(item => item.name), ...selected.map(item => item.name)])) { setError("Choose two PowerPoint files, or one document template and one spreadsheet."); if (fileInputRef.current) fileInputRef.current.value = ""; return; }
     if (files.some(item => item.origin === "output") && selected.some(item => /\.(xlsx|csv)$/i.test(item.name))) { setError("Use an uploaded template with a spreadsheet. Generated PowerPoints can be used with another PowerPoint."); if (fileInputRef.current) fileInputRef.current.value = ""; return; }
     if (selected.some(item => item.size === 0 || item.size > CHAT_FILE_MAX_BYTES)) { setError("Choose files between 1 byte and 20 MB each."); if (fileInputRef.current) fileInputRef.current.value = ""; return; }
-    setUploading(true); setError(""); setBatchProgress(null);
+    setUploading(true); setError(""); setBatchProgress(null); setConfirmedPowerPointRoles("");
     try {
       for (const [index, item] of selected.entries()) {
         const response = await fetch(`/api/chat/files?${new URLSearchParams({ name: item.name })}`, { method: "POST", headers: { "Content-Type": "application/octet-stream" }, body: item });
@@ -481,8 +487,11 @@ export function WorkspaceChat({ userId, configured, initialChatId }: { userId: s
   const showArtifact = !!activeArtifact && (panelSelection === "artifact" || !selectedPanelFile);
   const hasPanelContent = panelFiles.length > 0 || !!activeArtifact;
   const isBatchFiles = files.length === 2 && !files.every(item => /\.pptx$/i.test(item.name));
+  const isPowerPointTransfer = files.length === 2 && files.every(item => /\.pptx$/i.test(item.name));
+  const powerPointFileKey = files.map(item => item.id).join(":");
   const visibleReview = batchReview?.fileKey === files.map(item => item.id).join(":") ? batchReview.data : null;
   function removeAttachment(id: string) {
+    setConfirmedPowerPointRoles("");
     setFiles(current => current.filter(item => item.id !== id));
     setPanelFiles(current => current.filter(item => item.id !== id));
     if (panelSelection === id) setPanelSelection(panelFiles.find(item => item.id !== id)?.id ?? (activeArtifact ? "artifact" : ""));
@@ -535,7 +544,7 @@ export function WorkspaceChat({ userId, configured, initialChatId }: { userId: s
             {followUpFile ? <div className="workspace-chat__file"><span>Follow-up: {followUpFile.name} · processed again with Gemini (AI charges apply){/\.pptx$/i.test(followUpFile.name) ? " · slide text only" : ""}</span><button type="button" aria-label={`Remove follow-up ${followUpFile.name}`} disabled={busy} onClick={() => setFollowUpFile(null)}><X size={16} /></button></div> : null}
             {visibleReview && isBatchFiles ? <ChatBatchMapping review={visibleReview} disabled={busy} onChange={mappings => setBatchReview(current => current ? { ...current, data: { ...current.data, mappings } } : null)} onCancel={() => setBatchReview(null)} /> : null}
             {batchProgress ? <div className="chat-batch-progress" role="status"><strong>Batch: {batchProgress.processed} of {batchProgress.total} processed</strong><progress value={batchProgress.processed} max={batchProgress.total || 1} /><span>{batchProgress.succeeded} succeeded · {batchProgress.failed.length} need attention</span></div> : null}
-            {files.length === 2 && files.every(item => /\.pptx$/i.test(item.name)) ? <div className="workspace-chat__notice"><strong>PowerPoint transfer</strong><p>Content: {files[0].name}<br />Template: {files[1].name}</p><button type="button" className="btn-ghost btn-ghost--compact" disabled={busy} onClick={() => setFiles(current => [...current].reverse())}>Swap content and template</button><p>Review the finished slides for overlapping elements. Transfer does not use AI credits.</p></div> : files.length === 2 ? <p className="workspace-chat__notice">Batch document mode: one {files.some(item => /\.pptx$/i.test(item.name)) ? "PPTX" : files.some(item => /\.docx$/i.test(item.name)) ? "DOCX" : "PDF"} will be created per spreadsheet row. {files.some(item => /\.(docx|pptx)$/i.test(item.name)) ? "Use placeholders such as {{Name}} in the template. " : ""}Review the field mapping and generated files.</p> : null}
+            {isPowerPointTransfer ? <div className="workspace-chat__transfer"><strong>Choose what each PowerPoint does</strong><div className="workspace-chat__transfer-roles"><p><span>CONTENT TO COPY</span>{files[0].name}</p><p><span>NEW DESIGN TEMPLATE</span>{files[1].name}</p></div><button type="button" className="btn-ghost btn-ghost--compact" disabled={busy} onClick={() => { setFiles(current => [...current].reverse()); setConfirmedPowerPointRoles(""); }}>Swap content and template</button>{/template/i.test(files[0].name) && /content/i.test(files[1].name) ? <p className="workspace-chat__transfer-warning">The filenames suggest the content and template may be reversed. Check the roles above.</p> : null}<label className="workspace-chat__transfer-confirm"><input type="checkbox" disabled={busy} checked={confirmedPowerPointRoles === powerPointFileKey} onChange={event => setConfirmedPowerPointRoles(event.target.checked ? powerPointFileKey : "")} /> I confirmed the content and template roles.</label><p>The transfer checks object positions and uses no AI credits. Complex or already-overlapping slides may require editing first.</p></div> : files.length === 2 ? <p className="workspace-chat__notice">Batch document mode: one {files.some(item => /\.pptx$/i.test(item.name)) ? "PPTX" : files.some(item => /\.docx$/i.test(item.name)) ? "DOCX" : "PDF"} will be created per spreadsheet row. {files.some(item => /\.(docx|pptx)$/i.test(item.name)) ? "Use placeholders such as {{Name}} in the template. " : ""}Review the field mapping and generated files.</p> : null}
             {generationMode === "image" ? <p className="workspace-chat__notice">Generate one image with Seedream 4.5. {imageEstimate ? `Current reservation: ${imageEstimate.credits.toLocaleString()} credits (estimated provider cost $${imageEstimate.estimatedUsd.toFixed(4)}). ` : imageEstimateError ? "Pricing is temporarily unavailable. " : "Checking current pricing… "}The final provider cost is recorded in AI Credits Usage.</p> : null}
             {generationMode === "video" ? <p className="workspace-chat__notice">Generate a 3-second, 480p video with Grok Imagine Video 1.5 Lite. {videoEstimate ? `Current reservation: ${videoEstimate.credits.toLocaleString()} credits (estimated provider cost $${videoEstimate.estimatedUsd.toFixed(4)}). ` : "Pricing is unavailable or still loading. "}Final usage is recorded in AI Credits Usage.</p> : null}
             {generationMode === "pptx" ? <p className="workspace-chat__notice">Create an editable PowerPoint from your prompt with Gemini 2.5 Flash. AI usage is recorded in AI Credits Usage; review the slides and their facts before sharing.</p> : null}
@@ -548,7 +557,7 @@ export function WorkspaceChat({ userId, configured, initialChatId }: { userId: s
               </div>
               <div className="workspace-chat__submit-actions">
                 {generationMode === "chat" && files.length !== 2 ? <label className="workspace-chat__model-control"><span>Model</span><select aria-label="AI model" className="workspace-chat__model-select" disabled={busy || selecting || uploading || files.length > 0 || !!followUpFile || !chat} id="workspace-chat-model" onChange={(event) => { if (chat && isChatModel(event.target.value)) setChat({ ...chat, model: event.target.value }); }} value={files.length || followUpFile || uploading ? FILE_CHAT_MODEL : chat?.model ?? CHAT_MODELS[0].id}>{CHAT_MODELS.map((item) => <option key={item.id} value={item.id}>{item.label}</option>)}</select></label> : null}
-                <button aria-label={isBatchFiles ? (visibleReview ? "Generate documents" : "Review fields") : "Send message"} className="workspace-chat__send workspace-chat__send--action" disabled={!configured || busy || selecting || uploading || cacheState === "loading" || (!prompt.trim() && !files.length && !followUpFile) || (!!visibleReview && visibleReview.mappings.some(item => !item.column))} type="submit">{isBatchFiles ? (visibleReview ? "Generate documents" : "Review fields") : generationMode === "image" ? "Create image" : generationMode === "video" ? "Create video" : generationMode === "pptx" ? "Create slides" : <>Send <ArrowUp size={15} strokeWidth={2.4} aria-hidden="true" /></>}</button>
+                <button aria-label={isPowerPointTransfer ? "Apply PowerPoint template" : isBatchFiles ? (visibleReview ? "Generate documents" : "Review fields") : "Send message"} className="workspace-chat__send workspace-chat__send--action" disabled={!configured || busy || selecting || uploading || cacheState === "loading" || (!prompt.trim() && !files.length && !followUpFile) || (isPowerPointTransfer && confirmedPowerPointRoles !== powerPointFileKey) || (!!visibleReview && visibleReview.mappings.some(item => !item.column))} type="submit">{isPowerPointTransfer ? "Apply template" : isBatchFiles ? (visibleReview ? "Generate documents" : "Review fields") : generationMode === "image" ? "Create image" : generationMode === "video" ? "Create video" : generationMode === "pptx" ? "Create slides" : <>Send <ArrowUp size={15} strokeWidth={2.4} aria-hidden="true" /></>}</button>
               </div>
             </div>
           </form>

@@ -91,9 +91,9 @@ Expected: An editable presentation with a cover and concise content slides, save
 
 ## Test 10: Apply a new PowerPoint design
 
-Attach [source-content.pptx](test-10/source-content.pptx) first and [design-template.pptx](test-10/design-template.pptx) second. The chat will label them **Content** and **Template**; use **Swap content and template** if necessary. Send the request with the arrow button; no prompt is needed and this transfer uses no AI credits.
+Attach [source-content.pptx](test-10/source-content.pptx) first and [design-template.pptx](test-10/design-template.pptx) second. Check the **Content to copy** and **New design template** labels, use **Swap content and template** if necessary, then confirm the roles and select **Apply template**. No prompt is needed and this transfer uses no AI credits.
 
-Expected: One editable presentation saved in My files, with the AICUBER template design and the source slide's “Sales and receipt” title, receipt image, and bar chart (A = 20, B = 35). Download and open it in PowerPoint to check that the image and chart are present and the chart data remains editable. The chart overlays the template watermark, illustrating why every result needs a layout review. Source object positions are retained; speaker notes, animations and transitions are not transferred.
+Expected: One editable presentation saved in My files, with the AICUBER logo and the source slide's “Sales and receipt” title, receipt image, and bar chart (A = 20, B = 35). The title, receipt, chart and template logo should be separate. Download and open it in PowerPoint to check that the chart data remains editable. The transfer chooses a clear template layout and scales or repositions source objects together; speaker notes, animations and transitions are not transferred.
 
 ## Test 11: Mapping review, batch results and file reuse
 
@@ -119,3 +119,11 @@ Image and video generation use AI credits. Review the displayed estimate and AI 
 The [prompt](test-13/prompt.txt) is the five-slide customer support pilot example from Test 9. [sample-slide-content.json](test-13/sample-slide-content.json) is a fictional, offline AI-response fixture with extra and long bullets.
 
 Run `node --test tests/chat-pptx.test.cjs tests/chat-pptx-recovery.test.cjs tests/chat-api.test.cjs`. The tests render the fixture into an editable PowerPoint, continue the extra content onto another slide, and simulate a storage failure and a no-charge save retry. They do not call OpenRouter or charge AI credits. If you run the prompt manually in chat, the AI request is billable.
+
+## Test 14: Prevent overlapping PowerPoint objects
+
+Attach [overlapping-source.pptx](test-14/overlapping-source.pptx) as **Content to copy** and [design-template.pptx](test-10/design-template.pptx) as **New design template**. Confirm the roles and select **Apply template**.
+
+Expected: The app reports that source objects overlap or are too close and does not save a misleading result. The image was deliberately positioned over the title for this test. Repeat with [source-content.pptx](test-10/source-content.pptx) to verify the clean transfer in Test 10. Reversing the two roles and attempting to proceed should also be rejected when the template cannot be checked safely. Neither transfer uses AI credits.
+
+For comparison, [expected-restyled.pptx](test-14/expected-restyled.pptx) is the result of the corrected Test 10 transfer. Check that its title, receipt, chart and AICUBER logo do not overlap; the chart remains editable.
