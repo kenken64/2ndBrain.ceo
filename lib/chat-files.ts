@@ -12,9 +12,13 @@ async function saveFile(admin: Admin, userId: string, file: { name: string; data
   const path = `${userId}/${id}`;
   const bucket = admin.storage.from(BUCKET);
   const uploaded = await bucket.upload(path, file.data, { contentType: file.mime, upsert: false });
-  if (uploaded.error) throw new Error("File storage is unavailable. Please try again.");
+  if (uploaded.error) {
+    console.error("[chat-files] Storage upload failed", { status: uploaded.error.statusCode ?? null, errorType: uploaded.error.name });
+    throw new Error("File storage is unavailable. Please try again.");
+  }
   const { data, error } = await admin.from("chat_files").insert({ id, user_id: userId, file_name: file.name, object_path: path, mime_type: file.mime, size_bytes: file.data.length, file_origin: origin, source_file_id: sourceId }).select("id,user_id,file_name,object_path,mime_type,size_bytes,created_at,file_origin,source_file_id").single();
   if (error || !data) {
+    console.error("[chat-files] Metadata insert failed", { code: error?.code ?? null });
     const cleanup = await bucket.remove([path]);
     if (cleanup.error) console.error("[chat-files] Failed to clean up unregistered upload", id);
     throw new Error("File could not be saved. Please try again.");

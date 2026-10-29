@@ -251,11 +251,22 @@ export async function POST(request: Request) {
     if (!settled) console.error("[chat] Could not mark PDF usage as uncertain", { requestId, providerId });
     if (!text.trim()) return userError(`The model returned an empty response. ${Number(settled?.charged_credits ?? 0).toLocaleString("en")} AI credits were used.`, 502);
     if (presentation) {
+      let bytes: Buffer;
       try {
-        const bytes = await renderChatPresentation(JSON.parse(text));
+        bytes = await renderChatPresentation(JSON.parse(text));
+      } catch (error) {
+        console.error("[chat:pptx] Could not render AI response", { requestId, errorType: error instanceof Error ? error.name : "unknown" });
+        const returned = text.slice(0, 23_000);
+        return NextResponse.json({ message: `The AI request was billed, but the returned content could not be converted into a PowerPoint. No additional AI request was made. The returned content is below so you can copy it.${text.length > returned.length ? " The content was truncated for display." : ""}\n\n${returned}`, model, chargedCredits: Number(settled?.charged_credits ?? 0), availableCredits: Math.max(0, Number(settled?.llm_token_quota ?? 0) - Number(settled?.llm_token_used ?? 0)), quotaExempt: isAdmin }, { headers: { "Cache-Control": "private, no-store" } });
+      }
+      try {
         const output = await saveChatGeneratedPptx(admin, userId, null, "presentation.pptx", bytes);
-        return NextResponse.json({ message: "Your PowerPoint presentation is ready. Download it from the chat or My files.", model, savedOutput: output, chargedCredits: Number(settled?.charged_credits ?? 0), availableCredits: Math.max(0, Number(settled?.llm_token_quota ?? 0) - Number(settled?.llm_token_used ?? 0)), quotaExempt: isAdmin });
-      } catch { return userError("The AI request was billed, but the presentation could not be created or saved. Check AI Credits Usage before retrying.", 422); }
+        return NextResponse.json({ message: "Your PowerPoint presentation is ready. Longer content may continue onto additional slides; review it in the chat or download it from My files.", model, savedOutput: output, chargedCredits: Number(settled?.charged_credits ?? 0), availableCredits: Math.max(0, Number(settled?.llm_token_quota ?? 0) - Number(settled?.llm_token_used ?? 0)), quotaExempt: isAdmin });
+      } catch (error) {
+        console.error("[chat:pptx] Could not save presentation", { requestId, errorType: error instanceof Error ? error.name : "unknown" });
+        if (bytes.length <= 5 * 1024 * 1024) return NextResponse.json({ message: "Your presentation was created, but could not be saved to My files. Download it or retry saving below without another AI charge. The download is available only until you leave or refresh this page.", model, recoveryPptx: bytes.toString("base64"), chargedCredits: Number(settled?.charged_credits ?? 0), availableCredits: Math.max(0, Number(settled?.llm_token_quota ?? 0) - Number(settled?.llm_token_used ?? 0)), quotaExempt: isAdmin }, { headers: { "Cache-Control": "private, no-store" } });
+        return NextResponse.json({ message: `The AI request was billed, but the presentation could not be saved and is too large for a recovery download. No additional AI request was made. The returned content is below so you can copy it.\n\n${text.slice(0, 23_000)}`, model, chargedCredits: Number(settled?.charged_credits ?? 0), availableCredits: Math.max(0, Number(settled?.llm_token_quota ?? 0) - Number(settled?.llm_token_used ?? 0)), quotaExempt: isAdmin }, { headers: { "Cache-Control": "private, no-store" } });
+      }
     }
     const annotations = result.choices?.[0]?.message?.annotations ?? [];
     let answer = text;

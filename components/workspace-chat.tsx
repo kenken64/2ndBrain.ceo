@@ -16,6 +16,7 @@ import type { ChatConversation, ChatSummary, HistoryMessage, FileArtifact } from
 
 type HistoryApi = typeof import("@/lib/chat-history");
 type CacheState = "loading" | "ready" | "unavailable";
+type PresentationRecovery = { id: string; chatId: string; data: Blob };
 // The sidebar lists only the most recent chats; /dashboard/chat/history pages through the rest.
 const SIDEBAR_HISTORY_LIMIT = 10;
 
@@ -56,6 +57,8 @@ export function WorkspaceChat({ userId, configured, initialChatId }: { userId: s
   const [batchProgress, setBatchProgress] = useState<BatchProgress | null>(null);
   const [dragActive, setDragActive] = useState(false);
   const [downloading, setDownloading] = useState(false);
+  const [presentationRecoveries, setPresentationRecoveries] = useState<PresentationRecovery[]>([]);
+  const [savingRecovery, setSavingRecovery] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
   const [panelOpen, setPanelOpen] = useState(true);
   const [panelFiles, setPanelFiles] = useState<Array<{ id: string; name: string }>>([]);
@@ -131,6 +134,7 @@ export function WorkspaceChat({ userId, configured, initialChatId }: { userId: s
     setFollowUpFile(null);
     setBatchReview(null);
     setBatchProgress(null);
+    setPresentationRecoveries([]);
     setPanelFiles([]);
     setPanelSelection("");
     setCacheState("loading");
@@ -280,7 +284,7 @@ export function WorkspaceChat({ userId, configured, initialChatId }: { userId: s
       try {
         const fileContext = !file && priorArtifact ? `${priorArtifact.content.length > 6000 ? "PARTIAL EXCERPT: remaining file data is not included. Do not infer statistics for the complete file.\n" : ""}${priorArtifact.content.slice(0, 6000)}` : undefined;
         const response = await fetch(generationMode === "image" ? "/api/chat/generate-image" : generationMode === "video" ? "/api/chat/generate-video" : isPowerPointTransfer ? "/api/chat/retheme-pptx" : batch ? "/api/chat/batch-review" : "/api/chat", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(generationMode === "image" || generationMode === "video" ? { prompt: value } : isPowerPointTransfer ? { sourceId: files[0].id, templateId: files[1].id } : batch ? { action: "run", mappings: review!.mappings, fileIds: files.map(item => item.id) } : { model, messages: historyForRequest(pending.messages), ...(generationMode === "pptx" ? { outputFormat: "pptx" } : { fileId: file?.id, fileContext }) }) });
-        let payload: { message?: unknown; error?: unknown; model?: unknown; ocr?: { name?: unknown; markdown?: unknown; truncated?: unknown } | null; spreadsheet?: unknown; savedOutput?: { id?: unknown; name?: unknown }; savedOutputs?: Array<{ id?: unknown; name?: unknown }>; batchSaveIncomplete?: boolean; outputSaveFailed?: boolean; usagePending?: boolean; chargedCredits?: unknown; availableCredits?: unknown; quotaExempt?: unknown } | null;
+        let payload: { message?: unknown; error?: unknown; model?: unknown; recoveryPptx?: unknown; ocr?: { name?: unknown; markdown?: unknown; truncated?: unknown } | null; spreadsheet?: unknown; savedOutput?: { id?: unknown; name?: unknown }; savedOutputs?: Array<{ id?: unknown; name?: unknown }>; batchSaveIncomplete?: boolean; outputSaveFailed?: boolean; usagePending?: boolean; chargedCredits?: unknown; availableCredits?: unknown; quotaExempt?: unknown } | null;
         if (batch) {
           const result = await readBatchProgress(response, setBatchProgress);
           const mapping = review!.mappings.map(item => `- ${item.field.slice(0, 100)} ← ${item.column?.slice(0, 100)}`).join("\n");
@@ -289,6 +293,12 @@ export function WorkspaceChat({ userId, configured, initialChatId }: { userId: s
         } else payload = await response.json().catch(() => null);
         if (!response.ok || typeof payload?.message !== "string") throw new Error(typeof payload?.error === "string" ? payload.error : "Unable to get a response. Please try again.");
         const responseModel = isChatModel(payload.model) ? payload.model : model;
+        if (typeof payload.recoveryPptx === "string" && payload.recoveryPptx.length <= Math.ceil(5 * 1024 * 1024 / 3) * 4 + 4) {
+          try {
+            const binary = atob(payload.recoveryPptx), bytes = Uint8Array.from(binary, char => char.charCodeAt(0));
+            setPresentationRecoveries(current => [...current, { id: globalThis.crypto?.randomUUID?.() ?? `${Date.now()}-${Math.random().toString(36).slice(2)}`, chatId: chat.id, data: new Blob([bytes], { type: "application/vnd.openxmlformats-officedocument.presentationml.presentation" }) }]);
+          } catch { setError("The recovery download could not be prepared. Check AI Credits Usage before trying again."); }
+        }
         let artifact: FileArtifact | undefined;
         if (file && payload.ocr && typeof payload.ocr.markdown === "string") artifact = { name: file.name, kind: "ocr", content: payload.ocr.markdown, truncated: payload.ocr.truncated === true };
         else if (file && typeof payload.spreadsheet === "string") artifact = { name: file.name, kind: "spreadsheet", content: payload.spreadsheet };
@@ -393,6 +403,33 @@ export function WorkspaceChat({ userId, configured, initialChatId }: { userId: s
     setPanelSelection(file.id);
     setPanelOpen(true);
   }
+  function downloadPresentationRecovery(recovery: PresentationRecovery) {
+    const url = URL.createObjectURL(recovery.data), link = document.createElement("a");
+    link.href = url; link.download = "presentation.pptx"; link.click();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+  }
+  async function savePresentationRecovery(recovery: PresentationRecovery) {
+    if (!chat || chat.id !== recovery.chatId || busyRef.current || selecting || uploading) return;
+    busyRef.current = true; setBusy(true); setSavingRecovery(recovery.id); setError("");
+    let saved = false;
+    try {
+      const work = async () => {
+        const response = await fetch("/api/chat/recover-pptx", { method: "POST", headers: { "Content-Type": "application/octet-stream" }, body: recovery.data });
+        const payload = await response.json().catch(() => null) as { file?: { id?: unknown; name?: unknown }; error?: string } | null;
+        if (!response.ok || typeof payload?.file?.id !== "string" || typeof payload.file.name !== "string") throw new Error(payload?.error || "Could not confirm the save. Check My files before retrying.");
+        const file = { id: payload.file.id, name: payload.file.name };
+        saved = true;
+        setPresentationRecoveries(current => current.filter(item => item.id !== recovery.id));
+        setNotice("Presentation saved to My files. No additional AI credits were used.");
+        showFileInPanel(file);
+        await persist({ ...chat, messages: [...chat.messages, { role: "assistant", content: "Your recovered PowerPoint presentation is saved in My files.", fileRef: file }] });
+      };
+      if (navigator.locks) await navigator.locks.request(`ai-cuber-chat-send:${userId}:${chat.id}`, { ifAvailable: true }, async lock => { if (!lock) throw new Error("This chat is already being used in another tab."); await work(); });
+      else await work();
+    } catch (reason) {
+      setError(saved ? "The file was saved in My files, but the chat could not be updated." : reason instanceof Error ? reason.message : "The presentation could not be saved. Check My files before retrying.");
+    } finally { busyRef.current = false; setBusy(false); setSavingRecovery(null); }
+  }
   function askAboutFile(file: { id: string; name: string }) {
     if (busy || uploading || selecting || files.length) { setError("Finish or remove the current attachments before choosing a file for a follow-up."); return; }
     setFollowUpFile(file); setGenerationMode("chat"); setError("");
@@ -478,6 +515,7 @@ export function WorkspaceChat({ userId, configured, initialChatId }: { userId: s
             <div aria-label="Conversation" aria-live="polite" className="workspace-chat__thread" onScroll={handleThreadScroll} ref={threadRef} role="log">
               {!chat?.messages.length ? <div className="workspace-chat__empty"><span><Bot size={26} /></span><h2>What would you like to work on?</h2><p>Ask a question, explore an idea, or get help with a task.</p></div> : null}
               {chat?.messages.map((message, index) => <article className={`workspace-chat__message workspace-chat__message--${message.role}`} key={`${index}-${message.role}`}><p className="workspace-chat__sender">{message.role === "user" ? "You" : CHAT_MODELS.find((item) => item.id === message.model)?.label ?? "AI"}</p><div className="workspace-chat__content"><ReactMarkdown remarkPlugins={[remarkGfm]} rehypePlugins={[rehypeHighlight]} components={{ table: ({ children, ...props }) => <div className="workspace-chat__table-wrap"><table {...props}>{children}</table></div> }}>{message.content}</ReactMarkdown>{[...(message.fileRef ? [message.fileRef] : []), ...(message.fileRefs ?? [])].map(reference => <div key={reference.id}>{message.role === "assistant" && /^generated-image-[0-9a-f]+\.(png|jpg|webp)$/i.test(reference.name) ? <img className="workspace-chat__generated-image" src={`/api/chat/files/${encodeURIComponent(reference.id)}/preview?inline=1`} alt="AI-generated image" /> : null}<div className="workspace-chat__file-card"><FileText size={17} aria-hidden="true" /><button type="button" className="workspace-chat__file-name" onClick={() => showFileInPanel(reference)}>{reference.name}</button><button type="button" className="chat-file-icon" aria-label={`Preview ${reference.name}`} title="Preview" onClick={() => showFileInPanel(reference)}><Eye size={17} /></button><a className="chat-file-icon" aria-label={`Download ${reference.name}`} title="Download" href={`/api/chat/files/${encodeURIComponent(reference.id)}`}><Download size={17} /></a>{/\.(pdf|docx|pptx|png|jpe?g|webp|xlsx|csv)$/i.test(reference.name) ? <button type="button" className="workspace-chat__ask-file" disabled={busy || uploading || selecting} onClick={() => askAboutFile(reference)} aria-label={`Ask about ${reference.name}`}>Ask about</button> : null}</div></div>)}{message.role === "assistant" && message.fileRefs && message.fileRefs.length > 1 ? <button type="button" className="btn-ghost btn-ghost--compact workspace-chat__download-all" disabled={downloading} onClick={() => void downloadBatch(message.fileRefs!.map(item => item.id))}>{downloading ? "Preparing ZIP…" : "Download all as ZIP"}</button> : null}</div></article>)}
+              {presentationRecoveries.filter(item => item.chatId === chat?.id).map(item => <article className="workspace-chat__message workspace-chat__message--assistant workspace-chat__recovery" key={item.id}><strong>Presentation ready for recovery</strong><p>Download it now or retry saving to My files. This copy is available only until you leave or refresh the page.</p><div className="workspace-chat__recovery-actions"><button className="btn-ghost btn-ghost--compact" type="button" onClick={() => downloadPresentationRecovery(item)}><Download size={15} /> Download PowerPoint</button><button className="btn-ghost btn-ghost--compact" type="button" disabled={busy || selecting || uploading} onClick={() => void savePresentationRecovery(item)}>{savingRecovery === item.id ? "Saving…" : "Retry saving"}</button></div></article>)}
               {busy ? <p className="workspace-chat__thinking" role="status">Thinking…</p> : null}
             </div>
             {showJumpToLatest && chat?.messages.length ? <button aria-label="Jump to latest message" className="workspace-chat__jump-latest" onClick={() => threadRef.current?.scrollTo({ top: threadRef.current.scrollHeight, behavior: "smooth" })} title="Jump to latest message" type="button"><ArrowDown size={18} /></button> : null}

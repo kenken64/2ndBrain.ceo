@@ -1,0 +1,39 @@
+{
+  "title": "Customer support response-time pilot",
+  "slides": [
+    {
+      "title": "Pilot goal",
+      "bullets": [
+        "Reduce average first response time while preserving accurate, helpful answers.",
+        "Track response time and customer satisfaction each week.",
+        "Use the first week as the baseline for comparison.",
+        "Make responsibilities clear for each member of the pilot team.",
+        "Hold a weekly review and document decisions.",
+        "If demand grows beyond the team’s planned capacity, the pilot lead should review the backlog, identify which requests need urgent attention, communicate delays clearly, and adjust coverage using the agreed escalation process."
+      ]
+    },
+    {
+      "title": "Four-week timeline",
+      "bullets": [
+        "Week 1: establish baseline and prepare the team.",
+        "Weeks 2–3: run the pilot and monitor results.",
+        "Week 4: review findings and recommend next steps."
+      ]
+    },
+    {
+      "title": "Team responsibilities",
+      "bullets": [
+        "Pilot lead coordinates the work.",
+        "Support agents respond and flag issues.",
+        "An analyst reports weekly measures."
+      ]
+    },
+    {
+      "title": "Risks and review",
+      "bullets": [
+        "Limited coverage could increase waiting times.",
+        "Review results before deciding whether to expand."
+      ]
+    }
+  ]
+}

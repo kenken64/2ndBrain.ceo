@@ -113,3 +113,9 @@ Files: [attendees-mapping.csv](test-11/attendees-mapping.csv), [registration-for
 3. Select **Chat** to return to ordinary questions. Attach a file and confirm the mode buttons cannot be changed until the attachment is removed.
 
 Image and video generation use AI credits. Review the displayed estimate and AI Credits Usage; provider availability and final costs can vary.
+
+## Test 13: PowerPoint generation and recovery
+
+The [prompt](test-13/prompt.txt) is the five-slide customer support pilot example from Test 9. [sample-slide-content.json](test-13/sample-slide-content.json) is a fictional, offline AI-response fixture with extra and long bullets.
+
+Run `node --test tests/chat-pptx.test.cjs tests/chat-pptx-recovery.test.cjs tests/chat-api.test.cjs`. The tests render the fixture into an editable PowerPoint, continue the extra content onto another slide, and simulate a storage failure and a no-charge save retry. They do not call OpenRouter or charge AI credits. If you run the prompt manually in chat, the AI request is billable.

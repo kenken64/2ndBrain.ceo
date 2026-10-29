@@ -6284,6 +6284,10 @@ svg {
 .workspace-chat__message { max-width: min(84%, 740px); min-width: 0; border: 1px solid var(--border-soft); border-radius: 16px; background: #fff; padding: 13px 16px; }
 .workspace-chat__message--user { align-self: flex-end; background: #eaf1ff; border-color: rgba(18,99,232,0.14); }
 .workspace-chat__message--assistant { align-self: flex-start; }
+.workspace-chat__recovery { border-color: #e5c887; background: #fffbef; color: #604b1f; font-size: 13px; }
+.workspace-chat__recovery p { margin: 6px 0 10px; line-height: 1.5; }
+.workspace-chat__recovery-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.workspace-chat__recovery-actions button { display: inline-flex; align-items: center; gap: 6px; }
 .workspace-chat__sender { margin: 0 0 6px; color: var(--brand-blue-deep); font-size: 12px; font-weight: 800; }
 .workspace-chat__content { white-space: normal; overflow-wrap: anywhere; font-size: 15px; line-height: 1.65; }
 .workspace-chat__content > :first-child { margin-top: 0; }

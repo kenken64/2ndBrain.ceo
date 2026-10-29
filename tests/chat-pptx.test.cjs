@@ -41,8 +41,12 @@ test('prompt presentation renderer creates editable slides and rejects unsafe or
   const zip=new PizZip(output); assert.ok(zip.file('ppt/presentation.xml'));
   const text=await attachments.presentationText({name:'presentation.pptx',type:'presentation',mime:'application/vnd.openxmlformats-officedocument.presentationml.presentation',data:output});
   assert.match(text,/Support plan/); assert.match(text,/Respond within eight hours/);
-  await assert.rejects(generated.renderChatPresentation({title:'x',slides:Array.from({length:11},()=>({title:'x',bullets:['y']}))}),/too long/);
-  await assert.rejects(generated.renderChatPresentation({title:'x',slides:[{title:'x',bullets:['x'.repeat(181)]}]}),/too long/);
+  const realistic = JSON.parse(fs.readFileSync(path.resolve(__dirname, '../test-data/test-13/sample-slide-content.json'), 'utf8'));
+  const expanded = await generated.renderChatPresentation(realistic);
+  const expandedText = await attachments.presentationText({name:'presentation.pptx',type:'presentation',mime:'application/vnd.openxmlformats-officedocument.presentationml.presentation',data:expanded});
+  assert.match(expandedText, /Pilot goal \(continued\)/); assert.match(expandedText, /communicate delays clearly/); assert.match(expandedText, /agreed escalation process/);
+  const moreSlides = await generated.renderChatPresentation({title:'x',slides:Array.from({length:11},()=>({title:'x',bullets:['y']}))}); assert.ok(new PizZip(moreSlides).file('ppt/presentation.xml'));
+  await assert.rejects(generated.renderChatPresentation({title:'x',slides:[{title:'x',bullets:['x'.repeat(4001)]}]}),/limits/);
   await assert.rejects(attachments.checkOfficeArchive(Buffer.from('not a zip'),'PPTX'),/Invalid PPTX/);
 });
 
