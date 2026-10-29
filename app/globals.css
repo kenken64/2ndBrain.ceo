@@ -40,6 +40,7 @@
 
   --font-sans: var(--font-manrope, "Manrope"), "Avenir Next", "Plus Jakarta Sans", system-ui, sans-serif;
   --font-mono: "JetBrains Mono", "IBM Plex Mono", ui-monospace, monospace;
+  --small-text-scale: 1.15;
 
   --radius-xs: 6px;
   --radius-sm: 10px;
@@ -63,11 +64,6 @@
 
 html {
   scroll-behavior: smooth;
-}
-
-/* Chinese glyphs need a little more room at small interface text sizes. */
-html[lang^="zh"] {
-  --small-text-scale: 1.15;
 }
 
 body {
