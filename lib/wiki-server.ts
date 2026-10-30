@@ -11,6 +11,8 @@ import { createClient } from "@/lib/supabase/server";
 export type WikiProject = {
   id: string;
   openclaw_project_slug: string | null;
+  openclaw_generation_mapping: string | null;
+  openclaw_generation_prompt: string | null;
   prompt: string | null;
   status: string;
   title: string;
@@ -76,7 +78,7 @@ export async function getWikiContext(
   if (projectId) {
     const { data } = await supabase
       .from("projects")
-      .select("id,title,prompt,status,openclaw_project_slug")
+      .select("id,title,prompt,status,openclaw_project_slug,openclaw_generation_mapping,openclaw_generation_prompt")
       .eq("user_id", userId)
       .eq("id", projectId)
       .maybeSingle();
@@ -85,7 +87,7 @@ export async function getWikiContext(
   } else if (options.selectLatest !== false) {
     const { data } = await supabase
       .from("projects")
-      .select("id,title,prompt,status,openclaw_project_slug")
+      .select("id,title,prompt,status,openclaw_project_slug,openclaw_generation_mapping,openclaw_generation_prompt")
       .eq("user_id", userId)
       .eq("status", "ready")
       .not("openclaw_project_slug", "is", null)

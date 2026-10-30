@@ -106,7 +106,11 @@ export async function GET(request: Request) {
       return NextResponse.json({ error: error.message }, { status: 500 });
     }
 
-    return NextResponse.json({ job: data ?? null });
+    const needsRetry = Boolean(data && (data.status === "failed" ||
+      (data.status === "ready" && context.project?.openclaw_generation_mapping?.includes("attachment-only"))));
+
+    const canRetry = Boolean(data && (data.status === "failed" || data.status === "ready"));
+    return NextResponse.json({ job: data ?? null, needsRetry, canRetry });
   } catch (error) {
     return wikiApiError(error);
   }
@@ -162,10 +166,12 @@ export async function POST(request: Request) {
 
     const shouldRefreshDefaultContext = (readyIngestCount ?? 0) === 0 && isDefaultWikiContext(project.prompt);
 
+    const namespace = uploadNamespace();
     const { data: job, error: jobError } = await context.supabase
       .from("wiki_sync_jobs")
       .insert({
         job_type: "ingest",
+        file_path: namespace,
         project_id: project.id,
         started_at: new Date().toISOString(),
         status: "queued",
@@ -178,17 +184,17 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: jobError?.message ?? "ingest_job_create_failed" }, { status: 500 });
     }
 
-    const namespace = uploadNamespace();
-
     after(async () => {
       try {
-        await context.supabase
+        const { error: startError } = await context.supabase
           .from("wiki_sync_jobs")
           .update({
             started_at: new Date().toISOString(),
             status: "running"
           })
           .eq("id", job.id);
+
+        if (startError) throw new Error(startError.message);
 
         const attachments = await convertWikiAttachments(files, {
           assetRoot: `${namespace}/assets`,
@@ -232,7 +238,7 @@ export async function POST(request: Request) {
           userId: context.userId
         });
 
-        await context.supabase
+        const { error: projectUpdateError } = await context.supabase
           .from("projects")
           .update({
             openclaw_generation_completed_at: new Date().toISOString(),
@@ -245,12 +251,14 @@ export async function POST(request: Request) {
           })
           .eq("id", project.id);
 
+        if (projectUpdateError) throw new Error(projectUpdateError.message);
+
         await readOpenClawWikiTree({
           instance: context.instance,
           projectSlug
         });
 
-        await context.supabase
+        const { error: completionError } = await context.supabase
           .from("wiki_sync_jobs")
           .update({
             completed_at: new Date().toISOString(),
@@ -258,6 +266,8 @@ export async function POST(request: Request) {
             status: "ready"
           })
           .eq("id", job.id);
+
+        if (completionError) throw new Error(completionError.message);
       } catch (error) {
         const message = error instanceof Error ? error.message : "wiki_ingest_failed";
 

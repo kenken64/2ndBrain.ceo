@@ -30,6 +30,7 @@ type LlmWikiProject = {
   created_at: string;
   id: string;
   openclaw_generation_error: string | null;
+  openclaw_generation_mapping: string | null;
   openclaw_project_slug: string | null;
   prompt: string;
   status: string;
@@ -174,7 +175,7 @@ export default async function DashboardWikiPage({ searchParams }: WikiPageProps)
     const rangeEnd = rangeStart + WIKI_PROJECTS_PAGE_SIZE - 1;
     let projectsQuery = context.supabase
       .from("projects")
-      .select("id,title,prompt,status,created_at,openclaw_project_slug,openclaw_generation_error", {
+      .select("id,title,prompt,status,created_at,openclaw_project_slug,openclaw_generation_error,openclaw_generation_mapping", {
         count: "exact"
       })
       .eq("user_id", context.userId);
@@ -191,21 +192,20 @@ export default async function DashboardWikiPage({ searchParams }: WikiPageProps)
     const totalPages = Math.max(1, Math.ceil(totalProjects / WIKI_PROJECTS_PAGE_SIZE));
     const firstVisibleProject = totalProjects === 0 ? 0 : rangeStart + 1;
     const lastVisibleProject = Math.min(rangeEnd + 1, totalProjects);
-    const failedIngestJobsByProject = new Map<string, FailedIngestJob>();
+    const latestIngestJobsByProject = new Map<string, FailedIngestJob>();
 
     if (wikiProjects.length > 0) {
-      const { data: failedIngestJobs } = await context.supabase
+      const { data: ingestJobs } = await context.supabase
         .from("wiki_sync_jobs")
         .select("id,project_id,status,error,created_at")
         .eq("user_id", context.userId)
         .eq("job_type", "ingest")
-        .eq("status", "failed")
         .in("project_id", wikiProjects.map((project) => project.id))
         .order("created_at", { ascending: false });
 
-      for (const job of (failedIngestJobs ?? []) as FailedIngestJob[]) {
-        if (!failedIngestJobsByProject.has(job.project_id)) {
-          failedIngestJobsByProject.set(job.project_id, job);
+      for (const job of (ingestJobs ?? []) as FailedIngestJob[]) {
+        if (!latestIngestJobsByProject.has(job.project_id)) {
+          latestIngestJobsByProject.set(job.project_id, job);
         }
       }
     }
@@ -290,9 +290,10 @@ export default async function DashboardWikiPage({ searchParams }: WikiPageProps)
                     wikiProjects.map((project) => {
                       const isStale = isStaleRunningProject(project);
                       const displayStatus = isStale ? "failed" : project.status;
-                      const failedIngestJob = failedIngestJobsByProject.get(project.id);
+                      const latestIngestJob = latestIngestJobsByProject.get(project.id);
+                      const failedIngestJob = latestIngestJob?.status === "failed" ? latestIngestJob : undefined;
                       const displayError = project.openclaw_generation_error ?? failedIngestJob?.error ?? (isStale ? WIKI_GENERATION_STALE_MESSAGE : null);
-                      const canBackfillIngest = displayStatus === "ready" && Boolean(project.openclaw_project_slug) && Boolean(failedIngestJob || project.openclaw_generation_error?.includes("wiki ingest JSON"));
+                      const canBackfillIngest = displayStatus === "ready" && Boolean(project.openclaw_project_slug) && Boolean(failedIngestJob || (latestIngestJob?.status === "ready" && project.openclaw_generation_mapping?.includes("attachment-only")));
 
                       return (
                         <article className="project-card wiki-project-card" key={project.id}>

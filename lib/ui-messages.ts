@@ -1,6 +1,9 @@
 // Only application-owned messages are translated. Unknown server and user content is preserved.
 export const uiMessagesZh: Record<string, string> = {
   "Loading": "加载中", "Failed": "失败", "Loaded": "已加载", "Saving": "正在保存", "Saved and synced": "已保存并同步", "Syncing": "正在同步", "Graph synced": "图谱已同步", "Background ingest complete": "后台导入完成", "Background ingest failed": "后台导入失败", "Upload failed": "上传失败",
+  "The source was saved, but wiki generation could not be confirmed. Retry the upload from the saved source.": "来源文件已保存，但无法确认维基页面是否已生成。请重试已保存的上传。",
+  "No wiki pages were updated. The saved source may already be covered; review the wiki or retry the upload.": "没有维基页面被更新。已保存的来源内容可能已被收录；请检查维基或重试上传。",
+  "Review upload": "检查上传",
   "Complete Avaturn and export the AI Assistant as GLB before continuing.": "请先完成 Avaturn 并将 AI 助手导出为 GLB，然后继续。",
   "Avaturn is still in progress. Export the AI Assistant as GLB to continue.": "Avaturn 流程仍在进行中。请将 AI 助手导出为 GLB 后继续。",
   "Page could not be loaded — the request failed or timed out.": "无法加载页面，请求失败或超时。",

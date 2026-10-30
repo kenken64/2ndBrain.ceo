@@ -1,6 +1,7 @@
 "use client";
 
 import { Localized, useLanguage, LocalizedMessage } from "@/components/language-provider";
+import { BackfillWikiIngestButton } from "@/components/backfill-wiki-ingest-button";
 
 
 import { navigateToPage } from "@/lib/page-navigation";
@@ -581,6 +582,8 @@ export function WikiEditor({
   const [uploadError, setUploadError] = useState("");
   const [uploadFiles, setUploadFiles] = useState<File[]>([]);
   const [uploadJob, setUploadJob] = useState<IngestJob | null>(null);
+  const [uploadNeedsRetry, setUploadNeedsRetry] = useState(false);
+  const [uploadCanRetry, setUploadCanRetry] = useState(false);
   const [uploadPrompt, setUploadPrompt] = useState("");
   const [uploadSuccess, setUploadSuccess] = useState("");
   const [brainQuery, setBrainQuery] = useState("");
@@ -591,6 +594,7 @@ export function WikiEditor({
   const [brainStatus, setBrainStatus] = useState("Workspace scan pending");
   const [isBrainLoading, setIsBrainLoading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const uploadRequestVersion = useRef(0);
   const [isPending, startTransition] = useTransition();
   const canUploadDocuments = Boolean(projectId);
   const isBusy = isPending || isUploading;
@@ -817,6 +821,25 @@ export function WikiEditor({
   }
 
   useEffect(() => {
+    if (!projectId) return;
+    let cancelled = false;
+    const requestVersion = uploadRequestVersion.current;
+    void fetch(`/api/wiki/ingest?projectId=${encodeURIComponent(projectId)}`, { credentials: "same-origin" })
+      .then(async (response) => response.ok ? response.json() : null)
+      .then((payload) => {
+        if (cancelled || requestVersion !== uploadRequestVersion.current || !payload?.job) return;
+        setUploadJob(payload.job as IngestJob);
+        setUploadNeedsRetry(Boolean(payload.needsRetry));
+        setUploadCanRetry(Boolean(payload.canRetry));
+        if (payload.job.status === "failed") {
+          setUploadError(payload.job.error ?? "Background upload failed");
+        }
+      })
+      .catch(() => {});
+    return () => { cancelled = true; };
+  }, [projectId]);
+
+  useEffect(() => {
     if (!projectId || !uploadJob || (uploadJob.status !== "queued" && uploadJob.status !== "running")) {
       return;
     }
@@ -834,14 +857,22 @@ export function WikiEditor({
 
         const nextJob = payload.job as IngestJob;
         setUploadJob(nextJob);
+        setUploadNeedsRetry(Boolean(payload.needsRetry));
+        setUploadCanRetry(Boolean(payload.canRetry));
 
-        if (nextJob.status === "ready") {
+        if (nextJob.status === "ready" && !payload.needsRetry) {
           setStatus("Background ingest complete");
           setUploadSuccess("Background upload finished. Refreshing the page tree.");
           setUploadError("");
           window.setTimeout(() => {
             router.refresh();
+            void loadBrainWorkspace("");
           }, 1200);
+        }
+
+        if (nextJob.status === "ready" && payload.needsRetry) {
+          setStatus("Review upload");
+          setUploadSuccess("");
         }
 
         if (nextJob.status === "failed") {
@@ -881,10 +912,13 @@ export function WikiEditor({
 
     const filesToUpload = uploadFiles;
 
+    uploadRequestVersion.current += 1;
     setError("");
     setUploadError("");
     setUploadSuccess("");
     setUploadJob(null);
+    setUploadNeedsRetry(false);
+    setUploadCanRetry(false);
     setIsUploading(true);
     setStatus(`Uploading ${filesToUpload.length} document${filesToUpload.length === 1 ? "" : "s"}`);
 
@@ -919,7 +953,6 @@ export function WikiEditor({
       );
       setUploadJob(nextJob);
       setUploadFiles([]);
-      setUploadPrompt("");
     } catch (error) {
       setUploadError(error instanceof Error ? error.message : "Document upload failed");
       setStatus("Upload failed");
@@ -990,6 +1023,12 @@ export function WikiEditor({
             </label>
             {uploadError ? <p className="form-error"><LocalizedMessage text={uploadError} /></p> : null}
             {uploadSuccess ? <p className="form-success">{uploadSuccess}</p> : null}
+            {uploadCanRetry ? (
+              <div>
+                {uploadNeedsRetry ? <p className="form-error"><Localized en="Wiki pages were not confirmed. Retry the saved upload; add the ingestion instruction above if needed. If no saved source is found, attach the document again." zh="未能确认维基页面已生成。请重试已保存的上传；如有需要，请在上方填写导入指令。如果找不到已保存的来源文件，请重新添加文档。" /></p> : null}
+                <BackfillWikiIngestButton projectId={projectId!} prompt={uploadPrompt} />
+              </div>
+            ) : null}
             {uploadJob && (uploadJob.status === "queued" || uploadJob.status === "running") ? (
               <p className="form-success">
                 <Localized en={`Background ingest is ${uploadJob.status}. You can keep editing while the documents are processed.`} zh={`后台导入状态：${uploadJob.status}。处理文档时您可以继续编辑。`} />

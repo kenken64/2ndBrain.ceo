@@ -85,6 +85,7 @@ function frontmatter(input: {
     "  - attachment",
     `  - ${yamlString(input.sourceType)}`,
     `source_file: ${yamlString(input.fileName)}`,
+    `source_type: ${yamlString(input.sourceType)}`,
     `mime_type: ${yamlString(input.mimeType || "application/octet-stream")}`,
     `byte_size: ${input.size}`,
     "---",

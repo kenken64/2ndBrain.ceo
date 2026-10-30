@@ -120,6 +120,7 @@ type OpenClawWikiIngestBackfillInput = {
   projectSlug: string;
   projectContext?: string | null;
   prompt?: string | null;
+  sourceNamespace?: string | null;
   projectTitle?: string | null;
   userId: string;
 };
@@ -1798,12 +1799,12 @@ function absoluteProjectWikiPath(filePath: string, projectSlug: string) {
 
 function uploadSourceNamespace(filePath: string, projectSlug: string) {
   const relativePath = relativeProjectWikiPath(filePath, projectSlug);
-  const match = relativePath.match(/^raw\/uploads\/([^/]+)\/sources\/[^/]+\.md$/i);
+  const match = relativePath.match(/^raw\/uploads\/([^/]+)\/(?:sources|assets)\/[^/]+\.md$/i);
 
   return match?.[1] ?? null;
 }
 
-function latestUploadedSourcePaths(tree: WikiTreeItem[], projectSlug: string) {
+function latestUploadedSourcePaths(tree: WikiTreeItem[], projectSlug: string, sourceNamespace?: string | null) {
   const byNamespace = new Map<string, string[]>();
 
   for (const file of flattenWikiTreeItems(tree)) {
@@ -1824,7 +1825,9 @@ function latestUploadedSourcePaths(tree: WikiTreeItem[], projectSlug: string) {
     byNamespace.set(namespace, paths);
   }
 
-  const latestNamespace = [...byNamespace.keys()].sort().at(-1);
+  const requestedNamespace = sourceNamespace?.match(/^raw\/uploads\/([^/]+)$/)?.[1];
+  if (sourceNamespace && !requestedNamespace) return [];
+  const latestNamespace = requestedNamespace ?? [...byNamespace.keys()].sort().at(-1);
 
   return latestNamespace ? (byNamespace.get(latestNamespace) ?? []).sort() : [];
 }
@@ -1840,7 +1843,7 @@ function markdownField(value: string, fieldName: string) {
 }
 
 function sourceTypeFromMarkdown(value: string): ConvertedWikiAttachment["sourceType"] {
-  const candidate = markdownField(value, "source_type") ?? "";
+  const candidate = markdownField(value, "source_type") ?? value.match(/^\s+-\s+["']?(csv|docx?|image|markdown|pdf|spreadsheet|text)["']?\s*$/im)?.[1]?.toLowerCase() ?? "";
   const allowed = new Set<ConvertedWikiAttachment["sourceType"]>([
     "csv",
     "doc",
@@ -1862,7 +1865,7 @@ async function attachmentsFromLatestUploadedSources(input: OpenClawWikiIngestBac
     instance: input.instance,
     projectSlug: input.projectSlug
   });
-  const sourcePaths = latestUploadedSourcePaths(tree, input.projectSlug);
+  const sourcePaths = latestUploadedSourcePaths(tree, input.projectSlug, input.sourceNamespace);
 
   if (sourcePaths.length === 0) {
     throw new Error("No uploaded source markdown was found for this Nth Brain.");
@@ -2621,6 +2624,7 @@ export async function ingestOpenClawWikiAttachments(input: OpenClawWikiIngestInp
     : await writeOpenClawWikiAttachments(input);
   const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "openclaw-wiki-ingest-"));
   const outputs: string[] = [];
+  let wikiChangeCount = 0;
 
   try {
     for (const [index, attachment] of input.attachments.entries()) {
@@ -2637,27 +2641,39 @@ export async function ingestOpenClawWikiAttachments(input: OpenClawWikiIngestInp
       await fs.writeFile(sourcePath, attachment.markdown, "utf8");
 
       try {
-        outputs.push(
-          await runClawmacdo(
-            [
-              "wiki-ingest",
-              "--instance",
-              instance,
-              "--agent",
-              agent,
-              "--project",
-              input.projectSlug,
-              "--source",
-              sourcePath,
-              "--prompt",
-              sourcePrompt,
-              "--timeout",
-              timeout,
-              "--json"
-            ],
-            awsEnv
-          )
+        const output = await runClawmacdo(
+          [
+            "wiki-ingest",
+            "--instance",
+            instance,
+            "--agent",
+            agent,
+            "--project",
+            input.projectSlug,
+            "--source",
+            sourcePath,
+            "--prompt",
+            sourcePrompt,
+            "--timeout",
+            timeout,
+            "--json"
+          ],
+          awsEnv
         );
+        let result: { changed_files?: unknown };
+        try {
+          result = parseJsonOutput<{ changed_files?: unknown }>(output);
+        } catch {
+          throw new Error("The source was saved, but wiki generation could not be confirmed. Retry the upload from the saved source.");
+        }
+        if (!Array.isArray(result.changed_files)) {
+          throw new Error("The source was saved, but wiki generation could not be confirmed. Retry the upload from the saved source.");
+        }
+        const wikiChanges = result.changed_files.filter((file): file is string =>
+          typeof file === "string" && !file.replace(/^\.\//, "").startsWith("raw/") && file.toLowerCase().endsWith(".md")
+        );
+        wikiChangeCount += wikiChanges.length;
+        outputs.push(output);
       } catch (error) {
         if (!isNonFatalWikiIngestJsonError(error)) {
           throw error;
@@ -2672,25 +2688,20 @@ export async function ingestOpenClawWikiAttachments(input: OpenClawWikiIngestInp
           projectId: input.projectId,
           projectSlug: input.projectSlug
         });
-        outputs.push(
-          [
-            "wiki_ingest_attachment_saved",
-            `file=${attachment.fileName}`,
-            `path=${attachment.path}`,
-            "warning=wiki-ingest returned empty JSON; source markdown was saved without AI augmentation"
-          ].join("\n")
-        );
+        throw new Error("The source was saved, but wiki generation could not be confirmed. Retry the upload from the saved source.");
       }
     }
   } finally {
     await fs.rm(tempDir, { force: true, recursive: true }).catch(() => undefined);
   }
 
+  if (wikiChangeCount === 0) {
+    throw new Error("No wiki pages were updated. The saved source may already be covered; review the wiki or retry the upload.");
+  }
+
   return {
     attachmentsOutput: attachmentOutput,
-    mapping: outputs.some((output) => output.includes("wiki_ingest_attachment_saved"))
-      ? "wiki-ingest-attachment-only"
-      : "wiki-ingest",
+    mapping: "wiki-ingest",
     output: outputs.join("\n\n"),
     task: prompt
   };

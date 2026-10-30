@@ -8,9 +8,10 @@ import { LoaderCircle, RotateCcw } from "lucide-react";
 
 type BackfillWikiIngestButtonProps = {
   projectId: string;
+  prompt?: string;
 };
 
-export function BackfillWikiIngestButton({ projectId }: BackfillWikiIngestButtonProps) {
+export function BackfillWikiIngestButton({ projectId, prompt }: BackfillWikiIngestButtonProps) {
   const [isBackfilling, setIsBackfilling] = useState(false);
   const [error, setError] = useState("");
 
@@ -24,7 +25,7 @@ export function BackfillWikiIngestButton({ projectId }: BackfillWikiIngestButton
 
     try {
       const response = await fetch("/api/wiki/ingest/backfill", {
-        body: JSON.stringify({ projectId }),
+        body: JSON.stringify({ projectId, prompt }),
         credentials: "same-origin",
         headers: {
           "Content-Type": "application/json"
@@ -53,7 +54,7 @@ export function BackfillWikiIngestButton({ projectId }: BackfillWikiIngestButton
         type="button"
       >
         {isBackfilling ? <LoaderCircle className="spin-icon" size={15} strokeWidth={1.8} /> : <RotateCcw size={15} strokeWidth={1.8} />}
-        {isBackfilling ? <Localized en={"Backfilling..."} zh={"正在回填..."} /> : <Localized en={"Backfill upload"} zh={"回填上传"} />}
+        {isBackfilling ? <Localized en={"Retrying..."} zh={"正在重试..."} /> : <Localized en={"Retry saved upload"} zh={"重试已保存的上传"} />}
       </button>
       {error ? <span className="form-error"><LocalizedMessage text={error} /></span> : null}
     </span>

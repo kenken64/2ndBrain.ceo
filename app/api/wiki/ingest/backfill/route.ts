@@ -11,8 +11,9 @@ function outputSummary(value: string) {
 
 export async function POST(request: Request) {
   try {
-    const payload = (await request.json().catch(() => null)) as { projectId?: unknown } | null;
+    const payload = (await request.json().catch(() => null)) as { projectId?: unknown; prompt?: unknown } | null;
     const projectId = typeof payload?.projectId === "string" ? payload.projectId.trim() : "";
+    const retryPrompt = typeof payload?.prompt === "string" ? payload.prompt.trim() : "";
 
     if (!projectId) {
       return NextResponse.json({ error: "project_id_required" }, { status: 400 });
@@ -35,44 +36,44 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "AI Agent profile is incomplete" }, { status: 409 });
     }
 
-    const { data: failedJob, error: failedJobError } = await context.supabase
+    const { data: latestJob, error: latestJobError } = await context.supabase
       .from("wiki_sync_jobs")
-      .select("id,status,error,created_at,started_at,completed_at")
+      .select("id,status,error,file_path,created_at,started_at,completed_at")
       .eq("user_id", context.userId)
       .eq("project_id", projectId)
       .eq("job_type", "ingest")
-      .eq("status", "failed")
       .order("created_at", { ascending: false })
       .limit(1)
       .maybeSingle();
 
-    if (failedJobError) {
-      return NextResponse.json({ error: failedJobError.message }, { status: 500 });
+    if (latestJobError) {
+      return NextResponse.json({ error: latestJobError.message }, { status: 500 });
     }
 
-    if (!failedJob?.id) {
-      await context.supabase
-        .from("projects")
-        .update({
-          openclaw_generation_error: null
-        })
-        .eq("id", projectId);
-
+    if (!latestJob?.id || (latestJob.status !== "failed" && latestJob.status !== "ready")) {
       return NextResponse.json({
         hidden: true,
         ok: true,
-        message: "No failed ingest job needs backfill."
+        message: "No saved upload needs retry."
       });
     }
 
-    await context.supabase
+    const previousStatus = latestJob.status;
+    const { data: claimedJob, error: claimError } = await context.supabase
       .from("wiki_sync_jobs")
       .update({
+        completed_at: null,
         error: null,
         started_at: new Date().toISOString(),
         status: "running"
       })
-      .eq("id", failedJob.id);
+      .eq("id", latestJob.id)
+      .eq("status", previousStatus)
+      .select("id")
+      .maybeSingle();
+
+    if (claimError) return NextResponse.json({ error: claimError.message }, { status: 500 });
+    if (!claimedJob) return NextResponse.json({ error: "This upload is already being processed." }, { status: 409 });
 
     try {
       const result = await backfillOpenClawWikiIngest({
@@ -82,11 +83,12 @@ export async function POST(request: Request) {
         projectId,
         projectSlug: context.projectSlug,
         projectTitle: context.project.title,
-        prompt: context.project.prompt,
+        prompt: retryPrompt || (previousStatus === "ready" ? context.project.openclaw_generation_prompt : null) || context.project.prompt,
+        sourceNamespace: latestJob.file_path,
         userId: context.userId
       });
 
-      await context.supabase
+      const { error: projectUpdateError } = await context.supabase
         .from("projects")
         .update({
           openclaw_generation_completed_at: new Date().toISOString(),
@@ -99,25 +101,29 @@ export async function POST(request: Request) {
         })
         .eq("id", projectId);
 
+      if (projectUpdateError) throw new Error(projectUpdateError.message);
+
       await readOpenClawWikiTree({
         instance: context.instance,
         projectSlug: context.projectSlug
       });
 
-      const { data: readyJob } = await context.supabase
+      const { data: readyJob, error: completionError } = await context.supabase
         .from("wiki_sync_jobs")
         .update({
           completed_at: new Date().toISOString(),
           error: null,
           status: "ready"
         })
-        .eq("id", failedJob.id)
+        .eq("id", latestJob.id)
         .select("id,status,error,created_at,started_at,completed_at")
         .maybeSingle();
 
+      if (completionError || !readyJob) throw new Error(completionError?.message ?? "Could not update ingest status.");
+
       return NextResponse.json({
         hidden: true,
-        job: readyJob ?? failedJob,
+        job: readyJob,
         ok: true
       });
     } catch (error) {
@@ -130,7 +136,7 @@ export async function POST(request: Request) {
           error: outputSummary(message),
           status: "failed"
         })
-        .eq("id", failedJob.id);
+        .eq("id", latestJob.id);
 
       return NextResponse.json({ error: outputSummary(message) }, { status: 500 });
     }
