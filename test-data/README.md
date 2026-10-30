@@ -1,6 +1,6 @@
 # Chat attachment test data
 
-The sample records and events in these examples are fictional. The PowerPoint design template includes existing AICUBER branding. Each example below includes the files to attach, a prompt or action, and results to check.
+The sample records and events in these examples are fictional. Tests 23 and 24 use user-provided storybooks; their credits appear in the PDFs. The PowerPoint design template includes existing AICUBER branding. Each example below includes the files to attach, a prompt or action, and results to check.
 
 1. Open **AI Chat** and start a new conversation.
 2. Attach the files listed for the test, or choose the indicated chat mode.
@@ -193,3 +193,27 @@ Files: [nth-brain-community-garden.pdf](test-22/nth-brain-community-garden.pdf) 
 5. Verify that Nadia owns the project; Omar owns the Rain Barrel System; the system's installation depends on Gutter Inspection; Lena owns Water Usage Log; and Dry Weather Risk may threaten the Water Savings Target. The target is proposed, not an achieved outcome. Graph labels, types, and edge counts can vary with AI ingestion, so check the pages as well as the graph.
 
 Ingestion uses the project's AI agent and may incur its normal costs. Graph generation indexes the resulting wiki content. The PDF is text-based and does not require OCR.
+
+
+## Test 23: Ask AI Chat about a Malay ebook PDF
+
+File: [Rahsia_Pisang_Nenek_Edisi_Sinematik_Melayu_V2.pdf](test-23/Rahsia_Pisang_Nenek_Edisi_Sinematik_Melayu_V2.pdf). This user-provided illustrated Malay adaptation is 14 pages and approximately 9.6 MB. Its credits state that it develops characters and events from the source story.
+
+1. Start a new conversation in **AI Chat**. Select **Attach file** and choose the PDF. Attach this ebook by itself; two PDF attachments are not supported as a pair.
+2. Send [prompt.txt](test-23/prompt.txt). Check each answer and page reference against the [answer key](test-23/expected-answers.md). The chat should show the uploaded file and its PDF preview; inspect the pages and extracted-text side panel after processing.
+3. Select **Ask about** for the saved ebook and send [follow-up-prompt.txt](test-23/follow-up-prompt.txt). The answer should be in Malay and supported by events from this edition.
+4. Open **My files** to confirm that the PDF is saved. Check **AI Credits Usage** for the PDF processing charge; each AI question may incur a charge.
+
+Expected: The girl is Amina. When sent to fetch Grandma's walking stick, she notices a sweet smell and finds yellow bananas in a basket under an old blanket in the room (PDF page 5). She takes one banana and then four more (pages 6-7). When asked, she denies taking them (page 8). She later admits the lie and the five bananas, apologizes, and offers to help Grandma (page 11). The next morning they work together and she asks permission before taking a banana (page 13). The follow-up may discuss honesty and rebuilding trust using these events; interpretations should remain distinct from stated facts.
+
+## Test 24: Ask AI Chat about a Chinese ebook PDF
+
+File: [奶奶的香蕉.pdf](test-24/奶奶的香蕉.pdf). This user-provided Chinese storybook is 12 pages and approximately 0.6 MB. Its final page credits Ursula Nafula, Catherine Groenewald and Vicky Liu, and identifies the source work's CC BY 3.0 license.
+
+1. Start a separate **AI Chat** conversation, attach the Chinese PDF by itself, and send [prompt.txt](test-24/prompt.txt). Check each answer and page reference against the [answer key](test-24/expected-answers.md), and review the PDF preview and extracted-text side panel.
+2. Select **Ask about** for this saved ebook and send [follow-up-prompt.txt](test-24/follow-up-prompt.txt). Confirm that the answer is in English and cites the source pages.
+3. Check **My files** and **AI Credits Usage**. PDF processing and follow-up AI questions may incur charges.
+
+Expected: While fetching Grandma's walking stick, the narrator smells ripe bananas and discovers the basket in Grandma's bedroom beneath an old blanket (PDF page 6). The narrator first takes one banana and later takes four (pages 8-9); the text says the first is eaten but does not explicitly say the four are eaten. Grandma takes ripe bananas and cassava to market (page 10). Father, mother and Grandma call the narrator over; the narrator decides not to steal again (page 11). The Chinese source does not name the narrator, describe an explicit apology, or explain the complete banana-ripening method. Do not carry Amina's name, confession, apology or the market-stall events from the Malay adaptation into this answer.
+
+Both PDFs fit the current AI Chat limit of 20 pages and 20 MB per file. AI answers and OCR can vary, so verify page references and facts against each PDF rather than relying on exact wording.
