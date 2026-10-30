@@ -1,5 +1,24 @@
 // Only application-owned messages are translated. Unknown server and user content is preserved.
 export const uiMessagesZh: Record<string, string> = {
+  "wiki generation": "生成 Nth Brain 知识库",
+  "Nth Brain generation is not configured. Contact the administrator.": "尚未配置 Nth Brain 生成。请联系管理员。",
+  "Nth Brain model pricing is unavailable. Please try again later.": "暂时无法获取 Nth Brain 模型价格，请稍后重试。",
+  "Unable to check your AI credit balance.": "无法查询您的 AI 积分余额。",
+  "AI Agent usage is paused. Resume AI usage in Settings and retry.": "AI Agent 用量已暂停。请在设置中恢复用量后重试。",
+  "Wait for your other AI requests to finish and retry.": "请等待其他 AI 请求完成后重试。",
+  "Nth Brain credit accounting is unavailable. Contact the administrator.": "Nth Brain 积分计费暂不可用，请联系管理员。",
+  "Nth Brain usage could not be settled. Reserved credits are held for review; contact support before retrying.": "无法结算 Nth Brain 用量。预留积分将保留以供审核；重试前请联系支持人员。",
+  "OpenRouter could not generate the Nth Brain. Check its configuration and retry.": "OpenRouter 无法生成 Nth Brain。请检查配置后重试。",
+  "OpenRouter usage could not be confirmed. Reserved credits are held for review; contact support before retrying.": "无法确认 OpenRouter 用量。预留积分将保留以供审核；重试前请联系支持人员。",
+  "Nth Brain generation or usage could not be confirmed. Reserved credits are held for review; contact support before retrying.": "无法确认 Nth Brain 的生成状态或用量。预留积分将保留以供审核；重试前请联系支持人员。",
+  "OpenRouter did not finish generating the wiki. The request was charged; retry to generate the pages.": "OpenRouter 未完成知识库生成。此请求已收费；请重试以生成页面。",
+  "OpenRouter returned invalid wiki pages. The request was charged; retry to generate the pages.": "OpenRouter 返回了无效的知识库页面。此请求已收费；请重试以生成页面。",
+  "OpenRouter returned an invalid wiki page. The request was charged; retry to generate the pages.": "OpenRouter 返回了无效的知识库页面。此请求已收费；请重试以生成页面。",
+  "OpenRouter returned an invalid wiki page.": "OpenRouter 返回了无效的知识库页面。",
+  "OpenRouter returned no usable wiki pages. The request was charged; retry to generate the pages.": "OpenRouter 未返回可用的知识库页面。此请求已收费；请重试以生成页面。",
+  "The generated page conflicts with an existing page that could not be safely read. The AI request was charged; retry after reviewing the wiki.": "生成的页面与无法安全读取的现有页面冲突。此 AI 请求已收费；请检查知识库后重试。",
+  "The AI request was charged, but some wiki pages could not be saved. Some changes may already be present; review the wiki before retrying.": "此 AI 请求已收费，但部分知识库页面无法保存。部分更改可能已生效；请检查知识库后重试。",
+  "No wiki pages changed. The AI request was charged; review the existing wiki before retrying.": "没有知识库页面发生更改。此 AI 请求已收费；请检查现有知识库后重试。",
   "Loading": "加载中", "Failed": "失败", "Loaded": "已加载", "Saving": "正在保存", "Saved and synced": "已保存并同步", "Syncing": "正在同步", "Graph synced": "图谱已同步", "Background ingest complete": "后台导入完成", "Background ingest failed": "后台导入失败", "Upload failed": "上传失败",
   "The source was saved, but wiki generation could not be confirmed. Retry the upload from the saved source.": "来源文件已保存，但无法确认维基页面是否已生成。请重试已保存的上传。",
   "No wiki pages were updated. The saved source may already be covered; review the wiki or retry the upload.": "没有维基页面被更新。已保存的来源内容可能已被收录；请检查维基或重试上传。",
@@ -580,6 +599,7 @@ export const uiMessagesZh: Record<string, string> = {
 // Patterns cover application-generated messages with numbers or names. Unknown
 // provider errors and user content are deliberately passed through unchanged.
 const dynamicMessagesZh: Array<[RegExp, (...parts: string[]) => string]> = [
+  [/^Nth Brain needs an estimated reservation of ([\d,]+) AI credits\. Top up and retry\.$/, (_, amount) => `Nth Brain 需要预留约 ${amount} AI 积分。请充值后重试。`],
   [/^([\d,]+) credits used · ([\d,]+) available$/, (_, used, available) => `已使用 ${used} 积分 · 可用 ${available}`],
   [/^Attach up to (\d+) files\.$/, (_, count) => `最多可添加 ${count} 个文件。`],
   [/^(.+) is too large\. Maximum file size is 12 MB\.$/, (_, name) => `${name} 过大。单个文件最大为 12 MB。`],

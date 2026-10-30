@@ -977,7 +977,7 @@ export function WikiEditor({
           <form aria-busy={isUploading} className="wiki-upload-form" encType="multipart/form-data" noValidate onSubmit={ingestDocuments}>
             <div className="wiki-upload-form__header">
               <strong><Localized en={"Upload to this Nth Brain"} zh={"上传到此 Nth Brain"} /></strong>
-              <span><Localized en={"DOC, DOCX, Excel, CSV, PDF, images, text, and markdown are converted before AI Agent sees them."} zh={"DOC、DOCX、Excel、CSV、PDF、图片、文本和 Markdown 文件会先转换，再交给 AI Agent 处理。"} /></span>
+              <span><Localized en={"DOC, DOCX, Excel, CSV, PDF, images, text, and markdown are converted for OpenRouter. AI credits are reserved first and charged for actual usage."} zh={"DOC、DOCX、Excel、CSV、PDF、图片、文本和 Markdown 文件会先转换，再交给 OpenRouter 处理。系统会先预留 AI 积分，并按实际用量收费。"} /></span>
             </div>
             <input
               accept={WIKI_UPLOAD_ACCEPT}

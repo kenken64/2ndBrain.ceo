@@ -23,53 +23,52 @@ function compile(file, mocks = {}) {
 
 const nextServer = { NextResponse: { json: (body, options) => ({ body, status: options?.status ?? 200 }) } };
 
-test('saved sources are only marked successful when the agent confirms wiki changes', async () => {
-  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'wiki-ingest-test-'));
+test('saved uploads are generated through OpenRouter in the correct project with guarded writes', async () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'wiki-openrouter-test-'));
   const binary = path.join(dir, 'clawmacdo');
-  fs.writeFileSync(binary, '#!/bin/sh\ncase "$1" in\nwiki-tree) printf "%s" "$TEST_TREE"; exit 0;;\nwiki-read) printf "%s\\n" "$@" >> "$TEST_RECORD"; printf "%s" "$TEST_PAGE"; exit 0;;\nesac\nif [ "$TEST_INGEST_RESULT" = error ]; then echo "failed to parse wiki ingest JSON: EOF while parsing a value" >&2; exit 1; fi\nif [ "$TEST_INGEST_RESULT" = invalid-key ]; then echo "{\\"ok\\":false,\\"error\\":{\\"code\\":\\"claude_failed\\",\\"log_tail\\":\\"Invalid API key\\"}}"; echo "Claude Code failed during wiki ingestion." >&2; exit 1; fi\nprintf "%s" "$TEST_INGEST_RESULT"\n', { mode: 0o755 });
-  const env = { AWS_REGION: 'test', AWS_ACCESS_KEY_ID: 'test', AWS_SECRET_ACCESS_KEY: 'test', OPENCLAW_PROJECT_ROOT: '/workspace', CLAWMACDO_BIN_PATH: binary };
-  const previous = Object.fromEntries([...Object.keys(env), 'TEST_INGEST_RESULT', 'TEST_TREE', 'TEST_PAGE', 'TEST_RECORD'].map(key => [key, process.env[key]]));
+  fs.writeFileSync(binary, `#!/bin/sh
+printf '%s\\n' "$*" >> "$TEST_RECORD"
+case "$1" in
+wiki-tree) printf '%s' "$TEST_TREE";;
+wiki-read) printf '%s' "$TEST_PAGE";;
+wiki-write) printf '{"sha256":"new-sha"}';;
+*) exit 1;;
+esac
+`, { mode: 0o755 });
+  const env = { AWS_REGION: 'test', AWS_ACCESS_KEY_ID: 'test', AWS_SECRET_ACCESS_KEY: 'test', OPENCLAW_PROJECT_ROOT: '/workspace', CLAWMACDO_BIN_PATH: binary, TEST_RECORD: path.join(dir, 'commands'), TEST_TREE: JSON.stringify({ tree: [
+    { name: 'index.md', path: 'wiki-test/index.md', type: 'file' },
+    { name: 'first.md', path: 'wiki-test/raw/uploads/one/sources/first.md', type: 'file' },
+    { name: 'second.md', path: 'wiki-test/raw/uploads/two/sources/second.md', type: 'file' }
+  ] }), TEST_PAGE: JSON.stringify({ content: '---\nsource_file: "first.pdf"\nsource_type: "pdf"\n---\nEvidence', sha256: 'a'.repeat(64) }) };
+  const previous = Object.fromEntries(Object.keys(env).map(key => [key, process.env[key]]));
   Object.assign(process.env, env);
+  let received;
+  let fail = false;
   try {
     const claw = compile('lib/openclaw.ts', {
       '@/lib/wiki': { normalizeWikiPath: value => value, titleFromWikiPath: value => value },
       '@/lib/wiki-attachments': { buildAttachmentPromptContext: () => '' },
-      '@/lib/hermes-restore': {}
+      '@/lib/hermes-restore': {},
+      '@/lib/wiki-openrouter': { generateWikiWithOpenRouter: async input => { received = input; if (fail) throw new Error('provider failed'); return [{ path: 'index.md', content: '# Updated index' }, { path: 'wiki/entities/maya.md', content: '# Maya' }]; } }
     });
     const input = { attachments: [{ fileName: 'source.pdf', markdown: 'Evidence', path: 'raw/uploads/one/sources/source.md', sourceType: 'pdf', size: 8 }], avatarName: 'Avatar', instance: '127.0.0.1', ownerName: 'Owner', projectId: 'p1', projectSlug: 'wiki-test', prompt: 'Create pages', userId: 'u1', writeAttachments: false };
-    process.env.TEST_INGEST_RESULT = 'error';
-    await assert.rejects(claw.ingestOpenClawWikiAttachments(input), /wiki generation could not be confirmed/);
-    process.env.TEST_INGEST_RESULT = 'invalid-key';
-    await assert.rejects(claw.ingestOpenClawWikiAttachments(input), /Claude Code rejected its configured API key/);
-    process.env.TEST_INGEST_RESULT = '{"valid":true,"status":"authenticated","login_url":null}';
-    const existingCredential = await claw.startOpenClawClaudeAuth({ instance: input.instance });
-    assert.equal(existingCredential.authenticated, true);
-    assert.equal(existingCredential.authUrl, null);
-    process.env.TEST_INGEST_RESULT = '{"valid":false,"status":"pending","login_url":"https://claude.ai/oauth/authorize"}';
-    const pendingLogin = await claw.startOpenClawClaudeAuth({ instance: input.instance });
-    assert.equal(pendingLogin.authenticated, false);
-    assert.equal(pendingLogin.authUrl, 'https://claude.ai/oauth/authorize');
-    process.env.TEST_INGEST_RESULT = '{"changed_files":["raw/sources/upload.md"]}';
-    await assert.rejects(claw.ingestOpenClawWikiAttachments(input), /No wiki pages were updated/);
-    process.env.TEST_INGEST_RESULT = '{"changed_files":["wiki/entities/maya.md"]}';
-    assert.equal((await claw.ingestOpenClawWikiAttachments(input)).mapping, 'wiki-ingest');
-    process.env.TEST_TREE = JSON.stringify({ tree: [
-      { name: 'first.md', path: 'wiki-test/raw/uploads/one/sources/first.md', type: 'file' },
-      { name: 'second.md', path: 'wiki-test/raw/uploads/two/sources/second.md', type: 'file' },
-      { name: '01-initial.md', path: 'wiki-test/raw/sources/01-initial.md', type: 'file' },
-      { name: 'README.md', path: 'wiki-test/raw/sources/README.md', type: 'file' }
-    ] });
-    process.env.TEST_PAGE = JSON.stringify({ content: '---\nsource_file: "first.pdf"\nsource_type: "pdf"\n---\nEvidence' });
-    process.env.TEST_RECORD = path.join(dir, 'read-args');
+    fail = true;
+    await assert.rejects(claw.ingestOpenClawWikiAttachments(input), /provider failed/);
+    fail = false;
+    assert.equal((await claw.ingestOpenClawWikiAttachments(input)).mapping, 'wiki-ingest-openrouter');
+    assert.equal(received.attachments[0].markdown, 'Evidence');
+    assert.equal(received.existingPages[0].path, 'index.md');
+    let commands = fs.readFileSync(env.TEST_RECORD, 'utf8');
+    assert.match(commands, /wiki-write .*--path wiki-test\/index.md .*--base-sha a{64}/);
+    assert.match(commands, /wiki-write .*--path wiki-test\/wiki\/entities\/maya.md .*--base-sha NEW/);
+    assert.doesNotMatch(commands, /wiki-ingest|openclaw-llm-wiki/);
+    fs.writeFileSync(env.TEST_RECORD, '');
     const retry = { ...input, sourceNamespace: 'raw/uploads/one' };
-    assert.equal((await claw.backfillOpenClawWikiIngest(retry)).mapping, 'wiki-ingest-backfill');
-    assert.match(fs.readFileSync(process.env.TEST_RECORD, 'utf8'), /raw\/uploads\/one\/sources\/first\.md/);
-    assert.doesNotMatch(fs.readFileSync(process.env.TEST_RECORD, 'utf8'), /raw\/uploads\/two/);
+    assert.equal((await claw.backfillOpenClawWikiIngest(retry)).mapping, 'wiki-ingest-backfill-openrouter');
+    commands = fs.readFileSync(env.TEST_RECORD, 'utf8');
+    assert.match(commands, /raw\/uploads\/one\/sources\/first\.md/);
+    assert.doesNotMatch(commands, /raw\/uploads\/two\/sources\/second\.md/);
     await assert.rejects(claw.backfillOpenClawWikiIngest({ ...retry, sourceNamespace: 'raw/uploads/missing' }), /No uploaded source markdown/);
-    fs.writeFileSync(process.env.TEST_RECORD, '');
-    await claw.backfillOpenClawWikiIngest({ ...retry, sourceNamespace: 'raw/sources' });
-    assert.match(fs.readFileSync(process.env.TEST_RECORD, 'utf8'), /raw\/sources\/01-initial\.md/);
-    assert.doesNotMatch(fs.readFileSync(process.env.TEST_RECORD, 'utf8'), /README\.md|raw\/uploads/);
   } finally {
     for (const [key, value] of Object.entries(previous)) value === undefined ? delete process.env[key] : process.env[key] = value;
     fs.rmSync(dir, { recursive: true, force: true });

@@ -8,6 +8,7 @@ import { promisify } from "node:util";
 import { normalizeWikiPath, titleFromWikiPath, type WikiPage, type WikiTreeItem } from "@/lib/wiki";
 import { buildAttachmentPromptContext, type ConvertedWikiAttachment } from "@/lib/wiki-attachments";
 import { HERMES_REGION, hermesRestoreArgs, hermesRestoreHostname } from "@/lib/hermes-restore";
+import { generateWikiWithOpenRouter, type ExistingWikiPage } from "@/lib/wiki-openrouter";
 
 const execFileAsync = promisify(execFile);
 
@@ -123,11 +124,6 @@ type OpenClawWikiIngestBackfillInput = {
   sourceNamespace?: string | null;
   projectTitle?: string | null;
   userId: string;
-};
-
-type OpenClawFallbackWikiPage = {
-  content: string;
-  path: string;
 };
 
 type OpenClawWikiTreeOutputItem = Partial<WikiTreeItem> & {
@@ -585,16 +581,6 @@ function isClawmacdoResourceFailure(error: unknown) {
   );
 }
 
-function isNonFatalWikiIngestJsonError(error: unknown) {
-  const message = error instanceof Error ? error.message : String(error ?? "");
-  const normalized = message.toLowerCase();
-
-  return (
-    normalized.includes("failed to parse wiki ingest json") ||
-    normalized.includes("eof while parsing a value")
-  );
-}
-
 export function isOpenClawInstanceMissingError(error: unknown) {
   const message = error instanceof Error ? error.message : String(error ?? "");
   const normalized = message.toLowerCase();
@@ -663,7 +649,7 @@ async function runClawmacdo(args: string[], extraEnv: Record<string, string>, on
           attempt,
           durationMs: Date.now() - startedAt,
           outputLength: output.length,
-          outputTail: sanitizeLogText(output.slice(-2000))
+          outputTail: args[0] === "wiki-read" ? "[wiki page content omitted]" : sanitizeLogText(output.slice(-2000))
         });
 
         return output;
@@ -682,7 +668,7 @@ async function runClawmacdo(args: string[], extraEnv: Record<string, string>, on
           nextDelayMs: shouldRetry ? retryDelayMs : undefined,
           signal: failure.signal,
           stderrTail: sanitizeLogText((failure.stderr ?? "").slice(-2000)),
-          stdoutTail: sanitizeLogText((failure.stdout ?? "").slice(-2000))
+          stdoutTail: args[0] === "wiki-read" ? "[wiki page content omitted]" : sanitizeLogText((failure.stdout ?? "").slice(-2000))
         });
 
         if (!shouldRetry) {
@@ -1279,32 +1265,23 @@ function isMissingDeployRecord(error: unknown) {
   return message.toLowerCase().includes("no deploy records found");
 }
 
-function getLlmWikiPromptPath() {
-  const promptPath = requireEnv("OPENCLAW_LLM_WIKI_PROMPT_PATH");
-  return absoluteFromWorkspace(promptPath);
-}
-
 function buildWikiGenerationPrompt(input: OpenClawGenerationInput) {
   const attachmentContext = buildAttachmentPromptContext(input.attachments ?? []);
 
   return [
-    "Generate a new AI CUBER wiki project scaffold.",
+    "Generate a new AI CUBER knowledge base.",
     "",
     `Owner name: ${input.ownerName}`,
     `AI avatar name: ${input.avatarName}`,
-    `User id: ${input.userId}`,
-    `Project id: ${input.projectId}`,
-    `Project: ${input.projectSlug}; use the project directory selected by the wiki command.`,
+    `Project: ${input.projectSlug}.`,
     "",
     "User intent:",
     input.prompt,
     "",
-    "Create the project directory and scaffold a practical LLM-maintained knowledge base.",
-    "The scaffold must include at least README.md, CLAUDE.md, index.md, log.md, raw/, raw/assets/, wiki/, wiki/entities/, wiki/concepts/, wiki/sources/, queries/, outputs/, and tools/.",
-    "Use the user intent to specialize the directory names, starter pages, conventions, and initial index content.",
+    "Create practical initial knowledge pages and an index based on the user intent and any supplied sources.",
     attachmentContext ? "" : null,
     attachmentContext || null,
-    "Do not ask a follow-up question. Make reasonable assumptions and write the initial files."
+    "Do not ask a follow-up question. Clearly label assumptions."
   ].filter((line): line is string => line !== null).join("\n");
 }
 
@@ -1317,10 +1294,8 @@ function buildWikiIngestPrompt(input: OpenClawWikiIngestInput) {
     "",
     `Owner name: ${input.ownerName}`,
     `AI avatar name: ${input.avatarName}`,
-    `User id: ${input.userId}`,
-    `Project id: ${input.projectId}`,
     `Project title: ${input.projectTitle?.trim() || input.projectSlug}`,
-    `Project: ${input.projectSlug}; use the current project directory selected by the wiki command.`,
+    `Project: ${input.projectSlug}.`,
     projectContext ? "" : null,
     projectContext ? "Current Nth Brain context:" : null,
     projectContext || null,
@@ -1334,392 +1309,13 @@ function buildWikiIngestPrompt(input: OpenClawWikiIngestInput) {
     "",
     attachmentContext,
     "",
-    "The uploaded files have already been converted to markdown and written inside this exact project directory.",
+    "The uploaded files have already been saved; their converted contents are supplied alongside this request.",
     "Decide where each source belongs. Keep raw source files available, then create or update synthesized pages when useful.",
     "If a document should augment an existing page, modify that existing page instead of creating duplicates.",
-    "If a new entity, concept, source summary, query, or output page is needed, create it in the best directory.",
+    "Create useful entity, concept, and source summary pages where needed.",
     "Update index.md and log.md when meaningful. Add wiki links between related nodes.",
     "Preserve source facts and separate assumptions from confirmed details.",
     "Do not ask a follow-up question. Make reasonable assumptions and apply the changes."
-  ].join("\n");
-}
-
-function yamlString(value: string) {
-  return `"${value.replace(/\\/g, "\\\\").replace(/"/g, '\\"')}"`;
-}
-
-function fallbackFrontmatter(title: string, type: string, tags: string[]) {
-  return [
-    "---",
-    `title: ${yamlString(title)}`,
-    `type: ${yamlString(type)}`,
-    "tags:",
-    ...tags.map((tag) => `  - ${yamlString(tag)}`),
-    "---",
-    ""
-  ].join("\n");
-}
-
-function quoteMarkdown(value: string) {
-  return value
-    .trim()
-    .split("\n")
-    .map((line) => `> ${line}`)
-    .join("\n");
-}
-
-function treeHasMarkdownFiles(items: WikiTreeItem[]): boolean {
-  for (const item of items) {
-    if (item.type === "file") {
-      return true;
-    }
-
-    if (item.children && treeHasMarkdownFiles(item.children)) {
-      return true;
-    }
-  }
-
-  return false;
-}
-
-function buildFallbackWikiPages(input: OpenClawGenerationInput): OpenClawFallbackWikiPage[] {
-  const createdAt = new Date().toISOString();
-  const projectTitle = `${input.projectSlug} AI CUBER Wiki`;
-  const promptBlock = quoteMarkdown(input.prompt || "No user intent was provided.");
-
-  return [
-    {
-      path: "README.md",
-      content: [
-        fallbackFrontmatter(projectTitle, "overview", ["llm-wiki", "workspace"]),
-        `# ${projectTitle}`,
-        "",
-        "This wiki was scaffolded by AI CUBER after Claude refinement was unavailable.",
-        "Use it as the working markdown base for the user's LLM-maintained knowledge system.",
-        "",
-        "## User Intent",
-        "",
-        promptBlock,
-        "",
-        "## Start Here",
-        "",
-        "- [[Index]] catalogs the wiki structure.",
-        "- [[Client Profiles]] tracks people, needs, and relationship context.",
-        "- [[Property Preferences]] captures requirements and constraints.",
-        "- [[Follow Up Workflow]] defines the operating rhythm.",
-        "- [[Source Inbox]] stores raw notes before they are synthesized.",
-        "",
-        "## Operating Rule",
-        "",
-        "Raw inputs go into `raw/`. Synthesized knowledge goes into `wiki/`. Queries and reusable outputs go into `queries/` and `outputs/`."
-      ].join("\n")
-    },
-    {
-      path: "CLAUDE.md",
-      content: [
-        fallbackFrontmatter("LLM Maintainer Instructions", "schema", ["llm-wiki", "agent-instructions"]),
-        "# LLM Maintainer Instructions",
-        "",
-        "You maintain this wiki as a persistent markdown knowledge base.",
-        "",
-        "## Responsibilities",
-        "",
-        "- Read raw source notes before changing synthesized pages.",
-        "- Keep [[Index]] current whenever pages are added or renamed.",
-        "- Add bidirectional wiki links when concepts, entities, or workflows are related.",
-        "- Preserve source facts and separate assumptions from confirmed information.",
-        "- Append a short entry to [[Log]] after every meaningful update.",
-        "",
-        "## Directory Contract",
-        "",
-        "- `raw/`: source notes and imported material.",
-        "- `raw/assets/`: downloaded files and attachments.",
-        "- `wiki/entities/`: people, clients, organizations, properties, and vendors.",
-        "- `wiki/concepts/`: reusable ideas, criteria, workflows, and decisions.",
-        "- `wiki/sources/`: source summaries.",
-        "- `queries/`: repeatable prompts and investigation templates.",
-        "- `outputs/`: generated reports, briefs, and summaries.",
-        "- `tools/`: helper scripts or documented manual tools."
-      ].join("\n")
-    },
-    {
-      path: "index.md",
-      content: [
-        fallbackFrontmatter("Index", "index", ["llm-wiki"]),
-        "# Index",
-        "",
-        "## Core Pages",
-        "",
-        "- [[README]] - wiki overview and user intent.",
-        "- [[LLM Maintainer Instructions]] - operating schema for the LLM.",
-        "- [[Log]] - chronological update history.",
-        "",
-        "## Entity Pages",
-        "",
-        "- [[Client Profiles]] - client facts, preferences, and follow-up status.",
-        "- [[Property Records]] - properties, listings, and relevant details.",
-        "",
-        "## Concept Pages",
-        "",
-        "- [[Property Preferences]] - budget, location, timing, and hard requirements.",
-        "- [[Follow Up Workflow]] - lead follow-up and relationship cadence.",
-        "- [[Matching Criteria]] - how clients are matched to properties.",
-        "",
-        "## Source Pages",
-        "",
-        "- [[Source Inbox]] - incoming raw materials before synthesis."
-      ].join("\n")
-    },
-    {
-      path: "log.md",
-      content: [
-        fallbackFrontmatter("Log", "log", ["llm-wiki", "history"]),
-        "# Log",
-        "",
-        `## [${createdAt}] scaffold | Initial wiki created`,
-        "",
-        "Created the initial markdown scaffold from the user's stated intent. Next update should ingest real client/property source notes into `raw/` and synthesize them into entity and concept pages."
-      ].join("\n")
-    },
-    {
-      path: "raw/README.md",
-      content: [
-        fallbackFrontmatter("Source Inbox", "source-index", ["raw", "sources"]),
-        "# Source Inbox",
-        "",
-        "Store raw client notes, property notes, call summaries, screenshots, and imported documents here.",
-        "",
-        "After adding a source, update [[Client Profiles]], [[Property Records]], [[Property Preferences]], and [[Follow Up Workflow]] as needed."
-      ].join("\n")
-    },
-    {
-      path: "raw/assets/README.md",
-      content: [
-        fallbackFrontmatter("Asset Inbox", "source-index", ["raw", "assets"]),
-        "# Asset Inbox",
-        "",
-        "Store downloaded images, PDFs, listing screenshots, floor plans, and other attachments here.",
-        "",
-        "Reference assets from source summaries in [[Source Inbox]]."
-      ].join("\n")
-    },
-    {
-      path: "wiki/README.md",
-      content: [
-        fallbackFrontmatter("Wiki Home", "overview", ["wiki"]),
-        "# Wiki Home",
-        "",
-        "This directory contains synthesized knowledge maintained by the LLM.",
-        "",
-        "Start with [[Client Profiles]], [[Property Records]], [[Property Preferences]], and [[Follow Up Workflow]]."
-      ].join("\n")
-    },
-    {
-      path: "wiki/entities/README.md",
-      content: [
-        fallbackFrontmatter("Entity Index", "index", ["entities"]),
-        "# Entity Index",
-        "",
-        "- [[Client Profiles]]",
-        "- [[Property Records]]",
-        "",
-        "Create one page per important client, property, organization, or recurring stakeholder when the wiki grows."
-      ].join("\n")
-    },
-    {
-      path: "wiki/entities/client-profiles.md",
-      content: [
-        fallbackFrontmatter("Client Profiles", "entity-index", ["clients", "crm"]),
-        "# Client Profiles",
-        "",
-        "Track each client as a durable entity page or section.",
-        "",
-        "## Suggested Fields",
-        "",
-        "- Name and contact context.",
-        "- Buying, selling, renting, or investing intent.",
-        "- Budget and financing constraints.",
-        "- Location preferences.",
-        "- Property type and must-have requirements.",
-        "- Timeline and urgency.",
-        "- Latest follow-up status.",
-        "",
-        "Related pages: [[Property Preferences]], [[Follow Up Workflow]], [[Matching Criteria]]."
-      ].join("\n")
-    },
-    {
-      path: "wiki/entities/property-records.md",
-      content: [
-        fallbackFrontmatter("Property Records", "entity-index", ["properties"]),
-        "# Property Records",
-        "",
-        "Track listings, units, developments, or areas that matter to clients.",
-        "",
-        "## Suggested Fields",
-        "",
-        "- Address or project name.",
-        "- Price or rent range.",
-        "- Property type, size, tenure, and availability.",
-        "- Notable advantages, risks, and constraints.",
-        "- Matching clients and rationale.",
-        "",
-        "Related pages: [[Client Profiles]], [[Property Preferences]], [[Matching Criteria]]."
-      ].join("\n")
-    },
-    {
-      path: "wiki/concepts/README.md",
-      content: [
-        fallbackFrontmatter("Concept Index", "index", ["concepts"]),
-        "# Concept Index",
-        "",
-        "- [[Property Preferences]]",
-        "- [[Follow Up Workflow]]",
-        "- [[Matching Criteria]]"
-      ].join("\n")
-    },
-    {
-      path: "wiki/concepts/property-preferences.md",
-      content: [
-        fallbackFrontmatter("Property Preferences", "concept", ["requirements"]),
-        "# Property Preferences",
-        "",
-        "Use this page to normalize how client requirements are recorded.",
-        "",
-        "## Preference Dimensions",
-        "",
-        "- Budget range and flexibility.",
-        "- Preferred locations and exclusion zones.",
-        "- Property type, size, rooms, floor, facing, and amenities.",
-        "- School, commute, lifestyle, or investment criteria.",
-        "- Deal breakers and negotiable items.",
-        "",
-        "Related pages: [[Client Profiles]], [[Property Records]], [[Matching Criteria]]."
-      ].join("\n")
-    },
-    {
-      path: "wiki/concepts/follow-up-workflow.md",
-      content: [
-        fallbackFrontmatter("Follow Up Workflow", "workflow", ["crm", "operations"]),
-        "# Follow Up Workflow",
-        "",
-        "Use this workflow to keep client relationships active and auditable.",
-        "",
-        "## Cadence",
-        "",
-        "- Capture every meaningful conversation in `raw/`.",
-        "- Update [[Client Profiles]] with the latest status.",
-        "- Link relevant [[Property Records]] and explain the match or mismatch.",
-        "- Record next action, owner, and target date.",
-        "",
-        "Related pages: [[Property Preferences]], [[Matching Criteria]], [[Log]]."
-      ].join("\n")
-    },
-    {
-      path: "wiki/concepts/matching-criteria.md",
-      content: [
-        fallbackFrontmatter("Matching Criteria", "concept", ["matching", "decision-support"]),
-        "# Matching Criteria",
-        "",
-        "Define how properties are evaluated against client requirements.",
-        "",
-        "## Starter Scoring Areas",
-        "",
-        "- Requirement fit.",
-        "- Budget fit.",
-        "- Timeline fit.",
-        "- Risk and trade-off notes.",
-        "- Follow-up recommendation.",
-        "",
-        "Related pages: [[Client Profiles]], [[Property Records]], [[Property Preferences]]."
-      ].join("\n")
-    },
-    {
-      path: "wiki/sources/README.md",
-      content: [
-        fallbackFrontmatter("Source Summaries", "source-index", ["sources"]),
-        "# Source Summaries",
-        "",
-        "Create one summary page per important raw source after ingestion.",
-        "",
-        "Each summary should link to affected [[Client Profiles]], [[Property Records]], and concept pages."
-      ].join("\n")
-    },
-    {
-      path: "queries/README.md",
-      content: [
-        fallbackFrontmatter("Queries", "query-index", ["queries"]),
-        "# Queries",
-        "",
-        "Store repeatable questions and investigation prompts here.",
-        "",
-        "## Starter Queries",
-        "",
-        "- Which clients need follow-up this week?",
-        "- Which properties match a client's stated requirements?",
-        "- Which client requirements are still unknown?",
-        "- Which listings have unresolved risks?"
-      ].join("\n")
-    },
-    {
-      path: "outputs/README.md",
-      content: [
-        fallbackFrontmatter("Outputs", "output-index", ["outputs"]),
-        "# Outputs",
-        "",
-        "Store generated briefs, comparison tables, client summaries, and property match reports here.",
-        "",
-        "When an output becomes durable knowledge, link it back into [[Index]]."
-      ].join("\n")
-    },
-    {
-      path: "tools/README.md",
-      content: [
-        fallbackFrontmatter("Tools", "tool-index", ["tools"]),
-        "# Tools",
-        "",
-        "Document helper scripts, import conventions, export steps, and external tools here.",
-        "",
-        "Keep this page updated as the wiki gains automation."
-      ].join("\n")
-    }
-  ];
-}
-
-async function createFallbackWikiScaffold(input: OpenClawGenerationInput, reason: string) {
-  const pages = buildFallbackWikiPages(input);
-  const written: string[] = [];
-  const skipped: string[] = [];
-
-  for (const page of pages) {
-    const fullPath = normalizeWikiPath(`${input.projectSlug}/${page.path}`);
-
-    try {
-      const result = await writeOpenClawWikiFile({
-        baseSha: "NEW",
-        content: page.content,
-        filePath: fullPath,
-        instance: input.instance
-      });
-
-      written.push(result.filePath);
-    } catch (error) {
-      const message = error instanceof Error ? error.message : "";
-
-      if (message.includes("already_exists") || message.includes("File already exists")) {
-        skipped.push(fullPath);
-        continue;
-      }
-
-      throw error;
-    }
-  }
-
-  return [
-    "fallback_scaffold_created",
-    `reason=${sanitizeLogText(reason).slice(0, 1200)}`,
-    `project=${input.projectSlug}`,
-    `files=${written.join(",")}`,
-    `existing_files_skipped=${skipped.join(",")}`
   ].join("\n");
 }
 
@@ -2524,204 +2120,71 @@ export async function setupOpenClawAvatar(input: OpenClawAvatarSetupInput) {
   };
 }
 
+async function generateAndWriteWiki(input: { instance: string; projectSlug: string; userId: string; prompt: string; attachments: ConvertedWikiAttachment[]; hasExistingWiki: boolean }) {
+  const existing: ExistingWikiPage[] = [];
+  const knownPaths = new Set<string>();
+  if (input.hasExistingWiki) {
+    const tree = await readOpenClawWikiTree({ instance: input.instance, projectSlug: input.projectSlug });
+    const candidates = flattenWikiTreeItems(tree).map(file => relativeProjectWikiPath(file.path, input.projectSlug))
+      .filter(file => /^(?:index\.md|log\.md|README\.md|wiki\/(?:entities|concepts|sources)\/.*\.md)$/i.test(file));
+    for (const file of candidates) knownPaths.add(file.toLowerCase());
+    // Supply whole pages only: never replace an existing page from a truncated excerpt.
+    for (const file of candidates.slice(0, 30)) {
+      const page = await readOpenClawWikiPage({ instance: input.instance, projectSlug: input.projectSlug, filePath: absoluteProjectWikiPath(file, input.projectSlug) });
+      if (page.sha && page.content.length <= 20_000 && !page.content.includes(";base64,")) existing.push({ path: file, content: page.content, sha: page.sha });
+    }
+  }
+  const pages = await generateWikiWithOpenRouter({ userId: input.userId, instance: input.instance, instruction: input.prompt, attachments: input.attachments, existingPages: existing });
+  const existingByPath = new Map(existing.map(page => [page.path.toLowerCase(), page]));
+  // Validate the entire response before making any changes. Unread pages cannot be overwritten.
+  for (const page of pages) {
+    const existingPage = existingByPath.get(page.path.toLowerCase());
+    if (knownPaths.has(page.path.toLowerCase()) && (!existingPage || existingPage.path !== page.path)) throw new Error("The generated page conflicts with an existing page that could not be safely read. The AI request was charged; retry after reviewing the wiki.");
+  }
+  const written: string[] = [];
+  for (const page of pages) {
+    const previous = existingByPath.get(page.path.toLowerCase());
+    if (previous?.content === page.content) continue;
+    try {
+      await writeOpenClawWikiFile({ instance: input.instance, filePath: absoluteProjectWikiPath(page.path, input.projectSlug), content: page.content, baseSha: previous?.sha ?? "NEW" });
+      written.push(page.path);
+    } catch {
+      throw new Error("The AI request was charged, but some wiki pages could not be saved. Some changes may already be present; review the wiki before retrying.");
+    }
+  }
+  if (!written.length) throw new Error("No wiki pages changed. The AI request was charged; review the existing wiki before retrying.");
+  return written;
+}
+
 export async function generateOpenClawWikiProject(input: OpenClawGenerationInput) {
-  const awsEnv = getAwsEnv();
-  const instance = await resolveOpenClawSshTarget(input.instance, awsEnv, "openclaw-llm-wiki");
   const prompt = buildWikiGenerationPrompt(input);
-  const llmWikiPromptPath = getLlmWikiPromptPath();
-  const timeout = optionalEnv("OPENCLAW_LLM_WIKI_TIMEOUT_SECONDS") ?? "600";
-  const agent = optionalEnv("OPENCLAW_AGENT_ID") ?? "main";
-
-  consoleClawmacdo("wiki_input", {
-    agent,
-    avatarName: input.avatarName,
-    instance: input.instance,
-    llmWikiPromptPath,
-    ownerName: input.ownerName,
-    projectId: input.projectId,
-    projectSlug: input.projectSlug,
-    prompt: promptSummary(prompt),
-    timeout,
-    userId: input.userId
-  });
-
-  const args = [
-    "openclaw-llm-wiki",
-    "--instance",
-    instance,
-    "--agent",
-    agent,
-    "--project",
-    input.projectSlug,
-    "--title",
-    `${input.projectSlug} AI CUBER Wiki`,
-    "--prompt",
-    prompt,
-    "--timeout",
-    timeout,
-    "--llm-wiki-md",
-    llmWikiPromptPath,
-    "--json"
-  ];
-
-  let attachmentOutput = "";
-
+  const attachments = input.attachments ?? [];
+  const attachmentOutput = await writeOpenClawWikiAttachments(input);
   try {
-    attachmentOutput = await writeOpenClawWikiAttachments(input);
-    const output = await runClawmacdo(args, awsEnv);
-    const generationResult = parseJsonOutput<{ ok?: boolean; error?: string | null; claude_status?: string }>(output);
-    if (generationResult.ok !== true || generationResult.claude_status !== "success") {
-      throw new Error(generationResult.error || "AI wiki generation did not complete.");
-    }
-    const tree = await readOpenClawWikiTree({
-      instance: input.instance,
-      projectSlug: input.projectSlug
-    });
-
-    if (treeHasMarkdownFiles(tree)) {
-      return {
-        hooksOutput: attachmentOutput,
-        mapping: "openclaw-llm-wiki",
-        sendOutput: output,
-        task: prompt
-      };
-    }
-
-    const fallbackOutput = await createFallbackWikiScaffold(
-      input,
-      "openclaw-llm-wiki completed but did not create project markdown files"
-    );
-
-    return {
-      hooksOutput: [attachmentOutput, fallbackOutput].filter(Boolean).join("\n\n"),
-      mapping: "openclaw-llm-wiki-fallback-scaffold",
-      sendOutput: output,
-      task: prompt
-    };
+    const files = await generateAndWriteWiki({ instance: input.instance, projectSlug: input.projectSlug, userId: input.userId, prompt, attachments, hasExistingWiki: false });
+    return { hooksOutput: attachmentOutput, mapping: "openrouter-wiki", sendOutput: `files=${files.join(",")}`, task: prompt };
   } catch (error) {
-    const message = error instanceof Error ? error.message : "openclaw_llm_wiki_failed";
-    if (!attachmentOutput) {
-      attachmentOutput = await writeOpenClawWikiAttachments(input);
+    if (!attachments.length) throw error;
+    // Keep initial sources accessible and retryable even if AI generation fails.
+    const message = error instanceof Error ? error.message : "Nth Brain generation failed.";
+    try {
+      await writeOpenClawWikiFile({ instance: input.instance, filePath: absoluteProjectWikiPath("index.md", input.projectSlug), baseSha: "NEW", content: `# Nth Brain\n\nThe uploaded sources are saved. Retry generation to create wiki pages.\n` });
+    } catch (writeError) {
+      const detail = writeError instanceof Error ? writeError.message : "";
+      if (!detail.includes("already_exists") && !detail.includes("File already exists")) throw writeError;
     }
-    const fallbackOutput = await createFallbackWikiScaffold(input, message);
-
-    return {
-      hooksOutput: [attachmentOutput, fallbackOutput].filter(Boolean).join("\n\n"),
-      mapping: "openclaw-llm-wiki-fallback-scaffold",
-      sendOutput: message,
-      task: prompt
-    };
+    return { hooksOutput: attachmentOutput, mapping: "openclaw-llm-wiki-fallback-scaffold", sendOutput: message, task: prompt };
   }
 }
 
 export async function ingestOpenClawWikiAttachments(input: OpenClawWikiIngestInput) {
-  if (input.attachments.length === 0) {
-    throw new Error("missing_wiki_attachments");
-  }
-
-  const awsEnv = getAwsEnv();
-  const instance = await resolveOpenClawSshTarget(input.instance, awsEnv, "wiki-ingest");
+  if (!input.attachments.length) throw new Error("missing_wiki_attachments");
   const prompt = buildWikiIngestPrompt(input);
-  const timeout = optionalEnv("OPENCLAW_LLM_WIKI_TIMEOUT_SECONDS") ?? "600";
-  const agent = optionalEnv("OPENCLAW_AGENT_ID") ?? "main";
-
-  consoleClawmacdo("wiki_ingest_input", {
-    agent,
-    attachmentCount: input.attachments.length,
-    instance: input.instance,
-    projectId: input.projectId,
-    projectSlug: input.projectSlug,
-    prompt: promptSummary(prompt),
-    timeout,
-    userId: input.userId
-  });
-
-  const attachmentOutput = input.writeAttachments === false
-    ? `attachments_reused=${input.attachments.map((attachment) => attachment.path).join(",")}`
+  const attachmentsOutput = input.writeAttachments === false
+    ? `attachments_reused=${input.attachments.map(attachment => attachment.path).join(",")}`
     : await writeOpenClawWikiAttachments(input);
-  const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "openclaw-wiki-ingest-"));
-  const outputs: string[] = [];
-  let wikiChangeCount = 0;
-
-  try {
-    for (const [index, attachment] of input.attachments.entries()) {
-      const sourcePath = path.join(tempDir, `${String(index + 1).padStart(2, "0")}-${path.basename(attachment.path)}`);
-      const sourcePrompt = [
-        prompt,
-        "",
-        `Current converted source file: ${attachment.path}`,
-        `Original upload file: ${attachment.fileName}`,
-        `Source type: ${attachment.sourceType}`,
-        "This source markdown has already been stored in the project. Use it as raw evidence and update the best wiki pages."
-      ].join("\n");
-
-      await fs.writeFile(sourcePath, attachment.markdown, "utf8");
-
-      try {
-        const output = await runClawmacdo(
-          [
-            "wiki-ingest",
-            "--instance",
-            instance,
-            "--agent",
-            agent,
-            "--project",
-            input.projectSlug,
-            "--source",
-            sourcePath,
-            "--prompt",
-            sourcePrompt,
-            "--timeout",
-            timeout,
-            "--json"
-          ],
-          awsEnv
-        );
-        let result: { changed_files?: unknown };
-        try {
-          result = parseJsonOutput<{ changed_files?: unknown }>(output);
-        } catch {
-          throw new Error("The source was saved, but wiki generation could not be confirmed. Retry the upload from the saved source.");
-        }
-        if (!Array.isArray(result.changed_files)) {
-          throw new Error("The source was saved, but wiki generation could not be confirmed. Retry the upload from the saved source.");
-        }
-        const wikiChanges = result.changed_files.filter((file): file is string =>
-          typeof file === "string" && !file.replace(/^\.\//, "").startsWith("raw/") && file.toLowerCase().endsWith(".md")
-        );
-        wikiChangeCount += wikiChanges.length;
-        outputs.push(output);
-      } catch (error) {
-        if (!isNonFatalWikiIngestJsonError(error)) {
-          throw error;
-        }
-
-        const message = error instanceof Error ? error.message : "wiki_ingest_json_empty";
-
-        consoleClawmacdo("wiki_ingest_attachment_only", {
-          attachment: attachment.fileName,
-          instance: input.instance,
-          message: sanitizeLogText(message),
-          projectId: input.projectId,
-          projectSlug: input.projectSlug
-        });
-        throw new Error("The source was saved, but wiki generation could not be confirmed. Retry the upload from the saved source.");
-      }
-    }
-  } finally {
-    await fs.rm(tempDir, { force: true, recursive: true }).catch(() => undefined);
-  }
-
-  if (wikiChangeCount === 0) {
-    throw new Error("No wiki pages were updated. The saved source may already be covered; review the wiki or retry the upload.");
-  }
-
-  return {
-    attachmentsOutput: attachmentOutput,
-    mapping: "wiki-ingest",
-    output: outputs.join("\n\n"),
-    task: prompt
-  };
+  const files = await generateAndWriteWiki({ instance: input.instance, projectSlug: input.projectSlug, userId: input.userId, prompt, attachments: input.attachments, hasExistingWiki: true });
+  return { attachmentsOutput, mapping: "wiki-ingest-openrouter", output: `files=${files.join(",")}`, task: prompt };
 }
 
 export async function backfillOpenClawWikiIngest(input: OpenClawWikiIngestBackfillInput) {

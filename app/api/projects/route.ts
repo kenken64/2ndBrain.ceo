@@ -1,5 +1,4 @@
 import { after, NextResponse } from "next/server";
-import { isAdminUser } from "@/lib/admin";
 import { hasSupabaseEnv } from "@/lib/env";
 import {
   getUserIdFromClaims,
@@ -11,7 +10,6 @@ import {
 import { generateOpenClawWikiProject } from "@/lib/openclaw";
 import { createAdminClient, hasSupabaseServiceRoleEnv } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
-import { publishTokenQuotaUpdate } from "@/lib/token-quota-redis";
 import { appUrl, safeNextPath } from "@/lib/url";
 import { convertWikiAttachments } from "@/lib/wiki-attachments";
 
@@ -36,13 +34,6 @@ function slugFromProjectId(projectId: string) {
 
 function outputSummary(value: string) {
   return value.slice(-4000);
-}
-
-function estimateProjectTokenCost(prompt: string, files: File[]) {
-  const promptTokens = Math.ceil(prompt.trim().length / 4);
-  const fileTokens = Math.ceil(files.reduce((sum, file) => sum + file.size, 0) / 4);
-
-  return Math.max(1, 1000 + promptTokens + fileTokens);
 }
 
 function projectGenerationErrorCode(error: unknown) {
@@ -191,7 +182,6 @@ export async function POST(request: Request) {
     payload instanceof FormData
       ? payload.getAll("attachments").filter((value): value is File => value instanceof File && value.size > 0)
       : [];
-  const estimatedTokenCost = estimateProjectTokenCost(prompt, attachmentInputs);
 
   if (!hasSupabaseServiceRoleEnv()) {
     if (isFormPost) {
@@ -216,11 +206,6 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: quotaProfileError.message }, { status: 500 });
   }
 
-  const quota = Number(quotaProfile?.llm_token_quota ?? 0);
-  const used = Number(quotaProfile?.llm_token_used ?? 0);
-  const remaining = quota - used;
-  const isAdmin = await isAdminUser(auth.email, auth.userId);
-
   if (quotaProfile?.admin_disabled || quotaProfile?.admin_deleted_at) {
     if (isFormPost) {
       return NextResponse.redirect(appUrl("/disabled", request), { status: 303 });
@@ -238,54 +223,6 @@ export async function POST(request: Request) {
       { error: "AI Agent usage is paused. Resume AI usage in Settings before creating projects." },
       { status: 423 }
     );
-  }
-
-  if (!isAdmin && (quota <= 0 || remaining < estimatedTokenCost)) {
-    if (isFormPost) {
-      return redirectWithParams(request, returnTo, { error: "token_quota_exceeded" });
-    }
-
-    return NextResponse.json(
-      {
-        error: "LLM token quota exceeded",
-        estimatedTokenCost,
-        remaining: Math.max(0, remaining)
-      },
-      { status: 402 }
-    );
-  }
-
-  const { error: usageError } = isAdmin
-    ? { error: null }
-    : await adminSupabase
-        .from("profiles")
-        .update({
-          llm_token_used: used + estimatedTokenCost
-        })
-        .eq("id", auth.userId);
-
-  if (usageError) {
-    if (isFormPost) {
-      return redirectWithParams(request, returnTo, { error: "token_quota_update" });
-    }
-
-    return NextResponse.json({ error: usageError.message }, { status: 500 });
-  }
-
-  if (!isAdmin) {
-    await publishTokenQuotaUpdate({
-      actorUserId: auth.userId,
-      deltaTokens: -estimatedTokenCost,
-      email: quotaProfile?.email ?? null,
-      llmTokenQuota: quota,
-      llmTokenUsed: used + estimatedTokenCost,
-      openclawInstance: typeof quotaProfile?.openclaw_instance === "string" ? quotaProfile.openclaw_instance : openclawInstance,
-      metadata: {
-        estimatedTokenCost
-      },
-      reason: "project_token_usage",
-      userId: auth.userId
-    });
   }
 
   const { data, error } = await auth.supabase
@@ -336,7 +273,7 @@ export async function POST(request: Request) {
         .from("projects")
         .update({
           openclaw_generation_completed_at: new Date().toISOString(),
-          openclaw_generation_error: null,
+          openclaw_generation_error: generated.mapping === "openclaw-llm-wiki-fallback-scaffold" ? outputSummary(generated.sendOutput) : null,
           openclaw_generation_mapping: generated.mapping,
           openclaw_generation_output: outputSummary(
             [generated.hooksOutput, generated.sendOutput].filter(Boolean).join("\n\n")

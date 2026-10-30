@@ -239,10 +239,10 @@ export default async function DashboardWikiPage({ searchParams }: WikiPageProps)
             <section className="dashboard-workbench wiki-hub">
               <div className="wiki-empty-panel wiki-generator-panel">
                 <h1><Localized en="Generate a Nth Brain" zh="生成 Nth Brain" /></h1>
-                <p><Localized en="Describe a new Nth Brain project. Each generated Nth Brain gets its own workspace, markdown pages, and graph-ready structure." zh="描述一个新的 Nth Brain 项目。每个生成的项目都有自己的工作空间、Markdown 页面和可用于图谱的结构。" /></p>
+                <p><Localized en="Describe a new Nth Brain project. Each generated Nth Brain gets its own workspace, markdown pages, and graph-ready structure. AI credits are reserved first and charged based on actual OpenRouter usage." zh="描述一个新的 Nth Brain 项目。每个生成的项目都有自己的工作空间、Markdown 页面和可用于图谱的结构。系统会先预留 AI 积分，并按 OpenRouter 实际用量收费。" /></p>
                 {params.error ? (
                   <p className="form-error">
-                    <Localized en={"Nth Brain generation failed on the previous attempt. Try again; the app will create a markdown scaffold even if Claude refinement is unavailable."} zh={"上次生成 Nth Brain 失败。请重试；即使 Claude 优化不可用，应用也会创建 Markdown 基础结构。"} /></p>
+                    <Localized en={"Nth Brain generation failed on the previous attempt. Please try again."} zh={"上次生成 Nth Brain 失败。请重试。"} /></p>
                 ) : null}
                 <ChatInput
                   className="wiki-empty-panel__chat"
@@ -316,7 +316,7 @@ export default async function DashboardWikiPage({ searchParams }: WikiPageProps)
                           {displayError ? (
                             <details className="project-error" open>
                               <summary><Localized en={"Generation error"} zh={"生成错误"} /></summary>
-                              <pre>{displayError}</pre>
+                              <pre><LocalizedMessage text={displayError} /></pre>
                             </details>
                           ) : null}
                           <div className="project-card__meta">
