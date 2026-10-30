@@ -181,3 +181,15 @@ For a manual test, select **Video · 15s** in AI Chat and use [video-prompt.txt]
 Select **Video · 15s** in AI Chat and use [video-prompt.txt](test-21/video-prompt.txt). Before submitting, confirm the app displays the current estimated reservation. Select **Create video**, wait for the job to finish, then open **My files** to play and download the saved MP4. Check its duration in the player and review the itemized charge in **AI Credits Usage**. The estimate and final charge can differ. An AI video request is billable and generated output is subject to the 20 MiB storage limit.
 
 For an offline check, run `node --test tests/chat-video-generation.test.cjs`. It verifies the 15-second provider request, model capability check, reservation, final-cost settlement, and job recovery without generating a video.
+
+## Test 22: Ingest a community garden PDF and build a knowledge graph
+
+Files: [nth-brain-community-garden.pdf](test-22/nth-brain-community-garden.pdf) and [ingestion-prompt.txt](test-22/ingestion-prompt.txt). This searchable, three-page fictional brief provides a second topic for the Test 18 ingestion and graph workflow.
+
+1. Open a ready **Nth Brain** project, preferably a separate test project so the fictional pages do not mix with real knowledge.
+2. Under **Upload to this Nth Brain**, attach the PDF, paste the contents of the prompt file into **Instruction for AI ingestion**, and select **Upload into Nth Brain**.
+3. Wait for ingestion to finish. Inspect the generated pages and their `[[wiki links]]`, then select **Generate knowledge graph** and open **Knowledge Graph** for the same project.
+4. Search for **Rainwater Harvesting Project**, **Nadia Lim**, **Rain Barrel System**, and **Water Usage Log**. Open the nodes and their source pages to check the evidence.
+5. Verify that Nadia owns the project; Omar owns the Rain Barrel System; the system's installation depends on Gutter Inspection; Lena owns Water Usage Log; and Dry Weather Risk may threaten the Water Savings Target. The target is proposed, not an achieved outcome. Graph labels, types, and edge counts can vary with AI ingestion, so check the pages as well as the graph.
+
+Ingestion uses the project's AI agent and may incur its normal costs. Graph generation indexes the resulting wiki content. The PDF is text-based and does not require OCR.
