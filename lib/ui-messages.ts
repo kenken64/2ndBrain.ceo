@@ -545,6 +545,7 @@ export const uiMessagesZh: Record<string, string> = {
   "closed": "已关闭",
   "error": "错误",
   "The response is shown, but its generated file could not be saved. You can still download the extracted data from the side panel.": "回复已显示，但无法保存生成的文件。您仍可从侧面板下载提取的数据。",
+  "The PDF was processed, but the answer could not be displayed. Check AI Credits Usage before trying again.": "PDF 已处理，但无法显示答案。请在重试前查看 AI 积分用量。",
   "The file was processed, but no extracted text was available for the side panel.": "文件已处理，但没有可在侧面板显示的提取文本。",
   "Usage is unconfirmed. Reserved credits remain held for review; see AI Credits Usage or contact support.": "用量未确认。预留积分将保留以供审核；请查看 AI 积分用量或联系支持人员。",
   "This account is exempt from AI credit charges.": "此账户免除 AI 积分费用。",

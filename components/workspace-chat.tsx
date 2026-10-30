@@ -357,7 +357,7 @@ export function WorkspaceChat({ userId, configured, initialChatId }: { userId: s
         let artifact: FileArtifact | undefined;
         if (file && payload.ocr && typeof payload.ocr.markdown === "string") artifact = { name: file.name, kind: "ocr", content: payload.ocr.markdown, truncated: payload.ocr.truncated === true };
         else if (file && typeof payload.spreadsheet === "string") artifact = { name: file.name, kind: "spreadsheet", content: payload.spreadsheet };
-        if (artifact) setPanelSelection("artifact");
+        if (artifact) setPanelSelection(file && /\.pdf$/i.test(file.name) ? file.id : "artifact");
         const outputFile = payload.savedOutput && typeof payload.savedOutput.id === "string" && typeof payload.savedOutput.name === "string" ? { id: payload.savedOutput.id, name: payload.savedOutput.name } : undefined;
         const outputFiles = Array.isArray(payload.savedOutputs) ? payload.savedOutputs.filter((item): item is { id: string; name: string } => typeof item.id === "string" && typeof item.name === "string").slice(0, 100) : [];
         pending = await persist({ ...pending, messages: [...pending.messages, { role: "assistant", content: payload.message, metrics, ...(generationMode === "chat" && !isPowerPointTransfer && !batch ? { model: responseModel } : {}), ...(artifact ? { artifact } : {}), ...(outputFile ? { fileRef: outputFile } : {}), ...(outputFiles.length ? { fileRefs: outputFiles } : {}) }] });

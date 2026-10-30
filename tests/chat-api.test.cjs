@@ -81,6 +81,11 @@ test("chat API checks authentication, model, billing and uncertain failures", as
     if (state.mode === "presentation") return Response.json({ id: "gen-pptx", choices: [{ message: { content: JSON.stringify({ title: "Example", slides: [{ title: "Summary", bullets: ["One"] }] }) } }], usage: { cost: 0.001, prompt_tokens: 50, completion_tokens: 20 } });
     if (state.mode === "image") return Response.json({ id: "gen-image", choices: [{ message: { content: JSON.stringify({ transcription: "# Receipt\nTotal: 42", answer: "The total is 42." }) } }], usage: { cost: 0.0004, prompt_tokens: 40, completion_tokens: 10 } });
     if (state.mode === "invalid-image") return Response.json({ id: "gen-image", choices: [{ message: { content: "not JSON" } }], usage: { cost: 0.0004 } });
+    if (state.providerBody.response_format?.json_schema?.name === "pdf_answer") {
+      const answer = state.mode === "pdf-question" ? "Amina found the bananas on page 5." : "hello";
+      const content = state.mode === "invalid-pdf" ? "{invalid" : JSON.stringify({ answer });
+      return Response.json({ id: "gen-1", choices: [{ finish_reason: state.mode === "invalid-pdf" ? "length" : "stop", message: { content, annotations: [{ type: "file", file: { content: [{ type: "text", text: "# Extracted" }] } }] } }], usage: { cost: 0.0004, prompt_tokens: 40, completion_tokens: 10 } });
+    }
     return Response.json({ id: "gen-1", choices: [{ message: { content: "hello", annotations: [{ type: "file", file: { content: [{ type: "text", text: "# Extracted" }] } }] } }], usage: { cost: 0.0004, prompt_tokens: 40, completion_tokens: 10 } });
   };
   process.env.OPENROUTER_API_KEY = "test-key";
@@ -120,7 +125,20 @@ test("chat API checks authentication, model, billing and uncertain failures", as
     assert.equal(response.status, 200); assert.equal(pdf.ocr.markdown, "# Extracted"); assert.equal(pdf.outputTokens, 10); assert.ok(pdf.generationMs >= 0);
     assert.equal(pdf.savedOutput.id, "output-1"); assert.equal(state.savedOutput.userId, "user-1"); assert.equal(state.savedOutput.sourceId, "file-1"); assert.equal(state.savedOutput.kind, "ocr"); assert.equal(state.savedOutput.content, "# Extracted");
     assert.equal(state.providerBody.plugins[0].pdf.engine, "mistral-ocr"); assert.equal(state.providerBody.model, "google/gemini-2.5-flash");
-    assert.match(state.providerBody.messages.at(-1).content[0].text, /First use OCR/); assert.match(state.providerBody.messages.at(-1).content[0].text, /User request: Hello/);
+    assert.equal(pdf.message, "hello"); assert.equal(state.providerBody.response_format.json_schema.name, "pdf_answer");
+    assert.equal(state.providerBody.provider.require_parameters, true);
+    assert.match(state.providerBody.messages.at(-1).content[0].text, /answer the user request directly/); assert.match(state.providerBody.messages.at(-1).content[0].text, /User request: Hello/);
+    reset(); state.mode = "pdf-question";
+    response = await post(request({ ...good, messages: [{ role: "user", content: "Where did Amina find the bananas? Cite the page." }], attachment: { name: "book.pdf", kind: "pdf" } }));
+    const book = await response.json();
+    assert.equal(book.message, "Amina found the bananas on page 5."); assert.equal(book.ocr.markdown, "# Extracted");
+    assert.match(state.providerBody.messages.at(-1).content[0].text, /Where did Amina find the bananas/);
+    assert.equal(state.urls.filter(url => url.endsWith('/chat/completions')).length, 1);
+    reset(); state.mode = "invalid-pdf"; response = await post(request({ ...good, attachment: { name: "book.pdf", kind: "pdf" } }));
+    const invalidPdf = await response.json();
+    assert.match(invalidPdf.message, /answer could not be displayed/); assert.equal(invalidPdf.ocr.markdown, "# Extracted");
+    assert.equal(invalidPdf.truncated, true); assert.equal(state.rpc[1].args.p_status, "completed");
+    reset(); response = await post(request({ ...good, attachment: { name: "scan.pdf", kind: "pdf" } }));
     assert.equal(state.rpc[0].args.p_kind, "pdf_ocr"); assert.equal(state.rpc[0].args.p_pdf_pages, 3);
     assert.equal(state.rpc[1].args.p_cost_usd, 0.0065); assert.equal(state.rpc[1].args.p_prompt_tokens, 40);
     reset(); state.mode = "usage-delay"; response = await post(request({ ...good, attachment: { name: "scan.pdf", kind: "pdf" } }));

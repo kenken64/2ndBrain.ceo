@@ -1,5 +1,7 @@
 # Chat attachment test data
 
+[简体中文](README.zh-CN.md)
+
 The sample records and events in these examples are fictional. Tests 23 and 24 use user-provided storybooks; their credits appear in the PDFs. The PowerPoint design template includes existing AICUBER branding. Each example below includes the files to attach, a prompt or action, and results to check.
 
 1. Open **AI Chat** and start a new conversation.
