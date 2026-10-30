@@ -106,10 +106,11 @@ export async function GET(request: Request) {
       return NextResponse.json({ error: error.message }, { status: 500 });
     }
 
-    const needsRetry = Boolean(data && (data.status === "failed" ||
-      (data.status === "ready" && context.project?.openclaw_generation_mapping?.includes("attachment-only"))));
+    const initialGenerationFallback = !data && context.project?.openclaw_generation_mapping === "openclaw-llm-wiki-fallback-scaffold";
+    const needsRetry = Boolean(initialGenerationFallback || (data && (data.status === "failed" ||
+      (data.status === "ready" && context.project?.openclaw_generation_mapping?.includes("attachment-only")))));
 
-    const canRetry = Boolean(data && (data.status === "failed" || data.status === "ready"));
+    const canRetry = Boolean(initialGenerationFallback || (data && (data.status === "failed" || data.status === "ready")));
     return NextResponse.json({ job: data ?? null, needsRetry, canRetry });
   } catch (error) {
     return wikiApiError(error);

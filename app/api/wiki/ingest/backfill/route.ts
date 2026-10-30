@@ -36,7 +36,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "AI Agent profile is incomplete" }, { status: 409 });
     }
 
-    const { data: latestJob, error: latestJobError } = await context.supabase
+    const { data: existingJob, error: latestJobError } = await context.supabase
       .from("wiki_sync_jobs")
       .select("id,status,error,file_path,created_at,started_at,completed_at")
       .eq("user_id", context.userId)
@@ -50,7 +50,28 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: latestJobError.message }, { status: 500 });
     }
 
-    if (!latestJob?.id || (latestJob.status !== "failed" && latestJob.status !== "ready")) {
+    let latestJob = existingJob;
+    // Projects can have sources attached at creation without an ingest job.
+    const initialFallback = !latestJob;
+
+    if (initialFallback) {
+      const { data: createdJob, error: createError } = await context.supabase
+        .from("wiki_sync_jobs")
+        .insert({
+          user_id: context.userId,
+          project_id: projectId,
+          job_type: "ingest",
+          file_path: "raw/sources",
+          status: "running",
+          started_at: new Date().toISOString()
+        })
+        .select("id,status,error,file_path,created_at,started_at,completed_at")
+        .single();
+      if (createError || !createdJob) return NextResponse.json({ error: createError?.message ?? "Could not start retry." }, { status: 500 });
+      latestJob = createdJob;
+    }
+
+    if (!latestJob?.id || (!initialFallback && latestJob.status !== "failed" && latestJob.status !== "ready")) {
       return NextResponse.json({
         hidden: true,
         ok: true,
@@ -59,7 +80,7 @@ export async function POST(request: Request) {
     }
 
     const previousStatus = latestJob.status;
-    const { data: claimedJob, error: claimError } = await context.supabase
+    const { data: claimedJob, error: claimError } = initialFallback ? { data: { id: latestJob.id }, error: null } : await context.supabase
       .from("wiki_sync_jobs")
       .update({
         completed_at: null,
@@ -83,7 +104,7 @@ export async function POST(request: Request) {
         projectId,
         projectSlug: context.projectSlug,
         projectTitle: context.project.title,
-        prompt: retryPrompt || (previousStatus === "ready" ? context.project.openclaw_generation_prompt : null) || context.project.prompt,
+        prompt: retryPrompt || (previousStatus === "ready" && !initialFallback ? context.project.openclaw_generation_prompt : null) || context.project.prompt,
         sourceNamespace: latestJob.file_path,
         userId: context.userId
       });

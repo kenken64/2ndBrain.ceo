@@ -45,7 +45,9 @@ test('saved sources are only marked successful when the agent confirms wiki chan
     assert.equal((await claw.ingestOpenClawWikiAttachments(input)).mapping, 'wiki-ingest');
     process.env.TEST_TREE = JSON.stringify({ tree: [
       { name: 'first.md', path: 'wiki-test/raw/uploads/one/sources/first.md', type: 'file' },
-      { name: 'second.md', path: 'wiki-test/raw/uploads/two/sources/second.md', type: 'file' }
+      { name: 'second.md', path: 'wiki-test/raw/uploads/two/sources/second.md', type: 'file' },
+      { name: '01-initial.md', path: 'wiki-test/raw/sources/01-initial.md', type: 'file' },
+      { name: 'README.md', path: 'wiki-test/raw/sources/README.md', type: 'file' }
     ] });
     process.env.TEST_PAGE = JSON.stringify({ content: '---\nsource_file: "first.pdf"\nsource_type: "pdf"\n---\nEvidence' });
     process.env.TEST_RECORD = path.join(dir, 'read-args');
@@ -54,6 +56,10 @@ test('saved sources are only marked successful when the agent confirms wiki chan
     assert.match(fs.readFileSync(process.env.TEST_RECORD, 'utf8'), /raw\/uploads\/one\/sources\/first\.md/);
     assert.doesNotMatch(fs.readFileSync(process.env.TEST_RECORD, 'utf8'), /raw\/uploads\/two/);
     await assert.rejects(claw.backfillOpenClawWikiIngest({ ...retry, sourceNamespace: 'raw/uploads/missing' }), /No uploaded source markdown/);
+    fs.writeFileSync(process.env.TEST_RECORD, '');
+    await claw.backfillOpenClawWikiIngest({ ...retry, sourceNamespace: 'raw/sources' });
+    assert.match(fs.readFileSync(process.env.TEST_RECORD, 'utf8'), /raw\/sources\/01-initial\.md/);
+    assert.doesNotMatch(fs.readFileSync(process.env.TEST_RECORD, 'utf8'), /README\.md|raw\/uploads/);
   } finally {
     for (const [key, value] of Object.entries(previous)) value === undefined ? delete process.env[key] : process.env[key] = value;
     fs.rmSync(dir, { recursive: true, force: true });
@@ -61,20 +67,22 @@ test('saved sources are only marked successful when the agent confirms wiki chan
 });
 
 function fixture(job, mapping) {
-  const state = { job: { ...job }, project: { id: 'p1', status: 'ready', title: 'Test', prompt: 'project context', openclaw_project_slug: 'wiki-test', openclaw_generation_mapping: mapping, openclaw_generation_prompt: 'original instruction' } };
+  const state = { job: job ? { ...job } : null, project: { id: 'p1', status: 'ready', title: 'Test', prompt: 'project context', openclaw_project_slug: 'wiki-test', openclaw_generation_mapping: mapping, openclaw_generation_prompt: 'original instruction' } };
   const context = { project: state.project, projectSlug: 'wiki-test', instance: 'instance', userId: 'u1', profile: { owner_name: 'Owner', avatar_name: 'Avatar' } };
   context.supabase = { from(table) {
-    let patch; const filters = {};
+    let patch; let inserted; const filters = {};
     const query = {
-      select() { return this; }, update(data) { patch = data; return this; }, eq(key, value) { filters[key] = value; return this; }, order() { return this; }, limit() { return this; },
+      select() { return this; }, update(data) { patch = data; return this; }, insert(data) { inserted = data; return this; }, eq(key, value) { filters[key] = value; return this; }, order() { return this; }, limit() { return this; },
       async maybeSingle() {
         if (table === 'projects') return { data: state.project, error: null };
+        if (inserted) state.job = { ...inserted, id: 'new-job' };
         if (patch) {
           if (filters.status && state.job.status !== filters.status) return { data: null, error: null };
           Object.assign(state.job, patch);
         }
         return { data: state.job, error: null };
       },
+      single() { return this.maybeSingle(); },
       then(resolve, reject) { return this.maybeSingle().then(resolve, reject); }
     };
     return query;
@@ -94,6 +102,26 @@ test('legacy source-only jobs are presented as needing retry', async () => {
   const normal = await route.GET({ url: 'https://example.test/?projectId=p1' });
   assert.equal(normal.body.needsRetry, false);
   assert.equal(normal.body.canRetry, true);
+});
+
+test('initial fallback with a saved source can be retried without a previous ingest job', async () => {
+  const { context, state } = fixture(null, 'openclaw-llm-wiki-fallback-scaffold');
+  const getRoute = compile('app/api/wiki/ingest/route.ts', {
+    'next/server': nextServer, '@/lib/openclaw': {}, '@/lib/wiki-server': { getWikiContext: async () => context }, '@/lib/wiki-attachments': {}
+  });
+  const status = await getRoute.GET({ url: 'https://example.test/?projectId=p1' });
+  assert.equal(status.body.canRetry, true);
+  assert.equal(status.body.needsRetry, true);
+  let retryInput;
+  const backfill = compile('app/api/wiki/ingest/backfill/route.ts', {
+    'next/server': nextServer, '@/lib/wiki-server': { getWikiContext: async () => context },
+    '@/lib/openclaw': { backfillOpenClawWikiIngest: async input => { retryInput = input; return { mapping: 'wiki-ingest-backfill', task: input.prompt, output: 'done' }; }, readOpenClawWikiTree: async () => [] }
+  });
+  const result = await backfill.POST({ json: async () => ({ projectId: 'p1' }) });
+  assert.equal(result.status, 200);
+  assert.equal(retryInput.sourceNamespace, 'raw/sources');
+  assert.equal(retryInput.prompt, 'project context');
+  assert.equal(state.job.status, 'ready');
 });
 
 test('retry uses the original saved upload and finishes the latest job', async () => {
@@ -122,4 +150,27 @@ test('Test 18 PDF is converted to readable source markdown', async () => {
   assert.match(attachment.markdown, /Ticket\s+Routing/);
   assert.match(attachment.markdown, /source_type: "pdf"/);
   assert.match(attachment.path, /^raw\/uploads\/test\/sources\//);
+});
+
+test('patched wiki commands do not let Claude consume the SSH script', () => {
+  const { spawnSync } = require('node:child_process');
+  const patch = fs.readFileSync(path.resolve(__dirname, '../scripts/clawmacdo-wiki-stdin.patch'), 'utf8');
+  const commands = patch.split('\n').filter(line => line.startsWith('+  ') && line.includes('claude -p ')).map(line => line.slice(1).trim());
+  assert.equal(commands.length, 4);
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'wiki-stdin-test-'));
+  try {
+    fs.writeFileSync(path.join(dir, 'claude'), '#!/bin/sh\ncat >/dev/null\n', { mode: 0o755 });
+    fs.writeFileSync(path.join(dir, 'timeout'), '#!/bin/sh\nshift\nexec "$@"\n', { mode: 0o755 });
+    for (const command of commands) {
+      const run = line => spawnSync('/bin/bash', ['-se'], {
+        input: `PROMPT_FILE=/dev/null\nLOG_FILE=/dev/null\n${line.replace('__TIMEOUT__', '2')}\nprintf "command-finished\\n"\n`,
+        encoding: 'utf8', env: { ...process.env, PATH: `${dir}:${process.env.PATH}` }, timeout: 5000
+      });
+      const fixed = run(command);
+      assert.equal(fixed.status, 0, fixed.stderr);
+      assert.equal(fixed.stdout, 'command-finished\n');
+      const broken = run(command.replace(' </dev/null', ''));
+      assert.equal(broken.stdout, '', 'the test must reproduce the unpatched stdin failure');
+    }
+  } finally { fs.rmSync(dir, { recursive: true, force: true }); }
 });

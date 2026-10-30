@@ -1,5 +1,21 @@
 # syntax=docker/dockerfile:1
 
+# clawmacdo 1.0.0 feeds wiki scripts over SSH stdin; isolate Claude's stdin so
+# it cannot consume the rest of those scripts. Remove this stage once a fixed
+# upstream release is available and used by the npm package.
+FROM rust:1.95-trixie AS clawmacdo-build
+RUN apt-get update \
+  && apt-get install -y --no-install-recommends git pkg-config libssl-dev ca-certificates \
+  && rm -rf /var/lib/apt/lists/*
+WORKDIR /src/clawmacdo
+RUN git init \
+  && git remote add origin https://github.com/kenken64/clawmacdo.git \
+  && git fetch --depth 1 origin 485a50ae7f18e31f9e3fceebf2701ab1552ef3a1 \
+  && git checkout --detach FETCH_HEAD
+COPY scripts/clawmacdo-wiki-stdin.patch /tmp/clawmacdo-wiki-stdin.patch
+RUN git apply /tmp/clawmacdo-wiki-stdin.patch \
+  && cargo build --release --locked -p clawmacdo-cli
+
 FROM node:26.12.1-trixie-slim AS base
 WORKDIR /app
 ENV NEXT_TELEMETRY_DISABLED=1
@@ -63,6 +79,7 @@ COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
 COPY --from=builder --chown=nextjs:nodejs /app/server ./server
 COPY --from=builder --chown=nextjs:nodejs /app/scripts/hermes-instance-setup.py ./scripts/hermes-instance-setup.py
 COPY --from=deps --chown=nextjs:nodejs /app/node_modules/@clawmacdo ./node_modules/@clawmacdo
+COPY --from=clawmacdo-build --chown=nextjs:nodejs /src/clawmacdo/target/release/clawmacdo ./node_modules/@clawmacdo/linux-x64/bin/clawmacdo
 COPY --from=deps --chown=nextjs:nodejs /app/node_modules/@napi-rs ./node_modules/@napi-rs
 COPY --from=deps --chown=nextjs:nodejs /app/node_modules/@supabase ./node_modules/@supabase
 COPY --from=deps --chown=nextjs:nodejs /app/node_modules/asn1 ./node_modules/asn1

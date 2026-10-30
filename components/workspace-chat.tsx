@@ -56,6 +56,7 @@ export function WorkspaceChat({ userId, configured, initialChatId }: { userId: s
   const [imageEstimateError, setImageEstimateError] = useState(false);
   const [videoEstimate, setVideoEstimate] = useState<{ credits: number; estimatedUsd: number } | null>(null);
   const [videoJobs, setVideoJobs] = useState<Array<{ id: string; status: string; output_file_id: string | null }>>([]);
+  const [dismissedVideoJobs, setDismissedVideoJobs] = useState<Set<string>>(() => new Set());
   const [videoRefresh, setVideoRefresh] = useState(0);
   const [files, setFiles] = useState<SavedChatFile[]>([]);
   const [confirmedPowerPointRoles, setConfirmedPowerPointRoles] = useState("");
@@ -88,6 +89,25 @@ export function WorkspaceChat({ userId, configured, initialChatId }: { userId: s
   const threadRef = useRef<HTMLDivElement>(null);
   const isAtBottomRef = useRef(true);
   const channelRef = useRef<BroadcastChannel | null>(null);
+
+  useEffect(() => {
+    try {
+      const saved: unknown = JSON.parse(localStorage.getItem(`aicuber:dismissed-video-jobs:${userId}`) ?? "[]");
+      setDismissedVideoJobs(new Set(Array.isArray(saved) ? saved.filter((id): id is string => typeof id === "string").slice(-100) : []));
+    } catch {
+      setDismissedVideoJobs(new Set());
+    }
+  }, [userId]);
+
+  function dismissVideoNotice(jobId: string) {
+    const next = new Set([...dismissedVideoJobs, jobId].slice(-100));
+    setDismissedVideoJobs(next);
+    try {
+      localStorage.setItem(`aicuber:dismissed-video-jobs:${userId}`, JSON.stringify([...next]));
+    } catch {
+      // The notification stays dismissed for this visit if browser storage is unavailable.
+    }
+  }
 
   useEffect(() => {
     if (generationMode !== "image") return;
@@ -564,7 +584,12 @@ export function WorkspaceChat({ userId, configured, initialChatId }: { userId: s
             {cacheState === "unavailable" ? <p className="workspace-chat__warning" role="status"><Localized en="Chat history could not be saved in this browser. New conversations are available only until you leave this page; your existing saved data has not been removed." zh="无法在此浏览器中保存对话记录。新对话仅在离开页面前可用；现有保存的数据未被删除。" /></p> : null}
             {notice ? <p className="workspace-chat__notice" role="status"><LocalizedMessage text={notice} /></p> : null}{error ? <p className="form-error" role="alert"><LocalizedMessage text={error} /></p> : null}
             {videoJobs.some(job => job.status === "pending" || job.status === "submitting") ? <p className="workspace-chat__notice" role="status"><Localized en="Video generation or usage confirmation is in progress. Jobs resume checking when you return to chat." zh="正在生成视频或确认用量。返回对话页面时将继续检查任务。" /></p> : null}
-            {videoJobs.filter(job => job.output_file_id).slice(0, 3).map(job => <p className="workspace-chat__notice" key={job.id}>{tr("Video ready · ", "视频已就绪 · ")}<button type="button" className="text-link" onClick={() => showFileInPanel({ id: job.output_file_id!, name: "Generated video.mp4" })}><Localized en="Preview video" zh="预览视频" /></button>{tr(" · saved in My Files", " · 已保存到我的文件")}</p>)}
+            {videoJobs.filter(job => job.output_file_id && !dismissedVideoJobs.has(job.id)).slice(0, 3).map(job => (
+              <p className="workspace-chat__notice workspace-chat__video-notice" key={job.id}>
+                <span>{tr("Video ready · ", "视频已就绪 · ")}<button type="button" className="text-link" onClick={() => showFileInPanel({ id: job.output_file_id!, name: "Generated video.mp4" })}><Localized en="Preview video" zh="预览视频" /></button>{tr(" · saved in My Files", " · 已保存到我的文件")}</span>
+                <button type="button" className="workspace-chat__dismiss-notice" aria-label={tr("Dismiss video notification", "关闭视频通知")} title={tr("Dismiss", "关闭")} onClick={() => dismissVideoNotice(job.id)}><X size={16} aria-hidden="true" /></button>
+              </p>
+            ))}
             {videoJobs.some(job => job.status === "uncertain") ? <p className="workspace-chat__warning"><Localized en="A video request could not be confirmed. Check AI Credits Usage or contact support before retrying." zh="无法确认视频请求。请在重试前查看 AI 积分用量或联系支持人员。" /></p> : null}
             {videoJobs.some(job => job.status === "failed") ? <p className="workspace-chat__warning"><Localized en="A video job did not complete. Check AI Credits Usage for its recorded cost." zh="视频任务未完成。请查看 AI 积分用量中的费用记录。" /></p> : null}
           </div>

@@ -31,6 +31,7 @@ type LlmWikiProject = {
   id: string;
   openclaw_generation_error: string | null;
   openclaw_generation_mapping: string | null;
+  openclaw_generation_output: string | null;
   openclaw_project_slug: string | null;
   prompt: string;
   status: string;
@@ -175,7 +176,7 @@ export default async function DashboardWikiPage({ searchParams }: WikiPageProps)
     const rangeEnd = rangeStart + WIKI_PROJECTS_PAGE_SIZE - 1;
     let projectsQuery = context.supabase
       .from("projects")
-      .select("id,title,prompt,status,created_at,openclaw_project_slug,openclaw_generation_error,openclaw_generation_mapping", {
+      .select("id,title,prompt,status,created_at,openclaw_project_slug,openclaw_generation_error,openclaw_generation_mapping,openclaw_generation_output", {
         count: "exact"
       })
       .eq("user_id", context.userId);
@@ -293,7 +294,7 @@ export default async function DashboardWikiPage({ searchParams }: WikiPageProps)
                       const latestIngestJob = latestIngestJobsByProject.get(project.id);
                       const failedIngestJob = latestIngestJob?.status === "failed" ? latestIngestJob : undefined;
                       const displayError = project.openclaw_generation_error ?? failedIngestJob?.error ?? (isStale ? WIKI_GENERATION_STALE_MESSAGE : null);
-                      const canBackfillIngest = displayStatus === "ready" && Boolean(project.openclaw_project_slug) && Boolean(failedIngestJob || (latestIngestJob?.status === "ready" && project.openclaw_generation_mapping?.includes("attachment-only")));
+                      const canBackfillIngest = displayStatus === "ready" && Boolean(project.openclaw_project_slug) && Boolean(failedIngestJob || (latestIngestJob?.status === "ready" && project.openclaw_generation_mapping?.includes("attachment-only")) || (!latestIngestJob && project.openclaw_generation_output?.includes("attachments_written=")));
 
                       return (
                         <article className="project-card wiki-project-card" key={project.id}>

@@ -1275,8 +1275,6 @@ function getLlmWikiPromptPath() {
 }
 
 function buildWikiGenerationPrompt(input: OpenClawGenerationInput) {
-  const projectRoot = requireEnv("OPENCLAW_PROJECT_ROOT");
-  const projectPath = `${projectRoot.replace(/\/$/, "")}/${input.projectSlug}`;
   const attachmentContext = buildAttachmentPromptContext(input.attachments ?? []);
 
   return [
@@ -1286,7 +1284,7 @@ function buildWikiGenerationPrompt(input: OpenClawGenerationInput) {
     `AI avatar name: ${input.avatarName}`,
     `User id: ${input.userId}`,
     `Project id: ${input.projectId}`,
-    `Project directory: ${projectPath}`,
+    `Project: ${input.projectSlug}; use the project directory selected by the wiki command.`,
     "",
     "User intent:",
     input.prompt,
@@ -1301,8 +1299,6 @@ function buildWikiGenerationPrompt(input: OpenClawGenerationInput) {
 }
 
 function buildWikiIngestPrompt(input: OpenClawWikiIngestInput) {
-  const projectRoot = requireEnv("OPENCLAW_PROJECT_ROOT");
-  const projectPath = `${projectRoot.replace(/\/$/, "")}/${input.projectSlug}`;
   const attachmentContext = buildAttachmentPromptContext(input.attachments);
   const projectContext = input.projectContext?.trim();
 
@@ -1314,7 +1310,7 @@ function buildWikiIngestPrompt(input: OpenClawWikiIngestInput) {
     `User id: ${input.userId}`,
     `Project id: ${input.projectId}`,
     `Project title: ${input.projectTitle?.trim() || input.projectSlug}`,
-    `Project directory: ${projectPath}`,
+    `Project: ${input.projectSlug}; use the current project directory selected by the wiki command.`,
     projectContext ? "" : null,
     projectContext ? "Current Nth Brain context:" : null,
     projectContext || null,
@@ -1805,6 +1801,12 @@ function uploadSourceNamespace(filePath: string, projectSlug: string) {
 }
 
 function latestUploadedSourcePaths(tree: WikiTreeItem[], projectSlug: string, sourceNamespace?: string | null) {
+  if (sourceNamespace === "raw/sources") {
+    return flattenWikiTreeItems(tree)
+      .filter((file) => /^raw\/(?:sources|assets)\/\d{2}-[^/]+\.md$/i.test(relativeProjectWikiPath(file.path, projectSlug)))
+      .map((file) => file.path)
+      .sort();
+  }
   const byNamespace = new Map<string, string[]>();
 
   for (const file of flattenWikiTreeItems(tree)) {
@@ -2556,6 +2558,10 @@ export async function generateOpenClawWikiProject(input: OpenClawGenerationInput
   try {
     attachmentOutput = await writeOpenClawWikiAttachments(input);
     const output = await runClawmacdo(args, awsEnv);
+    const generationResult = parseJsonOutput<{ ok?: boolean; error?: string | null; claude_status?: string }>(output);
+    if (generationResult.ok !== true || generationResult.claude_status !== "success") {
+      throw new Error(generationResult.error || "AI wiki generation did not complete.");
+    }
     const tree = await readOpenClawWikiTree({
       instance: input.instance,
       projectSlug: input.projectSlug

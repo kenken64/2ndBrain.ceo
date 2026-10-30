@@ -571,6 +571,7 @@ export function WikiEditor({
   const _uiLanguage = useLanguage().language;
   const router = useRouter();
   const files = flattenTree(tree);
+  const hasInitialSources = files.some((file) => /(?:^|\/)raw\/(?:sources|assets)\/\d{2}-[^/]+\.md$/i.test(file.path));
   const treeItems = displayTree(tree);
   const [selectedPath, setSelectedPath] = useState(initialPage?.filePath ?? files[0]?.path ?? "");
   const [page, setPage] = useState<WikiPage | null>(initialPage ?? null);
@@ -827,17 +828,17 @@ export function WikiEditor({
     void fetch(`/api/wiki/ingest?projectId=${encodeURIComponent(projectId)}`, { credentials: "same-origin" })
       .then(async (response) => response.ok ? response.json() : null)
       .then((payload) => {
-        if (cancelled || requestVersion !== uploadRequestVersion.current || !payload?.job) return;
-        setUploadJob(payload.job as IngestJob);
+        if (cancelled || requestVersion !== uploadRequestVersion.current || !payload) return;
+        setUploadJob((payload.job as IngestJob | null) ?? null);
         setUploadNeedsRetry(Boolean(payload.needsRetry));
-        setUploadCanRetry(Boolean(payload.canRetry));
-        if (payload.job.status === "failed") {
+        setUploadCanRetry(Boolean(payload.canRetry) || (!payload.job && hasInitialSources));
+        if (payload.job?.status === "failed") {
           setUploadError(payload.job.error ?? "Background upload failed");
         }
       })
       .catch(() => {});
     return () => { cancelled = true; };
-  }, [projectId]);
+  }, [projectId, hasInitialSources]);
 
   useEffect(() => {
     if (!projectId || !uploadJob || (uploadJob.status !== "queued" && uploadJob.status !== "running")) {

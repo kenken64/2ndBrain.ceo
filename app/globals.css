@@ -6351,6 +6351,10 @@ svg {
 .workspace-chat__content th { background: var(--bg-subtle); }
 .workspace-chat__thinking { margin: 0; color: var(--fg-secondary); font-size: calc(14px * var(--small-text-scale, 1)); }
 .workspace-chat__notice, .workspace-chat__privacy { margin: 0; }
+.workspace-chat__video-notice { display: flex; align-items: center; gap: 8px; }
+.workspace-chat__dismiss-notice { display: inline-grid; width: 28px; height: 28px; flex: none; place-items: center; border-radius: 7px; background: transparent; color: var(--fg-secondary); cursor: pointer; }
+.workspace-chat__dismiss-notice:hover { background: var(--bg-subtle); }
+.workspace-chat__dismiss-notice:focus-visible { outline: 2px solid var(--brand-blue); outline-offset: 2px; }
 .workspace-chat__form { border: 1px solid rgba(18,99,232,0.2); border-radius: var(--radius-md); background: #fff; padding: 12px; box-shadow: var(--shadow-sm); }
 .workspace-chat__form:focus-within { box-shadow: 0 0 0 3px rgba(18,99,232,0.12); }
 .workspace-chat__mode-bar { display: flex; align-items: center; gap: 4px; min-width: 0; overflow-x: auto; padding: 0 0 10px; border-bottom: 1px solid #edf2f7; }
