@@ -1,8 +1,9 @@
-import { ArrowRight, BookOpenText, ClipboardList, Gamepad2, ListTodo, Newspaper, Smartphone, Timer, type LucideIcon } from "lucide-react";
+import { ArrowRight, BookOpenText, CircuitBoard, ClipboardList, Gamepad2, ListTodo, Newspaper, Smartphone, Timer, type LucideIcon } from "lucide-react";
 import { translateUiMessage } from "@/lib/ui-messages";
 import { MARKETPLACE_ITEMS } from "@/lib/workflow-templates";
 
 const icons: Record<string, LucideIcon> = {
+  "two-wheel-robot-guide": CircuitBoard,
   "2d-game-dev-tutorial": Gamepad2,
   "gyne-agent": ListTodo,
   "psle-eng-tutor-brain": BookOpenText,

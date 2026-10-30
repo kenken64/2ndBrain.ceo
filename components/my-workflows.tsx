@@ -319,6 +319,16 @@ export function MyWorkflows({ setupComplete = true }: { setupComplete?: boolean 
                     <Rocket size={16} strokeWidth={1.8} />
                     <LocalizedMessage text={item.launchLabel ?? "Open timer"} />
                   </a>
+                ) : item.externalUrl && !isDisabled ? (
+                  <a className="btn-primary" href={item.externalUrl} rel="noopener noreferrer" target="_blank">
+                    <ExternalLink size={16} strokeWidth={1.8} />
+                    <LocalizedMessage text={item.launchLabel ?? "Launch"} />
+                  </a>
+                ) : item.externalUrl ? (
+                  <button className="btn-primary" disabled type="button">
+                    <ExternalLink size={16} strokeWidth={1.8} />
+                    <LocalizedMessage text={item.launchLabel ?? "Launch"} />
+                  </button>
                 ) : item.launchLabel ? (
                   <button
                     className="btn-primary"

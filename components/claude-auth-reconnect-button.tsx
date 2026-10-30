@@ -16,6 +16,8 @@ type ClaudeAuthResponse = {
 
 type Phase = "idle" | "starting" | "waiting" | "ready" | "failed";
 
+const CREDENTIAL_CONFIGURED_MESSAGE = "Claude Code reports a configured credential, but this status does not verify that it works. If ingestion reports an invalid API key, update the key configured on the AI Agent.";
+
 async function postJson(path: string) {
   const response = await fetch(path, {
     method: "POST"
@@ -57,7 +59,7 @@ export function ClaudeAuthReconnectButton() {
 
         if (data.authenticated) {
           setPhase("ready");
-          setMessage("Claude auth is active on the AI Agent instance.");
+          setMessage(CREDENTIAL_CONFIGURED_MESSAGE);
           return;
         }
 
@@ -102,6 +104,13 @@ export function ClaudeAuthReconnectButton() {
       const data = await postJson("/api/openclaw/claude-auth/start");
       const nextUrl = data.authUrl?.trim() || null;
 
+      if (data.authenticated && !nextUrl) {
+        loginWindow?.close();
+        setPhase("ready");
+        setMessage(CREDENTIAL_CONFIGURED_MESSAGE);
+        return;
+      }
+
       if (!nextUrl) {
         loginWindow?.close();
         throw new Error(data.message || "clawmacdo did not return a Claude login URL.");
@@ -129,7 +138,7 @@ export function ClaudeAuthReconnectButton() {
 
       if (data.authenticated) {
         setPhase("ready");
-        setMessage("Claude auth is active on the AI Agent instance.");
+        setMessage(CREDENTIAL_CONFIGURED_MESSAGE);
         return;
       }
 

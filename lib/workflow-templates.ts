@@ -9,6 +9,7 @@ export type WorkflowTemplate = {
   id: string;
   itemType: "agent-app" | "workflow";
   internalPath?: string;
+  externalUrl?: string;
   launchLabel?: string;
   repoUrl?: string;
   sourceLabel?: string;
@@ -20,6 +21,17 @@ export type WorkflowTemplate = {
 export const WORKFLOW_STORAGE_KEY = "2ndbrain.workflowTemplates";
 
 export const WORKFLOW_TEMPLATES: WorkflowTemplate[] = [
+  {
+    category: "Education",
+    description: "Explore the N20 two-wheel robot PCB, components, 3D assembly and prototype build guidance.",
+    externalUrl: "https://n20-robot-pcb-explorer.wiry-eagle-9459.chatgpt.site/",
+    id: "two-wheel-robot-guide",
+    itemType: "workflow",
+    launchLabel: "Open guide",
+    priceTokens: 0,
+    steps: ["Explore the robot PCB", "Inspect the 3D assembly", "Review prototype build guidance"],
+    title: "Guide & tutorial to design - build 2 wheel robot"
+  },
   {
     category: "Education",
     description: "Learn 2D game development through 21 guided modules with playable demos, AI-assisted asset creation, and a final Godot game.",

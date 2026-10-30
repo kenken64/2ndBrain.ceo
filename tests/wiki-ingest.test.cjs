@@ -26,7 +26,7 @@ const nextServer = { NextResponse: { json: (body, options) => ({ body, status: o
 test('saved sources are only marked successful when the agent confirms wiki changes', async () => {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'wiki-ingest-test-'));
   const binary = path.join(dir, 'clawmacdo');
-  fs.writeFileSync(binary, '#!/bin/sh\ncase "$1" in\nwiki-tree) printf "%s" "$TEST_TREE"; exit 0;;\nwiki-read) printf "%s\\n" "$@" >> "$TEST_RECORD"; printf "%s" "$TEST_PAGE"; exit 0;;\nesac\nif [ "$TEST_INGEST_RESULT" = error ]; then echo "failed to parse wiki ingest JSON: EOF while parsing a value" >&2; exit 1; fi\nprintf "%s" "$TEST_INGEST_RESULT"\n', { mode: 0o755 });
+  fs.writeFileSync(binary, '#!/bin/sh\ncase "$1" in\nwiki-tree) printf "%s" "$TEST_TREE"; exit 0;;\nwiki-read) printf "%s\\n" "$@" >> "$TEST_RECORD"; printf "%s" "$TEST_PAGE"; exit 0;;\nesac\nif [ "$TEST_INGEST_RESULT" = error ]; then echo "failed to parse wiki ingest JSON: EOF while parsing a value" >&2; exit 1; fi\nif [ "$TEST_INGEST_RESULT" = invalid-key ]; then echo "{\\"ok\\":false,\\"error\\":{\\"code\\":\\"claude_failed\\",\\"log_tail\\":\\"Invalid API key\\"}}"; echo "Claude Code failed during wiki ingestion." >&2; exit 1; fi\nprintf "%s" "$TEST_INGEST_RESULT"\n', { mode: 0o755 });
   const env = { AWS_REGION: 'test', AWS_ACCESS_KEY_ID: 'test', AWS_SECRET_ACCESS_KEY: 'test', OPENCLAW_PROJECT_ROOT: '/workspace', CLAWMACDO_BIN_PATH: binary };
   const previous = Object.fromEntries([...Object.keys(env), 'TEST_INGEST_RESULT', 'TEST_TREE', 'TEST_PAGE', 'TEST_RECORD'].map(key => [key, process.env[key]]));
   Object.assign(process.env, env);
@@ -39,6 +39,16 @@ test('saved sources are only marked successful when the agent confirms wiki chan
     const input = { attachments: [{ fileName: 'source.pdf', markdown: 'Evidence', path: 'raw/uploads/one/sources/source.md', sourceType: 'pdf', size: 8 }], avatarName: 'Avatar', instance: '127.0.0.1', ownerName: 'Owner', projectId: 'p1', projectSlug: 'wiki-test', prompt: 'Create pages', userId: 'u1', writeAttachments: false };
     process.env.TEST_INGEST_RESULT = 'error';
     await assert.rejects(claw.ingestOpenClawWikiAttachments(input), /wiki generation could not be confirmed/);
+    process.env.TEST_INGEST_RESULT = 'invalid-key';
+    await assert.rejects(claw.ingestOpenClawWikiAttachments(input), /Claude Code rejected its configured API key/);
+    process.env.TEST_INGEST_RESULT = '{"valid":true,"status":"authenticated","login_url":null}';
+    const existingCredential = await claw.startOpenClawClaudeAuth({ instance: input.instance });
+    assert.equal(existingCredential.authenticated, true);
+    assert.equal(existingCredential.authUrl, null);
+    process.env.TEST_INGEST_RESULT = '{"valid":false,"status":"pending","login_url":"https://claude.ai/oauth/authorize"}';
+    const pendingLogin = await claw.startOpenClawClaudeAuth({ instance: input.instance });
+    assert.equal(pendingLogin.authenticated, false);
+    assert.equal(pendingLogin.authUrl, 'https://claude.ai/oauth/authorize');
     process.env.TEST_INGEST_RESULT = '{"changed_files":["raw/sources/upload.md"]}';
     await assert.rejects(claw.ingestOpenClawWikiAttachments(input), /No wiki pages were updated/);
     process.env.TEST_INGEST_RESULT = '{"changed_files":["wiki/entities/maya.md"]}';

@@ -181,6 +181,7 @@ type OpenClawWikiDeleteInput = {
 };
 
 type OpenClawClaudeAuthStartResult = {
+  authenticated: boolean;
   authUrl: string | null;
   message: string | null;
   output: string;
@@ -552,6 +553,15 @@ function clawmacdoFailureMessage(error: unknown) {
   const failure = error as ExecFileFailure;
   const stderr = sanitizeLogText((failure.stderr ?? "").trim());
   const stdout = sanitizeLogText((failure.stdout ?? "").trim());
+
+  try {
+    const result = JSON.parse(stdout) as { error?: { code?: unknown; log_tail?: unknown } };
+    if (result.error?.code === "claude_failed" && typeof result.error.log_tail === "string" && /invalid api key/i.test(result.error.log_tail)) {
+      return "Claude Code rejected its configured API key. Check the AI Agent's Claude Code credentials, then retry the saved upload.";
+    }
+  } catch {
+    // Other clawmacdo commands may not emit JSON on failure.
+  }
 
   return stderr || stdout || sanitizeLogText(failure.message || "clawmacdo_failed");
 }
@@ -2418,6 +2428,7 @@ export async function startOpenClawClaudeAuth(input: OpenClawClaudeAuthInput): P
     ]) ?? firstUrlFromText(output);
 
   return {
+    authenticated: recordBooleanValue(parsed, ["authenticated", "isAuthenticated", "valid", "ready"]) ?? false,
     authUrl,
     message: recordStringValue(parsed, ["message", "detail", "error"]) ?? null,
     output: outputSummary(output),
