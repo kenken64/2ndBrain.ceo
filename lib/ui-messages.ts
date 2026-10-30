@@ -18,6 +18,7 @@ export const uiMessagesZh: Record<string, string> = {
   "OpenRouter returned an unusable wiki response. No AI credits were charged. Please retry.": "OpenRouter 返回的知识库内容无法使用。未扣除 AI 积分，请重试。",
   "OpenRouter returned an invalid wiki page.": "OpenRouter 返回了无效的知识库页面。",
   "OpenRouter returned no usable wiki pages. The request was charged; retry to generate the pages.": "OpenRouter 未返回可用的知识库页面。此请求已收费；请重试以生成页面。",
+  "A generated page conflicts with an existing page that could not be safely read. No AI credits were charged. Review the existing page and retry.": "生成的页面与无法安全读取的现有页面冲突。未扣除 AI 积分，请检查现有页面后重试。",
   "The generated page conflicts with an existing page that could not be safely read. The AI request was charged; retry after reviewing the wiki.": "生成的页面与无法安全读取的现有页面冲突。此 AI 请求已收费；请检查知识库后重试。",
   "The AI request was charged, but some wiki pages could not be saved. Some changes may already be present; review the wiki before retrying.": "此 AI 请求已收费，但部分知识库页面无法保存。部分更改可能已生效；请检查知识库后重试。",
   "No wiki pages changed. The AI request was charged; review the existing wiki before retrying.": "没有知识库页面发生更改。此 AI 请求已收费；请检查现有知识库后重试。",

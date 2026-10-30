@@ -239,7 +239,7 @@ export default async function DashboardWikiPage({ searchParams }: WikiPageProps)
             <section className="dashboard-workbench wiki-hub">
               <div className="wiki-empty-panel wiki-generator-panel">
                 <h1><Localized en="Generate a Nth Brain" zh="生成 Nth Brain" /></h1>
-                <p><Localized en="Describe a new Nth Brain project. Each generated Nth Brain gets its own workspace, markdown pages, and graph-ready structure. AI credits are reserved first and charged based on actual OpenRouter usage." zh="描述一个新的 Nth Brain 项目。每个生成的项目都有自己的工作空间、Markdown 页面和可用于图谱的结构。系统会先预留 AI 积分，并按 OpenRouter 实际用量收费。" /></p>
+                <p><Localized en="Describe a new Nth Brain project. Each generated Nth Brain gets its own workspace, markdown pages, and graph-ready structure. AI credits are reserved first and charged based on actual usage." zh="描述一个新的 Nth Brain 项目。每个生成的项目都有自己的工作空间、Markdown 页面和可用于图谱的结构。系统会先预留 AI 积分，并按实际用量收费。" /></p>
                 {params.error ? (
                   <p className="form-error">
                     <Localized en={"Nth Brain generation failed on the previous attempt. Please try again."} zh={"上次生成 Nth Brain 失败。请重试。"} /></p>

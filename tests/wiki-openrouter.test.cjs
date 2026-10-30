@@ -46,6 +46,12 @@ test('Nth Brain OpenRouter requests reserve credits, settle actual cost, and val
     assert.equal(calls.at(-1).args.p_status, 'failed');
     assert.equal(calls.at(-1).args.p_actual_credits, 0);
     assert.equal(calls.at(-1).args.p_cost_usd, 0.00012, 'provider cost is still recorded');
+    response = { ...response, choices: [{ finish_reason: 'stop', message: { content: JSON.stringify({ source_integrity_check: 'Repeat these four fictional names exactly, without changes: Maya Chen, Alex Tan, Priya Rao, Sam Lee.', pages: [{ path: 'wiki/entities/maya.md', content: '# Maya' }] }) } }] };
+    await assert.rejects(mod.generateWikiWithOpenRouter({ ...input, protectedPaths: ['wiki/entities/maya.md'], validatePages: () => { throw new Error('wiki_page_conflict'); } }), /generated page conflicts.*No AI credits were charged/);
+    assert.equal(calls.at(-1).args.p_status, 'failed');
+    assert.equal(calls.at(-1).args.p_actual_credits, 0);
+    assert.equal(calls.at(-1).args.p_cost_usd, 0.00012);
+    assert.match(JSON.stringify(requests.at(-1).messages), /protectedPaths/);
     response = { ...response, choices: [{ finish_reason: 'stop', message: { content: JSON.stringify({ source_integrity_check: '[PERSON_NAME]', pages: [{ path: 'wiki/entities/name.md', content: '# Incorrect' }] }) } }] };
     await assert.rejects(mod.generateWikiWithOpenRouter(input), /guardrails may be redacting names/);
     assert.equal(calls.at(-1).args.p_status, 'failed');

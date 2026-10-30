@@ -37,6 +37,7 @@ esac
 `, { mode: 0o755 });
   const env = { AWS_REGION: 'test', AWS_ACCESS_KEY_ID: 'test', AWS_SECRET_ACCESS_KEY: 'test', OPENCLAW_PROJECT_ROOT: '/workspace', CLAWMACDO_BIN_PATH: binary, TEST_RECORD: path.join(dir, 'commands'), TEST_TREE: JSON.stringify({ tree: [
     { name: 'index.md', path: 'wiki-test/index.md', type: 'file' },
+    { name: 'README.md', path: 'wiki-test/wiki/entities/README.md', type: 'file' },
     { name: 'first.md', path: 'wiki-test/raw/uploads/one/sources/first.md', type: 'file' },
     { name: 'second.md', path: 'wiki-test/raw/uploads/two/sources/second.md', type: 'file' }
   ] }), TEST_PAGE: JSON.stringify({ content: '---\nsource_file: "first.pdf"\nsource_type: "pdf"\n---\nEvidence', sha256: 'a'.repeat(64) }) };
@@ -49,7 +50,7 @@ esac
       '@/lib/wiki': { normalizeWikiPath: value => value, titleFromWikiPath: value => value },
       '@/lib/wiki-attachments': { buildAttachmentPromptContext: () => '' },
       '@/lib/hermes-restore': {},
-      '@/lib/wiki-openrouter': { generateWikiWithOpenRouter: async input => { received = input; if (fail) throw new Error('provider failed'); return [{ path: 'index.md', content: '# Updated index' }, { path: 'wiki/entities/maya.md', content: '# Maya' }]; } }
+      '@/lib/wiki-openrouter': { generateWikiWithOpenRouter: async input => { received = input; if (fail) throw new Error('provider failed'); return input.validatePages([{ path: 'index.md', content: '# Updated index' }, { path: 'wiki/entities/Readme.md', content: '# Updated entities' }, { path: 'wiki/entities/maya.md', content: '# Maya' }]); } }
     });
     const input = { attachments: [{ fileName: 'source.pdf', markdown: 'Evidence', path: 'raw/uploads/one/sources/source.md', sourceType: 'pdf', size: 8 }], avatarName: 'Avatar', instance: '127.0.0.1', ownerName: 'Owner', projectId: 'p1', projectSlug: 'wiki-test', prompt: 'Create pages', userId: 'u1', writeAttachments: false };
     fail = true;
@@ -60,6 +61,7 @@ esac
     assert.equal(received.existingPages[0].path, 'index.md');
     let commands = fs.readFileSync(env.TEST_RECORD, 'utf8');
     assert.match(commands, /wiki-write .*--path wiki-test\/index.md .*--base-sha a{64}/);
+    assert.match(commands, /wiki-write .*--path wiki-test\/wiki\/entities\/README.md .*--base-sha a{64}/);
     assert.match(commands, /wiki-write .*--path wiki-test\/wiki\/entities\/maya.md .*--base-sha NEW/);
     assert.doesNotMatch(commands, /wiki-ingest|openclaw-llm-wiki/);
     fs.writeFileSync(env.TEST_RECORD, '');
@@ -69,6 +71,16 @@ esac
     assert.match(commands, /raw\/uploads\/one\/sources\/first\.md/);
     assert.doesNotMatch(commands, /raw\/uploads\/two\/sources\/second\.md/);
     await assert.rejects(claw.backfillOpenClawWikiIngest({ ...retry, sourceNamespace: 'raw/uploads/missing' }), /No uploaded source markdown/);
+    process.env.TEST_PAGE = JSON.stringify({ content: 'x'.repeat(20001), sha256: 'a'.repeat(64) });
+    fs.writeFileSync(env.TEST_RECORD, '');
+    await assert.rejects(claw.ingestOpenClawWikiAttachments(input), /wiki_page_conflict/);
+    assert.deepEqual(received.protectedPaths.sort(), ['index.md', 'wiki/entities/README.md']);
+    assert.doesNotMatch(fs.readFileSync(env.TEST_RECORD, 'utf8'), /wiki-write/);
+    process.env.TEST_PAGE = JSON.stringify({ content: '# Full page without SHA' });
+    fs.writeFileSync(env.TEST_RECORD, '');
+    await claw.ingestOpenClawWikiAttachments(input);
+    const digest = require('node:crypto').createHash('sha256').update('# Full page without SHA').digest('hex');
+    assert.match(fs.readFileSync(env.TEST_RECORD, 'utf8'), new RegExp(`wiki-write .*--path wiki-test/index.md .*--base-sha ${digest}`));
   } finally {
     for (const [key, value] of Object.entries(previous)) value === undefined ? delete process.env[key] : process.env[key] = value;
     fs.rmSync(dir, { recursive: true, force: true });

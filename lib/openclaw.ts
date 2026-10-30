@@ -1,5 +1,5 @@
 import { execFile, spawn } from "node:child_process";
-import { randomBytes, randomUUID } from "node:crypto";
+import { createHash, randomBytes, randomUUID } from "node:crypto";
 import fs from "node:fs/promises";
 import net from "node:net";
 import os from "node:os";
@@ -2122,25 +2122,42 @@ export async function setupOpenClawAvatar(input: OpenClawAvatarSetupInput) {
 
 async function generateAndWriteWiki(input: { instance: string; projectSlug: string; userId: string; prompt: string; attachments: ConvertedWikiAttachment[]; hasExistingWiki: boolean }) {
   const existing: ExistingWikiPage[] = [];
-  const knownPaths = new Set<string>();
+  const knownPaths = new Map<string, string[]>();
   if (input.hasExistingWiki) {
     const tree = await readOpenClawWikiTree({ instance: input.instance, projectSlug: input.projectSlug });
     const candidates = flattenWikiTreeItems(tree).map(file => relativeProjectWikiPath(file.path, input.projectSlug))
       .filter(file => /^(?:index\.md|log\.md|README\.md|wiki\/(?:entities|concepts|sources)\/.*\.md)$/i.test(file));
-    for (const file of candidates) knownPaths.add(file.toLowerCase());
-    // Supply whole pages only: never replace an existing page from a truncated excerpt.
-    for (const file of candidates.slice(0, 30)) {
+    for (const file of candidates) {
+      const key = file.toLowerCase();
+      knownPaths.set(key, [...(knownPaths.get(key) ?? []), file]);
+    }
+    // Root navigation pages are most likely to be updated. Never replace a
+    // page based on a truncated excerpt or an ambiguous case-insensitive name.
+    const priority = (file: string) => /^(?:index|log|readme)\.md$/i.test(file) ? 0 : 1;
+    for (const file of candidates.sort((a, b) => priority(a) - priority(b)).slice(0, 30)) {
+      if ((knownPaths.get(file.toLowerCase())?.length ?? 0) !== 1) continue;
       const page = await readOpenClawWikiPage({ instance: input.instance, projectSlug: input.projectSlug, filePath: absoluteProjectWikiPath(file, input.projectSlug) });
-      if (page.sha && page.content.length <= 20_000 && !page.content.includes(";base64,")) existing.push({ path: file, content: page.content, sha: page.sha });
+      if (page.content.length <= 20_000 && !page.content.includes(";base64,")) {
+        // The archive fallback supplies complete content but not its digest.
+        // wiki-write compares this digest on the instance before updating.
+        const sha = page.sha || createHash("sha256").update(page.content, "utf8").digest("hex");
+        existing.push({ path: file, content: page.content, sha });
+      }
     }
   }
-  const pages = await generateWikiWithOpenRouter({ userId: input.userId, instance: input.instance, projectSlug: input.projectSlug, instruction: input.prompt, attachments: input.attachments, existingPages: existing });
   const existingByPath = new Map(existing.map(page => [page.path.toLowerCase(), page]));
-  // Validate the entire response before making any changes. Unread pages cannot be overwritten.
-  for (const page of pages) {
-    const existingPage = existingByPath.get(page.path.toLowerCase());
-    if (knownPaths.has(page.path.toLowerCase()) && (!existingPage || existingPage.path !== page.path)) throw new Error("The generated page conflicts with an existing page that could not be safely read. The AI request was charged; retry after reviewing the wiki.");
-  }
+  const protectedPaths = [...knownPaths.entries()].flatMap(([key, paths]) => existingByPath.has(key) ? [] : paths);
+  const pages = await generateWikiWithOpenRouter({
+    userId: input.userId, instance: input.instance, projectSlug: input.projectSlug,
+    instruction: input.prompt, attachments: input.attachments, existingPages: existing, protectedPaths,
+    validatePages: pages => pages.map(page => {
+      const key = page.path.toLowerCase();
+      const previous = existingByPath.get(key);
+      if (knownPaths.has(key) && !previous) throw new Error("wiki_page_conflict");
+      // Reuse the exact original spelling; the instance filesystem is case sensitive.
+      return previous ? { ...page, path: previous.path } : page;
+    })
+  });
   const written: string[] = [];
   for (const page of pages) {
     const previous = existingByPath.get(page.path.toLowerCase());
