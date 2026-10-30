@@ -18,7 +18,7 @@ const origin='https://brain.test';
 test('central Zoom connection preserves primary identity, isolates tokens and enforces marketplace access',async()=>{
   const db=new PGlite();const originalFetch=global.fetch,previousKey=process.env.ZOOM_INTEGRATION_KEY,previousSecret=process.env.MEETING_MINUTES_SESSION_SECRET;
   process.env.ZOOM_INTEGRATION_KEY=randomBytes(32).toString('base64url');process.env.MEETING_MINUTES_SESSION_SECRET='s'.repeat(32);
-  const calls=[];let authId=alice,asAdmin=true,linked=false,exchangeId=alice,primaryWrites=0,active=true,duringLink=null,profileAllowed=true;
+  const calls=[];let authId=alice,asAdmin=true,linked=false,exchangeId=alice,primaryWrites=0,active=true,duringLink=null,profileAllowed=true,zoomProfile={id:'zoom-alice',email:'zoom@example.test',display_name:'Zoom Alice'};
   try{
     await db.exec(`create role anon; create role authenticated; create role service_role; create schema auth; create table auth.users(id uuid primary key); create table profiles(id uuid primary key,email text,admin_disabled boolean default false,admin_deleted_at timestamptz,marketplace_launch_revoked_at timestamptz); create table marketplace_installs(id uuid primary key,user_id uuid,item_id text,status text);`);
     await db.exec(fs.readFileSync(path.resolve(__dirname,'../supabase/migrations/0038_zoom_connections.sql'),'utf8'));
@@ -52,7 +52,7 @@ test('central Zoom connection preserves primary identity, isolates tokens and en
     const crypto=compile('lib/zoom-crypto.ts',replacements);replacements['@/lib/zoom-crypto']=crypto;
     replacements['@/lib/marketplace-session-access']=compile('lib/marketplace-session-access.ts',replacements);
     const {handleZoomIntegration:handle}=compile('lib/zoom-integration.ts',replacements);
-    global.fetch=async(url,options)=>{calls.push({url:String(url),options});if(String(url).includes('/oauth/token'))return Response.json({access_token:'fresh-access',refresh_token:'fresh-refresh',expires_in:3600});if(String(url).endsWith('/users/me')&&!profileAllowed)return Response.json({}, {status:403});if(String(url).endsWith('/users/me'))return Response.json({id:'zoom-alice',email:'zoom@example.test',display_name:'Zoom Alice'});if(String(url).includes('/users/me/meetings'))return Response.json({meetings:[{id:1,uuid:'one',topic:'Review',start_url:'never-expose-this'}]});throw Error('Unexpected external call: '+url);};
+    global.fetch=async(url,options)=>{calls.push({url:String(url),options});if(String(url).includes('/oauth/token'))return Response.json({access_token:'fresh-access',refresh_token:'fresh-refresh',expires_in:3600});if(String(url).endsWith('/users/me')&&!profileAllowed)return Response.json({}, {status:403});if(String(url).endsWith('/users/me'))return Response.json(zoomProfile);if(String(url).includes('/users/me/meetings'))return Response.json({meetings:[{id:1,uuid:'one',topic:'Review',start_url:'never-expose-this'}]});throw Error('Unexpected external call: '+url);};
     const req=(action,body,headers={},method=body===undefined?'GET':'POST')=>handle(new Request(origin+'/api/integrations/zoom/'+action,{method,headers:{Origin:origin,'Content-Type':'application/json',...headers},...(body===undefined?{}:{body:JSON.stringify(body)})}),action.split('?')[0]);
     assert.equal((await req('provider',{clientId:'app-id',clientSecret:'app-secret'})).status,200);
     const stored=(await db.query('select credentials_cipher from zoom_provider_settings')).rows[0];assert.ok(!stored.credentials_cipher.includes('app-secret'));
@@ -84,7 +84,18 @@ test('central Zoom connection preserves primary identity, isolates tokens and en
     await db.query("update zoom_accounts set expires_at=now()-interval '1 minute'");
     const concurrent=await Promise.all([delegate({operation:'meetings',connectionId:status.connectionId}),delegate({operation:'meetings',connectionId:status.connectionId})]);assert.ok(concurrent.some(r=>r.status===200));assert.ok(concurrent.every(r=>[200,409].includes(r.status)));assert.equal(calls.filter(x=>x.url.includes('/oauth/token')).length,1);
     const refreshed=(await db.query('select token_cipher from zoom_accounts')).rows[0];assert.equal((await crypto.unsealZoom(refreshed.token_cipher,'zoom-account:'+alice)).refresh_token,'fresh-refresh');
-    linked=true;const pending=await begin();assert.equal((await req('disconnect',{})).status,200);
+    linked=true;
+    const beforeSwitch=(await db.query('select token_cipher from zoom_accounts where user_id=$1',[alice])).rows[0].token_cipher;
+    const linkedStatus=await (await req('status')).json();assert.equal(linkedStatus.hasLinkedZoomIdentity,true);assert.equal(linkedStatus.connected,true);
+    r=await req('connect?mode=link-new',{});assert.equal(r.status,303);assert.equal(r.headers.get('location'),'https://supabase.test/link');
+    const newAttempt=(await db.query('select id from zoom_link_attempts')).rows[0];const newCookie=r.headers.get('set-cookie').split(';')[0];
+    assert.equal((await db.query('select token_cipher from zoom_accounts where user_id=$1',[alice])).rows[0].token_cipher,beforeSwitch,'existing Zoom connection remains until successful authorization');
+    zoomProfile={id:'zoom-nus',email:'new@example.edu',display_name:'New Zoom Account'};
+    r=await req(`callback?attempt=${newAttempt.id}&code=good`,undefined,{Cookie:newCookie});assert.match(r.headers.get('location'),/zoom=connected/);
+    const switched=(await db.query('select user_id,email,zoom_user_id from zoom_accounts where user_id=$1',[alice])).rows[0];
+    assert.equal(switched.user_id,alice);assert.equal(switched.email,'new@example.edu');assert.equal(switched.zoom_user_id,'zoom-nus');
+    assert.equal(primaryWrites,0);assert.equal((await db.query('select email from profiles where id=$1',[alice])).rows[0].email,'primary@example.test');
+    const pending=await begin();assert.equal((await req('disconnect',{})).status,200);
     r=await req(`callback?attempt=${pending.id}&code=old`,undefined,{Cookie:pending.cookie});assert.match(r.headers.get('location'),/authorization_declined/);
     assert.equal((await (await delegate({operation:'status'})).json()).connected,false);
     const changed=await admin.rpc('zoom_store_tokens',{p_user_id:alice,p_generation:account.generation,p_provider_revision:account.provider_revision,p_cipher:account.token_cipher,p_zoom_id:'old',p_name:'old',p_email:'old',p_expires_at:new Date(Date.now()+3600000).toISOString(),p_scopes:'read'});assert.equal(changed.data,false);

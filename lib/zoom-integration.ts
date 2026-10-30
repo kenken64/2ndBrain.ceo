@@ -158,7 +158,7 @@ export async function handleZoomIntegration(request:Request,action:string):Promi
     if(action==='status'&&request.method==='GET'){
       const config=await provider(),row=await account(user.id);const canManage=await isAdminUser(user.email,user.id);
       const c=config&&canManage?await credentials(config):null;
-      return response({configured:!!config,connected:!!row?.token_cipher&&row.provider_revision===config?.revision,profile:row?.token_cipher?{name:row.display_name,email:row.email}:null,canManageProvider:canManage,provider:canManage?{clientId:c?.clientId||'',hasClientSecret:!!c?.clientSecret,hasWebhookSecret:!!c?.webhookSecret,revision:config?.revision||'',webhookUrl:config?getRequestOrigin(request)+'/api/integrations/zoom/webhook?id='+config.webhook_id:''}:undefined});
+      return response({configured:!!config,connected:!!row?.token_cipher&&row.provider_revision===config?.revision,hasLinkedZoomIdentity:!!user.identities?.some(i=>i.provider==='zoom'),profile:row?.token_cipher?{name:row.display_name,email:row.email}:null,canManageProvider:canManage,provider:canManage?{clientId:c?.clientId||'',hasClientSecret:!!c?.clientSecret,hasWebhookSecret:!!c?.webhookSecret,revision:config?.revision||'',webhookUrl:config?getRequestOrigin(request)+'/api/integrations/zoom/webhook?id='+config.webhook_id:''}:undefined});
     }
     if(action==='callback'&&request.method==='GET'){
       const url=new URL(request.url),attemptId=url.searchParams.get('attempt');
@@ -202,9 +202,11 @@ export async function handleZoomIntegration(request:Request,action:string):Promi
       const browser=randomBytes(32).toString('base64url');
       // Reserve before the provider round-trip so a concurrent disconnect can cancel it.
       checked(await admin().rpc('zoom_begin_link',{p_user_id:user.id,p_attempt_id:attemptId,p_browser_hash:hash(browser),p_pkce_cipher:await sealZoom('', 'zoom-link:'+attemptId),p_provider_revision:config.revision}));
-      // Initial linking is explicit; reconnection uses only the isolated memory client.
+      // Existing identities can be reauthorized; a user explicitly linking a
+      // new Zoom account must use manual linking to preserve the workspace ID.
       const linked=user.identities?.some(i=>i.provider==='zoom');
-      const result=linked?await isolated.client.auth.signInWithOAuth({provider:'zoom',options}):await isolated.client.auth.linkIdentity({provider:'zoom',options});
+      const linkNew=new URL(request.url).searchParams.get('mode')==='link-new';
+      const result=linked&&!linkNew?await isolated.client.auth.signInWithOAuth({provider:'zoom',options}):await isolated.client.auth.linkIdentity({provider:'zoom',options});
       const verifier=isolated.verifier();
       if(result.error||!result.data.url||!verifier)throw new ZoomIntegrationError('Could not connect Zoom. Enable the Supabase Zoom provider, manual identity linking, and the connection callback URL.',503,'provider_setup_required');
       const pending=checked(await admin().from('zoom_link_attempts').update({pkce_cipher:await sealZoom(verifier,'zoom-link:'+attemptId)}).eq('id',attemptId).eq('user_id',user.id).select('id').maybeSingle());

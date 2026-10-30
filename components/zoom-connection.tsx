@@ -6,7 +6,7 @@ import { useCallback, useEffect, useId, useState } from "react";
 import { Eye, EyeOff, Video } from "lucide-react";
 
 type Status = {
-  configured: boolean; connected: boolean; canManageProvider: boolean;
+  configured: boolean; connected: boolean; hasLinkedZoomIdentity: boolean; canManageProvider: boolean;
   profile: { name: string; email: string } | null;
   provider?: { clientId: string; hasClientSecret: boolean; hasWebhookSecret: boolean; revision: string; webhookUrl: string };
 };
@@ -70,9 +70,11 @@ export function ZoomConnection() {
       {message?<p className="form-success" role="status"><LocalizedMessage text={message} /></p>:null}
       <div className="settings-zoom-card__actions">
         {status?.configured?<form action="/api/integrations/zoom/connect" method="post"><button className="btn-primary btn-primary--compact" disabled={busy} type="submit">{status.connected?<Localized en={"Reconnect Zoom"} zh={"重新连接 Zoom"} />:<Localized en={"Connect Zoom"} zh={"连接 Zoom"} />}</button></form>:null}
+        {status?.configured&&status.hasLinkedZoomIdentity?<form action="/api/integrations/zoom/connect?mode=link-new" method="post"><button className="btn-ghost btn-ghost--compact" disabled={busy} type="submit"><Localized en={"Link a new Zoom account"} zh={"关联新的 Zoom 账户"} /></button></form>:null}
         {status?.connected?<button className="btn-ghost btn-ghost--compact" disabled={busy} onClick={()=>{if(confirm(_uiLanguage === 'zh' ? '断开应用市场工具使用的 Zoom 连接？您的 2ndBrain 登录仍保持有效。' : 'Disconnect this Zoom connection for marketplace tools? Your 2ndBrain login stays active.'))void post('disconnect');}} type="button"><Localized en={"Disconnect Zoom"} zh={"断开 Zoom"} /></button>:null}
         <button className="btn-ghost btn-ghost--compact" disabled={busy} onClick={()=>void reload()} type="button"><Localized en={"Check connection"} zh={"检查连接"} /></button>
       </div>
+      {status?.configured&&status.hasLinkedZoomIdentity?<p className="settings-toggle-card__note"><Localized en={"To use a Zoom account you have not linked before, choose Link a new Zoom account. Linking also adds it as a sign-in identity for this 2ndBrain account. Zoom may use the account already signed in to your browser."} zh={"如需使用之前未关联的 Zoom 账户，请选择“关联新的 Zoom 账户”。关联后，该账户也会成为此 2ndBrain 账户的登录身份。Zoom 可能使用浏览器中已登录的账户。"} /></p>:null}
       {status?.canManageProvider?<details className="settings-zoom-card__admin" onToggle={event => { if (!event.currentTarget.open) hideCredentials(); }}><summary><Localized en={"Admin: shared Zoom provider configuration"} zh={"管理员：共享 Zoom 提供商配置"} /></summary>
         <p><Localized en="Enter the same Zoom app credentials configured in Supabase → Authentication → Providers → Zoom. These are used server-side to refresh API tokens. Enable manual identity linking and allow the dedicated connection callback. Saving applies immediately and requires users to reconnect." zh="输入与 Supabase → Authentication → Providers → Zoom 中相同的 Zoom 应用凭据。服务器使用这些凭据刷新 API 令牌。请启用手动身份关联并允许专用连接回调。保存后立即生效，用户需要重新连接。" /></p>
         <form className="settings-zoom-card__form" key={status.provider?.revision} autoComplete="off" onSubmit={event=>{
