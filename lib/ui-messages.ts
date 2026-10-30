@@ -70,6 +70,7 @@ export const uiMessagesZh: Record<string, string> = {
   "This chat is already sending a message in another tab.": "此对话正在另一个标签页中发送消息。",
   "The response is shown below but could not be saved to chat history. Copy it before leaving this page.": "回复显示在下方，但无法保存到对话记录。离开此页面前请复制回复。",
   "Presentation saved to My files. No additional AI credits were used.": "演示文稿已保存到“我的文件”，未消耗额外的 AI 积分。",
+  "The model selection could not be saved. Please try again.": "无法保存模型选择，请重试。",
   "This chat is already being used in another tab.": "此对话正在另一个标签页中使用。",
   "Finish or remove the current attachments before choosing a file for a follow-up.": "选择后续提问的文件前，请完成或移除当前附件。",
   "Remove the selected follow-up file before attaching another file.": "添加其他文件前，请移除选中的后续提问文件。",

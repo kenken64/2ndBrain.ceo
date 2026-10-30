@@ -106,6 +106,22 @@ test("chat API checks authentication, model, billing and uncertain failures", as
     const data = await response.json();
     assert.equal(response.status, 200); assert.equal(data.message, "hello"); assert.equal(data.chargedCredits, 100);
     assert.equal(state.rpc[1].args.p_status, "completed"); assert.equal(state.providerBody.model, good.model); assert.equal(state.notifications.length, 2);
+    const mixedHistory = [
+      { role: "user", content: "Hello" },
+      { role: "assistant", content: "I am ChatGPT." },
+      { role: "user", content: "What AI model are you?" }
+    ];
+    for (const [modelId, label] of [["deepseek/deepseek-v4.1-flash", "DeepSeek V4.1 Flash"], ["mistralai/mistral-small-2603", "Mistral Small 4"]]) {
+      reset(); response = await post(request({ model: modelId, messages: mixedHistory }));
+      assert.equal(response.status, 200);
+      assert.equal(state.providerBody.model, modelId);
+      assert.equal(state.rpc[0].args.p_model_id, modelId);
+      assert.equal(state.providerBody.messages[0].role, "system");
+      assert.ok(state.providerBody.messages[0].content.includes(label));
+      assert.ok(state.providerBody.messages[0].content.includes(modelId));
+      assert.match(state.providerBody.messages[0].content, /previous assistant messages/);
+      assert.deepEqual(state.providerBody.messages.slice(1), mixedHistory);
+    }
     reset(); state.mode = "stream"; response = await post(request({ ...good, stream: true }));
     const streamed = (await response.text()).trim().split("\n").map(line => JSON.parse(line));
     assert.deepEqual(streamed.map(item => item.type), ["delta", "delta", "done"]); assert.equal(streamed[2].chargedCredits, 100); assert.equal(streamed[2].outputTokens, 10); assert.ok(streamed[2].generationMs >= 0);
@@ -146,7 +162,7 @@ test("chat API checks authentication, model, billing and uncertain failures", as
     reset(); state.mode = "image"; response = await post(request({ ...good, model: "mistralai/mistral-small-2603", attachment: { name: "receipt.png", kind: "image" } }));
     const image = await response.json();
     assert.equal(response.status, 200); assert.equal(image.ocr.markdown, "# Receipt\nTotal: 42"); assert.equal(image.message, "The total is 42."); assert.equal(state.savedOutput.content, image.ocr.markdown);
-    assert.equal(state.providerBody.model, "google/gemini-2.5-flash"); assert.equal(state.providerBody.response_format.type, "json_schema");
+    assert.equal(state.providerBody.model, "google/gemini-2.5-flash"); assert.match(state.providerBody.messages[0].content, /Gemini 2\.5 Flash/); assert.equal(state.providerBody.response_format.type, "json_schema");
     assert.equal(state.providerBody.provider.require_parameters, true); assert.match(state.providerBody.messages.at(-1).content[0].text, /User request: Hello/);
     reset(); state.mode = "image"; state.outputFail = true; response = await post(request({ ...good, attachment: { name: "receipt.png", kind: "image" } }));
     const unsaved = await response.json(); assert.equal(response.status, 200); assert.equal(unsaved.outputSaveFailed, true); assert.equal(unsaved.message, "The total is 42."); assert.equal(state.rpc[1].args.p_status, "completed");

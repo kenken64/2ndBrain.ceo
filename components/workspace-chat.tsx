@@ -260,6 +260,33 @@ export function WorkspaceChat({ userId, configured, initialChatId }: { userId: s
     return saved;
   }
 
+  async function changeModel(model: ChatModelId) {
+    if (!chat || model === chat.model || busyRef.current || selecting || uploading) return;
+    const previous = chat;
+    const updated = { ...chat, model };
+    busyRef.current = true;
+    setSelecting(true);
+    setError("");
+    setChat(updated);
+    try {
+      const save = async () => { await persist(updated); };
+      if (navigator.locks) {
+        await navigator.locks.request(`ai-cuber-chat-send:${userId}:${chat.id}`, { ifAvailable: true }, async lock => {
+          if (!lock) throw new Error("This chat is already being used in another tab.");
+          await save();
+        });
+      } else {
+        await save();
+      }
+    } catch (reason) {
+      setChat(previous);
+      setError(reason instanceof Error ? reason.message : "The model selection could not be saved. Please try again.");
+    } finally {
+      busyRef.current = false;
+      setSelecting(false);
+    }
+  }
+
   async function selectChat(id: string) {
     if (busyRef.current || selecting || uploading) return;
     setSelecting(true);
@@ -615,7 +642,7 @@ export function WorkspaceChat({ userId, configured, initialChatId }: { userId: s
               ] as const).map(({ id, label, icon: Icon }) => <button key={id} type="button" className="workspace-chat__mode" aria-pressed={generationMode === id} disabled={busy || selecting || uploading || files.length > 0 || !!followUpFile} onClick={() => setGenerationMode(id)}><Icon size={15} aria-hidden="true" /><span>{label}</span></button>)}
             </div>
             {dragActive ? <p className="workspace-chat__drop-hint"><Localized en="Drop files to attach" zh="拖放文件以添加附件" /></p> : null}
-            {files.map(item => <div className="workspace-chat__file" key={item.id}><span>{item.name}{tr(" · saved", " · 已保存")}{files.length === 2 ? "" : " · Gemini 2.5 Flash"}{files.length === 1 && item.name.toLowerCase().endsWith(".pdf") ? " · Mistral OCR" : files.length === 1 && /\.(png|jpe?g|webp)$/i.test(item.name) ? tr(" · image OCR", " · 图片 OCR") : ""}</span><button type="button" aria-label={language === "zh" ? `移除 ${item.name}` : `Remove ${item.name}`} disabled={busy} onClick={() => removeAttachment(item.id)}><X size={16} /></button></div>)}
+            {files.map(item => <div className="workspace-chat__file" key={item.id}><span>{item.name}{tr(" · saved", " · 已保存")}{files.length === 2 ? "" : tr(" · file questions use Gemini 2.5 Flash", " · 文件问答使用 Gemini 2.5 Flash")}{files.length === 1 && item.name.toLowerCase().endsWith(".pdf") ? " · Mistral OCR" : files.length === 1 && /\.(png|jpe?g|webp)$/i.test(item.name) ? tr(" · image OCR", " · 图片 OCR") : ""}</span><button type="button" aria-label={language === "zh" ? `移除 ${item.name}` : `Remove ${item.name}`} disabled={busy} onClick={() => removeAttachment(item.id)}><X size={16} /></button></div>)}
             {followUpFile ? <div className="workspace-chat__file"><span>{language === "zh" ? `后续提问：${followUpFile.name} · 使用 Gemini 再次处理（需支付 AI 费用）${/\.pptx$/i.test(followUpFile.name) ? " · 仅幻灯片文本" : ""}` : `Follow-up: ${followUpFile.name} · processed again with Gemini (AI charges apply)${/\.pptx$/i.test(followUpFile.name) ? " · slide text only" : ""}`}</span><button type="button" aria-label={language === "zh" ? `移除后续提问文件 ${followUpFile.name}` : `Remove follow-up ${followUpFile.name}`} disabled={busy} onClick={() => setFollowUpFile(null)}><X size={16} /></button></div> : null}
             {visibleReview && isBatchFiles ? <ChatBatchMapping review={visibleReview} disabled={busy} onChange={mappings => setBatchReview(current => current ? { ...current, data: { ...current.data, mappings } } : null)} onCancel={() => setBatchReview(null)} /> : null}
             {batchProgress ? <div className="chat-batch-progress" role="status"><strong>{language === "zh" ? `批次：已处理 ${batchProgress.processed} / ${batchProgress.total}` : `Batch: ${batchProgress.processed} of ${batchProgress.total} processed`}</strong><progress value={batchProgress.processed} max={batchProgress.total || 1} /><span>{language === "zh" ? `成功 ${batchProgress.succeeded} 项 · ${batchProgress.failed.length} 项需要处理` : `${batchProgress.succeeded} succeeded · ${batchProgress.failed.length} need attention`}</span></div> : null}
@@ -631,7 +658,7 @@ export function WorkspaceChat({ userId, configured, initialChatId }: { userId: s
                 <ChatSavedFiles disabled={generationMode !== "chat" || busy || selecting || uploading || files.length >= 2 || !!followUpFile} onSelect={addSavedFile} />
               </div>
               <div className="workspace-chat__submit-actions">
-                {generationMode === "chat" && files.length !== 2 ? <label className="workspace-chat__model-control"><span><Localized en="Model" zh="模型" /></span><select aria-label={tr("AI model", "AI 模型")} className="workspace-chat__model-select" disabled={busy || selecting || uploading || files.length > 0 || !!followUpFile || !chat} id="workspace-chat-model" onChange={(event) => { if (chat && isChatModel(event.target.value)) setChat({ ...chat, model: event.target.value }); }} value={files.length || followUpFile || uploading ? FILE_CHAT_MODEL : chat?.model ?? CHAT_MODELS[0].id}>{CHAT_MODELS.map((item) => <option key={item.id} value={item.id}>{item.label}</option>)}</select></label> : null}
+                {generationMode === "chat" && files.length !== 2 ? <label className="workspace-chat__model-control"><span><Localized en="Model" zh="模型" /></span><select aria-label={tr("AI model", "AI 模型")} className="workspace-chat__model-select" disabled={busy || selecting || uploading || files.length > 0 || !!followUpFile || !chat} id="workspace-chat-model" onChange={(event) => { if (isChatModel(event.target.value)) void changeModel(event.target.value); }} value={files.length || followUpFile || uploading ? FILE_CHAT_MODEL : chat?.model ?? CHAT_MODELS[0].id}>{CHAT_MODELS.map((item) => <option key={item.id} value={item.id}>{item.label}</option>)}</select></label> : null}
                 {canStop ? <button aria-label={tr("Stop response", "停止回复")} className="workspace-chat__send workspace-chat__send--action workspace-chat__stop" disabled={stopping} type="button" onClick={() => { setStopping(true); streamAbortRef.current?.abort(); }}>{stopping ? tr("Stopping…", "正在停止…") : <>{tr("Stop", "停止")} <Square size={12} fill="currentColor" aria-hidden="true" /></>}</button> : <button aria-label={isPowerPointTransfer ? tr("Apply PowerPoint template", "应用 PowerPoint 模板") : isBatchFiles ? (visibleReview ? tr("Generate documents", "生成文档") : tr("Review fields", "查看字段")) : tr("Send message", "发送消息")} className="workspace-chat__send workspace-chat__send--action" disabled={!configured || busy || selecting || uploading || cacheState === "loading" || (!prompt.trim() && !files.length && !followUpFile) || (isPowerPointTransfer && confirmedPowerPointRoles !== powerPointFileKey) || (!!visibleReview && visibleReview.mappings.some(item => !item.column))} type="submit">{isPowerPointTransfer ? tr("Apply template", "应用模板") : isBatchFiles ? (visibleReview ? tr("Generate documents", "生成文档") : tr("Review fields", "查看字段")) : generationMode === "image" ? tr("Create image", "创建图片") : generationMode === "video" ? tr("Create video", "创建视频") : generationMode === "pptx" ? tr("Create slides", "创建幻灯片") : <>{tr("Send", "发送")} <ArrowRight size={15} strokeWidth={2.4} aria-hidden="true" /></>}</button>}
               </div>
             </div>
