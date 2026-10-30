@@ -2134,7 +2134,7 @@ async function generateAndWriteWiki(input: { instance: string; projectSlug: stri
       if (page.sha && page.content.length <= 20_000 && !page.content.includes(";base64,")) existing.push({ path: file, content: page.content, sha: page.sha });
     }
   }
-  const pages = await generateWikiWithOpenRouter({ userId: input.userId, instance: input.instance, instruction: input.prompt, attachments: input.attachments, existingPages: existing });
+  const pages = await generateWikiWithOpenRouter({ userId: input.userId, instance: input.instance, projectSlug: input.projectSlug, instruction: input.prompt, attachments: input.attachments, existingPages: existing });
   const existingByPath = new Map(existing.map(page => [page.path.toLowerCase(), page]));
   // Validate the entire response before making any changes. Unread pages cannot be overwritten.
   for (const page of pages) {

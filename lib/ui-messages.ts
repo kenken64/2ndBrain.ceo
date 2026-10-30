@@ -14,6 +14,8 @@ export const uiMessagesZh: Record<string, string> = {
   "OpenRouter did not finish generating the wiki. The request was charged; retry to generate the pages.": "OpenRouter 未完成知识库生成。此请求已收费；请重试以生成页面。",
   "OpenRouter returned invalid wiki pages. The request was charged; retry to generate the pages.": "OpenRouter 返回了无效的知识库页面。此请求已收费；请重试以生成页面。",
   "OpenRouter returned an invalid wiki page. The request was charged; retry to generate the pages.": "OpenRouter 返回了无效的知识库页面。此请求已收费；请重试以生成页面。",
+  "OpenRouter could not verify that source names are preserved. Its Sensitive Info guardrails may be redacting names. No AI credits were charged. Check the guardrails before retrying.": "OpenRouter 无法确认来源中的姓名得到保留。敏感信息防护规则可能正在隐藏姓名。未扣除 AI 积分，请检查防护规则后重试。",
+  "OpenRouter returned an unusable wiki response. No AI credits were charged. Please retry.": "OpenRouter 返回的知识库内容无法使用。未扣除 AI 积分，请重试。",
   "OpenRouter returned an invalid wiki page.": "OpenRouter 返回了无效的知识库页面。",
   "OpenRouter returned no usable wiki pages. The request was charged; retry to generate the pages.": "OpenRouter 未返回可用的知识库页面。此请求已收费；请重试以生成页面。",
   "The generated page conflicts with an existing page that could not be safely read. The AI request was charged; retry after reviewing the wiki.": "生成的页面与无法安全读取的现有页面冲突。此 AI 请求已收费；请检查知识库后重试。",

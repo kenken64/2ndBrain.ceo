@@ -25,7 +25,7 @@ test('Nth Brain OpenRouter requests reserve credits, settle actual cost, and val
     rpc(name, args) { calls.push({ name, args }); return { async single() { return { data: name.startsWith('reserve') ? { request_id: 'r1', llm_token_quota: 100000, llm_token_used: 1000 } : { llm_token_quota: 100000, llm_token_used: 30 }, error: null }; } }; }
   };
   const mod = load({ '@/lib/admin': { isAdminUser: async () => false }, '@/lib/chat-models': { FILE_CHAT_MODEL: 'google/gemini-2.5-flash' }, '@/lib/supabase/admin': { createAdminClient: () => admin }, '@/lib/token-quota-redis': { publishTokenQuotaUpdate: async () => {} } });
-  let response = { id: 'gen-1', usage: { cost: 0.00012, prompt_tokens: 100, completion_tokens: 25 }, choices: [{ finish_reason: 'stop', message: { content: JSON.stringify({ pages: [{ path: 'wiki/entities/maya.md', content: '# Maya' }] }) } }] };
+  let response = { id: 'gen-1', usage: { cost: 0.00012, prompt_tokens: 100, completion_tokens: 25 }, choices: [{ finish_reason: 'stop', message: { content: JSON.stringify({ source_integrity_check: "Repeat these four fictional names exactly, without changes: Maya Chen, Alex Tan, Priya Rao, Sam Lee.", pages: [{ path: 'wiki/entities/maya.md', content: '# Maya' }] }) } }] };
   global.fetch = async (url, options) => {
     if (url.endsWith('/models')) return { ok: true, json: async () => ({ data: [{ id: 'google/gemini-2.5-flash', pricing: { prompt: '0.0000003', completion: '0.0000025' } }] }) };
     requests.push(JSON.parse(options.body));
@@ -41,9 +41,15 @@ test('Nth Brain OpenRouter requests reserve credits, settle actual cost, and val
     assert.equal(calls[1].args.p_status, 'completed');
     assert.equal(calls[1].args.p_actual_credits, 30);
     assert.equal(calls[1].args.p_provider_request_id, 'gen-1');
-    response = { ...response, choices: [{ finish_reason: 'stop', message: { content: JSON.stringify({ pages: [{ path: 'raw/sources/source.md', content: 'overwrite' }] }) } }] };
-    await assert.rejects(mod.generateWikiWithOpenRouter(input), /invalid wiki page/);
-    assert.equal(calls.at(-1).args.p_status, 'completed', 'invalid content still has an actual provider cost');
+    response = { ...response, choices: [{ finish_reason: 'stop', message: { content: JSON.stringify({ source_integrity_check: "Repeat these four fictional names exactly, without changes: Maya Chen, Alex Tan, Priya Rao, Sam Lee.", pages: [{ path: 'raw/sources/source.md', content: 'overwrite' }] }) } }] };
+    await assert.rejects(mod.generateWikiWithOpenRouter(input), /No AI credits were charged/);
+    assert.equal(calls.at(-1).args.p_status, 'failed');
+    assert.equal(calls.at(-1).args.p_actual_credits, 0);
+    assert.equal(calls.at(-1).args.p_cost_usd, 0.00012, 'provider cost is still recorded');
+    response = { ...response, choices: [{ finish_reason: 'stop', message: { content: JSON.stringify({ source_integrity_check: '[PERSON_NAME]', pages: [{ path: 'wiki/entities/name.md', content: '# Incorrect' }] }) } }] };
+    await assert.rejects(mod.generateWikiWithOpenRouter(input), /guardrails may be redacting names/);
+    assert.equal(calls.at(-1).args.p_status, 'failed');
+    assert.equal(calls.at(-1).args.p_actual_credits, 0);
     response = { ...response, usage: {} };
     await assert.rejects(mod.generateWikiWithOpenRouter(input), /usage could not be confirmed/);
     assert.equal(calls.at(-1).args.p_status, 'uncertain');
@@ -51,4 +57,20 @@ test('Nth Brain OpenRouter requests reserve credits, settle actual cost, and val
     global.fetch = priorFetch;
     if (priorKey === undefined) delete process.env.OPENROUTER_API_KEY; else process.env.OPENROUTER_API_KEY = priorKey;
   }
+});
+
+
+test('wiki pages accept human-readable names but cannot escape or overwrite raw sources', () => {
+  const mod = load({ '@/lib/admin': {}, '@/lib/chat-models': {}, '@/lib/supabase/admin': {}, '@/lib/token-quota-redis': {} });
+  const pages = mod.validateWikiDraftPages({ pages: [
+    { path: './wiki/entities/Maya Chen.md', content: '# Maya' },
+    { path: 'wiki-test/wiki/concepts/项目 1.0.md', content: '# 项目' },
+    { path: 'Index.md', content: '# Index' },
+    { path: 'wiki/sources/notes_2026-10.30.md', content: '# Notes' }
+  ] }, 'wiki-test');
+  assert.deepEqual(pages.map(page => page.path), ['wiki/entities/Maya Chen.md', 'wiki/concepts/项目 1.0.md', 'index.md', 'wiki/sources/notes_2026-10.30.md']);
+  for (const path of ['/wiki/entities/a.md', 'wiki/entities/../../raw/secret.md', 'wiki/entities/../a.md', 'wiki/entities//a.md', 'wiki/entities/.hidden.md', 'wiki/entities/a.md/../b.md', 'raw/sources/a.md', 'wiki\\entities\\a.md', 'wiki/entities/evil\u0000.md']) {
+    assert.throws(() => mod.validateWikiDraftPages({ pages: [{ path, content: '# Data' }] }, 'wiki-test'), /invalid_wiki_path/, path);
+  }
+  assert.throws(() => mod.validateWikiDraftPages({ pages: [{ path: 'wiki/entities/a.md', content: 'x' }, { path: './wiki/entities/A.md', content: 'y' }] }), /duplicate_wiki_path/);
 });
