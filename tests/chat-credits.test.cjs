@@ -16,7 +16,7 @@ test("chat reservations and reconciliation preserve balances and restrict access
       create table auth.users (id uuid primary key);
       create function auth.uid() returns uuid language sql as $$select nullif(current_setting('test.user_id', true), '')::uuid$$;
       create table public.profiles (id uuid primary key, admin_disabled boolean default false,
-        admin_deleted_at timestamptz, llm_token_quota bigint not null, llm_token_used bigint not null);
+        admin_deleted_at timestamptz, openclaw_tokens_paused boolean not null default false, llm_token_quota bigint not null, llm_token_used bigint not null);
       create table public.credit_ledger (user_id uuid not null, delta_tokens bigint not null,
         balance_after bigint not null check(balance_after >= 0), reason text not null, metadata jsonb not null);
     `);
@@ -28,10 +28,21 @@ test("chat reservations and reconciliation preserve balances and restrict access
     await db.exec(fs.readFileSync(path.join(__dirname, "../supabase/migrations/0036_chat_media_generation.sql"), "utf8"));
     await db.exec(fs.readFileSync(path.join(__dirname, "../supabase/migrations/0040_chat_pptx_generation.sql"), "utf8"));
     await db.exec(fs.readFileSync(path.join(__dirname, "../supabase/migrations/0042_wiki_openrouter_usage.sql"), "utf8"));
+    await db.exec(fs.readFileSync(path.join(__dirname, "../supabase/migrations/0043_chat_pause.sql"), "utf8"));
     await db.query("insert into auth.users(id) values ($1),($2)", [user, admin]);
     await db.query("insert into profiles(id,llm_token_quota,llm_token_used) values ($1,1000,100),($2,0,0)", [user, admin]);
     const reserve = (who, amount, exempt = false) => db.query("select * from reserve_chat_credits($1,$2,$3,$4)", [who, "test/model", amount, exempt]);
     const settle = (who, id, status, credits, cost, providerId = null) => db.query("select * from settle_chat_credits($1,$2,$3,$4,$5,$6)", [who, id, status, credits, cost, providerId]);
+
+    // A pause blocks new reservations even for exempt admins, without disturbing in-flight settlement.
+    let pending = await reserve(user, 10);
+    await db.query("update profiles set openclaw_tokens_paused = true where id in ($1, $2)", [user, admin]);
+    await assert.rejects(reserve(user, 10), /ai_usage_paused/);
+    await assert.rejects(reserve(admin, 10, true), /ai_usage_paused/);
+    await assert.rejects(db.query("select * from reserve_chat_credits_itemized($1,$2,$3,$4,$5,$6)", [user, "model", 1, false, "image_generation", null]), /ai_usage_paused/);
+    await settle(user, pending.rows[0].request_id, "completed", 0, 0);
+    assert.equal(Number((await db.query("select llm_token_used from profiles where id=$1", [user])).rows[0].llm_token_used), 100);
+    await db.query("update profiles set openclaw_tokens_paused = false where id in ($1, $2)", [user, admin]);
 
     let result = await reserve(user, 400);
     const requestId = result.rows[0].request_id;

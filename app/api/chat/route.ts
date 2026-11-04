@@ -171,6 +171,7 @@ export async function POST(request: Request) {
   }).single();
   if (reserveError || !reserved) {
     const error = reserveError?.message ?? "";
+    if (error.includes("ai_usage_paused")) return userError("AI usage is paused. Resume AI usage in Settings to continue.", 423);
     if (error.includes("insufficient_ai_credits")) return userError(`This request needs an estimated reservation of ${reserve.toLocaleString("en")} AI credits. Top up and try again.`, 402);
     if (error.includes("account_disabled")) return userError("Account access is disabled.", 403);
     if (error.includes("too_many_chat_requests")) return userError("Wait for your other chat requests to finish.", 429);

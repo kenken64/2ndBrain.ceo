@@ -45,7 +45,7 @@ export default async function ChatPage({ searchParams }: { searchParams: Promise
               <a className="btn-ghost chat-topbar__logout" href="/auth/logout"><LogOut size={16} aria-hidden="true" /> <Localized en="Log out" zh="退出登录" /></a>
             </div>
           </div>
-          <WorkspaceChat userId={userId} configured={chatConfigured} initialChatId={initialChatId} />
+          <WorkspaceChat userId={userId} configured={chatConfigured} initialChatId={initialChatId} initialPaused={Boolean(onboardingProfile?.openclaw_tokens_paused)} />
         </main>
       </div>
     </>

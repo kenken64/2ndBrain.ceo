@@ -43,7 +43,7 @@ function historyForRequest(history: HistoryMessage[]): ChatMessage[] {
   return selected;
 }
 
-export function WorkspaceChat({ userId, configured, initialChatId }: { userId: string; configured: boolean; initialChatId?: string }) {
+export function WorkspaceChat({ userId, configured, initialChatId, initialPaused }: { userId: string; configured: boolean; initialChatId?: string; initialPaused: boolean }) {
   const { language } = useLanguage();
   const tr = (en: string, zh: string) => language === "zh" ? zh : en;
   const [chat, setChat] = useState<ChatConversation | null>(null);
@@ -51,6 +51,7 @@ export function WorkspaceChat({ userId, configured, initialChatId }: { userId: s
   const [cacheState, setCacheState] = useState<CacheState>("loading");
   const [selecting, setSelecting] = useState(false);
   const [prompt, setPrompt] = useState("");
+  const [aiPaused, setAiPaused] = useState(initialPaused);
   const [generationMode, setGenerationMode] = useState<"chat" | "image" | "video" | "pptx">("chat");
   const [imageEstimate, setImageEstimate] = useState<{ credits: number; estimatedUsd: number } | null>(null);
   const [imageEstimateError, setImageEstimateError] = useState(false);
@@ -89,6 +90,24 @@ export function WorkspaceChat({ userId, configured, initialChatId }: { userId: s
   const threadRef = useRef<HTMLDivElement>(null);
   const isAtBottomRef = useRef(true);
   const channelRef = useRef<BroadcastChannel | null>(null);
+
+  useEffect(() => {
+    const controller = new AbortController();
+    const refreshPause = async () => {
+      try {
+        const response = await fetch("/api/settings/token-balance", { signal: controller.signal, cache: "no-store" });
+        if (!response.ok) return;
+        const payload = await response.json() as { pause?: { openclawTokensPaused?: unknown } };
+        if (!controller.signal.aborted && typeof payload.pause?.openclawTokensPaused === "boolean") setAiPaused(payload.pause.openclawTokensPaused);
+      } catch { /* Keep the last known state; the server enforces the pause. */ }
+    };
+    const onFocus = () => { void refreshPause(); };
+    const onVisibilityChange = () => { if (document.visibilityState === "visible") void refreshPause(); };
+    void refreshPause();
+    window.addEventListener("focus", onFocus);
+    document.addEventListener("visibilitychange", onVisibilityChange);
+    return () => { controller.abort(); window.removeEventListener("focus", onFocus); document.removeEventListener("visibilitychange", onVisibilityChange); };
+  }, [userId]);
 
   useEffect(() => {
     try {
@@ -320,7 +339,7 @@ export function WorkspaceChat({ userId, configured, initialChatId }: { userId: s
     const fileKey = files.map(item => item.id).join(":");
     const review = batchReview?.fileKey === fileKey ? batchReview.data : null;
     const value = isPowerPointTransfer ? "Apply the second PowerPoint's design to the first presentation." : batch ? "Fill the document template for each spreadsheet record." : prompt.trim() || (files.length === 2 ? "Fill the document template for each spreadsheet record." : (files[0] || followUpFile) ? `Extract and review ${(files[0] || followUpFile)!.name}` : "");
-    if (!chat || !configured || busyRef.current || selecting || cacheState === "loading" || uploading || !value) return;
+    if (!chat || !configured || aiPaused || busyRef.current || selecting || cacheState === "loading" || uploading || !value) return;
     if (isPowerPointTransfer && confirmedPowerPointRoles !== fileKey) { setError("Confirm which presentation contains the content and which is the design template."); return; }
     if (value.length > CHAT_MAX_MESSAGE_CHARS) { setError(`Messages can contain up to ${CHAT_MAX_MESSAGE_CHARS.toLocaleString()} characters.`); return; }
     if (batch && !review) {
@@ -361,6 +380,7 @@ export function WorkspaceChat({ userId, configured, initialChatId }: { userId: s
         requestStarted = true;
         requestStartedAt = performance.now();
         const response = await fetch(generationMode === "image" ? "/api/chat/generate-image" : generationMode === "video" ? "/api/chat/generate-video" : isPowerPointTransfer ? "/api/chat/retheme-pptx" : batch ? "/api/chat/batch-review" : "/api/chat", { method: "POST", headers: { "Content-Type": "application/json" }, signal: streamController?.signal, body: JSON.stringify(generationMode === "image" || generationMode === "video" ? { prompt: value } : isPowerPointTransfer ? { sourceId: files[0].id, templateId: files[1].id } : batch ? { action: "run", mappings: review!.mappings, fileIds: files.map(item => item.id) } : { model, messages: historyForRequest(pending.messages), ...(generationMode === "pptx" ? { outputFormat: "pptx" } : { fileId: file?.id, fileContext, ...(streamChat ? { stream: true } : {}) }) }) });
+        if (response.status === 423) setAiPaused(true);
         let payload: { message?: unknown; error?: unknown; model?: unknown; generationMs?: unknown; outputTokens?: unknown; recoveryPptx?: unknown; ocr?: { name?: unknown; markdown?: unknown; truncated?: unknown } | null; spreadsheet?: unknown; savedOutput?: { id?: unknown; name?: unknown }; savedOutputs?: Array<{ id?: unknown; name?: unknown }>; batchSaveIncomplete?: boolean; outputSaveFailed?: boolean; usagePending?: boolean; truncated?: boolean; chargedCredits?: unknown; availableCredits?: unknown; quotaExempt?: unknown } | null;
         if (batch) {
           const result = await readBatchProgress(response, setBatchProgress);
@@ -607,6 +627,7 @@ export function WorkspaceChat({ userId, configured, initialChatId }: { userId: s
       <div className="workspace-chat__layout">
         <div className="workspace-chat__main">
           <div className="workspace-chat__alerts">
+            {aiPaused ? <p className="workspace-chat__warning" role="status"><Localized en="AI usage is paused." zh="AI 用量已暂停。" /> <a href="/dashboard/settings?tab=general"><Localized en="Resume AI usage in Settings" zh="在设置中恢复 AI 用量" /></a></p> : null}
             {!configured ? <p className="workspace-chat__warning" role="status"><Localized en="Chat is not configured yet. Contact the administrator to enable it." zh="AI 对话尚未配置。请联系管理员启用。" /></p> : null}
             {cacheState === "unavailable" ? <p className="workspace-chat__warning" role="status"><Localized en="Chat history could not be saved in this browser. New conversations are available only until you leave this page; your existing saved data has not been removed." zh="无法在此浏览器中保存对话记录。新对话仅在离开页面前可用；现有保存的数据未被删除。" /></p> : null}
             {notice ? <p className="workspace-chat__notice" role="status"><LocalizedMessage text={notice} /></p> : null}{error ? <p className="form-error" role="alert"><LocalizedMessage text={error} /></p> : null}
@@ -650,7 +671,7 @@ export function WorkspaceChat({ userId, configured, initialChatId }: { userId: s
             {generationMode === "image" ? <p className="workspace-chat__notice">{tr("Generate one image with Seedream 4.5. ", "使用 Seedream 4.5 生成一张图片。")}{imageEstimate ? (language === "zh" ? `当前预留：${imageEstimate.credits.toLocaleString()} 积分（预计服务商费用 $${imageEstimate.estimatedUsd.toFixed(4)}）。` : `Current reservation: ${imageEstimate.credits.toLocaleString()} credits (estimated provider cost $${imageEstimate.estimatedUsd.toFixed(4)}). `) : imageEstimateError ? tr("Pricing is temporarily unavailable. ", "暂时无法获取价格。") : tr("Checking current pricing… ", "正在查询当前价格…")}{tr("The final provider cost is recorded in AI Credits Usage.", "最终服务商费用记录在 AI 积分用量中。")}</p> : null}
             {generationMode === "video" ? <p className="workspace-chat__notice">{tr("Generate a 15-second, 480p video with Grok Imagine Video 1.5 Lite. ", "使用 Grok Imagine Video 1.5 Lite 生成 15 秒、480p 视频。")}{videoEstimate ? (language === "zh" ? `当前预留：${videoEstimate.credits.toLocaleString()} 积分（预计服务商费用 $${videoEstimate.estimatedUsd.toFixed(4)}）。` : `Current reservation: ${videoEstimate.credits.toLocaleString()} credits (estimated provider cost $${videoEstimate.estimatedUsd.toFixed(4)}). `) : tr("Pricing is unavailable or still loading. ", "价格不可用或仍在加载。")}{tr("Final usage is recorded in AI Credits Usage.", "最终用量记录在 AI 积分用量中。") }</p> : null}
             {generationMode === "pptx" ? <p className="workspace-chat__notice"><Localized en="Create an editable PowerPoint from your prompt with Gemini 2.5 Flash. AI usage is recorded in AI Credits Usage; review the slides and their facts before sharing." zh="使用 Gemini 2.5 Flash 根据您的提示创建可编辑的 PowerPoint。AI 用量记录在 AI 积分用量中；分享前请检查幻灯片及其事实。" /></p> : null}
-            <textarea aria-label={tr("Your message", "您的消息")} disabled={!configured || busy || selecting || uploading || cacheState === "loading" || files.length === 2} maxLength={CHAT_MAX_MESSAGE_CHARS} value={files.length === 2 ? "" : prompt} onChange={(event) => setPrompt(event.target.value)} onKeyDown={handleKeyDown} placeholder={generationMode === "image" ? tr("Describe the image you want to create…", "描述您想创建的图片…") : generationMode === "video" ? tr("Describe the video you want to create…", "描述您想创建的视频…") : generationMode === "pptx" ? tr("Describe the PowerPoint you want to create…", "描述您想创建的 PowerPoint…") : files.length === 2 && files.every(item => /\.pptx$/i.test(item.name)) ? tr("Use the controls above to confirm the file order.", "使用上方控件确认文件顺序。") : files.length === 2 ? tr("Review and select the spreadsheet columns for each template field.", "查看并为每个模板字段选择电子表格列。") : tr("Ask anything…", "有什么问题？")} rows={3} />
+            <textarea aria-label={tr("Your message", "您的消息")} disabled={!configured || aiPaused || busy || selecting || uploading || cacheState === "loading" || files.length === 2} maxLength={CHAT_MAX_MESSAGE_CHARS} value={files.length === 2 ? "" : prompt} onChange={(event) => setPrompt(event.target.value)} onKeyDown={handleKeyDown} placeholder={generationMode === "image" ? tr("Describe the image you want to create…", "描述您想创建的图片…") : generationMode === "video" ? tr("Describe the video you want to create…", "描述您想创建的视频…") : generationMode === "pptx" ? tr("Describe the PowerPoint you want to create…", "描述您想创建的 PowerPoint…") : files.length === 2 && files.every(item => /\.pptx$/i.test(item.name)) ? tr("Use the controls above to confirm the file order.", "使用上方控件确认文件顺序。") : files.length === 2 ? tr("Review and select the spreadsheet columns for each template field.", "查看并为每个模板字段选择电子表格列。") : tr("Ask anything…", "有什么问题？")} rows={3} />
             <div className="workspace-chat__form-footer">
               <input ref={fileInputRef} type="file" multiple accept=".pdf,.png,.jpg,.jpeg,.webp,.xlsx,.csv,.docx,.pptx" hidden onChange={(event) => { const selected = Array.from(event.target.files ?? []); if (selected.length) void uploadFiles(selected); }} />
               <div className="workspace-chat__attachment-actions">
@@ -659,7 +680,7 @@ export function WorkspaceChat({ userId, configured, initialChatId }: { userId: s
               </div>
               <div className="workspace-chat__submit-actions">
                 {generationMode === "chat" && files.length !== 2 ? <label className="workspace-chat__model-control"><span><Localized en="Model" zh="模型" /></span><select aria-label={tr("AI model", "AI 模型")} className="workspace-chat__model-select" disabled={busy || selecting || uploading || files.length > 0 || !!followUpFile || !chat} id="workspace-chat-model" onChange={(event) => { if (isChatModel(event.target.value)) void changeModel(event.target.value); }} value={files.length || followUpFile || uploading ? FILE_CHAT_MODEL : chat?.model ?? CHAT_MODELS[0].id}>{CHAT_MODELS.map((item) => <option key={item.id} value={item.id}>{item.label}</option>)}</select></label> : null}
-                {canStop ? <button aria-label={tr("Stop response", "停止回复")} className="workspace-chat__send workspace-chat__send--action workspace-chat__stop" disabled={stopping} type="button" onClick={() => { setStopping(true); streamAbortRef.current?.abort(); }}>{stopping ? tr("Stopping…", "正在停止…") : <>{tr("Stop", "停止")} <Square size={12} fill="currentColor" aria-hidden="true" /></>}</button> : <button aria-label={isPowerPointTransfer ? tr("Apply PowerPoint template", "应用 PowerPoint 模板") : isBatchFiles ? (visibleReview ? tr("Generate documents", "生成文档") : tr("Review fields", "查看字段")) : tr("Send message", "发送消息")} className="workspace-chat__send workspace-chat__send--action" disabled={!configured || busy || selecting || uploading || cacheState === "loading" || (!prompt.trim() && !files.length && !followUpFile) || (isPowerPointTransfer && confirmedPowerPointRoles !== powerPointFileKey) || (!!visibleReview && visibleReview.mappings.some(item => !item.column))} type="submit">{isPowerPointTransfer ? tr("Apply template", "应用模板") : isBatchFiles ? (visibleReview ? tr("Generate documents", "生成文档") : tr("Review fields", "查看字段")) : generationMode === "image" ? tr("Create image", "创建图片") : generationMode === "video" ? tr("Create video", "创建视频") : generationMode === "pptx" ? tr("Create slides", "创建幻灯片") : <>{tr("Send", "发送")} <ArrowRight size={15} strokeWidth={2.4} aria-hidden="true" /></>}</button>}
+                {canStop ? <button aria-label={tr("Stop response", "停止回复")} className="workspace-chat__send workspace-chat__send--action workspace-chat__stop" disabled={stopping} type="button" onClick={() => { setStopping(true); streamAbortRef.current?.abort(); }}>{stopping ? tr("Stopping…", "正在停止…") : <>{tr("Stop", "停止")} <Square size={12} fill="currentColor" aria-hidden="true" /></>}</button> : <button aria-label={isPowerPointTransfer ? tr("Apply PowerPoint template", "应用 PowerPoint 模板") : isBatchFiles ? (visibleReview ? tr("Generate documents", "生成文档") : tr("Review fields", "查看字段")) : tr("Send message", "发送消息")} className="workspace-chat__send workspace-chat__send--action" disabled={!configured || aiPaused || busy || selecting || uploading || cacheState === "loading" || (!prompt.trim() && !files.length && !followUpFile) || (isPowerPointTransfer && confirmedPowerPointRoles !== powerPointFileKey) || (!!visibleReview && visibleReview.mappings.some(item => !item.column))} type="submit">{isPowerPointTransfer ? tr("Apply template", "应用模板") : isBatchFiles ? (visibleReview ? tr("Generate documents", "生成文档") : tr("Review fields", "查看字段")) : generationMode === "image" ? tr("Create image", "创建图片") : generationMode === "video" ? tr("Create video", "创建视频") : generationMode === "pptx" ? tr("Create slides", "创建幻灯片") : <>{tr("Send", "发送")} <ArrowRight size={15} strokeWidth={2.4} aria-hidden="true" /></>}</button>}
               </div>
             </div>
           </form>

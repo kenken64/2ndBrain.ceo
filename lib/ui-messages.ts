@@ -4,6 +4,7 @@ export const uiMessagesZh: Record<string, string> = {
   "Nth Brain generation is not configured. Contact the administrator.": "尚未配置 Nth Brain 生成。请联系管理员。",
   "Nth Brain model pricing is unavailable. Please try again later.": "暂时无法获取 Nth Brain 模型价格，请稍后重试。",
   "Unable to check your AI credit balance.": "无法查询您的 AI 积分余额。",
+  "AI usage is paused. Resume AI usage in Settings to continue.": "AI 用量已暂停。请在设置中恢复 AI 用量以继续。",
   "AI Agent usage is paused. Resume AI usage in Settings and retry.": "AI Agent 用量已暂停。请在设置中恢复用量后重试。",
   "Wait for your other AI requests to finish and retry.": "请等待其他 AI 请求完成后重试。",
   "Nth Brain credit accounting is unavailable. Contact the administrator.": "Nth Brain 积分计费暂不可用，请联系管理员。",

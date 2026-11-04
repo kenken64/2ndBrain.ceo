@@ -70,6 +70,7 @@ export async function POST(request: Request) {
   const isAdmin = await isAdminUser(context.email, context.userId);
   const { data: reserved, error } = await context.admin.rpc("reserve_chat_credits_itemized", { p_user_id: context.userId, p_model_id: MODEL, p_credits: reserve, p_is_admin: isAdmin, p_kind: "video_generation", p_pdf_pages: null }).single();
   const row = reserved as CreditRow | null;
+  if (error?.message?.includes("ai_usage_paused")) return errorResponse("AI usage is paused. Resume AI usage in Settings to continue.", 423);
   if (error || !row?.request_id) return errorResponse(error?.message?.includes("insufficient_ai_credits") ? `This video needs a reservation of ${reserve.toLocaleString("en")} AI credits.` : "Credit accounting is unavailable.", error?.message?.includes("insufficient_ai_credits") ? 402 : 503);
   const requestId = row.request_id;
   if (!isAdmin) await notify(context, row, "chat_credit_reservation", requestId);

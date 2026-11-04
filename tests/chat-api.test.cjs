@@ -25,6 +25,7 @@ test("chat API checks authentication, model, billing and uncertain failures", as
     rpc(name, args) {
       return { single: async () => {
         state.rpc.push({ name, args });
+        if (name === "reserve_chat_credits_itemized" && state.paused) return { data: null, error: { message: "ai_usage_paused" } };
         if (name === "reserve_chat_credits_itemized") return state.noCredit
           ? { data: null, error: { message: "insufficient_ai_credits" } }
           : { data: { request_id: "req-1", llm_token_quota: 10000, llm_token_used: 500 }, error: null };
@@ -100,6 +101,9 @@ test("chat API checks authentication, model, billing and uncertain failures", as
     assert.equal(response.status, 400); assert.equal(state.urls.length, 0);
     reset(); response = await post(request({ ...good, messages: [{ role: "system", content: "x" }] }));
     assert.equal(response.status, 400); assert.equal(state.rpc.length, 0);
+    reset(); state.paused = true; response = await post(request(good));
+    assert.equal(response.status, 423); assert.match((await response.json()).error, /paused/i);
+    assert.equal(state.urls.filter(url => url.endsWith("/chat/completions")).length, 0);
     reset(); state.noCredit = true; response = await post(request(good));
     assert.equal(response.status, 402); assert.equal(state.urls.length, 1);
     reset(); response = await post(request(good));

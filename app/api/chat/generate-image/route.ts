@@ -72,6 +72,7 @@ export async function POST(request: Request) {
   if (profileError || !profile) return errorResponse("Unable to check your account.", 503);
   const { data: reserved, error: reserveError } = await admin.rpc("reserve_chat_credits_itemized", { p_user_id: userId, p_model_id: MODEL, p_credits: reserve, p_is_admin: isAdmin, p_kind: "image_generation", p_pdf_pages: null }).single();
   const reservation = reserved as CreditRow | null;
+  if (reserveError?.message?.includes("ai_usage_paused")) return errorResponse("AI usage is paused. Resume AI usage in Settings to continue.", 423);
   if (reserveError || !reservation?.request_id) return errorResponse(reserveError?.message?.includes("insufficient_ai_credits") ? `This image needs a reservation of ${reserve.toLocaleString("en")} AI credits.` : "Chat credit accounting is unavailable.", reserveError?.message?.includes("insufficient_ai_credits") ? 402 : 503);
   const requestId = reservation.request_id;
   const notify = async (row: CreditRow, reason: "chat_credit_reservation" | "chat_credit_settlement") => { if (!isAdmin) await publishTokenQuotaUpdate({ userId, actorUserId: userId, email: email || profile.email, openclawInstance: profile.openclaw_instance, llmTokenQuota: Number(row.llm_token_quota), llmTokenUsed: Number(row.llm_token_used), reason, metadata: { chatRequestId: requestId } }); };

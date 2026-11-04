@@ -183,7 +183,7 @@ export function SettingsTokenUsageCard({
         </div>
         <div>
           <dt><Localized en={"Status"} zh={"状态"} /></dt>
-          <dd>{tokensPaused ? tokensPauseReason ?? "Paused" : <Localized en={"Active"} zh={"运行中"} />}</dd>
+          <dd>{tokensPaused ? (tokensPauseReason === "user_pause" ? <Localized en="Paused by you" zh="您已暂停 AI 用量" /> : <Localized en="AI usage is paused" zh="AI 用量已暂停" />) : <Localized en="Active" zh="运行中" />}</dd>
         </div>
       </dl>
 
