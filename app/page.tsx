@@ -65,7 +65,7 @@ const integrations = [
   { icon: Briefcase, name: "Google Workspace", sub: "agent-side credentials via Google OAuth" },
   { icon: Send, name: "Telegram", sub: "pairing + approval gate" },
   { icon: Terminal, name: "SSH Console", sub: "authenticated, in-dashboard" },
-  { icon: Video, name: "Remotion Avatar", sub: "a face for your agent" },
+  { icon: Video, name: "Digital twin", sub: "a face for your agent" },
   { icon: KeyRound, name: "Google OAuth", sub: "sign-in through Supabase" },
   { icon: Coins, name: "Payments", sub: "cards, eligible wallets + Solana" }
 ] as const;
