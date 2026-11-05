@@ -1,5 +1,5 @@
 /** Top-up choices are denominated in Singapore cents. One USD cent buys 2,500 credits. */
-export const SGD_TOPUP_CENTS = [500, 1000, 2000, 3000, 5000, 10000] as const;
+export const SGD_TOPUP_CENTS = [500, 1000, 1500, 2500, 5000, 10000] as const;
 export type CreditOption = { sgdCents: number; cnyCents: number; usdCents: number; credits: number };
 export type CreditOptions = { rateDate: string; options: CreditOption[] };
 export function buildCreditOptions(usdPerSgd: number, cnyPerSgd: number, rateDate: string): CreditOptions {

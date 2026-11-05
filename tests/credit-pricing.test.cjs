@@ -22,9 +22,12 @@ test('six SGD choices preserve the USD credit rate and reject altered or stale s
   global.fetch = async () => { calls++; return Response.json(rates(new Date().toISOString().slice(0, 10))); };
   try {
     const api = server(); const result = await api.getCreditOptions();
-    assert.deepEqual(result.options.map(x => x.sgdCents), [500, 1000, 2000, 3000, 5000, 10000]);
+    assert.deepEqual(result.options.map(x => x.sgdCents), [500, 1000, 1500, 2500, 5000, 10000]);
     assert.deepEqual(result.options[0], { sgdCents: 500, cnyCents: 2611, usdCents: 391, credits: 977500 });
     assert.equal((await api.resolveCreditOption(500, 391)).credits, 977500);
+    assert.equal((await api.resolveCreditOption(1500, 1174)).credits, 2935000);
+    assert.equal((await api.resolveCreditOption(2500, 1956)).credits, 4890000);
+    await assert.rejects(api.resolveCreditOption(2000, 1565), /invalid_credit_option/);
     await assert.rejects(api.resolveCreditOption(500, 1), /credit_price_changed/);
     await assert.rejects(api.resolveCreditOption(501, 391), /invalid_credit_option/);
     await assert.rejects(api.resolveCreditOption(500, undefined), /invalid_credit_option/);

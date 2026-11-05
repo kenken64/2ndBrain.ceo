@@ -13,7 +13,7 @@ export async function GET() {
   if (error || !userId) return NextResponse.json({ error: "Authentication required." }, { status: 401 });
   const admin = createAdminClient();
   const { data: rows, error: lookupError } = await admin.from("lemon_credit_checkouts")
-    .select("id,order_id,status,credited_tokens,package_tokens,total_usd_cents,refunded_usd_cents,test_mode,created_at")
+    .select("id,order_id,status,credited_tokens,package_tokens,currency,total_currency_cents,total_usd_cents,refunded_usd_cents,test_mode,created_at")
     .eq("user_id", userId).not("order_id", "is", null).order("created_at", { ascending: false }).limit(25);
   if (lookupError) return NextResponse.json({ error: "Card payment history is unavailable." }, { status: 503 });
   return NextResponse.json({ payments: rows ?? [] }, { headers: { "Cache-Control": "private, no-store" } });

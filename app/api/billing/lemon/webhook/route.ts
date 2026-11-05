@@ -31,7 +31,10 @@ export async function POST(request: Request) {
   const orderId = id(payload?.data?.id), storeId = id(attrs?.store_id), variantId = id(attrs?.first_order_item?.variant_id);
   const total = integer(attrs?.total_usd), subtotal = integer(attrs?.subtotal_usd), discount = integer(attrs?.discount_total_usd);
   const refunded = attrs?.refunded_amount_usd == null && attrs?.status === "paid" ? 0 : attrs?.refunded_amount_usd == null && attrs?.status === "refunded" ? total : integer(attrs?.refunded_amount_usd);
-  if (payload?.data?.type !== "orders" || !orderId || !storeId || !variantId || typeof attrs?.test_mode !== "boolean" || !["paid", "partial_refund", "refunded"].includes(attrs?.status) || total === null || subtotal === null || discount === null || refunded === null || (attrs.status === "refunded" && refunded !== total) || (attrs.status === "partial_refund" && (refunded <= 0 || refunded >= total))) {
+  const currency = attrs?.currency;
+  const nativeTotal = integer(attrs?.total), nativeSubtotal = integer(attrs?.subtotal), nativeDiscount = integer(attrs?.discount_total);
+  const nativeRefunded = attrs?.refunded_amount == null && attrs?.status === "paid" ? 0 : attrs?.refunded_amount == null && attrs?.status === "refunded" ? nativeTotal : integer(attrs?.refunded_amount);
+  if (payload?.data?.type !== "orders" || !orderId || !storeId || !variantId || !["SGD", "USD"].includes(currency) || typeof attrs?.test_mode !== "boolean" || !["paid", "partial_refund", "refunded"].includes(attrs?.status) || total === null || subtotal === null || discount === null || refunded === null || nativeTotal === null || nativeSubtotal === null || nativeDiscount === null || nativeRefunded === null || (attrs.status === "paid" && (refunded !== 0 || nativeRefunded !== 0)) || (attrs.status === "refunded" && (refunded !== total || nativeRefunded !== nativeTotal)) || (attrs.status === "partial_refund" && (refunded >= total || nativeRefunded <= 0 || nativeRefunded >= nativeTotal))) {
     console.error("[lemon:webhook] invalid order payload", { orderId });
     return NextResponse.json({ error: "Invalid order payload." }, { status: 400 });
   }
@@ -40,9 +43,10 @@ export async function POST(request: Request) {
     return NextResponse.json({ received: true });
   }
   const admin = createAdminClient();
-  const { data, error } = await admin.rpc("apply_lemon_credit_order", {
+  const { data, error } = await admin.rpc("apply_lemon_credit_order_v2", {
     p_intent_id: intentId, p_order_id: orderId, p_store_id: storeId, p_variant_id: variantId, p_test_mode: attrs.test_mode,
-    p_subtotal_usd: subtotal, p_discount_usd: discount, p_total_usd: total, p_refunded_usd: refunded
+    p_subtotal_usd: subtotal, p_discount_usd: discount, p_total_usd: total, p_refunded_usd: refunded,
+    p_currency: currency, p_subtotal: nativeSubtotal, p_discount: nativeDiscount, p_total: nativeTotal, p_refunded: nativeRefunded
   }).single();
   if (error || !data) {
     console.error("[lemon:webhook] order not reconciled", { orderId, code: error?.code ?? "unknown" });

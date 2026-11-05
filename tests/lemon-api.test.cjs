@@ -13,31 +13,36 @@ function compile(file, mocks = {}) {
   } finally { Module._load = original; }
   return instance.exports;
 }
-const lemon = compile('lib/lemon-squeezy.ts', { 'server-only': {}, '@/lib/solana-billing': { AI_CREDIT_PACKAGE_TOKENS: 7500000, AI_CREDIT_PACKAGE_USD_CENTS: 3000 } });
-const config = { apiKey: 'api-test', storeId: '1', variantId: '2', webhookSecret: 'webhook-test-secret', testMode: false, allowTestCredits: false };
+const pricing = compile('lib/credit-pricing.ts');
+const lemon = compile('lib/lemon-squeezy.ts', { 'server-only': {}, '@/lib/credit-pricing': pricing });
+const config = { apiKey: 'api-test', storeId: '1', variantIds: Object.fromEntries(pricing.SGD_TOPUP_CENTS.map((cents, index) => [cents, String(index + 2)])), webhookSecret: 'webhook-test-secret', testMode: false, allowTestCredits: false };
 const intent = '00000000-0000-4000-8000-000000000001';
 
-test('checkout verifies the store, one-time price and safe hosted URL', async () => {
-  const original = global.fetch; let captured; let issue = '';
+test('six SGD variants verify their fixed prices, mode, store and safe hosted URL', async () => {
+  const original = global.fetch; let captured; let issue = ''; let selectedCents = 500, selectedId = '2';
   global.fetch = async (url, options) => {
     const value = String(url);
-    if (value.endsWith('/stores/1')) return Response.json({ data: { id: '1', attributes: { currency: issue === 'currency' ? 'EUR' : 'USD', domain: 'store.lemonsqueezy.com' } } });
-    if (value.endsWith('/variants/2')) return Response.json({ data: { id: '2', attributes: { product_id: 3, test_mode: false, status: 'published' } } });
-    if (value.includes('/prices?')) return Response.json({ data: [{ attributes: { variant_id: 2, category: issue === 'subscription' ? 'subscription' : 'one_time', scheme: 'standard', unit_price: issue === 'price' ? 100 : 3000 } }] });
+    if (value.endsWith('/stores/1')) return Response.json({ data: { id: '1', attributes: { currency: issue === 'currency' ? 'USD' : 'SGD', domain: 'store.lemonsqueezy.com' } } });
+    if (value.endsWith(`/variants/${selectedId}`)) return Response.json({ data: { id: selectedId, attributes: { product_id: 3, test_mode: issue === 'mode', status: 'published' } } });
+    if (value.includes('/prices?')) return Response.json({ data: [{ attributes: { variant_id: Number(selectedId), category: issue === 'subscription' ? 'subscription' : 'one_time', scheme: 'standard', unit_price: issue === 'price' ? selectedCents - 1 : selectedCents } }] });
     if (value.endsWith('/products/3')) return Response.json({ data: { attributes: { store_id: issue === 'store' ? 9 : 1, status: 'published', test_mode: false, pay_what_you_want: false } } });
-    if (value.endsWith('/checkouts')) { captured = JSON.parse(options.body); return Response.json({ data: { attributes: { store_id: 1, variant_id: 2, test_mode: false, custom_price: issue === 'custom_price' ? 1 : captured.data.attributes.custom_price, url: issue === 'url' ? 'https://attacker.example/checkout/custom/1' : 'https://store.lemonsqueezy.com/checkout/custom/1' } } }); }
+    if (value.endsWith('/checkouts')) { captured = JSON.parse(options.body); return Response.json({ data: { attributes: { store_id: 1, variant_id: Number(selectedId), test_mode: false, custom_price: issue === 'custom_price' ? 1 : null, url: issue === 'url' ? 'https://attacker.example/checkout/custom/1' : 'https://store.lemonsqueezy.com/checkout/custom/1' } } }); }
     throw Error('unexpected fetch');
   };
   try {
-    const result = await lemon.createLemonCheckout(config, intent);
-    assert.equal(result.packageTokens, 7500000); assert.match(result.url, /^https:\/\/store\.lemonsqueezy\.com\//);
+    for (selectedCents of pricing.SGD_TOPUP_CENTS) {
+      selectedId = config.variantIds[selectedCents];
+      const result = await lemon.createLemonCheckout(config, intent, selectedCents);
+      assert.match(result.url, /^https:\/\/store\.lemonsqueezy\.com\//);
+      assert.equal(captured.data.relationships.variant.data.id, selectedId);
+      assert.deepEqual(captured.data.attributes.product_options.enabled_variants, [Number(selectedId)]);
+      assert.equal(captured.data.attributes.custom_price, undefined);
+    }
     assert.equal(captured.data.attributes.checkout_data.custom.intent_id, intent);
     assert.equal(captured.data.attributes.checkout_data.custom.proof, lemon.lemonIntentProof(intent, config.webhookSecret));
-    assert.deepEqual(captured.data.attributes.product_options.enabled_variants, [2]);
+    assert.deepEqual(captured.data.attributes.checkout_data.variant_quantities, [{ variant_id: Number(selectedId), quantity: 1 }]);
     assert.equal(captured.data.attributes.checkout_options.embed, true);
-    const smaller = await lemon.createLemonCheckout(config, intent, 391);
-    assert.equal(smaller.packageTokens, 977500); assert.equal(captured.data.attributes.custom_price, 391);
-    for (issue of ['currency', 'subscription', 'price', 'store', 'url', 'custom_price']) await assert.rejects(lemon.createLemonCheckout(config, intent), /lemon_(product_mismatch|checkout_invalid)/, issue);
+    for (issue of ['currency', 'subscription', 'price', 'store', 'url', 'custom_price', 'mode']) await assert.rejects(lemon.createLemonCheckout(config, intent, selectedCents), /lemon_(product_mismatch|checkout_invalid)/, issue);
   } finally { global.fetch = original; }
 });
 
@@ -55,7 +60,7 @@ test('webhook validates the raw signature, custom intent and test mode', async (
     '@/lib/supabase/admin': { createAdminClient: () => admin, hasSupabaseServiceRoleEnv: () => true },
     '@/lib/token-quota-redis': { publishTokenQuotaUpdate: async item => notifications.push(item) }
   });
-  function payload(testMode = false) { return { meta: { event_name: 'order_created', custom_data: { intent_id: intent, proof: lemon.lemonIntentProof(intent, config.webhookSecret) } }, data: { type: 'orders', id: '123', attributes: { store_id: 1, first_order_item: { variant_id: 2 }, status: 'paid', test_mode: testMode, subtotal_usd: 3000, discount_total_usd: 0, total_usd: 3300 } } }; }
+  function payload(testMode = false) { return { meta: { event_name: 'order_created', custom_data: { intent_id: intent, proof: lemon.lemonIntentProof(intent, config.webhookSecret) } }, data: { type: 'orders', id: '123', attributes: { store_id: 1, first_order_item: { variant_id: 2 }, status: 'paid', test_mode: testMode, currency: 'SGD', subtotal: 500, discount_total: 0, total: 550, subtotal_usd: 390, discount_total_usd: 0, total_usd: 429 } } }; }
   function request(value, signature) { const raw = JSON.stringify(value); return new Request('http://localhost/api/billing/lemon/webhook', { method: 'POST', headers: { 'x-signature': signature ?? crypto.createHmac('sha256', config.webhookSecret).update(raw).digest('hex') }, body: raw }); }
   try {
     assert.equal((await route.POST(request(payload(), 'bad'))).status, 401); assert.equal(calls.length, 0);
@@ -63,11 +68,11 @@ test('webhook validates the raw signature, custom intent and test mode', async (
     assert.equal((await route.POST(request(bad))).status, 400); assert.equal(calls.length, 0);
     assert.equal((await route.POST(request(payload(true)))).status, 200); assert.equal(calls.length, 0);
     assert.equal((await route.POST(request(payload()))).status, 200); assert.equal(calls.length, 1);
-    assert.equal(calls[0].params.p_intent_id, intent); assert.equal(calls[0].params.p_total_usd, 3300); assert.equal(calls[0].params.p_refunded_usd, 0);
+    assert.equal(calls[0].params.p_intent_id, intent); assert.equal(calls[0].params.p_total_usd, 429); assert.equal(calls[0].name, 'apply_lemon_credit_order_v2'); assert.equal(calls[0].params.p_currency, 'SGD'); assert.equal(calls[0].params.p_subtotal, 500); assert.equal(calls[0].params.p_refunded_usd, 0);
     assert.equal(notifications[0].reason, 'lemon_credit_purchase');
-    const partial = payload(); partial.meta.event_name = 'order_refunded'; partial.data.attributes.status = 'partial_refund'; partial.data.attributes.refunded_amount_usd = 1650;
-    assert.equal((await route.POST(request(partial))).status, 200); assert.equal(calls[1].params.p_refunded_usd, 1650);
-    partial.data.attributes.refunded_amount_usd = 0;
+    const partial = payload(); partial.meta.event_name = 'order_refunded'; partial.data.attributes.status = 'partial_refund'; partial.data.attributes.refunded_amount_usd = 214; partial.data.attributes.refunded_amount = 275;
+    assert.equal((await route.POST(request(partial))).status, 200); assert.equal(calls[1].params.p_refunded_usd, 214); assert.equal(calls[1].params.p_refunded, 275);
+    partial.data.attributes.refunded_amount = 0;
     assert.equal((await route.POST(request(partial))).status, 400);
   } finally { for (const [key, value] of Object.entries(previous)) { if (value === undefined) delete process.env[key]; else process.env[key] = value; } }
 });
@@ -78,6 +83,7 @@ test('checkout requires authentication and a same-origin request and stores a us
   const route = compile('app/api/billing/lemon/checkout/route.ts', {
     'next/server': { NextResponse: { json: (body, options) => ({ body, status: options?.status ?? 200 }) } },
     '@/lib/env': { hasSupabaseEnv: () => true },
+    '@/lib/credit-pricing': pricing,
     '@/lib/credit-pricing-server': { resolveCreditOption: async (sgd, usd) => { if (sgd == null && usd == null) return { usdCents: 3000, credits: 7500000 }; if (sgd === 500 && usd === 391) return { usdCents: 391, credits: 977500 }; throw Error('credit_price_changed'); } },
     '@/lib/lemon-squeezy': { lemonConfig: () => config, createLemonCheckout: async (_config, intentId) => ({ url: `https://store.lemonsqueezy.com/checkout/custom/${intentId}` }) },
     '@/lib/onboarding': { getUserIdFromClaims: claims => claims?.sub },
@@ -85,11 +91,12 @@ test('checkout requires authentication and a same-origin request and stores a us
     '@/lib/supabase/admin': { createAdminClient: () => admin, hasSupabaseServiceRoleEnv: () => true },
     '@/lib/supabase/server': { createClient: async () => ({ auth: { getClaims: async () => ({ data: { claims: user ? { sub: user } : null }, error: null }) } }) }
   });
-  const request = (origin = 'https://example.test') => new Request('https://example.test/api/billing/lemon/checkout', { method: 'POST', headers: { host: 'example.test', origin } });
+  const request = (origin = 'https://example.test', body = { sgdCents: 500, expectedUsdCents: 391 }) => new Request('https://example.test/api/billing/lemon/checkout', { method: 'POST', headers: { host: 'example.test', origin }, body: JSON.stringify(body) });
   assert.equal((await route.POST(request('https://attacker.test'))).status, 403); assert.equal(insertion, null);
   user = null; assert.equal((await route.POST(request())).status, 401); assert.equal(insertion, null);
   user = 'user-1'; const response = await route.POST(request());
-  assert.equal(response.status, 200); assert.equal(insertion.user_id, 'user-1'); assert.equal(insertion.package_tokens, 7500000); assert.equal(insertion.usd_amount_cents, 3000);
+  assert.equal(response.status, 200); assert.equal(insertion.user_id, 'user-1'); assert.equal(insertion.package_tokens, 977500); assert.equal(insertion.usd_amount_cents, 391); assert.equal(insertion.variant_id, '2'); assert.equal(insertion.currency, 'SGD'); assert.equal(insertion.amount_cents, 500);
+  assert.equal((await route.POST(request('https://example.test', {}))).status, 400);
   assert.equal(response.body.intentId, insertion.id); assert.match(response.body.url, /^https:\/\/store\.lemonsqueezy\.com\/checkout\//);
   const selected = new Request('https://example.test/api/billing/lemon/checkout', { method: 'POST', headers: { host: 'example.test', origin: 'https://example.test', 'content-type': 'application/json' }, body: JSON.stringify({ sgdCents: 500, expectedUsdCents: 391 }) });
   assert.equal((await route.POST(selected)).status, 200); assert.equal(insertion.usd_amount_cents, 391); assert.equal(insertion.package_tokens, 977500);
@@ -120,12 +127,27 @@ test('payment settings offer the card package only when configured', () => {
   const { renderToStaticMarkup } = require('react-dom/server');
   const language = { Localized: ({ en }) => en, LocalizedMessage: ({ text }) => text };
   const { LemonCreditPurchase } = compile('components/lemon-credit-purchase.tsx', { '@/components/language-provider': language });
-  const props = { configured: true, testMode: false, packageTokens: 7500000, packageUsdCents: 3000, onBalanceChange() {} };
+  const props = { configured: true, testMode: false, selection: { sgdCents: 500, usdCents: 391, credits: 977500, cnyCents: 2611 }, packageTokens: 977500, packageUsdCents: 391, onBalanceChange() {} };
   const ready = renderToStaticMarkup(React.createElement(LemonCreditPurchase, props));
-  assert.match(ready, /7,500,000 AI credits for \$30\.00 USD/);
+  assert.match(ready, /977,500 AI credits for S\$5\.00/);
   assert.match(ready, /Pay with card/);
   assert.doesNotMatch(ready, /disabled=""/);
   const unavailable = renderToStaticMarkup(React.createElement(LemonCreditPurchase, { ...props, configured: false }));
   assert.match(unavailable, /Card payment is not available yet/);
   assert.match(unavailable, /disabled=""/);
+});
+
+
+test('configuration requires six distinct numeric SGD variant IDs', () => {
+  const keys = ['LEMONSQUEEZY_API_KEY', 'LEMONSQUEEZY_STORE_ID', 'LEMONSQUEEZY_WEBHOOK_SECRET', 'LEMONSQUEEZY_TEST_MODE', ...pricing.SGD_TOPUP_CENTS.map(cents => `LEMONSQUEEZY_VARIANT_ID_SGD_${cents / 100}`)];
+  const previous = Object.fromEntries(keys.map(key => [key, process.env[key]]));
+  try {
+    Object.assign(process.env, { LEMONSQUEEZY_API_KEY: 'test', LEMONSQUEEZY_STORE_ID: '1', LEMONSQUEEZY_WEBHOOK_SECRET: 'secret', LEMONSQUEEZY_TEST_MODE: 'true' });
+    for (const cents of pricing.SGD_TOPUP_CENTS) process.env[`LEMONSQUEEZY_VARIANT_ID_SGD_${cents / 100}`] = config.variantIds[cents];
+    assert.deepEqual(lemon.lemonConfig().variantIds, config.variantIds);
+    delete process.env.LEMONSQUEEZY_VARIANT_ID_SGD_15;
+    assert.equal(lemon.lemonConfig(), null);
+    process.env.LEMONSQUEEZY_VARIANT_ID_SGD_15 = config.variantIds[500];
+    assert.equal(lemon.lemonConfig(), null);
+  } finally { for (const [key, value] of Object.entries(previous)) { if (value === undefined) delete process.env[key]; else process.env[key] = value; } }
 });
