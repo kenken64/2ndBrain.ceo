@@ -17,7 +17,10 @@ import { SettingsTokenUsageCard } from "@/components/settings-token-usage-card";
 import type { SolanaPaymentHistoryItem } from "@/types/solana-payment-history";
 
 type SettingsPageTabsProps = {
+  agentAvailable: boolean;
   billingConfigured: boolean;
+  cardBillingConfigured: boolean;
+  cardTestMode: boolean;
   initialGoogleWorkspaceEnabled: boolean;
   initialProfileName: string;
   initialTab?: SettingsTabId;
@@ -75,7 +78,10 @@ function readTokenState(payload: TokenBalanceResponse | null) {
 }
 
 export function SettingsPageTabs({
+  agentAvailable,
   billingConfigured,
+  cardBillingConfigured,
+  cardTestMode,
   initialGoogleWorkspaceEnabled,
   initialProfileName,
   initialTab,
@@ -195,7 +201,7 @@ export function SettingsPageTabs({
             </article>
           </div>
 
-          <OpenClawInstancesPanel />
+          {agentAvailable ? <OpenClawInstancesPanel /> : <article className="settings-action-card"><div><h2><Localized en="Cloud agent" zh="云端智能体" /></h2><p><Localized en="AI chat works without a cloud agent. Set one up to use the agent workspace, Nth Brain and Telegram." zh="无需云端智能体即可使用 AI 对话。设置智能体后即可使用智能体工作空间、Nth Brain 和 Telegram。" /></p></div><a className="btn-ghost" href="/onboarding?step=agent&amp;next=%2Fdashboard%2Fchat"><Localized en="Set up an agent" zh="设置智能体" /></a></article>}
         </div>
       }
       initialTab={
@@ -210,7 +216,7 @@ export function SettingsPageTabs({
             initialGoogleWorkspaceEnabled={initialGoogleWorkspaceEnabled}
           />
 
-          <article className="settings-action-card">
+          {agentAvailable ? <><article className="settings-action-card">
             <div>
               <p className="workspace-status-card__eyebrow"><Localized en={"Telegram bot"} zh={"Telegram 机器人"} /></p>
               <h2><Localized en={"Reconfigure Telegram bot"} zh={"重新配置 Telegram 机器人"} /></h2>
@@ -228,7 +234,7 @@ export function SettingsPageTabs({
                 <Localized en={"Start the Claude sign-in flow on the AI Agent instance, open the returned login URL, and poll until Claude Code auth is restored."} zh={"在 AI Agent 实例上启动 Claude 登录流程，打开返回的登录地址，并持续检查直到 Claude Code 授权恢复。"} /></p>
             </div>
             <ClaudeAuthReconnectButton />
-          </article>
+          </article></> : null}
         </div>
       }
       payment={
@@ -236,6 +242,8 @@ export function SettingsPageTabs({
           <AiCreditsPaymentPanel
             balance={balance}
             billingConfigured={billingConfigured}
+            cardBillingConfigured={cardBillingConfigured}
+            cardTestMode={cardTestMode}
             initialQuota={tokenQuota}
             initialUsed={tokenUsed}
             onBalanceChange={setBalance}

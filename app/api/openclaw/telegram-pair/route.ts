@@ -74,8 +74,9 @@ export async function POST(request: Request) {
   const formData = await request.formData();
   const next = safeNextPath(String(formData.get("next") ?? "/dashboard/chat"));
   const code = String(formData.get("telegramPairCode") ?? "").trim();
+  const skip = formData.get("action") === "skip";
 
-  if (!/^[a-zA-Z0-9]{8}$/.test(code)) {
+  if (!skip && !/^[a-zA-Z0-9]{8}$/.test(code)) {
     return redirectToApproval(request, next, "invalid_telegram_pair_code");
   }
 
@@ -121,7 +122,7 @@ export async function POST(request: Request) {
 
   try {
     const isHermes = getSelectedProvisionTarget(onboardingProfile) === "hermes_agent";
-    const paired = await (isHermes ? pairHermesTelegram : pairOpenClawTelegram)({
+    const paired = skip ? null : await (isHermes ? pairHermesTelegram : pairOpenClawTelegram)({
       code,
       instance
     });
@@ -130,10 +131,10 @@ export async function POST(request: Request) {
       .from("profiles")
       .update({
         onboarding_completed_at: new Date().toISOString(),
-        openclaw_telegram_pair_completed_at: new Date().toISOString(),
+        openclaw_telegram_pair_completed_at: skip ? null : new Date().toISOString(),
         openclaw_telegram_pair_error: null,
-        openclaw_telegram_pair_output: outputSummary(paired.output),
-        openclaw_telegram_pair_status: "ready"
+        openclaw_telegram_pair_output: paired ? outputSummary(paired.output) : null,
+        openclaw_telegram_pair_status: skip ? "skipped" : "ready"
       })
       .eq("id", userId);
 

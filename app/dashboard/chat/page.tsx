@@ -34,7 +34,7 @@ export default async function ChatPage({ searchParams }: { searchParams: Promise
     <>
       <Atmosphere />
       <div className="dashboard-layout">
-        <DashboardSidebar activeItem="chat" avatarName={onboardingProfile?.avatar_name} email={email} ownerName={onboardingProfile?.owner_name} showAdmin={showAdmin} showChatActions />
+        <DashboardSidebar agentAvailable={onboardingProfile?.provision_target !== "chat_only"} activeItem="chat" avatarName={onboardingProfile?.avatar_name} email={email} ownerName={onboardingProfile?.owner_name} showAdmin={showAdmin} showChatActions />
         <main className="dashboard-main">
           <div className="dashboard-topbar">
             <AnnouncementPill><Localized en="AI Chat" zh="AI 对话" /></AnnouncementPill>
@@ -45,6 +45,7 @@ export default async function ChatPage({ searchParams }: { searchParams: Promise
               <a className="btn-ghost chat-topbar__logout" href="/auth/logout"><LogOut size={16} aria-hidden="true" /> <Localized en="Log out" zh="退出登录" /></a>
             </div>
           </div>
+          {onboardingProfile?.provision_target === "chat_only" ? <p className="workspace-chat__notice" role="status"><Localized en="AI chat is ready without a cloud agent. Nth Brain and Telegram need an agent." zh="无需云端智能体即可使用 AI 对话。Nth Brain 和 Telegram 需要智能体。" /> <a href="/onboarding?step=agent&amp;next=%2Fdashboard%2Fchat"><Localized en="Set up an agent" zh="设置智能体" /></a></p> : null}
           <WorkspaceChat userId={userId} configured={chatConfigured} initialChatId={initialChatId} initialPaused={Boolean(onboardingProfile?.openclaw_tokens_paused)} />
         </main>
       </div>

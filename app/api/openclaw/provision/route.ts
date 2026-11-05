@@ -113,6 +113,7 @@ async function registerProvisionedInstance(input: {
 }
 
 type ProvisionProfile = OnboardingProfile & {
+  openclaw_snapshot_name?: string | null;
   llm_token_quota?: number | string | null;
   llm_token_used?: number | string | null;
 };
@@ -165,6 +166,8 @@ function provisionErrorCode(error: unknown) {
   if (message.startsWith("missing_")) {
     return message;
   }
+
+  if (message === "openclaw_existing_instance_not_telegram_free") return message;
 
   if (message === "insufficient_ai_credits") {
     return message;
@@ -245,7 +248,7 @@ export async function POST(request: Request) {
 
   const { data: profile } = await supabase
     .from("profiles")
-    .select(`${onboardingProfileSelect},llm_token_quota,llm_token_used`)
+    .select(`${onboardingProfileSelect},openclaw_snapshot_name,llm_token_quota,llm_token_used`)
     .eq("id", userId)
     .maybeSingle();
   const onboardingProfile = profile as ProvisionProfile | null;
@@ -259,14 +262,13 @@ export async function POST(request: Request) {
   const ownerName = onboardingProfile?.owner_name?.trim();
   const avatarName = onboardingProfile?.avatar_name?.trim();
   const avatarGender = onboardingProfile?.avatar_gender?.trim();
-  const telegramBotToken = onboardingProfile?.telegram_bot_token?.trim();
+  const telegramBotToken = onboardingProfile?.telegram_bot_token?.trim() ?? "";
   const existingInstance = onboardingProfile?.openclaw_instance?.trim();
 
   if (
     !ownerName ||
     !avatarName ||
     !avatarGender ||
-    !telegramBotToken ||
     !onboardingProfile?.avatar_glb_path?.trim() ||
     !onboardingProfile.avatar_completed_at
   ) {
@@ -314,7 +316,7 @@ export async function POST(request: Request) {
     return redirectToProvision(request, next, "openclaw_provision_running");
   }
 
-  const { data: lock, error: lockError } = await supabase
+  let lockQuery = supabase
     .from("profiles")
     .update({
       openclaw_provision_error: null,
@@ -322,9 +324,12 @@ export async function POST(request: Request) {
       openclaw_provision_status: "running"
     })
     .eq("id", userId)
-    .or("openclaw_provision_status.is.null,openclaw_provision_status.neq.running")
-    .select("id")
-    .maybeSingle();
+    .or("openclaw_provision_status.is.null,openclaw_provision_status.neq.running");
+  // Do not start a restore if the user chose chat-only after this request read the profile.
+  lockQuery = onboardingProfile.provision_target == null
+    ? lockQuery.is("provision_target", null)
+    : lockQuery.eq("provision_target", onboardingProfile.provision_target);
+  const { data: lock, error: lockError } = await lockQuery.select("id").maybeSingle();
 
   if (lockError) {
     return redirectToProvision(request, next, "save_failed");
@@ -362,6 +367,7 @@ export async function POST(request: Request) {
       avatarName,
       consumerName,
       existingInstance,
+      existingSnapshotName: onboardingProfile.openclaw_snapshot_name,
       onInstanceRestored: async (details) => {
         const { error: saveError } = await supabase
           .from("profiles")

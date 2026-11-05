@@ -9,6 +9,7 @@ import { useRouter } from "next/navigation";
 import { FormEvent, useEffect, useState } from "react";
 
 type ProvisionFormProps = {
+  canSkipCloud: boolean;
   agentType?: string | null;
   errorMessage: string | null;
   next: string;
@@ -28,6 +29,7 @@ const PROVISION_ERROR_CODES = new Set([
   "missing_openclaw_lightsail_snapshot_name",
   "missing_openai_api_key",
   "openclaw_instance_not_found",
+  "openclaw_existing_instance_not_telegram_free",
   "openclaw_provision_failed",
   "openclaw_provision_running",
   "openclaw_snapshot_not_found",
@@ -97,7 +99,7 @@ function formatTimer(totalSeconds: number) {
   return `${minutes}:${seconds}`;
 }
 
-export function ProvisionForm({ agentType, errorMessage, next, startedAt, status }: ProvisionFormProps) {
+export function ProvisionForm({ agentType, canSkipCloud, errorMessage, next, startedAt, status }: ProvisionFormProps) {
   const _uiLanguage = useLanguage().language;
   const router = useRouter();
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -179,13 +181,15 @@ export function ProvisionForm({ agentType, errorMessage, next, startedAt, status
   }
 
   return (
+    <>
     <form className="onboarding-form" method="post" noValidate onSubmit={handleSubmit}>
       <input name="next" type="hidden" value={next} />
       <div className="provision-summary">
         <strong>{agentType === "hermes_agent" ? <Localized en="Hermes cloud provisioning" zh="Hermes 云端配置" /> : <Localized en={"Fast Cloud provisioning"} zh={"快速云端配置"} />}</strong>
-        <span>{agentType === "hermes_agent" ? <Localized en="Restores Hermes and configures your Telegram bot and Gyne worker." zh="恢复 Hermes 并配置您的 Telegram 机器人和 Gyne 工作进程。" /> : <Localized en={"Prepares the AI Agent environment with Telegram, identity, and Remotion settings in one streamlined provisioning flow."} zh={"通过精简的配置流程准备 AI Agent 环境，包括 Telegram、身份和 Remotion 设置。"} />}</span>
+        <span>{agentType === "hermes_agent" ? <Localized en="Restores Hermes and configures your Gyne worker and optional Telegram bot." zh="恢复 Hermes 并配置 Gyne 工作进程以及可选的 Telegram 机器人。" /> : <Localized en={"Prepares the AI Agent environment with Telegram, identity, and Remotion settings in one streamlined provisioning flow."} zh={"通过精简的配置流程准备 AI Agent 环境，包括 Telegram、身份和 Remotion 设置。"} />}</span>
       </div>
       {errorMessage ? <p className="form-error"><LocalizedMessage text={errorMessage} /></p> : null}
+      {errorMessage?.startsWith("Telegram-free OpenClaw provisioning is not configured.") ? <a href={`/onboarding?${new URLSearchParams({ next, step: "enrolment" })}`}><Localized en="Add a Telegram bot token" zh="添加 Telegram 机器人令牌" /></a> : null}
       {submitError ? <p className="form-error"><LocalizedMessage text={submitError} /></p> : null}
       {isRunning ? (
         <p className="form-success">
@@ -224,5 +228,7 @@ export function ProvisionForm({ agentType, errorMessage, next, startedAt, status
         <span className="arrow">-&gt;</span>
       </button>
     </form>
+    {canSkipCloud ? <form action="/api/onboarding" method="post" className="onboarding-form"><input type="hidden" name="step" value="agent" /><input type="hidden" name="next" value={next} /><button className="btn-ghost onboarding-submit" type="submit" name="provisionTarget" value="chat_only" disabled={isDisabled}><Localized en="Skip cloud setup and use AI chat" zh="跳过云端设置并使用 AI 对话" /></button></form> : null}
+    </>
   );
 }

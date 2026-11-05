@@ -26,6 +26,7 @@ type InstanceRow = {
   provision_error: string | null;
   provision_status: string;
   region: string | null;
+  snapshot_name: string | null;
   updated_at: string | null;
 };
 
@@ -38,7 +39,7 @@ type ProvisionProfile = OnboardingProfile & {
 };
 
 const INSTANCE_COLUMNS =
-  "id,agent_type,consumer_name,label,instance,region,provision_status,provision_error,created_at,updated_at";
+  "id,agent_type,consumer_name,label,instance,region,snapshot_name,provision_status,provision_error,created_at,updated_at";
 
 function numericTokenValue(value: number | string | null | undefined) {
   const number = Number(value ?? 0);
@@ -169,7 +170,7 @@ export async function POST(_request: Request, context: InstanceRouteContext) {
     !ownerName ||
     !avatarName ||
     !avatarGender ||
-    !telegramBotToken ||
+    (!telegramBotToken && instanceRow.label !== "Onboarding workspace") ||
     !provisionProfile.avatar_glb_path?.trim() ||
     !provisionProfile.avatar_completed_at
   ) {
@@ -220,6 +221,7 @@ export async function POST(_request: Request, context: InstanceRouteContext) {
       consumerName: instanceRow.consumer_name,
       // Self-heal: reuse the box if it still exists in Lightsail, else restore fresh from the snapshot.
       existingInstance: instanceRow.instance,
+      existingSnapshotName: instanceRow.snapshot_name,
       onInstanceRestored: async (details) => {
         const { error: saveError } = await adminSupabase
           .from("openclaw_instances")
@@ -233,7 +235,7 @@ export async function POST(_request: Request, context: InstanceRouteContext) {
         if (saveError) throw new Error("save_failed");
       },
       ownerName,
-      telegramBotToken
+      telegramBotToken: telegramBotToken ?? ""
     });
 
     const completedAt = new Date().toISOString();
@@ -272,7 +274,7 @@ export async function POST(_request: Request, context: InstanceRouteContext) {
         openclaw_snapshot_name: provisioned.snapshotName,
         openclaw_provision_status: "ready",
         openclaw_provision_completed_at: completedAt,
-        ...(restored ? {
+        ...(restored && telegramBotToken ? {
           onboarding_completed_at: null,
           openclaw_telegram_pair_completed_at: null,
           openclaw_telegram_pair_status: "pending"

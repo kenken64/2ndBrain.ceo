@@ -12,9 +12,10 @@ type TelegramApprovalFormProps = {
   errorMessage: string | null;
   next: string;
   status?: string | null;
+  hasToken: boolean;
 };
 
-export function TelegramApprovalForm({ errorMessage, next, status }: TelegramApprovalFormProps) {
+export function TelegramApprovalForm({ errorMessage, next, status, hasToken }: TelegramApprovalFormProps) {
   const _uiLanguage = useLanguage().language;
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState("");
@@ -99,9 +100,11 @@ export function TelegramApprovalForm({ errorMessage, next, status }: TelegramApp
     }
 
     const formData = new FormData(event.currentTarget);
+    const skip = (event.nativeEvent as SubmitEvent).submitter?.getAttribute("value") === "skip";
+    if (skip) formData.set("action", "skip");
     const code = String(formData.get("telegramPairCode") ?? "").trim();
 
-    if (!/^[A-Za-z0-9]{8}$/.test(code)) {
+    if (!skip && !/^[A-Za-z0-9]{8}$/.test(code)) {
       setSubmitError("Enter the 8-character approval code from Telegram.");
       return;
     }
@@ -109,7 +112,7 @@ export function TelegramApprovalForm({ errorMessage, next, status }: TelegramApp
     setIsSubmitting(true);
     setSubmitError("");
     setCanRetry(false);
-    setRemoteStatus("running");
+    if (!skip) setRemoteStatus("running");
 
     try {
       const response = await fetch("/api/openclaw/telegram-pair", {
@@ -143,7 +146,7 @@ export function TelegramApprovalForm({ errorMessage, next, status }: TelegramApp
   return (
     <form className="onboarding-form" method="post" noValidate onSubmit={handleSubmit}>
       <input name="next" type="hidden" value={next} />
-      <label className="field-stack">
+      {hasToken ? <><label className="field-stack">
         <span>
           <KeyRound size={18} strokeWidth={1.8} />
           <Localized en={"Telegram approval code"} zh={"Telegram 批准码"} /></span>
@@ -160,11 +163,12 @@ export function TelegramApprovalForm({ errorMessage, next, status }: TelegramApp
         />
       </label>
       <div className="provision-summary">
-        <strong><Localized en={"Telegram approval required"} zh={"需要 Telegram 批准"} /></strong>
+        <strong><Localized en={"Telegram approval"} zh={"Telegram 批准"} /></strong>
         <span>
-          <Localized en="Open your Telegram bot and send it any message, like “hi” (or tap Start) — the bot cannot message you first. It replies with the 8-character approval code; enter it here before creating the Nth Brain." zh="打开 Telegram 机器人并发送任意消息，例如“hi”（或点击开始）；机器人无法主动向您发送消息。机器人会回复 8 位批准码；创建 Nth Brain 前请在此输入。" />
+          <Localized en="Open your Telegram bot and send it any message, like “hi” (or tap Start) — the bot cannot message you first. It replies with the 8-character approval code; enter it here to connect Telegram." zh="打开 Telegram 机器人并发送任意消息，例如“hi”（或点击开始）；机器人无法主动向您发送消息。机器人会回复 8 位批准码；请在此输入以连接 Telegram。" />
         </span>
       </div>
+      </> : <p className="provision-summary"><Localized en="You can connect Telegram later in Settings." zh="您可以稍后在设置中连接 Telegram。" /></p>}
       {errorMessage ? <p className="form-error"><LocalizedMessage text={errorMessage} /></p> : null}
       {submitError ? (
         <p className="form-error" id={codeErrorId}>
@@ -190,9 +194,10 @@ export function TelegramApprovalForm({ errorMessage, next, status }: TelegramApp
           </div>
         </div>
       ) : null}
-      <button className="btn-primary onboarding-submit" disabled={isDisabled} type="submit">
+      {hasToken ? <button className="btn-primary onboarding-submit" disabled={isDisabled} type="submit">
         {isSubmitting ? <Localized en={"Approving..."} zh={"正在批准..."} /> : <Localized en={"Approve Telegram"} zh={"批准 Telegram"} />} <span className="arrow">-&gt;</span>
-      </button>
+      </button> : null}
+      <button className="btn-ghost onboarding-submit" disabled={isDisabled} type="submit" name="action" value="skip"><Localized en="Skip Telegram and continue" zh="跳过 Telegram 并继续" /></button>
     </form>
   );
 }

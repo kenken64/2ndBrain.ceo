@@ -24,6 +24,7 @@ import { useLanguage } from "@/components/language-provider";
 import { BrandLogo } from "@/components/brand-logo";
 
 type DashboardSidebarProps = {
+  agentAvailable?: boolean;
   activeItem?: "admin" | "chat" | "gateway" | "marketplace" | "remotion" | "wiki" | "graph" | "settings" | "workflows";
   avatarName?: string | null;
   creditLocked?: boolean;
@@ -46,19 +47,20 @@ function readStoredSidebarState() {
 type SidebarNavItemProps = {
   active: boolean;
   disabled?: boolean;
+  disabledReason?: string;
   href: string;
   icon: ReactNode;
   label: string;
   title: string;
 };
 
-function SidebarNavItem({ active, disabled = false, href, icon, label, title }: SidebarNavItemProps) {
+function SidebarNavItem({ active, disabled = false, disabledReason, href, icon, label, title }: SidebarNavItemProps) {
   const { language } = useLanguage();
   const className = `sidebar-item${active ? " is-active" : ""}${disabled ? " is-disabled" : ""}`;
 
   if (disabled) {
     return (
-      <span aria-disabled="true" className={className} role="link" title={language === "zh" ? "需要 AI 积分" : "AI credits required"}>
+      <span aria-disabled="true" className={className} role="link" title={disabledReason ?? (language === "zh" ? "需要 AI 积分" : "AI credits required")}>
         {icon}
         <span className="sidebar-item__label">{label}</span>
       </span>
@@ -74,6 +76,7 @@ function SidebarNavItem({ active, disabled = false, href, icon, label, title }: 
 }
 
 export function DashboardSidebar({
+  agentAvailable = true,
   activeItem = "gateway",
   creditLocked = false,
   email,
@@ -188,7 +191,8 @@ export function DashboardSidebar({
         {showChatActions ? <div className="sidebar-chat-history-slot" id="sidebar-chat-history-slot" /> : null}
         <SidebarNavItem
           active={activeItem === "gateway"}
-          disabled={creditLocked}
+          disabled={creditLocked || !agentAvailable}
+          disabledReason={!agentAvailable && !creditLocked ? (zh ? "需要云端智能体" : "Cloud agent required") : undefined}
           href="/dashboard/openclaw"
           icon={<Plug size={18} strokeWidth={1.7} />}
           label={zh ? "AI 助手网关" : "AI Assistant Gateway"}
@@ -196,7 +200,8 @@ export function DashboardSidebar({
         />
         <SidebarNavItem
           active={activeItem === "remotion"}
-          disabled={creditLocked}
+          disabled={creditLocked || !agentAvailable}
+          disabledReason={!agentAvailable && !creditLocked ? (zh ? "需要云端智能体" : "Cloud agent required") : undefined}
           href="/dashboard#remotion-avatar"
           icon={<Clapperboard size={18} strokeWidth={1.7} />}
           label={zh ? "我的 AI 形象" : "My AI Avatar"}
@@ -204,7 +209,8 @@ export function DashboardSidebar({
         />
         <SidebarNavItem
           active={activeItem === "wiki"}
-          disabled={creditLocked}
+          disabled={creditLocked || !agentAvailable}
+          disabledReason={!agentAvailable && !creditLocked ? (zh ? "需要云端智能体" : "Cloud agent required") : undefined}
           href="/dashboard/wiki"
           icon={<ScrollText size={18} strokeWidth={1.7} />}
           label={zh ? "Nth Brain" : "Nth Brain"}
@@ -212,7 +218,8 @@ export function DashboardSidebar({
         />
         <SidebarNavItem
           active={activeItem === "graph"}
-          disabled={creditLocked}
+          disabled={creditLocked || !agentAvailable}
+          disabledReason={!agentAvailable && !creditLocked ? (zh ? "需要云端智能体" : "Cloud agent required") : undefined}
           href="/dashboard/graph"
           icon={<GitBranch size={18} strokeWidth={1.7} />}
           label={zh ? "知识图谱" : "Knowledge Graph"}

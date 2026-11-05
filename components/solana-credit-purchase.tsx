@@ -6,6 +6,7 @@ import { Localized, LocalizedMessage, useLanguage } from "@/components/language-
 import { useEffect, useMemo, useState } from "react";
 import { Buffer } from "buffer";
 import { CreditCard, Loader2, Wallet } from "lucide-react";
+import type { CreditOption } from "@/lib/credit-pricing";
 import { PublicKey, SystemProgram, Transaction, TransactionInstruction } from "@solana/web3.js";
 
 type PhantomProvider = {
@@ -48,6 +49,9 @@ type CreditBalance = {
 };
 
 type SolanaCreditPurchaseProps = {
+  selection?: CreditOption | null;
+  onActivityChange?: (busy: boolean) => void;
+  onPriceChanged?: () => void;
   balance: CreditBalance;
   billingConfigured: boolean;
   onBalanceChange: (balance: CreditBalance) => void;
@@ -172,6 +176,9 @@ async function readJson<T>(response: Response) {
 }
 
 export function SolanaCreditPurchase({
+  selection,
+  onActivityChange,
+  onPriceChanged,
   balance,
   billingConfigured,
   onBalanceChange,
@@ -204,18 +211,18 @@ export function SolanaCreditPurchase({
   );
   const packageSummaryCopy = useMemo(() => {
     if (quote) {
-      return zh ? `最低消费 ${formatUsdPlain(packageUsd)}，按当前付款报价约为 ${formatSol(quote.solAmount)} Solana，可获得 ${formatInteger(packageTokens)} AI 积分。` : `Minimum spend is ${formatUsdPlain(packageUsd)}, approximately ${formatSol(quote.solAmount)} Solana at the current payment quote, for ${formatInteger(packageTokens)} AI credits.`;
+      return zh ? `所选充值金额为 ${formatUsdPlain(packageUsd)}，按当前付款报价约为 ${formatSol(quote.solAmount)} Solana，可获得 ${formatInteger(packageTokens)} AI 积分。` : `Selected top-up is ${formatUsdPlain(packageUsd)}, approximately ${formatSol(quote.solAmount)} Solana at the current payment quote, for ${formatInteger(packageTokens)} AI credits.`;
     }
 
     if (estimate) {
-      return zh ? `最低消费 ${formatUsdPlain(packageUsd)}，按当前估算约为 ${formatSol(estimate.solAmount)} Solana，可获得 ${formatInteger(packageTokens)} AI 积分。` : `Minimum spend is ${formatUsdPlain(packageUsd)}, approximately ${formatSol(estimate.solAmount)} Solana at the current estimate, for ${formatInteger(packageTokens)} AI credits.`;
+      return zh ? `所选充值金额为 ${formatUsdPlain(packageUsd)}，按当前估算约为 ${formatSol(estimate.solAmount)} Solana，可获得 ${formatInteger(packageTokens)} AI 积分。` : `Selected top-up is ${formatUsdPlain(packageUsd)}, approximately ${formatSol(estimate.solAmount)} Solana at the current estimate, for ${formatInteger(packageTokens)} AI credits.`;
     }
 
     if (isEstimating) {
-      return zh ? `最低消费 ${formatUsdPlain(packageUsd)}。正在计算购买 ${formatInteger(packageTokens)} AI 积分所需的 Solana 估算金额。` : `Minimum spend is ${formatUsdPlain(packageUsd)}. Calculating the approximate Solana amount for ${formatInteger(packageTokens)} AI credits.`;
+      return zh ? `所选充值金额为 ${formatUsdPlain(packageUsd)}。正在计算购买 ${formatInteger(packageTokens)} AI 积分所需的 Solana 估算金额。` : `Selected top-up is ${formatUsdPlain(packageUsd)}. Calculating the approximate Solana amount for ${formatInteger(packageTokens)} AI credits.`;
     }
 
-    return zh ? `最低消费 ${formatUsdPlain(packageUsd)}，以 Solana 支付，可获得 ${formatInteger(packageTokens)} AI 积分。` : `Minimum spend is ${formatUsdPlain(packageUsd)}, paid in Solana, for ${formatInteger(packageTokens)} AI credits.`;
+    return zh ? `所选充值金额为 ${formatUsdPlain(packageUsd)}，以 Solana 支付，可获得 ${formatInteger(packageTokens)} AI 积分。` : `Selected top-up is ${formatUsdPlain(packageUsd)}, paid in Solana, for ${formatInteger(packageTokens)} AI credits.`;
   }, [estimate, isEstimating, packageTokens, packageUsd, quote, zh]);
   const statusCopy = useMemo(() => {
     if (!billingConfigured) {
@@ -258,11 +265,10 @@ export function SolanaCreditPurchase({
       setIsEstimating(true);
 
       try {
-        const payload = await readJson<{ estimate: SolanaEstimate }>(
-          await fetch("/api/billing/solana/estimate", {
-            method: "GET"
-          })
-        );
+        const query = selection ? `?${new URLSearchParams({ sgdCents: String(selection.sgdCents), expectedUsdCents: String(selection.usdCents) })}` : "";
+        const estimateResponse = await fetch(`/api/billing/solana/estimate${query}`, { method: "GET" });
+        if (estimateResponse.status === 409) onPriceChanged?.();
+        const payload = await readJson<{ estimate: SolanaEstimate }>(estimateResponse);
 
         if (!cancelled) {
           setEstimate(payload.estimate);
@@ -283,7 +289,7 @@ export function SolanaCreditPurchase({
     return () => {
       cancelled = true;
     };
-  }, [billingConfigured]);
+  }, [billingConfigured, selection?.sgdCents, selection?.usdCents]);
 
   useEffect(() => {
     if (!quote || !walletAddress) {
@@ -407,15 +413,12 @@ export function SolanaCreditPurchase({
     setMessage(options?.silent ? null : "Calculating Solana amount...");
 
     try {
-      const payload = await readJson<{ quote: SolanaQuote }>(
-        await fetch("/api/billing/solana/quote", {
-          body: JSON.stringify({ walletAddress: address }),
-          headers: {
-            "Content-Type": "application/json"
-          },
-          method: "POST"
-        })
-      );
+      const quoteResponse = await fetch("/api/billing/solana/quote", {
+        body: JSON.stringify({ walletAddress: address, ...(selection ? { sgdCents: selection.sgdCents, expectedUsdCents: selection.usdCents } : {}) }),
+        headers: { "Content-Type": "application/json" }, method: "POST"
+      });
+      if (quoteResponse.status === 409) onPriceChanged?.();
+      const payload = await readJson<{ quote: SolanaQuote }>(quoteResponse);
 
       setQuote(payload.quote);
       setTransactionBlockhash({
@@ -476,7 +479,13 @@ export function SolanaCreditPurchase({
       return;
     }
 
+    if (selection && (quote.usdAmountCents !== selection.usdCents || quote.packageTokens !== selection.credits)) {
+      setError("Exchange rates changed. Refresh your top-up options.");
+      onPriceChanged?.();
+      return;
+    }
     setIsPaying(true);
+    onActivityChange?.(true);
     setError(null);
     setMessage(null);
 
@@ -571,6 +580,7 @@ export function SolanaCreditPurchase({
       setError(phantomPaymentErrorMessage(paymentError, quote?.solanaNetwork ?? null));
     } finally {
       setIsPaying(false);
+      onActivityChange?.(false);
     }
   }
 

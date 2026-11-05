@@ -104,7 +104,7 @@ async function readJson<T>(response: Response) {
   return payload;
 }
 
-export function WorkflowMarketplace({ setupComplete = true }: { setupComplete?: boolean }) {
+export function WorkflowMarketplace({ setupComplete = true, agentAvailable = true }: { setupComplete?: boolean; agentAvailable?: boolean }) {
   const { language } = useLanguage();
   const zh = language === "zh";
   const [marketplace, setMarketplace] = useState<MarketplaceState>(emptyState);
@@ -344,6 +344,7 @@ export function WorkflowMarketplace({ setupComplete = true }: { setupComplete?: 
                 </span>
               </div>
               <p><LocalizedMessage text={template.description} /></p>
+              <p className="workflow-card__hint">{template.requiresCloudAgent ? <Localized en="Requires an AI Agent for its agent tasks." zh="智能体任务需要 AI Agent。" /> : <Localized en="No personal cloud agent required." zh="无需个人云端智能体。" />}{template.requiresCloudAgent && !agentAvailable ? <> <a href="/onboarding?step=agent&amp;next=%2Fdashboard%2Fchat"><Localized en="Set up an agent" zh="设置智能体" /></a></> : null}</p>
               <div className="workflow-card__price">
                 <Coins size={16} strokeWidth={1.9} />
                 <span>{priceCopy}</span>

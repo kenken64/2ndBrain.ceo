@@ -42,19 +42,13 @@ export function getUserIdFromClaims(claims: ClaimsWithSubject | null | undefined
 }
 
 export function isOnboardingComplete(profile: OnboardingProfile | null | undefined) {
+  if (!profile?.owner_name?.trim() || !profile.avatar_name?.trim() || !profile.avatar_gender?.trim() ||
+      !profile.enrolment_completed_at || !profile.avatar_glb_path?.trim() || !profile.avatar_completed_at || !profile.onboarding_completed_at) return false;
+  if (profile.provision_target === "chat_only") return true;
   return Boolean(
-    profile?.owner_name?.trim() &&
-      profile?.avatar_name?.trim() &&
-      profile?.avatar_gender?.trim() &&
-      profile?.telegram_bot_token?.trim() &&
-      profile?.enrolment_completed_at &&
-      profile?.avatar_glb_path?.trim() &&
-      profile?.avatar_completed_at &&
-      ["openclaw", "hermes_agent"].includes(getSelectedProvisionTarget(profile) ?? "") &&
-      profile?.openclaw_instance?.trim() &&
-      profile?.openclaw_provision_completed_at &&
-      profile?.openclaw_telegram_pair_completed_at &&
-      profile?.onboarding_completed_at
+    ["openclaw", "hermes_agent"].includes(getSelectedProvisionTarget(profile) ?? "") &&
+      profile.openclaw_instance?.trim() && profile.openclaw_provision_completed_at &&
+      (profile.openclaw_telegram_pair_status === "skipped" || (profile.openclaw_telegram_pair_status === "ready" && profile.openclaw_telegram_pair_completed_at))
   );
 }
 
@@ -65,7 +59,6 @@ export function getRequiredOnboardingStep(
     !profile?.owner_name?.trim() ||
     !profile.avatar_name?.trim() ||
     !profile.avatar_gender?.trim() ||
-    !profile.telegram_bot_token?.trim() ||
     !profile.enrolment_completed_at
   ) {
     return "enrolment";
@@ -76,6 +69,10 @@ export function getRequiredOnboardingStep(
     !profile.avatar_completed_at
   ) {
     return "avatar";
+  }
+
+  if (profile.provision_target === "chat_only") {
+    return profile.onboarding_completed_at ? null : "agent";
   }
 
   if (!["openclaw", "hermes_agent"].includes(getSelectedProvisionTarget(profile) ?? "")) {
@@ -91,8 +88,7 @@ export function getRequiredOnboardingStep(
   }
 
   if (
-    profile.openclaw_telegram_pair_status !== "ready" ||
-    !profile.openclaw_telegram_pair_completed_at ||
+    !(profile.openclaw_telegram_pair_status === "skipped" || (profile.openclaw_telegram_pair_status === "ready" && profile.openclaw_telegram_pair_completed_at)) ||
     !profile.onboarding_completed_at
   ) {
     return "approval";

@@ -16,6 +16,7 @@ export type WorkflowTemplate = {
   steps: string[];
   title: string;
   priceTokens: number;
+  requiresCloudAgent: boolean;
 };
 
 export const WORKFLOW_STORAGE_KEY = "2ndbrain.workflowTemplates";
@@ -26,6 +27,7 @@ export const WORKFLOW_TEMPLATES: WorkflowTemplate[] = [
     description: "Explore the N20 two-wheel robot PCB, components, 3D assembly and prototype build guidance.",
     externalUrl: "https://n20-robot-pcb-explorer.wiry-eagle-9459.chatgpt.site/",
     id: "two-wheel-robot-guide",
+    requiresCloudAgent: false,
     itemType: "workflow",
     launchLabel: "Open guide",
     priceTokens: 0,
@@ -36,6 +38,7 @@ export const WORKFLOW_TEMPLATES: WorkflowTemplate[] = [
     category: "Education",
     description: "Learn 2D game development through 21 guided modules with playable demos, AI-assisted asset creation, and a final Godot game.",
     id: "2d-game-dev-tutorial",
+    requiresCloudAgent: false,
     itemType: "agent-app",
     launchLabel: "Launch",
     priceTokens: WORKFLOW_TOOL_PRICE_TOKENS,
@@ -48,6 +51,7 @@ export const WORKFLOW_TEMPLATES: WorkflowTemplate[] = [
     category: "Clinical Operations",
     description: "Install the Gyne Agent Redis task pipeline with Kanban task publishing, AI Agent workers, and optional Telegram updates.",
     id: "gyne-agent",
+    requiresCloudAgent: true,
     itemType: "agent-app",
     launchLabel: "Launch",
     priceTokens: WORKFLOW_TOOL_PRICE_TOKENS,
@@ -60,6 +64,7 @@ export const WORKFLOW_TEMPLATES: WorkflowTemplate[] = [
     category: "Education",
     description: "Review PSLE English practice papers as page images, rendered markdown, visual snapshots, and snipped study notes.",
     id: "psle-eng-tutor-brain",
+    requiresCloudAgent: false,
     itemType: "agent-app",
     launchLabel: "Launch",
     priceTokens: PSLE_ENGLISH_TUTOR_PRICE_TOKENS,
@@ -72,6 +77,7 @@ export const WORKFLOW_TEMPLATES: WorkflowTemplate[] = [
     category: "Media Intelligence",
     description: "Passkey-secured news monitoring workspace with first-run agent setup, messaging-channel pairing, and category-driven dashboards.",
     id: "news-intelligence-desk",
+    requiresCloudAgent: true,
     itemType: "agent-app",
     launchLabel: "Launch",
     priceTokens: WORKFLOW_TOOL_PRICE_TOKENS,
@@ -84,6 +90,7 @@ export const WORKFLOW_TEMPLATES: WorkflowTemplate[] = [
     category: "Productivity",
     description: "Review meeting transcripts and source documents, connect Zoom recordings, and track follow-ups in a private workspace.",
     id: "meeting-minutes",
+    requiresCloudAgent: false,
     itemType: "agent-app",
     launchLabel: "Launch",
     priceTokens: WORKFLOW_TOOL_PRICE_TOKENS,
@@ -96,6 +103,7 @@ export const WORKFLOW_TEMPLATES: WorkflowTemplate[] = [
     category: "Device Automation",
     description: "Browser-based Android screen mirroring, touch control, AI-guided task execution, and playback review for mobile workflows.",
     id: "mobile-device-operator",
+    requiresCloudAgent: false,
     itemType: "agent-app",
     launchLabel: "Launch",
     priceTokens: WORKFLOW_TOOL_PRICE_TOKENS,
@@ -108,6 +116,7 @@ export const WORKFLOW_TEMPLATES: WorkflowTemplate[] = [
     category: "Productivity",
     description: "Stay focused with a simple Pomodoro timer for work sessions and breaks, built into your workspace.",
     id: "pomodoro-timer",
+    requiresCloudAgent: false,
     itemType: "agent-app",
     internalPath: "/dashboard/pomodoro",
     launchLabel: "Open timer",

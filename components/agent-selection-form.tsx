@@ -32,6 +32,11 @@ export function AgentSelectionForm({ errorMessage, next }: AgentSelectionFormPro
           <span className="agent-option__cta"><Localized en="Select Hermes Agent →" zh="选择 Hermes Agent →" /></span>
         </button>
       </div>
+      <div className="provision-summary">
+        <strong><Localized en="AI chat without a cloud agent" zh="不使用云端智能体的 AI 对话" /></strong>
+        <span><Localized en="Use AI chat without provisioning a cloud server. Agent workspace, Nth Brain and Telegram require an agent." zh="无需配置云服务器即可使用 AI 对话。智能体工作空间、Nth Brain 和 Telegram 需要智能体。" /></span>
+        <button className="btn-ghost" name="provisionTarget" type="submit" value="chat_only"><Localized en="Skip cloud setup and use AI chat" zh="跳过云端设置并使用 AI 对话" /></button>
+      </div>
     </form>
   );
 }

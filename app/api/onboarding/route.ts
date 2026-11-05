@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { downloadAvaturnGlb, storeUploadedAvaturnGlb } from "@/lib/avaturn";
 import { hasSupabaseEnv } from "@/lib/env";
-import { getUserIdFromClaims, onboardingPath, parseOnboardingStep } from "@/lib/onboarding";
+import { getUserIdFromClaims, onboardingPath, onboardingProfileSelect, parseOnboardingStep, type OnboardingProfile } from "@/lib/onboarding";
 import { createClient } from "@/lib/supabase/server";
 import { appUrl, safeNextPath } from "@/lib/url";
 
@@ -74,7 +74,7 @@ export async function POST(request: Request) {
     const avatarGender = String(formData.get("avatarGender") ?? "").trim();
     const telegramBotToken = String(formData.get("telegramBotToken") ?? "").trim();
 
-    if (!ownerName || !avatarName || !avatarGender || !telegramBotToken) {
+    if (!ownerName || !avatarName || !avatarGender) {
       return onboardingRedirect(request, "missing_fields", next, "enrolment");
     }
 
@@ -93,7 +93,7 @@ export async function POST(request: Request) {
         owner_name: ownerName,
         avatar_name: avatarName,
         avatar_gender: avatarGender,
-        telegram_bot_token: telegramBotToken,
+        telegram_bot_token: telegramBotToken || null,
         enrolment_completed_at: new Date().toISOString()
       },
       { onConflict: "id" }
@@ -111,6 +111,25 @@ export async function POST(request: Request) {
   if (step === "agent") {
     const provisionTarget = String(formData.get("provisionTarget") ?? "").trim();
 
+    if (provisionTarget === "chat_only") {
+      const { data: existing, error: profileError } = await supabase.from("profiles").select(onboardingProfileSelect).eq("id", userId).maybeSingle();
+      const profile = existing as OnboardingProfile | null;
+      if (profileError || !profile?.owner_name?.trim() || !profile.avatar_name?.trim() || !profile.avatar_gender?.trim() || !profile.enrolment_completed_at || !profile.avatar_glb_path?.trim() || !profile.avatar_completed_at) {
+        return onboardingRedirect(request, "missing_fields", next, "agent");
+      }
+      if (profile.openclaw_instance?.trim() || profile.openclaw_provision_status === "running") {
+        return onboardingRedirect(request, "openclaw_provision_running", next, "provision");
+      }
+      const { data: skipped, error } = await supabase.from("profiles")
+        .update({ provision_target: "chat_only", openclaw_provision_status: "skipped", onboarding_completed_at: new Date().toISOString() })
+        .eq("id", userId).is("openclaw_instance", null)
+        .or("openclaw_provision_status.is.null,openclaw_provision_status.neq.running")
+        .select("id").maybeSingle();
+      if (error) return onboardingRedirect(request, "save_failed", next, "agent");
+      if (!skipped) return onboardingRedirect(request, "openclaw_provision_running", next, "provision");
+      return NextResponse.redirect(appUrl("/dashboard/chat", request), { status: 303 });
+    }
+
     if (provisionTarget !== "openclaw" && provisionTarget !== "hermes_agent") {
       return onboardingRedirect(request, "invalid_provision_target", next, "agent");
     }
@@ -119,7 +138,8 @@ export async function POST(request: Request) {
       {
         id: userId,
         email,
-        provision_target: provisionTarget
+        provision_target: provisionTarget,
+        onboarding_completed_at: null
       },
       { onConflict: "id" }
     );

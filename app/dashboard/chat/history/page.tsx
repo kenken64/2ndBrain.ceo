@@ -36,7 +36,7 @@ export default async function ChatHistoryPage({ searchParams }: ChatHistoryPageP
     <>
       <Atmosphere />
       <div className="dashboard-layout">
-        <DashboardSidebar activeItem="chat" avatarName={onboardingProfile?.avatar_name} email={email} ownerName={onboardingProfile?.owner_name} showAdmin={showAdmin} />
+        <DashboardSidebar agentAvailable={onboardingProfile?.provision_target !== "chat_only"} activeItem="chat" avatarName={onboardingProfile?.avatar_name} email={email} ownerName={onboardingProfile?.owner_name} showAdmin={showAdmin} />
         <main className="dashboard-main">
           <div className="dashboard-topbar">
             <AnnouncementPill><Localized en={"Chat history"} zh={"对话记录"} /></AnnouncementPill>

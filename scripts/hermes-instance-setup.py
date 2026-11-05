@@ -38,11 +38,11 @@ def env_file(path, values, remove=(), quote=True):
 
 run("systemctl", "stop", "hermes-gateway.service")
 env_file(env_path, {
-    "TELEGRAM_BOT_TOKEN": settings["telegramBotToken"],
+    **({"TELEGRAM_BOT_TOKEN": settings["telegramBotToken"]} if settings.get("telegramBotToken") else {}),
     "API_SERVER_ENABLED": "true",
     "API_SERVER_HOST": "127.0.0.1",
     "API_SERVER_KEY": settings["apiKey"],
-}, ("TELEGRAM_ALLOWED_USERS", "TELEGRAM_HOME_CHANNEL", "GATEWAY_ALLOW_ALL_USERS"))
+}, ("TELEGRAM_BOT_TOKEN", "TELEGRAM_ALLOWED_USERS", "TELEGRAM_HOME_CHANNEL", "GATEWAY_ALLOW_ALL_USERS"))
 run("chown", "ubuntu:ubuntu", str(env_path))
 run("systemctl", "enable", "hermes-gateway.service")
 run("systemctl", "restart", "hermes-gateway.service")

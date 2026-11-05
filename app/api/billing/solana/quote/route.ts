@@ -1,11 +1,9 @@
 import { NextResponse } from "next/server";
 import { PublicKey } from "@solana/web3.js";
 import { hasSupabaseEnv } from "@/lib/env";
+import { resolveCreditOption } from "@/lib/credit-pricing-server";
 import { getUserIdFromClaims } from "@/lib/onboarding";
 import {
-  AI_CREDIT_PACKAGE_LABEL,
-  AI_CREDIT_PACKAGE_TOKENS,
-  AI_CREDIT_PACKAGE_USD_CENTS,
   createSolanaConnection,
   fetchSolUsdPrice,
   getSolanaNetworkName,
@@ -72,11 +70,18 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "SOLANA_TREASURY_WALLET is required for Solana billing" }, { status: 503 });
   }
 
-  const payload = (await request.json().catch(() => null)) as { walletAddress?: unknown } | null;
+  const payload = (await request.json().catch(() => null)) as { walletAddress?: unknown; sgdCents?: unknown; expectedUsdCents?: unknown } | null;
   const walletAddress = normalizeWallet(payload?.walletAddress);
 
   if (!walletAddress) {
     return NextResponse.json({ error: "A valid Phantom Solana wallet address is required" }, { status: 400 });
+  }
+
+  let selection: Awaited<ReturnType<typeof resolveCreditOption>>;
+  try { selection = await resolveCreditOption(payload?.sgdCents, payload?.expectedUsdCents); }
+  catch (reason) {
+    const code = reason instanceof Error ? reason.message : "exchange_rates_unavailable";
+    return NextResponse.json({ error: code === "credit_price_changed" ? "Exchange rates changed. Refresh your top-up options." : code === "invalid_credit_option" ? "Choose a valid top-up amount." : "Exchange rates are temporarily unavailable. Please try again." }, { status: code === "credit_price_changed" ? 409 : code === "invalid_credit_option" ? 400 : 503 });
   }
 
   try {
@@ -84,7 +89,7 @@ export async function POST(request: Request) {
       fetchSolUsdPrice(),
       createSolanaConnection().getLatestBlockhash("confirmed")
     ]);
-    const solAmountLamports = solPriceToLamports(AI_CREDIT_PACKAGE_USD_CENTS, solUsdPrice);
+    const solAmountLamports = solPriceToLamports(selection.usdCents, solUsdPrice);
     const expiresAt = new Date(Date.now() + getSolanaQuoteTtlMs()).toISOString();
     const adminSupabase = createAdminClient();
     const { data, error } = await adminSupabase
@@ -94,12 +99,12 @@ export async function POST(request: Request) {
         blockhash: blockhash.blockhash,
         expires_at: expiresAt,
         last_valid_block_height: blockhash.lastValidBlockHeight,
-        package_tokens: AI_CREDIT_PACKAGE_TOKENS,
+        package_tokens: selection.credits,
         sol_amount_lamports: solAmountLamports,
         sol_usd_price: solUsdPrice,
         solana_network: getSolanaNetworkName(),
         treasury_wallet: treasuryWallet,
-        usd_amount_cents: AI_CREDIT_PACKAGE_USD_CENTS,
+        usd_amount_cents: selection.usdCents,
         user_id: auth.userId,
         wallet_address: walletAddress
       })
@@ -116,16 +121,16 @@ export async function POST(request: Request) {
         createdAt: data.created_at,
         expiresAt: data.expires_at,
         id: data.id,
-        label: AI_CREDIT_PACKAGE_LABEL,
+        label: `${selection.credits.toLocaleString("en")} AI credits`,
         lastValidBlockHeight: blockhash.lastValidBlockHeight,
-        packageTokens: AI_CREDIT_PACKAGE_TOKENS,
+        packageTokens: selection.credits,
         solAmount: lamportsToSol(solAmountLamports),
         solAmountLamports,
         solUsdPrice,
         solanaNetwork: getSolanaNetworkName(),
         treasuryWallet,
-        usdAmount: usdCentsToDollars(AI_CREDIT_PACKAGE_USD_CENTS),
-        usdAmountCents: AI_CREDIT_PACKAGE_USD_CENTS,
+        usdAmount: usdCentsToDollars(selection.usdCents),
+        usdAmountCents: selection.usdCents,
         walletAddress
       }
     });

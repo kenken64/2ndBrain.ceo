@@ -6749,3 +6749,40 @@ svg {
 }
 
 .sidebar-language { width: 100%; border: 0; background: transparent; text-align: left; cursor: pointer; }
+
+/* Credit top-up: one balance, clear payment choices and accessible controls. */
+.topup-page { grid-column: 1 / -1; display: grid; gap: 22px; min-width: 0; }
+.topup-header, .topup-card__heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 20px; }
+.topup-header h2 { margin: 3px 0 4px; font-size: clamp(25px, 3vw, 38px); letter-spacing: -.035em; }
+.topup-header p, .topup-card__heading p, .topup-categories > p { margin: 4px 0 0; color: var(--fg-secondary); }
+.topup-header__actions { display: flex; gap: 10px; flex-wrap: wrap; }
+.topup-header__actions a { display: inline-flex; align-items: center; gap: 8px; }
+.topup-balance { display: flex; justify-content: space-between; align-items: center; border-radius: 16px; padding: 15px 20px; background: #eef5ff; color: #174fa6; }
+.topup-balance strong { font-size: 24px; font-variant-numeric: tabular-nums; }
+.topup-card { padding: clamp(18px, 3vw, 28px); border: 1px solid #dce7f5; border-radius: 20px; background: white; box-shadow: var(--shadow-md); }
+.topup-card h3, .topup-categories h3 { margin: 0; font-size: 19px; }
+.topup-currency { display: inline-flex; border: 1px solid #dbe5f3; border-radius: 11px; padding: 3px; background: #f5f8fc; }
+.topup-currency button { border: 0; border-radius: 8px; background: transparent; padding: 8px 13px; color: #526782; font-weight: 700; cursor: pointer; }
+.topup-currency button[aria-pressed="true"] { color: #135eea; background: white; box-shadow: 0 1px 5px #1d3b651a; }
+.topup-options { display: grid; grid-template-columns: repeat(6, minmax(0,1fr)); gap: 10px; margin-top: 20px; }
+.topup-options button, .topup-methods button { border: 1px solid #d9e4f2; border-radius: 12px; background: white; color: var(--fg-primary); cursor: pointer; }
+.topup-options button { display: grid; text-align: left; gap: 5px; padding: 15px 12px; }
+.topup-options button strong { font-size: 18px; }
+.topup-options button small { color: #647791; font-size: 11px; }
+.topup-options button.is-selected, .topup-methods button.is-selected { border-color: #1267f7; box-shadow: inset 0 0 0 1px #1267f7; background: #f1f7ff; color: #125de4; }
+.topup-options button:disabled, .topup-methods button:disabled { cursor: not-allowed; opacity: .6; }
+.topup-note { color: #687b95; font-size: 12px; line-height: 1.5; }
+.topup-divider { border-top: 1px solid #e8eef6; margin: 22px 0; }
+.topup-methods { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 12px; margin: 14px 0 20px; }
+.topup-methods button { display: flex; align-items: center; gap: 10px; padding: 16px; font-weight: 700; text-align: left; }
+.topup-summary { display: flex; justify-content: flex-end; flex-wrap: wrap; gap: 25px; margin-bottom: 12px; color: #637894; }
+.topup-summary span { display: flex; gap: 10px; align-items: baseline; }
+.topup-summary strong { color: #13223b; font-size: 17px; }
+.topup-checkout .settings-action-card { box-shadow: none; background: #f8fbff; }
+.topup-categories__grid { display: grid; grid-template-columns: repeat(4,minmax(0,1fr)); gap: 12px; margin-top: 14px; }
+.topup-categories__grid article { display: grid; gap: 8px; padding: 18px; border: 1px solid #dfe9f5; border-radius: 14px; background: white; }
+.topup-categories__grid svg { color: #1768ed; }
+.topup-categories__grid span { color: var(--fg-secondary); font-size: 13px; }
+.topup-history { display: grid; gap: 16px; scroll-margin-top: 20px; }
+@media (max-width: 900px) { .topup-options { grid-template-columns: repeat(3,minmax(0,1fr)); } .topup-categories__grid { grid-template-columns: repeat(2,minmax(0,1fr)); } }
+@media (max-width: 540px) { .topup-header, .topup-card__heading { flex-direction: column; } .topup-options { grid-template-columns: repeat(2,minmax(0,1fr)); } .topup-summary { justify-content: flex-start; } }

@@ -69,6 +69,8 @@ export default async function DashboardPage() {
     redirect(onboardingPath("/dashboard"));
   }
 
+  if ((profile as OnboardingProfile | null)?.provision_target === "chat_only") redirect("/dashboard/chat");
+
   const email = typeof claimsData.claims.email === "string" ? claimsData.claims.email : null;
   const showAdmin = await canShowAdminWorkspaceLink({ email, userId });
   const onboardingProfile = profile as OnboardingProfile | null;

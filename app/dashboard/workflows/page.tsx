@@ -56,6 +56,7 @@ export default async function MyWorkflowsPage() {
       <Atmosphere />
       <div className="dashboard-layout">
         <DashboardSidebar
+          agentAvailable={onboardingProfile?.provision_target !== "chat_only"}
           activeItem="workflows"
           avatarName={avatarName}
           email={email}
@@ -79,7 +80,7 @@ export default async function MyWorkflowsPage() {
               <p><Localized en="Manage workflow tools installed from Marketplace and review their AI credit allocations." zh="管理从应用市场安装的工作流工具并查看其 AI 积分分配。" /></p>
             </div>
 
-            <MyWorkflows setupComplete={isOnboardingComplete(onboardingProfile)} />
+            <MyWorkflows setupComplete={isOnboardingComplete(onboardingProfile)} agentAvailable={Boolean(onboardingProfile?.openclaw_instance?.trim())} />
           </section>
         </main>
       </div>

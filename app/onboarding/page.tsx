@@ -47,6 +47,8 @@ const errors: Record<string, string> = {
   invalid_telegram_pair_code: "Enter the 8-character approval code from Telegram.",
   missing_avatar: "Create and export your Avaturn AI Assistant to continue.",
   missing_fields: "Add the required field to continue.",
+  missing_openclaw_telegram_free_snapshot_name: "Telegram-free OpenClaw provisioning is not configured. Contact the administrator or add a Telegram bot token.",
+  openclaw_existing_instance_not_telegram_free: "The existing instance cannot be safely reused without Telegram. Contact the administrator.",
   missing_aws_access_key_id: "Cloud access key is not configured on the server.",
   missing_aws_region: "Cloud region is not configured on the server.",
   missing_aws_secret_access_key: "Cloud secret access key is not configured on the server.",
@@ -67,13 +69,13 @@ const errors: Record<string, string> = {
 const stepMeta: Record<OnboardingStep, { index: number; kicker: string; title: string; copy: string }> = {
   enrolment: {
     index: 0,
-    kicker: "Step 1 of 4",
+    kicker: "Step 1 of 5",
     title: "Set up your AI CUBER profile",
-    copy: "Provide the owner details, AI Assistant identity, and Telegram bot token to prepare your workspace for assistant creation."
+    copy: "Provide the owner details, AI Assistant identity, and optionally a Telegram bot token to prepare your workspace for assistant creation."
   },
   avatar: {
     index: 1,
-    kicker: "Step 2 of 4",
+    kicker: "Step 2 of 5",
     title: "Create your Avaturn AI Assistant",
     copy: "Build your AI Assistant, export the GLB, and we will save it locally for the AI Agent upload."
   },
@@ -81,7 +83,7 @@ const stepMeta: Record<OnboardingStep, { index: number; kicker: string; title: s
     index: 2,
     kicker: "Step 3 of 5",
     title: "Choose your agent",
-    copy: "Pick the workspace agent you want to provision."
+    copy: "Choose a cloud agent, or skip cloud setup and use AI chat."
   },
   provision: {
     index: 3,
@@ -93,16 +95,16 @@ const stepMeta: Record<OnboardingStep, { index: number; kicker: string; title: s
     index: 4,
     kicker: "Step 5 of 5",
     title: "Approve Telegram pairing",
-    copy: "Send your Telegram bot a message like “hi” — it replies with the approval code. Enter that code before generating your first workspace."
+    copy: "Connect your Telegram bot with its approval code, or skip this step and connect it later."
   }
 };
 
 const chineseStepMeta: Record<OnboardingStep, { title: string; copy: string }> = {
-  enrolment: { title: "设置您的 AI CUBER 资料", copy: "填写所有者信息、AI 助手身份和 Telegram 机器人令牌，为创建助手准备工作空间。" },
+  enrolment: { title: "设置您的 AI CUBER 资料", copy: "填写所有者信息和 AI 助手身份，也可选择填写 Telegram 机器人令牌。" },
   avatar: { title: "创建您的 Avaturn AI 助手", copy: "创建 AI 助手并导出 GLB 文件，我们会在本地保存以供 AI Agent 上传。" },
-  agent: { title: "选择您的智能体", copy: "选择要配置的工作空间智能体。" },
+  agent: { title: "选择您的智能体", copy: "选择云端智能体，或跳过云端设置并使用 AI 对话。" },
   provision: { title: "在云端配置智能体", copy: "准备您的智能体、Telegram 机器人和云端工作空间。" },
-  approval: { title: "批准 Telegram 配对", copy: "向 Telegram 机器人发送消息，例如“hi”，它会回复批准码。创建第一个工作空间前请输入该代码。" }
+  approval: { title: "批准 Telegram 配对", copy: "输入批准码以连接 Telegram 机器人，或跳过此步骤并稍后连接。" }
 };
 const chineseStepNames: Record<OnboardingStep, string> = { enrolment: "注册", avatar: "形象", agent: "智能体", provision: "配置", approval: "批准" };
 
@@ -173,18 +175,20 @@ function EnrolmentStep({
 
 function ProvisionStep({
   agentType,
+  canSkipCloud,
   errorMessage,
   next,
   startedAt,
   status
 }: {
   agentType?: string | null;
+  canSkipCloud: boolean;
   errorMessage: string | null;
   next: string;
   startedAt?: string | null;
   status?: string | null;
 }) {
-  return <ProvisionForm agentType={agentType} errorMessage={errorMessage} next={next} startedAt={startedAt} status={status} />;
+  return <ProvisionForm agentType={agentType} canSkipCloud={canSkipCloud} errorMessage={errorMessage} next={next} startedAt={startedAt} status={status} />;
 }
 
 function AgentStep({
@@ -198,6 +202,7 @@ function AgentStep({
 }
 
 function ApprovalStep({
+  hasToken,
   errorMessage,
   next,
   status
@@ -205,8 +210,9 @@ function ApprovalStep({
   errorMessage: string | null;
   next: string;
   status?: string | null;
+  hasToken: boolean;
 }) {
-  return <TelegramApprovalForm errorMessage={errorMessage} next={next} status={status} />;
+  return <TelegramApprovalForm hasToken={hasToken} errorMessage={errorMessage} next={next} status={status} />;
 }
 
 export default async function OnboardingPage({ searchParams }: OnboardingPageProps) {
@@ -249,15 +255,17 @@ export default async function OnboardingPage({ searchParams }: OnboardingPagePro
 
   const onboardingProfile = profile as OnboardingProfile | null;
 
-  if (isOnboardingComplete(onboardingProfile)) {
+  const requestedStep = parseOnboardingStep(params.step);
+  const choosingAgent = onboardingProfile?.provision_target === "chat_only" && requestedStep === "agent";
+  if (isOnboardingComplete(onboardingProfile) && !choosingAgent) {
     redirect(next);
   }
 
   const requiredStep = getRequiredOnboardingStep(onboardingProfile) ?? "enrolment";
-  const requestedStep = parseOnboardingStep(params.step);
   const currentStep = requestedStep ?? requiredStep;
 
-  if (currentStep !== requiredStep) {
+  const canEditEnrolment = currentStep === "enrolment" && requiredStep === "provision" && onboardingProfile?.openclaw_provision_status !== "running";
+  if (currentStep !== requiredStep && !canEditEnrolment && !choosingAgent) {
     redirect(onboardingPath(next, requiredStep));
   }
 
@@ -298,6 +306,7 @@ export default async function OnboardingPage({ searchParams }: OnboardingPagePro
           {currentStep === "provision" ? (
             <ProvisionStep
               agentType={onboardingProfile?.provision_target}
+              canSkipCloud={!onboardingProfile?.openclaw_instance?.trim()}
               errorMessage={errorMessage}
               next={next}
               startedAt={onboardingProfile?.openclaw_provision_started_at}
@@ -307,6 +316,7 @@ export default async function OnboardingPage({ searchParams }: OnboardingPagePro
 
           {currentStep === "approval" ? (
             <ApprovalStep
+              hasToken={Boolean(onboardingProfile?.telegram_bot_token?.trim())}
               errorMessage={errorMessage}
               next={next}
               status={onboardingProfile?.openclaw_telegram_pair_status}

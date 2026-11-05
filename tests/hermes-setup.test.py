@@ -31,7 +31,7 @@ class HermesSetupTest(unittest.TestCase):
             def fake_run(args, **kwargs):
                 calls.append(args)
                 if args[:2] == ("git", "clone"):
-                    real_path(args[-1]).mkdir(parents=True)
+                    real_path(args[-1]).mkdir(parents=True, exist_ok=True)
                 return type("Result", (), {"stdout": "consumer listening for tasks", "stderr": "", "returncode": 0})()
 
             class Response:
@@ -60,6 +60,21 @@ class HermesSetupTest(unittest.TestCase):
             self.assertIn("REDIS_URL=rediss://redis.example:6380", worker)
             self.assertEqual((root / "etc/2ndbrain/gyne-hermes.env").stat().st_mode & 0o777, 0o600)
             self.assertFalse(any(payload["telegramBotToken"] in str(call) or payload["apiKey"] in str(call) for call in calls))
+
+            # Token-free setup must remove credentials inherited from the snapshot.
+            (home / ".hermes/.env").write_text('TELEGRAM_BOT_TOKEN=old\nTELEGRAM_ALLOWED_USERS=123\nOPENROUTER_API_KEY=shared-provider-key\n')
+            payload["telegramBotToken"] = ""
+            with patch("pathlib.Path", side_effect=fake_path), patch("sys.stdin", io.StringIO(json.dumps(payload))), \
+                    patch("subprocess.run", side_effect=fake_run), patch("subprocess.check_output", return_value="true\n"), \
+                    patch("tempfile.mkdtemp", return_value=str(root / "build")), \
+                    patch("urllib.request.urlopen", return_value=Response()), patch("time.sleep"), \
+                    contextlib.redirect_stdout(io.StringIO()):
+                runpy.run_path(str(SCRIPT), run_name="__main__")
+            env = (home / ".hermes/.env").read_text()
+            self.assertNotIn("TELEGRAM_BOT_TOKEN", env)
+            self.assertNotIn("TELEGRAM_ALLOWED_USERS", env)
+            self.assertIn("OPENROUTER_API_KEY=shared-provider-key", env)
+
 
 
 if __name__ == "__main__":

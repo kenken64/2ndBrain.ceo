@@ -25,6 +25,7 @@ const DEFAULT_CLAWMACDO_WORKER_THREADS = "1";
 type OpenClawProvisionInput = {
   consumerName?: string | null;
   existingInstance?: string | null;
+  existingSnapshotName?: string | null;
   onInstanceRestored?: (details: {
     instance: string;
     region: string;
@@ -1516,7 +1517,13 @@ export function generateConsumerName(userId: string) {
 
 export async function provisionOpenClaw(input: OpenClawProvisionInput) {
   const region = requireEnv("AWS_REGION");
-  const snapshotName = requireEnv("OPENCLAW_LIGHTSAIL_SNAPSHOT_NAME");
+  // Token-free restores must start from a separately sanitized snapshot: the
+  // regular restore command starts the gateway before the app can edit it.
+  const noTelegram = !input.telegramBotToken.trim();
+  const snapshotName = requireEnv(noTelegram ? "OPENCLAW_TELEGRAM_FREE_SNAPSHOT_NAME" : "OPENCLAW_LIGHTSAIL_SNAPSHOT_NAME");
+  if (noTelegram && input.existingInstance?.trim() && input.existingSnapshotName !== snapshotName) {
+    throw new Error("openclaw_existing_instance_not_telegram_free");
+  }
   const awsEnv = getAwsEnv();
   const agent = openClawAgentId();
   const remotionAppDir = optionalEnv("OPENCLAW_REMOTION_APP_DIR");
@@ -1563,7 +1570,18 @@ export async function provisionOpenClaw(input: OpenClawProvisionInput) {
     }
   }
 
-  if (!instance) {
+  if (!instance && noTelegram) {
+    let observed = "";
+    restoreOutput = await runClawmacdo(["ls-restore", "--snapshot-name", snapshotName, "--region", region], awsEnv, async chunk => {
+      observed = (observed + chunk).slice(-16000);
+      const hostname = hermesRestoreHostname(observed);
+      if (hostname && !instance) {
+        instance = hostname;
+        await input.onInstanceRestored?.({ instance, region, snapshotName, restoreOutput: "Snapshot restore started." });
+      }
+    });
+    instance ||= hermesRestoreHostname(restoreOutput) ?? "";
+  } else if (!instance) {
     const fastRestoreArgs = [
       "ls-restore-fast",
       "--snapshot-name",
@@ -1607,6 +1625,11 @@ export async function provisionOpenClaw(input: OpenClawProvisionInput) {
 
   if (!instance) {
     throw new Error("openclaw_instance_not_found");
+  }
+
+  if (noTelegram) {
+    const identity = await setupOpenClawIdentity({ instance, avatarName: input.avatarName, ownerName: input.ownerName });
+    restoreOutput = `${restoreOutput}\n${identity.identityOutput}`;
   }
 
   // Bind the co-located gyne consumer to a caller-chosen name so 2ndBrain can map it to an owner in

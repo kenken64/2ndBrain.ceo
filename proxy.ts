@@ -175,7 +175,7 @@ export async function proxy(request: NextRequest) {
       });
       const isCreditLocked = !isAdmin && Boolean(data) && getAvailableAiCredits(data) <= 0;
 
-      const canRetrieveSavedFiles = request.method === "GET" && (request.nextUrl.pathname === "/api/chat/files" || request.nextUrl.pathname.startsWith("/api/chat/files/"));
+      const canRetrieveSavedFiles = request.method === "GET" && (request.nextUrl.pathname === "/api/chat/files" || request.nextUrl.pathname.startsWith("/api/chat/files/") || request.nextUrl.pathname === "/api/chat/usage");
       if (isCreditLocked && !canRetrieveSavedFiles && !isCreditLockAllowedPath(request.nextUrl.pathname)) {
         if (request.nextUrl.pathname.startsWith("/api/")) {
           return NextResponse.json(

@@ -1,3 +1,5 @@
+import { hasSupabaseServiceRoleEnv } from "@/lib/supabase/admin";
+import { hasLemonBillingEnv, lemonConfig } from "@/lib/lemon-squeezy";
 import { LanguageToggle, Localized } from "@/components/language-provider";
 import { redirect } from "next/navigation";
 import { AnnouncementPill } from "@/components/announcement-pill";
@@ -128,6 +130,7 @@ export default async function DashboardSettingsPage({ searchParams }: DashboardS
       <Atmosphere />
       <div className="dashboard-layout">
         <DashboardSidebar
+          agentAvailable={onboardingProfile?.provision_target !== "chat_only"}
           activeItem="settings"
           avatarName={avatarName}
           creditLocked={isCreditLocked}
@@ -160,7 +163,10 @@ export default async function DashboardSettingsPage({ searchParams }: DashboardS
             ) : null}
 
             <SettingsPageTabs
+              agentAvailable={onboardingProfile?.provision_target !== "chat_only"}
               billingConfigured={hasSolanaBillingEnv()}
+              cardBillingConfigured={hasLemonBillingEnv() && hasSupabaseServiceRoleEnv()}
+              cardTestMode={Boolean(lemonConfig()?.testMode)}
               initialGoogleWorkspaceEnabled={Boolean(optionalSettings?.google_workspace_enabled)}
               initialProfileName={profileName}
               initialTab={requestedTab}

@@ -24,7 +24,7 @@ export default async function PomodoroPage() {
   if (claimsError || !userId) redirect("/login?next=%2Fdashboard%2Fpomodoro");
 
   const [{ data: profile }, { data: install, error: installError }] = await Promise.all([
-    supabase.from("profiles").select("owner_name,avatar_name").eq("id", userId).maybeSingle(),
+    supabase.from("profiles").select("owner_name,avatar_name,provision_target").eq("id", userId).maybeSingle(),
     supabase.from("marketplace_installs").select("id,status").eq("user_id", userId).eq("item_id", "pomodoro-timer").maybeSingle()
   ]);
   if (installError) throw new Error("pomodoro_install_lookup_failed");
@@ -37,7 +37,7 @@ export default async function PomodoroPage() {
     <>
       <Atmosphere />
       <div className="dashboard-layout">
-        <DashboardSidebar activeItem="workflows" avatarName={profile?.avatar_name ?? null} email={email} ownerName={profile?.owner_name ?? null} showAdmin={showAdmin} />
+        <DashboardSidebar agentAvailable={profile?.provision_target !== "chat_only"} activeItem="workflows" avatarName={profile?.avatar_name ?? null} email={email} ownerName={profile?.owner_name ?? null} showAdmin={showAdmin} />
         <main className="dashboard-main">
           <div className="dashboard-topbar">
             <AnnouncementPill><Localized en="Pomodoro Timer" zh="番茄钟" /></AnnouncementPill>

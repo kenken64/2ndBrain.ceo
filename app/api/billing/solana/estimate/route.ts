@@ -1,9 +1,8 @@
 import { NextResponse } from "next/server";
 import { hasSupabaseEnv } from "@/lib/env";
+import { resolveCreditOption } from "@/lib/credit-pricing-server";
 import { getUserIdFromClaims } from "@/lib/onboarding";
 import {
-  AI_CREDIT_PACKAGE_TOKENS,
-  AI_CREDIT_PACKAGE_USD_CENTS,
   fetchSolUsdPrice,
   getSolanaNetworkName,
   getSolanaTreasuryWallet,
@@ -37,7 +36,7 @@ async function requireUser() {
   };
 }
 
-export async function GET() {
+export async function GET(request: Request) {
   const auth = await requireUser();
 
   if (auth.response) {
@@ -48,19 +47,28 @@ export async function GET() {
     return NextResponse.json({ error: "SOLANA_TREASURY_WALLET is required for Solana billing" }, { status: 503 });
   }
 
+  const params = new URL(request.url).searchParams;
+  const rawSgd = params.get("sgdCents"), rawUsd = params.get("expectedUsdCents");
+  let selection: Awaited<ReturnType<typeof resolveCreditOption>>;
+  try { selection = await resolveCreditOption(rawSgd === null ? null : Number(rawSgd), rawUsd === null ? null : Number(rawUsd)); }
+  catch (reason) {
+    const code = reason instanceof Error ? reason.message : "exchange_rates_unavailable";
+    return NextResponse.json({ error: code === "credit_price_changed" ? "Exchange rates changed. Refresh your top-up options." : code === "invalid_credit_option" ? "Choose a valid top-up amount." : "Exchange rates are temporarily unavailable. Please try again." }, { status: code === "credit_price_changed" ? 409 : code === "invalid_credit_option" ? 400 : 503 });
+  }
+
   try {
     const solUsdPrice = await fetchSolUsdPrice();
-    const solAmountLamports = solPriceToLamports(AI_CREDIT_PACKAGE_USD_CENTS, solUsdPrice);
+    const solAmountLamports = solPriceToLamports(selection.usdCents, solUsdPrice);
 
     return NextResponse.json({
       estimate: {
-        packageTokens: AI_CREDIT_PACKAGE_TOKENS,
+        packageTokens: selection.credits,
         solAmount: lamportsToSol(solAmountLamports),
         solAmountLamports,
         solUsdPrice,
         solanaNetwork: getSolanaNetworkName(),
-        usdAmount: usdCentsToDollars(AI_CREDIT_PACKAGE_USD_CENTS),
-        usdAmountCents: AI_CREDIT_PACKAGE_USD_CENTS
+        usdAmount: usdCentsToDollars(selection.usdCents),
+        usdAmountCents: selection.usdCents
       }
     });
   } catch (error) {

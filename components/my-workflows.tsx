@@ -107,7 +107,7 @@ function workflowFromInstall(install: MarketplaceInstall) {
   };
 }
 
-export function MyWorkflows({ setupComplete = true }: { setupComplete?: boolean }) {
+export function MyWorkflows({ setupComplete = true, agentAvailable = true }: { setupComplete?: boolean; agentAvailable?: boolean }) {
   const { language } = useLanguage();
   const zh = language === "zh";
   const [installs, setInstalls] = useState<MarketplaceInstall[]>([]);
@@ -257,7 +257,10 @@ export function MyWorkflows({ setupComplete = true }: { setupComplete?: boolean 
           const installedDate = formatDate(install.installedAt, zh);
           const nextChargeDate = formatDate(install.nextChargeAt, zh);
           const isFree = item.priceTokens === 0;
-          const paidToolLocked = !isFree && (!setupComplete || !canUsePaidTools);
+          // A purchase transfers credits into the tool allocation, so the general
+          // balance can be zero even though this installed tool has credits left.
+          const hasToolCredits = Boolean(install.allocation?.quotaExempt || (install.allocation?.availableTokens ?? 0) > 0);
+          const paidToolLocked = !isFree && (!setupComplete || (!canUsePaidTools && !hasToolCredits));
           const billingCopy = isFree ? (zh ? "免费，无定期费用。" : "Free, no recurring charges.") : install.allocation?.quotaExempt
             ? (zh ? "管理员无需支付定期 AI 积分费用。" : "Admin exempt from recurring AI credit charges.")
             : isDisabled
@@ -278,6 +281,7 @@ export function MyWorkflows({ setupComplete = true }: { setupComplete?: boolean 
                 </span>
               </div>
               <p><LocalizedMessage text={item.description} /></p>
+              <p className="workflow-card__hint">{item.requiresCloudAgent ? <Localized en="Requires an AI Agent for its agent tasks." zh="智能体任务需要 AI Agent。" /> : <Localized en="No personal cloud agent required." zh="无需个人云端智能体。" />}{item.requiresCloudAgent && !agentAvailable ? <> <a href="/onboarding?step=agent&amp;next=%2Fdashboard%2Fchat"><Localized en="Set up an agent" zh="设置智能体" /></a></> : null}</p>
               {!isFree && install.allocation ? (
                 <dl className="workflow-card__allocation">
                   <div>
@@ -306,7 +310,7 @@ export function MyWorkflows({ setupComplete = true }: { setupComplete?: boolean 
               {paidToolLocked && !isDisabled ? (
                 <p className="workflow-card__hint">{!setupComplete
                   ? <Localized en="Complete workspace setup before launching this tool." zh="启动此工具前请完成工作空间设置。" />
-                  : <Localized en="Add AI credits before launching this tool." zh="启动此工具前请添加 AI 积分。" />}</p>
+                  : <Localized en="No AI credits are available in this tool or your account." zh="此工具和您的账户中均无可用 AI 积分。" />}</p>
               ) : null}
               <ol className="workflow-card__steps">
                 {item.steps.map((step) => (

@@ -41,9 +41,7 @@ function validateEnrolment(formData: FormData) {
     errors.avatarGender = "Select the AI Assistant gender.";
   }
 
-  if (!telegramBotToken) {
-    errors.telegramBotToken = "Telegram bot token is required.";
-  } else if (telegramBotToken.length > 256) {
+  if (telegramBotToken.length > 256) {
     errors.telegramBotToken = "Telegram bot token is too long.";
   }
 
@@ -176,12 +174,13 @@ export function EnrolmentForm({
       <label className="field-stack">
         <span>
           <Bot size={18} strokeWidth={1.8} />
-          <Localized en="Telegram bot token" zh="Telegram 机器人令牌" />
+          <Localized en="Telegram bot token (optional)" zh="Telegram 机器人令牌（可选）" />
         </span>
         <TelegramTokenInput
           ariaDescribedBy={errors.telegramBotToken ? tokenErrorId : undefined}
           isInvalid={Boolean(errors.telegramBotToken)}
         />
+        <small><Localized en="Leave blank to set up Telegram later in Settings." zh="留空可稍后在设置中配置 Telegram。" /></small>
         {errors.telegramBotToken ? (
           <span className="field-error" id={tokenErrorId}>
             <LocalizedMessage text={errors.telegramBotToken} />

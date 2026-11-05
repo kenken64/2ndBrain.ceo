@@ -12,6 +12,8 @@ export type TokenQuotaEventReason =
   | "bedrock_token_usage"
   | "chat_credit_reservation"
   | "chat_credit_settlement"
+  | "lemon_credit_purchase"
+  | "lemon_credit_refund"
   | "marketplace_tool_purchase"
   | "marketplace_tool_refund"
   | "marketplace_tool_renewal"
