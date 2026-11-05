@@ -25,6 +25,7 @@ const columns = [
   {
     title: "Project",
     links: [
+      ["Watch Video", "/watch"],
       ["Source Code", "https://github.com/kenken64/2ndBrain.ceo"],
       ["System Status", "/status"]
     ]
@@ -34,7 +35,7 @@ const columns = [
 const chineseColumns = [
   { title: "工作空间", links: [["控制台", "/dashboard"], ["知识库", "/dashboard/wiki"], ["知识图谱", "/dashboard/graph"], ["AI 助手", "/dashboard/openclaw"]] },
   { title: "开始使用", links: [["快速入门", "/onboarding"], ["登录", "/login"], ["创建项目", "/intent"], ["设置", "/dashboard/settings"]] },
-  { title: "项目", links: [["源代码", "https://github.com/kenken64/2ndBrain.ceo"], ["系统状态", "/status"]] }
+  { title: "项目", links: [["观看视频", "/watch?lang=zh"], ["源代码", "https://github.com/kenken64/2ndBrain.ceo"], ["系统状态", "/status"]] }
 ];
 
 export function Footer({ locale }: { locale?: "en" | "zh" }) {

@@ -7,6 +7,7 @@ import {
   KeyRound,
   MessageSquare,
   PencilLine,
+  Play,
   Send,
   Store,
   Terminal,
@@ -122,6 +123,7 @@ export default async function Home({ searchParams }: { searchParams: Promise<{ l
                   and find tools in the marketplace. Keep your knowledge in an editable wiki
                   and explore it with a graph.
                 </p>
+                <a className="btn-ghost lp-hero__video-link" href="/watch"><Play size={17} aria-hidden="true" /> Watch the 45-second video</a>
                 <svg
                   aria-hidden="true"
                   className="lp-traces"

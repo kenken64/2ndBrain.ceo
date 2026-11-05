@@ -1,4 +1,4 @@
-import { Coins, FileText, GitBranch, MessageSquare, Plug, Server, Store } from "lucide-react";
+import { Coins, FileText, GitBranch, MessageSquare, Play, Plug, Server, Store } from "lucide-react";
 import { Atmosphere } from "@/components/atmosphere";
 import { ChatInput } from "@/components/chat-input";
 import { Footer } from "@/components/footer";
@@ -42,6 +42,7 @@ export function ChineseLanding({ fontClass, supabaseConfigured, wechatEnabled }:
                   <span className="lp-hero__line"><span className="lp-hero__line-inner lp-hero__line-inner--2">随时为您<span className="lp-underline-wrap">准备就绪<svg aria-hidden="true" className="lp-underline" focusable="false" preserveAspectRatio="none" viewBox="0 0 300 14"><path d="M4 10 C 64 3, 152 13, 296 5" fill="none" pathLength={1} /></svg></span>。</span></span>
                 </h1>
                 <p className="lp-hero__sub">使用专属 AI 助手，按需充值积分，并在工具市场寻找合适的工作流。将知识保存在可编辑的知识库中，通过图谱探索内容之间的联系。</p>
+                <a className="btn-ghost lp-hero__video-link" href="/watch?lang=zh"><Play size={17} aria-hidden="true" />观看 45 秒介绍视频</a>
                 <ChatInput action="/intent" className="lp-hero-chat" locale="zh" method="get" placeholder="告诉助手您的项目需求，例如：创建一个管理供应商合同的知识库……" />
                 <p className="lp-hero__caption">提交需求以创建知识库项目。您可以在下一步添加资料，并编辑或导出生成的文档。</p>
               </div>
