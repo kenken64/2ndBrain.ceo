@@ -1,3 +1,4 @@
+import { OPENROUTER_CREDITS_PER_USD, openRouterCostToCredits } from "@/lib/ai-credit-rates";
 import { NextResponse } from "next/server";
 import { documentText, parseChatAttachment, pdfPageCount, presentationText, spreadsheetContext, validateChatFile, type ChatAttachment } from "@/lib/chat-attachments";
 import { loadChatFile, saveChatFile, saveChatOutput, saveChatGeneratedPptx } from "@/lib/chat-files";
@@ -14,7 +15,6 @@ import { streamChatResponse } from "@/lib/chat-stream";
 export const runtime = "nodejs";
 export const maxDuration = 120;
 
-const CREDITS_PER_USD = 250_000; // 7.5 million credits per $30 package
 const MAX_BODY_BYTES = 3_000_000;
 const FILE_OUTPUT_TOKENS = 4096;
 const PDF_USAGE_RETRY_DELAYS_MS = [0, 300, 800, 1500];
@@ -57,7 +57,7 @@ function reservationCredits(pricing: Pricing, messages: ChatMessage[], attachmen
   const inputTokens = (inputBytes + spreadsheetBytes) * 2 + messages.length * 256 + 1_024 + (attachment?.type === "pdf" ? 200_000 : attachment?.type === "image" ? 50_000 : 0);
   const outputTokens = presentation || (attachment && attachment.type !== "spreadsheet") ? FILE_OUTPUT_TOKENS : CHAT_MAX_OUTPUT_TOKENS;
   const pdfCost = pdfPages * 0.002;
-  return Math.max(1, Math.ceil(((inputTokens * inputRate + outputTokens * outputRate + highest("request")) * 3 + pdfCost * 2) * CREDITS_PER_USD));
+  return Math.max(1, Math.ceil(((inputTokens * inputRate + outputTokens * outputRate + highest("request")) * 3 + pdfCost * 2) * OPENROUTER_CREDITS_PER_USD));
 }
 
 function userError(message: string, status: number) { return NextResponse.json({ error: message }, { status }); }
@@ -189,7 +189,7 @@ export async function POST(request: Request) {
 
   async function settle(status: "completed" | "failed" | "uncertain", cost: number | null, providerId: string | null, usage?: { prompt_tokens?: unknown; completion_tokens?: unknown }) {
     const tokenCount = (value: unknown) => typeof value === "number" && Number.isSafeInteger(value) && value >= 0 ? value : null;
-    const actual = status === "completed" && cost !== null ? Math.ceil(cost * CREDITS_PER_USD) : 0;
+    const actual = status === "completed" && cost !== null ? openRouterCostToCredits(cost) : 0;
     const { data, error } = await admin.rpc("settle_chat_credits_itemized", {
       p_user_id: userId, p_request_id: requestId, p_status: status, p_actual_credits: actual,
       p_cost_usd: cost, p_provider_request_id: providerId, p_prompt_tokens: tokenCount(usage?.prompt_tokens), p_completion_tokens: tokenCount(usage?.completion_tokens)

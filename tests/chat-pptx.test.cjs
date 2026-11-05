@@ -57,6 +57,7 @@ test('PowerPoint batch uses owned uploads, tracks mapping cost and saves one fil
   const model=compile('lib/chat-models.ts'); const rpc=[], saved=[];
   const admin={from:()=>({select:()=>({eq:()=>({maybeSingle:async()=>({data:{email:'user@example.test',openclaw_instance:null},error:null})})})}),rpc:(name,args)=>({single:async()=>{rpc.push({name,args}); return {data:{request_id:'request',llm_token_quota:10000,llm_token_used:100,charged_credits:args.p_actual_credits||0},error:null};}})};
   const mocks={
+    "@/lib/ai-credit-rates": require("./helpers/load-credit-rates.cjs"),
     '@/lib/chat-attachments':attachments,'@/lib/chat-pdf-batch':pdf,'@/lib/chat-docx-batch':docx,'@/lib/chat-models':model,
     '@/lib/chat-files':{loadChatFile:async(_admin,user,id)=> user==='alice' ? id==='template'?{file:template,metadata:{id:'template',origin:'upload'}}:id==='sheet'?{file:sheet,metadata:{id:'sheet',origin:'upload'}}:null:null,
       saveChatGeneratedPptx:async(_admin,user,source,name,bytes)=>{assert.equal(user,'alice'); assert.equal(source,'template'); saved.push({name,bytes}); return {id:String(saved.length),name};}},

@@ -60,6 +60,7 @@ test('batch endpoint checks ownership, records AI cost and stores each generated
   };
   const models = compile('lib/chat-models.ts');
   const mocks = {
+    "@/lib/ai-credit-rates": require("./helpers/load-credit-rates.cjs"),
     '@/lib/chat-attachments': { spreadsheetContext: async () => sampleData },
     '@/lib/chat-files': { loadChatFile: async (_admin, owner, id) => owner === 'alice' ? loaded[id] ?? null : null, saveChatGeneratedPdf: async (_admin, owner, source, name, bytes) => { assert.equal(owner, 'alice'); assert.equal(source, 'pdf'); if (state.failRow && name.includes('row-2')) throw Error('storage failed'); state.pdfs.push({ name, bytes }); return { id: `file-${state.pdfs.length}`, name }; } },
     '@/lib/chat-pdf-batch': batch, '@/lib/chat-docx-batch': {}, '@/lib/chat-models': models, '@/lib/admin': { isAdminUser: async () => false }, '@/lib/env': { hasSupabaseEnv: () => true }, '@/lib/onboarding': { getUserIdFromClaims: c => c?.sub },
@@ -75,7 +76,7 @@ test('batch endpoint checks ownership, records AI cost and stores each generated
     user = 'bob'; assert.equal((await route.POST(request(['pdf','sheet']))).status, 404); assert.equal(state.rpc.length, 0);
     user = 'alice'; const response = await route.POST(request(['pdf','sheet'])); const body = await response.json();
     assert.equal(response.status, 200); assert.equal(body.savedOutputs.length, 2); assert.match(body.message, /Field mapping/);
-    assert.equal(state.rpc[0].args.p_kind, 'pdf_generation'); assert.equal(state.rpc[1].args.p_cost_usd, 0.001); assert.equal(state.rpc[1].args.p_actual_credits, 250);
+    assert.equal(state.rpc[0].args.p_kind, 'pdf_generation'); assert.equal(state.rpc[1].args.p_cost_usd, 0.001); assert.equal(state.rpc[1].args.p_actual_credits, 300);
     const second = await PDFDocument.load(state.pdfs[1].bytes); assert.equal(second.getForm().getTextField('FullName').getText(), 'Bob');
     state = { rpc: [], pdfs: [], badMapping: true }; const bad = await route.POST(request(['pdf','sheet']));
     assert.equal(bad.status, 422); assert.equal(state.pdfs.length, 0); assert.equal(state.rpc[1].args.p_status, 'completed'); assert.match((await bad.json()).error, /mapping request was billed/i);

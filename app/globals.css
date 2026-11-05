@@ -6772,6 +6772,14 @@ svg {
 .topup-options button.is-selected, .topup-methods button.is-selected { border-color: #1267f7; box-shadow: inset 0 0 0 1px #1267f7; background: #f1f7ff; color: #125de4; }
 .topup-options button:disabled, .topup-methods button:disabled { cursor: not-allowed; opacity: .6; }
 .topup-note { color: #687b95; font-size: 12px; line-height: 1.5; }
+.topup-amount-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
+.topup-reference-scroll { overflow-x: auto; }
+.topup-reference-table { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; }
+.topup-reference-table th, .topup-reference-table td { padding: 14px 10px; border-bottom: 1px solid #dce7f0; text-align: right; white-space: nowrap; }
+.topup-reference-table th:first-child { text-align: left; }
+.topup-reference-table thead { color: #617388; font-size: 12px; }
+.topup-reference-table small { display: block; margin-top: 4px; color: #617388; font-size: 11px; font-weight: 400; }
+.topup-reference-table .is-selected { background: #edf6ff; }
 .topup-divider { border-top: 1px solid #e8eef6; margin: 22px 0; }
 .topup-methods { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 12px; margin: 14px 0 20px; }
 .topup-methods button { display: flex; align-items: center; gap: 10px; padding: 16px; font-weight: 700; text-align: left; }

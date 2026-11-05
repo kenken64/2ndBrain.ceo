@@ -1,7 +1,7 @@
 /** Top-up choices are denominated in Singapore cents. One USD cent buys 2,500 credits. */
 export const SGD_TOPUP_CENTS = [500, 1000, 1500, 2500, 5000, 10000] as const;
 export type CreditOption = { sgdCents: number; cnyCents: number; usdCents: number; credits: number };
-export type CreditOptions = { rateDate: string; options: CreditOption[] };
+export type CreditOptions = { rateDate: string; options: CreditOption[]; textEstimate?: import("@/lib/ai-credit-rates").TextTokenPricing | null };
 export function buildCreditOptions(usdPerSgd: number, cnyPerSgd: number, rateDate: string): CreditOptions {
   if (!Number.isFinite(usdPerSgd) || usdPerSgd <= 0 || !Number.isFinite(cnyPerSgd) || cnyPerSgd <= 0 || !/^\d{4}-\d{2}-\d{2}$/.test(rateDate)) throw new Error("invalid_exchange_rates");
   return { rateDate, options: SGD_TOPUP_CENTS.map(sgdCents => {

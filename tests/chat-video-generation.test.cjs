@@ -53,6 +53,7 @@ test('video generation preserves jobs, settles actual cost and saves the complet
     }
   };
   const mocks = {
+    "@/lib/ai-credit-rates": require("./helpers/load-credit-rates.cjs"),
     '@/lib/admin': { isAdminUser: async () => false },
     '@/lib/chat-files': { saveChatGeneratedVideo: async (_admin, user, bytes) => { state.saved = { user, bytes }; return { id: 'file-1', name: 'video.mp4' }; } },
     '@/lib/env': { hasSupabaseEnv: () => true },
@@ -84,11 +85,11 @@ test('video generation preserves jobs, settles actual cost and saves the complet
     reset(); state.mode = 'bad-price'; assert.equal((await route.POST(req('POST', { prompt: 'ocean' }))).status, 503); assert.equal(state.calls.length, 0);
     reset(); state.mode = 'duration-unavailable'; assert.equal((await route.POST(req('POST', { prompt: 'ocean' }))).status, 503); assert.equal(state.calls.length, 0); assert.equal(state.providerBody, undefined);
     reset(); state.mode = 'insufficient'; assert.equal((await route.POST(req('POST', { prompt: 'ocean' }))).status, 402); assert.equal(state.providerBody, undefined);
-    reset(); const quote = await (await route.GET()).json(); assert.equal(quote.credits, 75000); assert.equal(quote.estimatedUsd, 0.3);
+    reset(); const quote = await (await route.GET()).json(); assert.equal(quote.credits, 90000); assert.equal(quote.estimatedUsd, 0.36);
     const submitted = await (await route.POST(req('POST', { prompt: 'ocean' }))).json(); assert.equal(submitted.jobId, jobId);
-    assert.equal(state.job.provider_job_id, 'job-provider'); assert.equal(state.providerBody.duration, 15); assert.equal(state.providerBody.model, 'x-ai/grok-imagine-video-1.5-lite'); assert.equal(state.calls[0].args.p_kind, 'video_generation'); assert.equal(state.calls[0].args.p_credits, 75000);
+    assert.equal(state.job.provider_job_id, 'job-provider'); assert.equal(state.providerBody.duration, 15); assert.equal(state.providerBody.model, 'x-ai/grok-imagine-video-1.5-lite'); assert.equal(state.calls[0].args.p_kind, 'video_generation'); assert.equal(state.calls[0].args.p_credits, 90000);
     state.mode = 'pending'; assert.equal((await (await route.PATCH(req('PATCH', { jobId }))).json()).status, 'pending'); assert.equal(state.calls.length, 1);
-    state.mode = 'ok'; const done = await (await route.PATCH(req('PATCH', { jobId }))).json(); assert.equal(done.status, 'completed'); assert.equal(state.calls[1].args.p_cost_usd, 0.05); assert.equal(state.calls[1].args.p_actual_credits, 12500); assert.equal(state.saved.user, 'user-1'); assert.equal(state.job.output_file_id, 'file-1');
+    state.mode = 'ok'; const done = await (await route.PATCH(req('PATCH', { jobId }))).json(); assert.equal(done.status, 'completed'); assert.equal(state.calls[1].args.p_cost_usd, 0.05); assert.equal(state.calls[1].args.p_actual_credits, 15000); assert.equal(state.saved.user, 'user-1'); assert.equal(state.job.output_file_id, 'file-1');
     await route.PATCH(req('PATCH', { jobId })); assert.equal(state.calls.length, 2);
     reset(); state.mode = 'network'; assert.equal((await route.POST(req('POST', { prompt: 'ocean' }))).status, 502); assert.equal(state.calls[1].args.p_status, 'uncertain'); assert.equal(state.job.status, 'uncertain');
     reset(); await route.POST(req('POST', { prompt: 'ocean' })); state.mode = 'missing-usage'; const unknown = await (await route.PATCH(req('PATCH', { jobId }))).json(); assert.equal(unknown.status, 'pending'); assert.equal(unknown.usagePending, true); assert.equal(state.calls[1].args.p_status, 'uncertain');

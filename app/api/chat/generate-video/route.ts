@@ -1,3 +1,4 @@
+import { OPENROUTER_CREDITS_PER_USD, openRouterCostToCredits, AI_CREDITS_PER_USD } from "@/lib/ai-credit-rates";
 import { NextResponse } from "next/server";
 import { isAdminUser } from "@/lib/admin";
 import { saveChatGeneratedVideo } from "@/lib/chat-files";
@@ -10,7 +11,6 @@ import { publishTokenQuotaUpdate } from "@/lib/token-quota-redis";
 export const runtime = "nodejs";
 export const maxDuration = 60;
 const MODEL = "x-ai/grok-imagine-video-1.5-lite";
-const CREDITS_PER_USD = 250_000;
 const DURATION = 15;
 const RESOLUTION = "480p";
 const errorResponse = (error: string, status: number) => NextResponse.json({ error }, { status });
@@ -44,7 +44,7 @@ async function price(apiKey: string) {
   const model = result.data?.find(item => item.id === MODEL);
   const cents = Number(model?.pricing_skus?.cents_per_video_output_second_480p);
   if (!response.ok || !model?.supported_durations?.includes(DURATION) || !model.supported_resolutions?.includes(RESOLUTION) || !model.supported_aspect_ratios?.includes("16:9") || !Number.isFinite(cents) || cents <= 0) throw new Error("video pricing unavailable");
-  return Math.ceil((cents / 100) * DURATION * CREDITS_PER_USD);
+  return Math.ceil((cents / 100) * DURATION * OPENROUTER_CREDITS_PER_USD);
 }
 async function notify(context: NonNullable<Awaited<ReturnType<typeof account>>>, row: CreditRow, reason: "chat_credit_reservation" | "chat_credit_settlement", requestId: string) {
   const { data: profile } = await context.admin.from("profiles").select("email,openclaw_instance").eq("id", context.userId).maybeSingle();
@@ -57,7 +57,7 @@ export async function GET() {
   if (error) return errorResponse("Video jobs are unavailable.", 503);
   let credits: number | null = null; try { credits = await price(context.apiKey); } catch { /* preserve access to prior jobs */ }
   const jobs = (data ?? []).map(job => job.status === "submitting" && Date.parse(job.created_at) < Date.now() - 120_000 ? { ...job, status: "uncertain" } : job);
-  return NextResponse.json({ credits, estimatedUsd: credits === null ? null : credits / CREDITS_PER_USD, jobs }, { headers: { "Cache-Control": "private, no-store" } });
+  return NextResponse.json({ credits, estimatedUsd: credits === null ? null : credits / AI_CREDITS_PER_USD, jobs }, { headers: { "Cache-Control": "private, no-store" } });
 }
 
 export async function POST(request: Request) {
@@ -124,7 +124,7 @@ export async function PATCH(request: Request) {
     if (ledger.status !== "completed" && ledger.status !== "failed") {
       const status = cost === null ? "uncertain" : "completed";
       if (!(ledger.status === "uncertain" && status === "uncertain")) {
-        const { data: settled, error } = await context.admin.rpc("settle_chat_credits_itemized", { p_user_id: context.userId, p_request_id: job.credit_request_id, p_status: status, p_actual_credits: cost === null ? 0 : Math.ceil(cost * CREDITS_PER_USD), p_cost_usd: cost, p_provider_request_id: typeof video.generation_id === "string" ? video.generation_id : job.provider_job_id, p_prompt_tokens: null, p_completion_tokens: null }).single();
+        const { data: settled, error } = await context.admin.rpc("settle_chat_credits_itemized", { p_user_id: context.userId, p_request_id: job.credit_request_id, p_status: status, p_actual_credits: cost === null ? 0 : openRouterCostToCredits(cost), p_cost_usd: cost, p_provider_request_id: typeof video.generation_id === "string" ? video.generation_id : job.provider_job_id, p_prompt_tokens: null, p_completion_tokens: null }).single();
         if (error || !settled) throw new Error("settlement unavailable");
         if (!ledger.quota_exempt) await notify(context, settled as CreditRow, "chat_credit_settlement", job.credit_request_id);
       }

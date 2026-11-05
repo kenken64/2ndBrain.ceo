@@ -1,3 +1,4 @@
+import { OPENROUTER_CREDITS_PER_USD, openRouterCostToCredits, AI_CREDITS_PER_USD } from "@/lib/ai-credit-rates";
 import { NextResponse } from "next/server";
 import { isAdminUser } from "@/lib/admin";
 import { saveChatGeneratedImage } from "@/lib/chat-files";
@@ -10,7 +11,6 @@ import { publishTokenQuotaUpdate } from "@/lib/token-quota-redis";
 export const runtime = "nodejs";
 export const maxDuration = 120;
 const MODEL = "bytedance-seed/seedream-4.5";
-const CREDITS_PER_USD = 250_000;
 const errorResponse = (error: string, status: number) => NextResponse.json({ error }, { status });
 type CreditRow = { request_id?: string; llm_token_quota: number | string; llm_token_used: number | string; charged_credits?: number | string };
 
@@ -27,7 +27,7 @@ async function reservationForImage(apiKey: string) {
     if (line.billable !== "output_image" || line.unit !== "image" || (line.variants != null && (!Array.isArray(line.variants) || line.variants.length > 0)) || !Number.isFinite(price) || price <= 0) throw new Error("unsupported pricing");
     return price;
   });
-  return Math.max(1, Math.ceil(Math.max(...prices) * CREDITS_PER_USD));
+  return Math.max(1, Math.ceil(Math.max(...prices) * OPENROUTER_CREDITS_PER_USD));
 }
 
 export async function GET() {
@@ -37,7 +37,7 @@ export async function GET() {
   if (error || !getUserIdFromClaims(data?.claims)) return errorResponse("Please log in to generate images.", 401);
   try {
     const credits = await reservationForImage(process.env.OPENROUTER_API_KEY.trim());
-    return NextResponse.json({ model: MODEL, credits, estimatedUsd: credits / CREDITS_PER_USD }, { headers: { "Cache-Control": "private, no-store" } });
+    return NextResponse.json({ model: MODEL, credits, estimatedUsd: credits / AI_CREDITS_PER_USD }, { headers: { "Cache-Control": "private, no-store" } });
   } catch { return errorResponse("Image pricing is temporarily unavailable. Please try again later.", 503); }
 }
 
@@ -79,7 +79,7 @@ export async function POST(request: Request) {
   await notify(reservation, "chat_credit_reservation");
   let providerId: string | null = null; let settled = false;
   const settle = async (status: "completed" | "failed" | "uncertain", cost: number | null) => {
-    const { data: result, error: settlementError } = await admin.rpc("settle_chat_credits_itemized", { p_user_id: userId, p_request_id: requestId, p_status: status, p_actual_credits: status === "completed" && cost !== null ? Math.ceil(cost * CREDITS_PER_USD) : 0, p_cost_usd: cost, p_provider_request_id: providerId, p_prompt_tokens: null, p_completion_tokens: null }).single();
+    const { data: result, error: settlementError } = await admin.rpc("settle_chat_credits_itemized", { p_user_id: userId, p_request_id: requestId, p_status: status, p_actual_credits: status === "completed" && cost !== null ? openRouterCostToCredits(cost) : 0, p_cost_usd: cost, p_provider_request_id: providerId, p_prompt_tokens: null, p_completion_tokens: null }).single();
     if (settlementError || !result) return null;
     settled = true; const row = result as CreditRow; await notify(row, "chat_credit_settlement"); return row;
   };

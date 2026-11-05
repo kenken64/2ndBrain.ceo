@@ -34,6 +34,7 @@ test("chat API checks authentication, model, billing and uncertain failures", as
     }
   };
   const replacements = {
+    "@/lib/ai-credit-rates": require("./helpers/load-credit-rates.cjs"),
     "@/lib/admin": { isAdminUser: async () => false },
     "@/lib/chat-files": { saveChatGeneratedPptx: async (_admin, userId, sourceId, name, bytes) => { assert.equal(userId, "user-1"); assert.equal(sourceId, null); assert.ok(bytes.length); if (state.outputFail) throw Error("storage unavailable"); return { id: "pptx-output", name }; }, saveChatOutput: async (_admin, userId, sourceId, name, kind, content) => { state.savedOutput = { userId, sourceId, name, kind, content }; if (state.outputFail) throw Error("storage unavailable"); return { id: "output-1", name: "output.md", origin: "output" }; }, saveChatFile: async (_admin, userId, file) => ({ id: "file-1", name: file.name, size: file.data.length, mime: file.mime, createdAt: "2026-01-01" }), loadChatFile: async (_admin, userId, id) => userId === "user-1" && (id === "owned" || id === "generated") ? { file: { name: "scan.pdf", type: id === "generated" ? "output" : "pdf", mime: "application/pdf", data: Buffer.from("fixture") }, metadata: { id, name: "scan.pdf" } } : null },
     "@/lib/chat-pptx-generation": { renderChatPresentation: async content => { assert.equal(content.title, "Example"); if (state.renderFail) throw Error("invalid content"); return Buffer.from("pptx"); } },
@@ -108,7 +109,7 @@ test("chat API checks authentication, model, billing and uncertain failures", as
     assert.equal(response.status, 402); assert.equal(state.urls.length, 1);
     reset(); response = await post(request(good));
     const data = await response.json();
-    assert.equal(response.status, 200); assert.equal(data.message, "hello"); assert.equal(data.chargedCredits, 100);
+    assert.equal(response.status, 200); assert.equal(data.message, "hello"); assert.equal(data.chargedCredits, 120);
     assert.equal(state.rpc[1].args.p_status, "completed"); assert.equal(state.providerBody.model, good.model); assert.equal(state.notifications.length, 2);
     const mixedHistory = [
       { role: "user", content: "Hello" },
@@ -128,7 +129,7 @@ test("chat API checks authentication, model, billing and uncertain failures", as
     }
     reset(); state.mode = "stream"; response = await post(request({ ...good, stream: true }));
     const streamed = (await response.text()).trim().split("\n").map(line => JSON.parse(line));
-    assert.deepEqual(streamed.map(item => item.type), ["delta", "delta", "done"]); assert.equal(streamed[2].chargedCredits, 100); assert.equal(streamed[2].outputTokens, 10); assert.ok(streamed[2].generationMs >= 0);
+    assert.deepEqual(streamed.map(item => item.type), ["delta", "delta", "done"]); assert.equal(streamed[2].chargedCredits, 120); assert.equal(streamed[2].outputTokens, 10); assert.ok(streamed[2].generationMs >= 0);
     assert.equal(state.providerBody.stream, true); assert.equal(state.providerBody.max_tokens, 4096); assert.equal(state.rpc[1].args.p_status, "completed"); assert.equal(state.rpc[1].args.p_provider_request_id, "gen-stream"); assert.equal(state.rpc[1].args.p_cost_usd, 0.0004);
     reset(); response = await post(request({ ...good, stream: true, attachment: { name: "scan.pdf", kind: "pdf" } })); assert.equal(response.status, 400); assert.equal(state.rpc.length, 0);
     reset(); state.mode = "presentation"; response = await post(request({ ...good, outputFormat: "pptx" }));

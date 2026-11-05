@@ -62,6 +62,7 @@ test('DOCX batch endpoint tracks model cost and saves generated Word documents f
     rpc: (name, args) => ({ single: async () => { state.rpc.push({ name, args }); return { data: { request_id: 'req-1', llm_token_quota: 10000, llm_token_used: 50, charged_credits: args.p_actual_credits ?? 0 }, error: null }; } })
   };
   const mocks = {
+    "@/lib/ai-credit-rates": require("./helpers/load-credit-rates.cjs"),
     '@/lib/chat-attachments': { spreadsheetContext: async () => table }, '@/lib/chat-pdf-batch': pdf, '@/lib/chat-docx-batch': docx, '@/lib/chat-models': model,
     '@/lib/chat-files': { loadChatFile: async (_admin, user, id) => user === 'alice' ? loaded[id] ?? null : null, saveChatGeneratedDocx: async (_admin, user, source, name, data) => { assert.equal(user, 'alice'); assert.equal(source, 'doc'); state.outputs.push({ name, data }); return { id: `file-${state.outputs.length}`, name }; } },
     '@/lib/admin': { isAdminUser: async () => false }, '@/lib/env': { hasSupabaseEnv: () => true }, '@/lib/onboarding': { getUserIdFromClaims: claims => claims?.sub },
@@ -80,7 +81,7 @@ test('DOCX batch endpoint tracks model cost and saves generated Word documents f
     owner = 'bob'; assert.equal((await route.POST(request())).status, 404); assert.equal(state.rpc.length, 0);
     owner = 'alice'; const response = await route.POST(request()); const body = await response.json();
     assert.equal(response.status, 200); assert.equal(body.savedOutputs.length, 2); assert.match(body.savedOutputs[0].name, /row-2\.docx$/);
-    assert.equal(state.rpc[0].args.p_kind, 'docx_generation'); assert.equal(state.rpc[1].args.p_cost_usd, 0.001); assert.equal(state.rpc[1].args.p_actual_credits, 250);
+    assert.equal(state.rpc[0].args.p_kind, 'docx_generation'); assert.equal(state.rpc[1].args.p_cost_usd, 0.001); assert.equal(state.rpc[1].args.p_actual_credits, 300);
     assert.equal(JSON.stringify(state.providerBody).includes('Alice & Bob'), false);
     assert.match((await mammoth.extractRawText({ buffer: state.outputs[0].data })).value, /Alice & Bob, city 新加坡/);
   } finally { global.fetch = oldFetch; if (oldKey === undefined) delete process.env.OPENROUTER_API_KEY; else process.env.OPENROUTER_API_KEY = oldKey; }

@@ -17,6 +17,7 @@ test('image generation reserves credits, records provider cost and saves owned o
     } }; }
   };
   const mocks = {
+    "@/lib/ai-credit-rates": require("./helpers/load-credit-rates.cjs"),
     '@/lib/admin': { isAdminUser: async () => false },
     '@/lib/chat-files': { saveChatGeneratedImage: async (_admin, user, bytes, mime) => { state.saved = { user, bytes, mime }; return { id: 'image-1', name: 'generated-image.png' }; } },
     '@/lib/env': { hasSupabaseEnv: () => true },
@@ -49,10 +50,10 @@ test('image generation reserves credits, records provider cost and saves owned o
     reset(); assert.equal((await route.POST(request('http://evil.test'))).status, 403);
     reset(); state.mode = 'bad-price'; assert.equal((await route.POST(request())).status, 503); assert.equal(state.calls.length, 0);
     reset(); state.mode = 'insufficient'; assert.equal((await route.POST(request())).status, 402); assert.equal(state.providerBody, undefined);
-    reset(); const quote = await (await route.GET()).json(); assert.equal(quote.credits, 10000);
+    reset(); const quote = await (await route.GET()).json(); assert.equal(quote.credits, 12000);
     const response = await route.POST(request()); const result = await response.json();
-    assert.equal(response.status, 200); assert.equal(state.calls[0].args.p_kind, 'image_generation'); assert.equal(state.calls[0].args.p_credits, 10000);
-    assert.equal(state.calls[1].args.p_status, 'completed'); assert.equal(state.calls[1].args.p_cost_usd, 0.032); assert.equal(result.chargedCredits, 8000);
+    assert.equal(response.status, 200); assert.equal(state.calls[0].args.p_kind, 'image_generation'); assert.equal(state.calls[0].args.p_credits, 12000);
+    assert.equal(state.calls[1].args.p_status, 'completed'); assert.equal(state.calls[1].args.p_cost_usd, 0.032); assert.equal(result.chargedCredits, 9600);
     assert.equal(state.saved.user, 'user-1'); assert.equal(state.saved.mime, 'image/png'); assert.equal(result.savedOutput.id, 'image-1');
     assert.equal(state.providerBody.n, 1); assert.equal(state.providerBody.prompt, 'a lighthouse');
     reset(); state.mode = 'missing-usage'; const unknown = await (await route.POST(request())).json(); assert.equal(unknown.usagePending, true); assert.equal(unknown.savedOutput.id, 'image-1'); assert.equal(state.calls[1].args.p_status, 'uncertain');

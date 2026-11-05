@@ -1,3 +1,4 @@
+import { OPENROUTER_CREDITS_PER_USD, openRouterCostToCredits } from "@/lib/ai-credit-rates";
 import { NextResponse } from "next/server";
 import { spreadsheetContext } from "@/lib/chat-attachments";
 import { loadChatFile, saveChatGeneratedDocx, saveChatGeneratedPdf, saveChatGeneratedPptx } from "@/lib/chat-files";
@@ -13,7 +14,6 @@ import { publishTokenQuotaUpdate } from "@/lib/token-quota-redis";
 
 export const runtime = "nodejs";
 export const maxDuration = 120;
-const CREDITS_PER_USD = 250_000;
 const MAX_OUTPUT_TOTAL = 60 * 1024 * 1024;
 const errorResponse = (error: string, status: number) => NextResponse.json({ error }, { status });
 type CreditRow = { request_id?: string; llm_token_quota: number | string; llm_token_used: number | string; charged_credits?: number | string };
@@ -74,7 +74,7 @@ export async function POST(request: Request) {
     const highest = (key: string) => Math.max(0, ...variants.map(variant => { const value = Number((variant as Record<string, unknown>)[key]); return Number.isFinite(value) && value >= 0 ? value : 0; }));
     const input = Math.max(highest("prompt"), highest("input_cache_write")), output = highest("completion"), perRequest = highest("request");
     if (!response.ok || !Number.isFinite(input) || input <= 0 || !Number.isFinite(output) || output <= 0 || !Number.isFinite(perRequest) || perRequest < 0) throw new Error("pricing unavailable");
-    reserve = Math.max(1, Math.ceil(((Buffer.byteLength(description) * 2 + 1024) * input + 4096 * output + perRequest) * 3 * CREDITS_PER_USD));
+    reserve = Math.max(1, Math.ceil(((Buffer.byteLength(description) * 2 + 1024) * input + 4096 * output + perRequest) * 3 * OPENROUTER_CREDITS_PER_USD));
   } catch { return errorResponse("The model is temporarily unavailable. Please try again later.", 503); }
   const email = typeof claimsData?.claims?.email === "string" ? claimsData.claims.email : null;
   const isAdmin = await isAdminUser(email, userId);
@@ -92,7 +92,7 @@ export async function POST(request: Request) {
   let settled = false;
   const settle = async (status: "completed" | "failed" | "uncertain", cost: number | null, usage?: { prompt_tokens?: unknown; completion_tokens?: unknown }) => {
     const count = (value: unknown) => typeof value === "number" && Number.isSafeInteger(value) && value >= 0 ? value : null;
-    const { data: result, error } = await admin.rpc("settle_chat_credits_itemized", { p_user_id: userId, p_request_id: requestId, p_status: status, p_actual_credits: status === "completed" && cost !== null ? Math.ceil(cost * CREDITS_PER_USD) : 0, p_cost_usd: cost, p_provider_request_id: providerId, p_prompt_tokens: count(usage?.prompt_tokens), p_completion_tokens: count(usage?.completion_tokens) }).single();
+    const { data: result, error } = await admin.rpc("settle_chat_credits_itemized", { p_user_id: userId, p_request_id: requestId, p_status: status, p_actual_credits: status === "completed" && cost !== null ? openRouterCostToCredits(cost) : 0, p_cost_usd: cost, p_provider_request_id: providerId, p_prompt_tokens: count(usage?.prompt_tokens), p_completion_tokens: count(usage?.completion_tokens) }).single();
     if (error || !result) return null;
     const row = result as CreditRow;
     settled = true; await notify(row, "chat_credit_settlement"); return row;

@@ -9,6 +9,29 @@ This guide covers the card-payment integration in Settings → Payment. Customer
 - Daily ECB reference rates convert the selected SGD amount to a USD reference value, rounded to cents. Each reference US cent buys 2,500 AI credits, preserving the rate of 7,500,000 credits for US$30. The promised credit quantity is fixed when checkout starts and is not recalculated from Lemon Squeezy's settlement exchange rate. Taxes do not buy additional credits. Solana top-ups also use this reference value.
 - If reference rates are unavailable or outdated, new top-up selections are unavailable. If a rate changes before checkout, the app asks the customer to refresh the price.
 
+## Credit reference table
+
+Customers can click **View credit amounts** in Settings → Payment to compare all six top-ups, their AI credits and estimated text tokens. Selecting an amount also shows its estimated text allowance beside the checkout summary. The table uses the same credit options as checkout; token estimates use current reference-model pricing. Input-only and output-only estimates are alternatives for the whole balance and cannot be added together. Actual mixed usage and other models or features differ. If model pricing is unavailable, credit amounts remain visible and token estimates are omitted.
+
+Example at the 2026-11-04 daily reference rate of S$1 = US$0.78254:
+
+| Top-up | Test variant ID | AI credits |
+| --- | --- | ---: |
+| S$5 | 2340416 | 977,500 |
+| S$10 | 2340425 | 1,957,500 |
+| S$15 | 2340426 | 2,935,000 |
+| S$25 | 2340431 | 4,890,000 |
+| S$50 | 2340428 | 9,782,500 |
+| S$100 | 2340429 | 19,562,500 |
+
+These are dated examples, not fixed lifetime grants. The app calculates credits from the current daily rate and locks them when checkout starts. Source: [Frankfurter daily ECB rates](https://api.frankfurter.dev/v2/rates?base=SGD&quotes=USD%2CCNY&providers=ECB).
+
+## Usage pricing (operator reference)
+
+Top-ups retain the purchase rate of 250,000 credits per reference USD. App-managed OpenRouter requests charge a **20% service markup** on confirmed provider cost: `ceil(provider_cost_usd × 300000)` credits. Reservations and image/video estimates include the same markup. The original provider cost remains unchanged in usage records for audit; completed requests are not charged again. This policy covers chat and its document/OCR work, document mapping, image/video generation and Nth Brain. Cloud-agent quota enforcement uses its existing billing path.
+
+The markup percentage is not shown in the customer-facing top-up screen. Customers see their final credit costs and approximate token allowance. A markup is before payment fees, foreign-exchange differences and operating expenses; it does not guarantee net profit.
+
 ## 1. Prepare an isolated test environment
 
 Use a separate test application and Supabase database. Apply the pending database migrations in filename order through `supabase/migrations/0046_lemon_sgd_variants.sql`. Migration `0044_chat_only_onboarding.sql` is also needed for the chat-only registration option.

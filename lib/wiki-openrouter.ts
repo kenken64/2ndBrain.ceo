@@ -1,10 +1,10 @@
+import { OPENROUTER_CREDITS_PER_USD, openRouterCostToCredits } from "@/lib/ai-credit-rates";
 import { isAdminUser } from "@/lib/admin";
 import { FILE_CHAT_MODEL } from "@/lib/chat-models";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { publishTokenQuotaUpdate } from "@/lib/token-quota-redis";
 import type { ConvertedWikiAttachment } from "@/lib/wiki-attachments";
 
-const CREDITS_PER_USD = 250_000;
 const MAX_OUTPUT_TOKENS = 16_384;
 const NAME_VERIFICATION = "Repeat these four fictional names exactly, without changes: Maya Chen, Alex Tan, Priya Rao, Sam Lee.";
 type Pricing = { prompt?: string; completion?: string; request?: string; input_cache_write?: string; overrides?: Array<Record<string, unknown>> };
@@ -70,7 +70,7 @@ export async function generateWikiWithOpenRouter(input: { userId: string; instan
     const completionRate = highest("completion");
     if (!promptRate || !completionRate) throw new Error("pricing unavailable");
     const inputTokens = Buffer.byteLength(system + instruction) * 2 + images.length * 50_000 + 2048;
-    reserve = Math.max(1, Math.ceil((inputTokens * promptRate + MAX_OUTPUT_TOKENS * completionRate + highest("request")) * 3 * CREDITS_PER_USD));
+    reserve = Math.max(1, Math.ceil((inputTokens * promptRate + MAX_OUTPUT_TOKENS * completionRate + highest("request")) * 3 * OPENROUTER_CREDITS_PER_USD));
   } catch { throw new Error("Nth Brain model pricing is unavailable. Please try again later."); }
 
   const admin = createAdminClient();
@@ -95,7 +95,7 @@ export async function generateWikiWithOpenRouter(input: { userId: string; instan
   let providerId: string | null = null;
   const settle = async (status: "completed" | "failed" | "uncertain", cost: number | null, usage?: { prompt_tokens?: unknown; completion_tokens?: unknown }) => {
     const count = (value: unknown) => typeof value === "number" && Number.isSafeInteger(value) && value >= 0 ? value : null;
-    const { data: row, error: settlementError } = await admin.rpc("settle_chat_credits_itemized", { p_user_id: input.userId, p_request_id: requestId, p_status: status, p_actual_credits: status === "completed" && cost !== null ? Math.ceil(cost * CREDITS_PER_USD) : 0, p_cost_usd: cost, p_provider_request_id: providerId, p_prompt_tokens: count(usage?.prompt_tokens), p_completion_tokens: count(usage?.completion_tokens) }).single();
+    const { data: row, error: settlementError } = await admin.rpc("settle_chat_credits_itemized", { p_user_id: input.userId, p_request_id: requestId, p_status: status, p_actual_credits: status === "completed" && cost !== null ? openRouterCostToCredits(cost) : 0, p_cost_usd: cost, p_provider_request_id: providerId, p_prompt_tokens: count(usage?.prompt_tokens), p_completion_tokens: count(usage?.completion_tokens) }).single();
     if (settlementError || !row) throw new Error("Nth Brain usage could not be settled. Reserved credits are held for review; contact support before retrying.");
     settled = true;
     await notify(row as CreditRow, "chat_credit_settlement");
