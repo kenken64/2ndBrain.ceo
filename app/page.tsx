@@ -37,7 +37,7 @@ const manrope = Manrope({
   weight: ["400", "500", "600", "700", "800"]
 });
 
-const runsOn = ["CLOUD", "SUPABASE", "TELEGRAM", "GOOGLE WORKSPACE", "SOLANA"];
+const runsOn = ["CLOUD", "SUPABASE", "TELEGRAM", "GOOGLE WORKSPACE", "CREDIT CARDS", "APPLE PAY", "GOOGLE PAY", "SOLANA"];
 
 const ownershipRows = [
   {
