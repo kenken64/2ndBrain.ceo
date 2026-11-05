@@ -130,7 +130,7 @@ test('payment settings offer the card package only when configured', () => {
   const props = { configured: true, testMode: false, selection: { sgdCents: 500, usdCents: 391, credits: 977500, cnyCents: 2611 }, packageTokens: 977500, packageUsdCents: 391, onBalanceChange() {} };
   const ready = renderToStaticMarkup(React.createElement(LemonCreditPurchase, props));
   assert.match(ready, /977,500 AI credits for S\$5\.00/);
-  assert.match(ready, /Pay with card/);
+  assert.match(ready, /Continue to secure checkout/);
   assert.doesNotMatch(ready, /disabled=""/);
   const unavailable = renderToStaticMarkup(React.createElement(LemonCreditPurchase, { ...props, configured: false }));
   assert.match(unavailable, /Card payment is not available yet/);

@@ -92,7 +92,7 @@ Test-mode and live-mode webhook configurations must each point to their correspo
 ## 5. Make a test purchase
 
 1. Sign in to the test app and open **Settings → Payment**.
-2. Select an amount and **Card & more**, then open checkout. Check that the SGD amount and promised credit quantity match your selection.
+2. Select an amount and **Card & wallets**, then choose **Continue to secure checkout**. Lemon Squeezy shows eligible payment methods, including Apple Pay in Safari and Google Pay in Chrome, based on device, wallet setup and location. Check that the SGD amount and promised credit quantity match your selection.
 3. Complete checkout using [Lemon Squeezy's test payment details](https://docs.lemonsqueezy.com/help/getting-started/test-mode).
 4. Check the webhook delivery in Lemon Squeezy. Once the signed webhook has been processed, confirm that the AI credit balance and payment history have updated.
 5. Test a refund and confirm that the credits are adjusted. Full and partial refunds reduce the granted credits in proportion to the amount refunded, including tax. Previously spent or transferred credits can leave an account with a deficit against future top-ups.

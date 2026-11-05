@@ -77,7 +77,7 @@ export function AiCreditsPaymentPanel({ balance, billingConfigured, cardBillingC
       <div className="topup-divider" />
       <h3><Localized en="Payment method" zh="付款方式" /></h3>
       <div className="topup-methods" role="radiogroup" aria-label={zh ? "付款方式" : "Payment method"}>
-        <button type="button" role="radio" aria-checked={method === "card"} className={method === "card" ? "is-selected" : ""} disabled={activityBusy} onClick={() => setMethod("card")}><CreditCard size={20} /><span><Localized en="Card & more" zh="银行卡等" /></span></button>
+        <button type="button" role="radio" aria-checked={method === "card"} className={method === "card" ? "is-selected" : ""} disabled={activityBusy} onClick={() => setMethod("card")}><CreditCard size={20} /><span><Localized en="Card & wallets" zh="银行卡与数字钱包" /></span></button>
         <button type="button" role="radio" aria-checked={method === "solana"} className={method === "solana" ? "is-selected" : ""} disabled={activityBusy} onClick={() => setMethod("solana")}><Wallet size={20} /><span><Localized en="Solana · Phantom" zh="Solana · Phantom" /></span></button>
       </div>
       {selected ? <div className="topup-summary"><span><Localized en="Credits added" zh="到账积分" /> <strong>{number(selected.credits)}</strong></span><span><Localized en="USD reference value" zh="美元参考金额" /> <strong>${(selected.usdCents / 100).toFixed(2)}</strong></span></div> : null}

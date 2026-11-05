@@ -79,15 +79,16 @@ export function LemonCreditPurchase({ selection, onActivityChange, onPriceChange
     finally { setBusy(false); if (!checkoutOpened) onActivityChange?.(false); }
   }
   return <article className="settings-action-card">
-    <div><p className="workspace-status-card__eyebrow"><Localized en="Credit card" zh="信用卡" /></p>
-      <h2><Localized en="Pay by card" zh="使用银行卡支付" /></h2>
+    <div><p className="workspace-status-card__eyebrow"><Localized en="Secure checkout" zh="安全结账" /></p>
+      <h2><Localized en="Card, Apple Pay or Google Pay" zh="银行卡、Apple Pay 或 Google Pay" /></h2>
       <p><Localized en={selection ? `${new Intl.NumberFormat("en").format(packageTokens)} AI credits for S$${(selection.sgdCents / 100).toFixed(2)}, plus any applicable taxes. Secure checkout by Lemon Squeezy.` : "Choose a top-up amount to continue."} zh={selection ? `${new Intl.NumberFormat("en").format(packageTokens)} AI 积分，价格为 S$${(selection.sgdCents / 100).toFixed(2)}，另加适用税费。由 Lemon Squeezy 提供安全结账。` : "请选择充值金额以继续。"} /></p>
+      <p><Localized en="Choose Apple Pay in Safari or Google Pay in Chrome when offered at checkout. Available methods depend on your device, wallet setup and location." zh="结账提供该选项时，可在 Safari 使用 Apple Pay，或在 Chrome 使用 Google Pay。可用方式取决于设备、钱包设置和所在地区。" /></p>
       {testMode && configured ? <p><Localized en="Test checkout: use test payment details only." zh="测试结账：请仅使用测试付款信息。" /></p> : null}
       {!configured ? <p><Localized en="Card payment is not available yet." zh="银行卡支付暂不可用。" /></p> : null}
       {message ? <p className="form-success" role="status"><Localized en={message} zh={message === "Your card payment is confirmed and AI credits have been added." ? "银行卡付款已确认，AI 积分已到账。" : message === "Payment received. Waiting for confirmation before adding credits." ? "已收到付款，正在等待确认后添加积分。" : message === "This payment was refunded. Your AI credits have been adjusted." ? "此付款已退款，AI 积分已调整。" : message === "If you paid, your credits will appear after payment confirmation. Check your balance before starting another purchase." ? "如果您已付款，积分将在付款确认后到账。开始另一次购买前请先检查余额。" : "请在结账窗口完成付款，确认后积分将到账。"} /></p> : null}
       {error ? <p className="form-error" role="alert"><LocalizedMessage text={error} /></p> : null}
     </div>
-    <div><button className="settings-action-button" type="button" disabled={!configured || !selection || busy || Boolean(intent)} onClick={() => void startCheckout()}>{busy || intent ? <LoaderCircle size={18} /> : <CreditCard size={18} />} {busy ? <Localized en="Opening checkout…" zh="正在打开结账…" /> : intent ? <Localized en="Waiting for confirmation…" zh="正在等待确认…" /> : <Localized en="Pay with card" zh="使用银行卡支付" />}</button>
+    <div><button className="settings-action-button" type="button" disabled={!configured || !selection || busy || Boolean(intent)} onClick={() => void startCheckout()}>{busy || intent ? <LoaderCircle size={18} /> : <CreditCard size={18} />} {busy ? <Localized en="Opening checkout…" zh="正在打开结账…" /> : intent ? <Localized en="Waiting for confirmation…" zh="正在等待确认…" /> : <Localized en="Continue to secure checkout" zh="前往安全结账" />}</button>
     {intent ? <button className="btn-ghost" type="button" onClick={() => { window.LemonSqueezy?.Url.Close(); setIntent(null); onActivityChange?.(false); setMessage("If you paid, your credits will appear after payment confirmation. Check your balance before starting another purchase."); }}><Localized en="Close checkout" zh="关闭结账" /></button> : null}</div>
   </article>;
 }

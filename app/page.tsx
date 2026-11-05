@@ -66,7 +66,7 @@ const integrations = [
   { icon: Terminal, name: "SSH Console", sub: "authenticated, in-dashboard" },
   { icon: Video, name: "Remotion Avatar", sub: "a face for your agent" },
   { icon: KeyRound, name: "Google OAuth", sub: "sign-in through Supabase" },
-  { icon: Coins, name: "Solana", sub: "credit top-ups on-chain" }
+  { icon: Coins, name: "Payments", sub: "cards, eligible wallets + Solana" }
 ] as const;
 
 export default async function Home({ searchParams }: { searchParams: Promise<{ lang?: string | string[] }> }) {
@@ -196,7 +196,7 @@ export default async function Home({ searchParams }: { searchParams: Promise<{ l
                   <span aria-hidden="true" className="lp-feature-card__icon"><Coins size={22} /></span>
                   <span className="lp-feature-card__label">PAY AS YOU GO</span>
                   <h3>Top up credits as you need them</h3>
-                  <p>Add AI credits, follow your usage, and keep track of your balance. Top-ups use Solana.</p>
+                  <p>Top up from S$5 by card or Solana. Choose Apple Pay or Google Pay in checkout when available on your device. Track your usage and balance in one place.</p>
                   <a href="/dashboard/settings?tab=payment">Manage AI credits <span aria-hidden="true">→</span></a>
                 </Reveal>
                 <Reveal as="article" className="lp-feature-card" delay={120}>
