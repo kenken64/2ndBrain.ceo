@@ -1,6 +1,7 @@
 import { ArrowRight, BookOpenText, CircuitBoard, ClipboardList, Gamepad2, ListTodo, Newspaper, Smartphone, Timer, type LucideIcon } from "lucide-react";
 import { translateUiMessage } from "@/lib/ui-messages";
 import { MARKETPLACE_ITEMS } from "@/lib/workflow-templates";
+import { MarketplaceCarousel } from "@/components/landing/marketplace-carousel";
 
 const icons: Record<string, LucideIcon> = {
   "two-wheel-robot-guide": CircuitBoard,
@@ -31,7 +32,7 @@ export function MarketplaceShowcase({ locale = "en" }: { locale?: "en" | "zh" })
           </a>
         </header>
 
-        <div className="lp-marketplace__grid">
+        <MarketplaceCarousel locale={locale} count={MARKETPLACE_ITEMS.length}>
           {MARKETPLACE_ITEMS.map((item) => {
             const Icon = icons[item.id] ?? ListTodo;
 
@@ -55,7 +56,7 @@ export function MarketplaceShowcase({ locale = "en" }: { locale?: "en" | "zh" })
               </article>
             );
           })}
-        </div>
+        </MarketplaceCarousel>
         <p className="lp-marketplace__note">{zh ? "管理员账户可免费安装。登录后可在工具市场查看您的安装和积分使用情况。" : "Admin installs are free. Sign in to view your installations and credit usage in the marketplace."}</p>
       </div>
     </section>
