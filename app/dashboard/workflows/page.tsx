@@ -80,7 +80,7 @@ export default async function MyWorkflowsPage() {
               <p><Localized en="Manage workflow tools installed from Marketplace and review their AI credit allocations." zh="管理从应用市场安装的工作流工具并查看其 AI 积分分配。" /></p>
             </div>
 
-            <MyWorkflows setupComplete={isOnboardingComplete(onboardingProfile)} agentAvailable={Boolean(onboardingProfile?.openclaw_instance?.trim())} />
+            <MyWorkflows aiUsagePaused={Boolean(onboardingProfile?.openclaw_tokens_paused)} setupComplete={isOnboardingComplete(onboardingProfile)} agentAvailable={Boolean(onboardingProfile?.openclaw_instance?.trim())} />
           </section>
         </main>
       </div>

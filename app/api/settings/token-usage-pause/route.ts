@@ -76,10 +76,14 @@ export async function PATCH(request: Request) {
     return NextResponse.json({ error: "SUPABASE_SERVICE_ROLE_KEY is required for AI Agent pause controls" }, { status: 503 });
   }
 
-  const payload = (await request.json().catch(() => null)) as { paused?: unknown } | null;
+  const payload = (await request.json().catch(() => null)) as { paused?: unknown; confirmation?: unknown } | null;
 
   if (typeof payload?.paused !== "boolean") {
     return NextResponse.json({ error: "Paused must be true or false." }, { status: 400 });
+  }
+
+  if (payload.paused && (typeof payload.confirmation !== "string" || payload.confirmation.trim().toUpperCase() !== "PAUSE")) {
+    return NextResponse.json({ error: "Type PAUSE to confirm." }, { status: 400 });
   }
 
   const adminSupabase = createAdminClient();
@@ -103,11 +107,7 @@ export async function PATCH(request: Request) {
     return NextResponse.json({ error: "Account access is disabled." }, { status: 403 });
   }
 
-  const openclawInstance = typeof profile.openclaw_instance === "string" ? profile.openclaw_instance.trim() : "";
-
-  if (!openclawInstance) {
-    return NextResponse.json({ error: "AI Agent instance is not available." }, { status: 409 });
-  }
+  const openclawInstance = typeof profile.openclaw_instance === "string" ? profile.openclaw_instance.trim() || null : null;
 
   if (Boolean(profile.openclaw_tokens_paused) === payload.paused) {
     return NextResponse.json({

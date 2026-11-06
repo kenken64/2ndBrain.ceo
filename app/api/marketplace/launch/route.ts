@@ -15,6 +15,7 @@ type ProfileRow = {
   admin_deleted_at: string | null;
   admin_disabled: boolean | null;
   email: string | null;
+  openclaw_tokens_paused: boolean | null;
 };
 
 type InstallRow = {
@@ -187,7 +188,7 @@ export async function POST(request: Request) {
   const adminSupabase = createAdminClient();
   const { data: profileRow, error: profileError } = await adminSupabase
     .from("profiles")
-    .select("admin_deleted_at,admin_disabled,email")
+    .select("admin_deleted_at,admin_disabled,email,openclaw_tokens_paused")
     .eq("id", auth.userId)
     .maybeSingle();
 
@@ -203,6 +204,10 @@ export async function POST(request: Request) {
 
   if (profile.admin_disabled || profile.admin_deleted_at) {
     return NextResponse.json({ error: "Account access is disabled." }, { status: 403 });
+  }
+
+  if (profile.openclaw_tokens_paused) {
+    return NextResponse.json({ code: "ai_usage_paused", error: "AI usage is paused. Resume AI usage in Settings to continue." }, { status: 423 });
   }
 
   const { data: installRow, error: installError } = await adminSupabase

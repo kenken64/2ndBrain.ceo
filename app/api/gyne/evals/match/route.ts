@@ -25,7 +25,7 @@ function parseTags(value: string | null) {
  * The frontend merges the returned criteria into the card's effective done-when list.
  */
 export async function GET(request: Request) {
-  const auth = authorizeGyneBridge(request);
+  const auth = await authorizeGyneBridge(request);
 
   if (!auth.ok) {
     return auth.response;

@@ -131,7 +131,8 @@ function parseRedisResponse(
   throw new Error(`Unsupported Redis response prefix: ${prefix}`);
 }
 
-export async function connectRedis(redisUrl: URL) {
+export async function connectRedis(redisUrl: URL, options: { timeoutMs?: number } = {}) {
+  const timeoutMs = options.timeoutMs ?? REDIS_CONNECT_TIMEOUT_MS;
   const useTls = redisUrl.protocol === "rediss:";
   const port = redisUrl.port ? Number(redisUrl.port) : useTls ? 6380 : 6379;
   const host = redisUrl.hostname;
@@ -176,7 +177,7 @@ export async function connectRedis(redisUrl: URL) {
     const timeout = setTimeout(() => {
       socket.destroy(new Error("redis_connect_timeout"));
       reject(new Error("Redis connection timed out."));
-    }, REDIS_CONNECT_TIMEOUT_MS);
+    }, timeoutMs);
 
     socket.once("connect", () => {
       clearTimeout(timeout);
@@ -205,14 +206,29 @@ export async function connectRedis(redisUrl: URL) {
       pending = null;
     }
   });
+  socket.on("close", () => {
+    if (pending) {
+      pending.reject(new Error("redis_connection_closed"));
+      pending = null;
+    }
+  });
 
   async function command(args: string[]) {
+    if (socket.destroyed) throw new Error("redis_connection_closed");
     if (pending) {
       throw new Error("redis_command_in_progress");
     }
 
     const response = new Promise<RedisResponse>((resolve, reject) => {
-      pending = { reject, resolve };
+      const timeout = setTimeout(() => {
+        pending = null;
+        socket.destroy();
+        reject(new Error("redis_command_timeout"));
+      }, timeoutMs);
+      pending = {
+        reject: error => { clearTimeout(timeout); reject(error); },
+        resolve: value => { clearTimeout(timeout); resolve(value); }
+      };
     });
 
     socket.write(encodeRedisCommand(args));
@@ -223,7 +239,7 @@ export async function connectRedis(redisUrl: URL) {
 
   async function close() {
     try {
-      await command(["QUIT"]);
+      if (!socket.destroyed) await command(["QUIT"]);
     } catch {
       // The connection is going away anyway.
     } finally {
@@ -244,7 +260,8 @@ export async function connectRedis(redisUrl: URL) {
  */
 export async function withRedis<T>(
   envNames: readonly string[],
-  run: (command: (args: string[]) => Promise<RedisResponse>) => Promise<T>
+  run: (command: (args: string[]) => Promise<RedisResponse>) => Promise<T>,
+  options: { timeoutMs?: number } = {}
 ): Promise<T | null> {
   const redisUrl = getRedisUrlFrom(envNames);
 
@@ -253,7 +270,7 @@ export async function withRedis<T>(
   }
 
   const parsedUrl = new URL(redisUrl);
-  const client = await connectRedis(parsedUrl);
+  const client = await connectRedis(parsedUrl, options);
 
   try {
     const username = decodeURIComponent(parsedUrl.username || "");
@@ -261,6 +278,11 @@ export async function withRedis<T>(
 
     if (password) {
       await client.command(username ? ["AUTH", username, password] : ["AUTH", password]);
+    }
+    const database = parsedUrl.pathname.slice(1);
+    if (database) {
+      if (!/^\d+$/.test(database)) throw new Error("invalid_redis_database");
+      await client.command(["SELECT", database]);
     }
 
     return await run(client.command);

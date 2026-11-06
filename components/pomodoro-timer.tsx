@@ -3,6 +3,7 @@
 import { Pause, Play, RotateCcw, Timer } from "lucide-react";
 import { useEffect, useState, type CSSProperties } from "react";
 import { Localized, useLanguage } from "@/components/language-provider";
+import { useAiUsagePause } from "@/components/use-ai-usage-pause";
 import { advancePomodoro, newPomodoro, pausePomodoro, POMODORO_DURATIONS, pomodoroRemaining, readPomodoroState, startPomodoro, type PomodoroMode, type PomodoroState } from "@/lib/pomodoro";
 
 const modes: Array<{ id: PomodoroMode; en: string; zh: string }> = [
@@ -16,9 +17,10 @@ function displayTime(milliseconds: number) {
   return `${String(Math.floor(seconds / 60)).padStart(2, "0")}:${String(seconds % 60).padStart(2, "0")}`;
 }
 
-export function PomodoroTimer({ userId }: { userId: string }) {
+export function PomodoroTimer({ userId, aiUsagePaused = false }: { userId: string; aiUsagePaused?: boolean }) {
   const { language } = useLanguage();
   const zh = language === "zh";
+  const [usagePaused] = useAiUsagePause(aiUsagePaused);
   const [timer, setTimer] = useState<PomodoroState | null>(null);
   const [now, setNow] = useState(0);
   const storageKey = `aicuber:pomodoro:${userId}`;
@@ -49,6 +51,17 @@ export function PomodoroTimer({ userId }: { userId: string }) {
     const interval = window.setInterval(tick, 250);
     return () => window.clearInterval(interval);
   }, [timer?.endsAt]);
+
+  useEffect(() => {
+    if (!usagePaused || !timer?.endsAt) return;
+    const current = Date.now();
+    setNow(current);
+    setTimer(pausePomodoro(timer, current));
+  }, [usagePaused, timer]);
+
+  if (usagePaused) {
+    return <p className="form-error" role="status"><Localized en="AI usage is paused. Workflow tools are paused." zh="AI 用量已暂停。工作流工具也已暂停。" />{" "}<a href="/dashboard/settings?tab=general"><Localized en="Resume AI usage in Settings" zh="在设置中恢复 AI 用量" /></a></p>;
+  }
 
   if (!timer) {
     return <p className="pomodoro-loading"><Localized en="Loading your timer…" zh="正在加载计时器…" /></p>;

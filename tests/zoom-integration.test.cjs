@@ -20,7 +20,7 @@ test('central Zoom connection preserves primary identity, isolates tokens and en
   process.env.ZOOM_INTEGRATION_KEY=randomBytes(32).toString('base64url');process.env.MEETING_MINUTES_SESSION_SECRET='s'.repeat(32);
   const calls=[];let authId=alice,asAdmin=true,linked=false,exchangeId=alice,primaryWrites=0,active=true,duringLink=null,profileAllowed=true,zoomProfile={id:'zoom-alice',email:'zoom@example.test',display_name:'Zoom Alice'};
   try{
-    await db.exec(`create role anon; create role authenticated; create role service_role; create schema auth; create table auth.users(id uuid primary key); create table profiles(id uuid primary key,email text,admin_disabled boolean default false,admin_deleted_at timestamptz,marketplace_launch_revoked_at timestamptz); create table marketplace_installs(id uuid primary key,user_id uuid,item_id text,status text);`);
+    await db.exec(`create role anon; create role authenticated; create role service_role; create schema auth; create table auth.users(id uuid primary key); create table profiles(id uuid primary key,email text,admin_disabled boolean default false,admin_deleted_at timestamptz,marketplace_launch_revoked_at timestamptz,openclaw_tokens_paused boolean default false); create table marketplace_installs(id uuid primary key,user_id uuid,item_id text,status text);`);
     await db.exec(fs.readFileSync(path.resolve(__dirname,'../supabase/migrations/0038_zoom_connections.sql'),'utf8'));
     await db.exec(fs.readFileSync(path.resolve(__dirname,'../supabase/migrations/0039_zoom_provider_safe_updates.sql'),'utf8'));
     await db.query('insert into auth.users values ($1),($2)',[alice,bob]);
@@ -79,6 +79,7 @@ test('central Zoom connection preserves primary identity, isolates tokens and en
     assert.equal((await delegate({operation:'arbitrary-url',url:'https://evil.test'})).status,403);
     assert.equal((await delegate({operation:'status'},{...claims,tool_id:'other'})).status,401);
     assert.equal((await delegate({operation:'status'},{...claims,exp:now-1})).status,401);
+    await db.query('update profiles set openclaw_tokens_paused=true where id=$1',[alice]);assert.equal((await delegate({operation:'status'})).status,423);await db.query('update profiles set openclaw_tokens_paused=false where id=$1',[alice]);assert.equal((await delegate({operation:'status'})).status,200);
     await db.query('update profiles set marketplace_launch_revoked_at=now() where id=$1',[alice]);assert.equal((await delegate({operation:'status'})).status,403);await db.query('update profiles set marketplace_launch_revoked_at=null,admin_disabled=true where id=$1',[alice]);assert.equal((await delegate({operation:'status'})).status,403);await db.query('update profiles set admin_disabled=false where id=$1',[alice]);
     await db.query("update marketplace_installs set status='uninstalled' where id=$1",[install]);assert.equal((await delegate({operation:'status'})).status,403);await db.query("update marketplace_installs set status='installed' where id=$1",[install]);
     await db.query("update zoom_accounts set expires_at=now()-interval '1 minute'");
@@ -119,7 +120,7 @@ test('Supabase Zoom client uses separate memory storage and cannot refresh/repla
 test('Zoom OAuth codes use the connection callback while normal login routing stays intact',async()=>{
   let primarySessionChecks=0;
   const {NextRequest}=require('next/server');
-  const {proxy}=compile('proxy.ts',{'@/lib/env':{getSupabaseEnv:()=>({supabaseUrl:'https://project.supabase.test'})},'@/lib/url':{appUrl:(path,request)=>new URL(path,request.url)},'@/lib/supabase/proxy':{updateSession:async()=>{primarySessionChecks++;return new Response('original session');}}});
+  const {proxy}=compile('proxy.ts',{'@/lib/request-rate-limit':{rateLimitRequest:async()=>null},'@/lib/env':{getSupabaseEnv:()=>({supabaseUrl:'https://project.supabase.test'})},'@/lib/url':{appUrl:(path,request)=>new URL(path,request.url)},'@/lib/supabase/proxy':{updateSession:async()=>{primarySessionChecks++;return new Response('original session');}}});
   for(const target of ['/api/integrations/zoom/callback?code=zoom','/auth/callback?code=primary','/api/openclaw/gws-auth/callback?code=google']) {
     const r=await proxy(new NextRequest(origin+target));assert.equal(r.headers.get('x-middleware-next'),'1');assert.equal(r.headers.get('location'),null);
   }

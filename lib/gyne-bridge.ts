@@ -30,9 +30,9 @@ export type GyneBridgeContext = {
  * browser via its launch session, then forwards here server-to-server with the shared bridge
  * secret and the session's user_id as a query parameter.
  */
-export function authorizeGyneBridge(
+export async function authorizeGyneBridge(
   request: Request
-): { ok: true; context: GyneBridgeContext } | { ok: false; response: NextResponse } {
+): Promise<{ ok: true; context: GyneBridgeContext } | { ok: false; response: NextResponse }> {
   const secret = configuredBridgeSecret();
 
   if (!secret) {
@@ -72,5 +72,22 @@ export function authorizeGyneBridge(
     };
   }
 
-  return { ok: true, context: { adminSupabase: createAdminClient(), userId } };
+  const adminSupabase = createAdminClient();
+  const { data: profile, error } = await adminSupabase.from("profiles")
+    .select("admin_disabled,admin_deleted_at,openclaw_tokens_paused").eq("id", userId).maybeSingle();
+
+  if (error) {
+    return { ok: false, response: NextResponse.json({ error: "Workflow access check unavailable." }, { status: 503 }) };
+  }
+  if (!profile) {
+    return { ok: false, response: NextResponse.json({ error: "Profile was not found." }, { status: 404 }) };
+  }
+  if (profile.admin_disabled || profile.admin_deleted_at) {
+    return { ok: false, response: NextResponse.json({ error: "Account access is disabled." }, { status: 403 }) };
+  }
+  if (profile.openclaw_tokens_paused) {
+    return { ok: false, response: NextResponse.json({ code: "ai_usage_paused", error: "AI usage is paused. Resume AI usage in Settings to continue." }, { status: 423 }) };
+  }
+
+  return { ok: true, context: { adminSupabase, userId } };
 }

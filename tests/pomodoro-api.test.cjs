@@ -62,6 +62,7 @@ test("zero-credit users can reach the free app and its marketplace entry", async
     const profile = { admin_disabled: false, admin_deleted_at: null, llm_token_quota: 0, llm_token_used: 10, openclaw_tokens_paused: false };
     const response = { kind: "allowed" };
     const module = compile("proxy.ts", {
+      "@/lib/request-rate-limit": { rateLimitRequest: async () => null },
       "next/server": { NextResponse: { redirect: (url) => ({ kind: "redirect", url }), json: (body, options) => ({ kind: "json", body, status: options?.status }) } },
       "@/lib/env": { getSupabaseEnv: () => ({ supabaseUrl: "https://example.com" }) },
       "@/lib/supabase/proxy": { updateSession: async (_request, options) => options.onAuthenticated({
@@ -70,7 +71,7 @@ test("zero-credit users can reach the free app and its marketplace entry", async
       }) },
       "@/lib/url": { appUrl: (url) => url }
     });
-    for (const pathname of ["/dashboard/marketplace", "/dashboard/workflows", "/dashboard/pomodoro"]) {
+    for (const pathname of ["/dashboard/marketplace", "/dashboard/workflows", "/dashboard/pomodoro", "/api/settings/token-balance", "/api/settings/token-usage-pause"]) {
       const result = await module.proxy({ nextUrl: { pathname, searchParams: new URLSearchParams() }, method: "GET" });
       assert.deepEqual(result, response);
     }

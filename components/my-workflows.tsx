@@ -1,6 +1,7 @@
 "use client";
 
 import { Localized, useLanguage, LocalizedMessage } from "@/components/language-provider";
+import { useAiUsagePause } from "@/components/use-ai-usage-pause";
 
 import { useEffect, useMemo, useState } from "react";
 import { AlertTriangle, ExternalLink, RefreshCw, Rocket, Store, Trash2 } from "lucide-react";
@@ -32,6 +33,7 @@ type MarketplaceInstall = {
 };
 
 type MarketplaceState = {
+  aiUsagePaused: boolean;
   balance: { availableTokens: number };
   installs: MarketplaceInstall[];
   isAdmin: boolean;
@@ -107,9 +109,10 @@ function workflowFromInstall(install: MarketplaceInstall) {
   };
 }
 
-export function MyWorkflows({ setupComplete = true, agentAvailable = true }: { setupComplete?: boolean; agentAvailable?: boolean }) {
+export function MyWorkflows({ setupComplete = true, agentAvailable = true, aiUsagePaused = false }: { setupComplete?: boolean; agentAvailable?: boolean; aiUsagePaused?: boolean }) {
   const { language } = useLanguage();
   const zh = language === "zh";
+  const [usagePaused, setUsagePaused] = useAiUsagePause(aiUsagePaused);
   const [installs, setInstalls] = useState<MarketplaceInstall[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
@@ -137,6 +140,7 @@ export function MyWorkflows({ setupComplete = true, agentAvailable = true }: { s
       const payload = await readJson<MarketplaceState>(response);
 
       setInstalls(payload.installs);
+      setUsagePaused(payload.aiUsagePaused);
       setCanUsePaidTools(payload.isAdmin || payload.balance.availableTokens > 0);
     } catch (refreshError) {
       setError(refreshError instanceof Error ? refreshError.message : "Installed workflow tools could not be loaded.");
@@ -192,6 +196,7 @@ export function MyWorkflows({ setupComplete = true, agentAvailable = true }: { s
   }
 
   async function launchWorkflow(itemId: string) {
+    if (usagePaused) return;
     setLaunchingId(itemId);
     setError(null);
     setMessage(null);
@@ -204,6 +209,7 @@ export function MyWorkflows({ setupComplete = true, agentAvailable = true }: { s
         },
         method: "POST"
       });
+      if (response.status === 423) void refreshInstalls();
       const payload = await readJson<LaunchResponse>(response);
 
       window.open(payload.launchUrl, "_blank", "noopener,noreferrer");
@@ -246,6 +252,12 @@ export function MyWorkflows({ setupComplete = true, agentAvailable = true }: { s
         </button>
       </div>
 
+      {usagePaused ? (
+        <p className="form-error" role="status">
+          <Localized en="AI usage is paused. Workflow tools and marketplace purchases are paused." zh="AI 用量已暂停。工作流工具和应用市场购买也已暂停。" />{" "}
+          <a href="/dashboard/settings?tab=general"><Localized en="Resume AI usage in Settings" zh="在设置中恢复 AI 用量" /></a>
+        </p>
+      ) : null}
       {error ? <p className="form-error" role="alert"><LocalizedMessage text={error} /></p> : null}
       {message ? <p className="form-success" role="status"><LocalizedMessage text={message} /></p> : null}
 
@@ -276,8 +288,8 @@ export function MyWorkflows({ setupComplete = true, agentAvailable = true }: { s
                   <span className="workspace-status-card__eyebrow"><LocalizedMessage text={item.category} /></span>
                   <h2><LocalizedMessage text={item.title} /></h2>
                 </div>
-                <span className={`project-status ${isDisabled ? "project-status--failed" : "project-status--ready"}`}>
-                  {isDisabled ? (zh ? "已停用" : "disabled") : (zh ? "已安装" : "installed")}
+                <span className={`project-status ${usagePaused || isDisabled ? "project-status--failed" : "project-status--ready"}`}>
+                  {usagePaused ? (zh ? "已暂停" : "Paused") : isDisabled ? (zh ? "已停用" : "disabled") : (zh ? "已安装" : "installed")}
                 </span>
               </div>
               <p><LocalizedMessage text={item.description} /></p>
@@ -318,7 +330,12 @@ export function MyWorkflows({ setupComplete = true, agentAvailable = true }: { s
                 ))}
               </ol>
               <div className="workflow-card__actions">
-                {item.internalPath ? (
+                {usagePaused || loading ? (
+                  <button className="btn-primary" disabled type="button">
+                    <Rocket size={16} strokeWidth={1.8} />
+                    {usagePaused ? <Localized en="AI usage paused" zh="AI 用量已暂停" /> : <LocalizedMessage text={item.launchLabel ?? "Launch"} />}
+                  </button>
+                ) : item.internalPath ? (
                   <a className="btn-primary" href={item.internalPath}>
                     <Rocket size={16} strokeWidth={1.8} />
                     <LocalizedMessage text={item.launchLabel ?? "Open timer"} />

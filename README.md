@@ -153,6 +153,12 @@ keeps OAuth redirects independent from proxy/internal host headers.
 
 Do not expose Supabase service role keys to the browser. Only use a service role key in a local shell or controlled maintenance job for admin scripts such as `npm run wiki:backfill`. Google OAuth credentials belong in Supabase Auth provider settings.
 
+Pausing AI usage in Settings blocks marketplace installs/purchases and workflow launches, including free and admin-exempt tools. Existing signed workflow sessions return inactive (HTTP 423) on their next launch-session verification; deployed tools must keep verifying sessions before protected work. Gyne bridge requests and delegated Zoom access also check the pause. My Workflows, Marketplace and the built-in timer refresh the pause state on focus and every 15 seconds while visible. Browsing, unsubscribing, topping up credits and resuming remain available. Public external guides cannot be revoked after leaving this app.
+
+Apply `supabase/migrations/0047_marketplace_ai_usage_pause.sql` with the deployment. It checks purchases under the profile row lock and skips automatic tool renewals while paused. Existing balances, allocations and subscriptions are preserved. After resume, due tools renew once using the current date; paused months are not charged retroactively.
+
+Pausing requires typing `PAUSE` in the Settings confirmation dialog; the API validates this confirmation. Chat-only users can also pause/resume, including with no general credits. Apply `supabase/migrations/0048_ai_usage_pause_audit.sql` to atomically record each pause/resume in the existing service-only audit trail. Admin → Users → **View pause history** opens `/admin/ai-pauses`, protected by the admin allowlist and TOTP. Filter by user email/ID and event, with times shown in Singapore time (SGT, UTC+8). The migration imports the last known pause/resume timestamps without inventing earlier history or attributing an unknown actor. Existing audit rows survive user deletion.
+
 Marketplace workflow launches use short-lived signed URLs. To also revoke already-open workflow tool tabs when a user logs out, set `MARKETPLACE_LAUNCH_VERIFY_SECRET` in AI CUBER and set the same value plus `MARKETPLACE_LAUNCH_VERIFY_URL=https://your-2ndbrain-domain/api/marketplace/launch-session/verify` in each deployed workflow tool.
 
 Meeting Minutes runs as a separate Railway service. Set `MEETING_MINUTES_URL` to its public `/api/2ndbrain/launch` endpoint and `MEETING_MINUTES_SESSION_SECRET` to the same 32-byte minimum secret configured on that service. Both services also need the same `MARKETPLACE_LAUNCH_VERIFY_SECRET`; set the minutes service's `MARKETPLACE_LAUNCH_VERIFY_URL` to this app's `/api/marketplace/launch-session/verify`. The meeting-minutes repository documents its volume, Zoom credentials, and deployment settings. The listing uses the standard 10,000 AI credit monthly workflow price.
@@ -163,6 +169,8 @@ The 2D Game Development Tutorial runs as a separate Railway service from [aicube
 The two-wheel robot guide is a free external website. Users can install its listing in Marketplace and open it from My Workflows; opening it goes directly to the public guide and does not use a signed marketplace launch session.
 
 ## Supabase
+
+Request throttling, trusted-proxy configuration, security headers and CSP rollout are documented in [Security hardening](docs/SECURITY_HARDENING.md).
 
 Run every file in `supabase/migrations` in filename order, in the Supabase SQL
 Editor. They are idempotent, so re-running a file is safe.

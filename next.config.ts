@@ -1,7 +1,12 @@
 import type { NextConfig } from "next";
+import { securityHeaders } from "./lib/security-headers";
 
 const nextConfig: NextConfig = {
   output: "standalone",
+  poweredByHeader: false,
+  async headers() {
+    return [{ source: "/:path*", headers: securityHeaders() }];
+  },
   // The authenticated proxy buffers request bodies; leave room for 20 MiB uploads.
   experimental: { proxyClientMaxBodySize: 21 * 1024 * 1024 },
   outputFileTracingIncludes: {

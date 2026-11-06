@@ -16,7 +16,7 @@ type SearchRow = {
  * into the outbound task prompt as cited reference context.
  */
 export async function GET(request: Request) {
-  const auth = authorizeGyneBridge(request);
+  const auth = await authorizeGyneBridge(request);
 
   if (!auth.ok) {
     return auth.response;

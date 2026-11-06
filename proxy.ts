@@ -3,6 +3,7 @@ import { NextResponse } from "next/server";
 import { getSupabaseEnv } from "@/lib/env";
 import { updateSession } from "@/lib/supabase/proxy";
 import { appUrl } from "@/lib/url";
+import { rateLimitRequest } from "@/lib/request-rate-limit";
 
 const SUPABASE_SERVICE_ROLE_ENV_NAMES = [
   "SUPABASE_SERVICE_ROLE_KEY",
@@ -54,6 +55,8 @@ function isCreditLockAllowedPath(pathname: string) {
     pathname === "/dashboard/workflows/" ||
     pathname === "/dashboard/pomodoro" ||
     pathname === "/dashboard/pomodoro/" ||
+    pathname === "/api/settings/token-balance" ||
+    pathname === "/api/settings/token-usage-pause" ||
     pathname === "/api/account/destroy-workspace" ||
     pathname === "/api/chat/recover-pptx" ||
     pathname.startsWith("/api/openclaw/gws-auth") ||
@@ -132,6 +135,14 @@ async function isEnabledAdminUser(input: { email: string | null; userId: string 
 }
 
 export async function proxy(request: NextRequest) {
+  // Limit auth attempts before contacting Supabase, including OAuth starts.
+  let authPath = request.nextUrl.pathname.replace(/\/+$/, "");
+  try { authPath = decodeURIComponent(authPath); } catch { /* Invalid paths cannot start a valid auth flow. */ }
+  const authAttempt = authPath === "/auth/login" || authPath.startsWith("/api/auth/");
+  if (authAttempt) {
+    const limited = await rateLimitRequest(request);
+    if (limited) return limited;
+  }
   if (
     request.nextUrl.searchParams.has("code") &&
     !isOAuthCodeCallbackPath(request.nextUrl.pathname)
@@ -147,8 +158,18 @@ export async function proxy(request: NextRequest) {
     return NextResponse.next({ request });
   }
 
-  return updateSession(request, {
+  let authenticated = false;
+  const response = await updateSession(request, {
     onAuthenticated: async ({ email, response, supabase, userId }) => {
+      authenticated = true;
+      if (!authAttempt) {
+        const adminForLimit = request.nextUrl.pathname.startsWith("/api/admin/") && await isEnabledAdminUser({ email, userId });
+        const limited = await rateLimitRequest(request, userId, adminForLimit);
+        if (limited) {
+          response.cookies.getAll().forEach(cookie => limited.cookies.set(cookie));
+          return limited;
+        }
+      }
       if (!isProtectedAppPath(request.nextUrl.pathname)) {
         return response;
       }
@@ -213,6 +234,14 @@ export async function proxy(request: NextRequest) {
       return response;
     }
   });
+  if (!authenticated && !authAttempt) {
+    const limited = await rateLimitRequest(request);
+    if (limited) {
+      response.cookies.getAll().forEach(cookie => limited.cookies.set(cookie));
+      return limited;
+    }
+  }
+  return response;
 }
 
 export const config = {

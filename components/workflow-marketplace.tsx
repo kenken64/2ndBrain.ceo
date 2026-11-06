@@ -1,6 +1,7 @@
 "use client";
 
 import { Localized, useLanguage, LocalizedMessage } from "@/components/language-provider";
+import { useAiUsagePause } from "@/components/use-ai-usage-pause";
 
 import { useEffect, useMemo, useState } from "react";
 import { AlertTriangle, Check, ChevronLeft, ChevronRight, Coins, ExternalLink, Plus, RefreshCw, Search, Timer } from "lucide-react";
@@ -41,6 +42,7 @@ type MarketplaceInstall = {
 };
 
 type MarketplaceState = {
+  aiUsagePaused: boolean;
   balance: MarketplaceBalance;
   installs: MarketplaceInstall[];
   isAdmin: boolean;
@@ -55,6 +57,7 @@ type InstallResponse = {
 };
 
 const emptyState: MarketplaceState = {
+  aiUsagePaused: false,
   balance: {
     availableTokens: 0,
     llmTokenQuota: 0,
@@ -104,9 +107,10 @@ async function readJson<T>(response: Response) {
   return payload;
 }
 
-export function WorkflowMarketplace({ setupComplete = true, agentAvailable = true }: { setupComplete?: boolean; agentAvailable?: boolean }) {
+export function WorkflowMarketplace({ setupComplete = true, agentAvailable = true, aiUsagePaused = false }: { setupComplete?: boolean; agentAvailable?: boolean; aiUsagePaused?: boolean }) {
   const { language } = useLanguage();
   const zh = language === "zh";
+  const [usagePaused, setUsagePaused] = useAiUsagePause(aiUsagePaused);
   const [marketplace, setMarketplace] = useState<MarketplaceState>(emptyState);
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
@@ -153,6 +157,7 @@ export function WorkflowMarketplace({ setupComplete = true, agentAvailable = tru
       const payload = await readJson<MarketplaceState>(response);
 
       setMarketplace(payload);
+      setUsagePaused(payload.aiUsagePaused);
     } catch (refreshError) {
       setError(refreshError instanceof Error ? refreshError.message : "Marketplace could not be loaded.");
     } finally {
@@ -165,6 +170,7 @@ export function WorkflowMarketplace({ setupComplete = true, agentAvailable = tru
   }, []);
 
   async function installWorkflow(id: string) {
+    if (usagePaused) return;
     setInstallingId(id);
     setError(null);
     setMessage(null);
@@ -177,6 +183,7 @@ export function WorkflowMarketplace({ setupComplete = true, agentAvailable = tru
         },
         method: "POST"
       });
+      if (response.status === 423) void refreshMarketplace();
       const payload = await readJson<InstallResponse>(response);
 
       setMarketplace((current) => {
@@ -185,6 +192,7 @@ export function WorkflowMarketplace({ setupComplete = true, agentAvailable = tru
         installMap.set(payload.install.itemId, payload.install);
 
         return {
+          aiUsagePaused: current.aiUsagePaused,
           balance: payload.balance,
           installs: Array.from(installMap.values()),
           isAdmin: payload.isAdmin
@@ -225,6 +233,12 @@ export function WorkflowMarketplace({ setupComplete = true, agentAvailable = tru
         </button>
       </div>
 
+      {usagePaused ? (
+        <p className="form-error" role="status">
+          <Localized en="AI usage is paused. Workflow tools and marketplace purchases are paused." zh="AI 用量已暂停。工作流工具和应用市场购买也已暂停。" />{" "}
+          <a href="/dashboard/settings?tab=general"><Localized en="Resume AI usage in Settings" zh="在设置中恢复 AI 用量" /></a>
+        </p>
+      ) : null}
       {error ? <p className="form-error" role="alert"><LocalizedMessage text={error} /></p> : null}
       {message ? <p className="form-success" role="status"><LocalizedMessage text={message} /></p> : null}
 
@@ -305,7 +319,7 @@ export function WorkflowMarketplace({ setupComplete = true, agentAvailable = tru
           const isInstalling = installingId === template.id;
           const hasEnoughCredits = loading || marketplace.balance.availableTokens >= template.priceTokens;
           const missingTokens = Math.max(0, template.priceTokens - marketplace.balance.availableTokens);
-          const canInstall = (setupComplete || isFree) && !loading && !isInstalled && !isInstalling && (marketplace.isAdmin || isFree || hasEnoughCredits);
+          const canInstall = !usagePaused && (setupComplete || isFree) && !loading && !isInstalled && !isInstalling && (marketplace.isAdmin || isFree || hasEnoughCredits);
           const statusClass = isDisabled
             ? " project-status--failed"
             : isInstalled
@@ -385,12 +399,14 @@ export function WorkflowMarketplace({ setupComplete = true, agentAvailable = tru
                 ))}
               </ol>
               <div className="workflow-card__actions">
-                {template.internalPath && isInstalled && !isDisabled ? (
+                {usagePaused ? (
+                  <button className="btn-primary" disabled type="button"><Localized en="AI usage paused" zh="AI 用量已暂停" /></button>
+                ) : template.internalPath && isInstalled && !isDisabled && !loading ? (
                   <a className="btn-primary" href={template.internalPath}>
                     <Timer size={16} strokeWidth={1.9} />
                     <Localized en="Open timer" zh="打开计时器" />
                   </a>
-                ) : template.externalUrl && isInstalled && !isDisabled ? (
+                ) : template.externalUrl && isInstalled && !isDisabled && !loading ? (
                   <a className="btn-primary" href={template.externalUrl} rel="noopener noreferrer" target="_blank">
                     <ExternalLink size={16} strokeWidth={1.9} />
                     <LocalizedMessage text={template.launchLabel ?? "Launch"} />

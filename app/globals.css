@@ -6549,6 +6549,7 @@ svg {
 .ai-usage-filter, .ai-usage-pagination { display: flex; align-items: end; gap: 12px; margin: 18px 0; flex-wrap: wrap; }
 .ai-usage-filter label { display: grid; gap: 4px; }
 .ai-usage-filter input { padding: 8px; min-width: 290px; }
+.ai-usage-filter select { padding: 8px; min-height: 38px; }
 .ai-usage-table-wrap { overflow-x: auto; }
 .ai-usage-table { width: 100%; border-collapse: collapse; text-align: left; font-size: calc(13px * var(--small-text-scale, 1)); }
 .ai-usage-table th, .ai-usage-table td { padding: 10px; border-bottom: 1px solid var(--border-medium); vertical-align: top; }

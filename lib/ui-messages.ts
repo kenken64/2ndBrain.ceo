@@ -1,10 +1,12 @@
 // Only application-owned messages are translated. Unknown server and user content is preserved.
 export const uiMessagesZh: Record<string, string> = {
+  "Too many requests. Please wait and try again.": "请求过于频繁，请稍后重试。",
   "wiki generation": "生成 Nth Brain 知识库",
   "Nth Brain generation is not configured. Contact the administrator.": "尚未配置 Nth Brain 生成。请联系管理员。",
   "Nth Brain model pricing is unavailable. Please try again later.": "暂时无法获取 Nth Brain 模型价格，请稍后重试。",
   "Unable to check your AI credit balance.": "无法查询您的 AI 积分余额。",
   "AI usage is paused. Resume AI usage in Settings to continue.": "AI 用量已暂停。请在设置中恢复 AI 用量以继续。",
+  "Type PAUSE to confirm.": "输入 PAUSE 以确认。",
   "Exchange rates changed. Refresh your top-up options.": "汇率已变动，请刷新充值选项。",
   "Choose a valid top-up amount.": "请选择有效的充值金额。",
   "Exchange rates are temporarily unavailable. Please try again.": "汇率暂时不可用，请稍后再试。",

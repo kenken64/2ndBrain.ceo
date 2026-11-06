@@ -28,7 +28,7 @@ function asKeywordArray(value: unknown) {
  * `?active=true|false` filters by status; omitting it returns everything.
  */
 export async function GET(request: Request) {
-  const auth = authorizeGyneBridge(request);
+  const auth = await authorizeGyneBridge(request);
 
   if (!auth.ok) {
     return auth.response;
@@ -60,7 +60,7 @@ export async function GET(request: Request) {
  * criterion or rejected attempt.
  */
 export async function POST(request: Request) {
-  const auth = authorizeGyneBridge(request);
+  const auth = await authorizeGyneBridge(request);
 
   if (!auth.ok) {
     return auth.response;
@@ -106,7 +106,7 @@ export async function POST(request: Request) {
  * Updates one eval (owner-scoped): deactivate/reactivate, or edit criterion and matchers.
  */
 export async function PATCH(request: Request) {
-  const auth = authorizeGyneBridge(request);
+  const auth = await authorizeGyneBridge(request);
 
   if (!auth.ok) {
     return auth.response;

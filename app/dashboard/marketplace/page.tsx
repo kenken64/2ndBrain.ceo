@@ -82,7 +82,7 @@ export default async function WorkflowMarketplacePage() {
               <p><Localized en="Install tools to My Workflows. Paid tools use AI credits; free apps are available without credits." zh="将工具安装到“我的工作流”。付费工具使用 AI 积分，免费应用无需积分。" /></p>
             </div>
 
-            <WorkflowMarketplace setupComplete={setupComplete} agentAvailable={Boolean(onboardingProfile?.openclaw_instance?.trim())} />
+            <WorkflowMarketplace aiUsagePaused={Boolean(onboardingProfile?.openclaw_tokens_paused)} setupComplete={setupComplete} agentAvailable={Boolean(onboardingProfile?.openclaw_instance?.trim())} />
           </section>
         </main>
       </div>

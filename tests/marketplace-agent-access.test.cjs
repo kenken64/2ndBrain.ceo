@@ -22,18 +22,18 @@ const allocation = compile('lib/workflow-tool-allocations.ts');
 const catalog = compile('lib/workflow-templates.ts', { '@/lib/workflow-tool-allocations': allocation });
 const messages = compile('lib/ui-messages.ts');
 const lang = { useLanguage: () => ({ language: 'en' }), Localized: ({ en }) => en, LocalizedMessage: ({ text }) => text };
-function renderMarketplace(credits) {
-  const states = [{ isAdmin: false, balance: { availableTokens: credits }, installs: [] }, null, null, false, null, 1, 12, '2D Game Development'];
+function renderMarketplace(credits, aiUsagePaused = false, isAdmin = false) {
+  const states = [{ isAdmin, balance: { availableTokens: credits }, installs: [] }, null, null, false, null, 1, 12, '2D Game Development'];
   const react = { ...React, useState: () => [states.shift(), () => {}], useEffect: () => {}, useMemo: fn => fn() };
-  const { WorkflowMarketplace } = compile('components/workflow-marketplace.tsx', { react, '@/components/language-provider': lang, '@/lib/workflow-templates': catalog, '@/lib/ui-messages': messages });
-  return renderToStaticMarkup(React.createElement(WorkflowMarketplace, { setupComplete: true, agentAvailable: false }));
+  const { WorkflowMarketplace } = compile('components/workflow-marketplace.tsx', { react, '@/components/use-ai-usage-pause': { useAiUsagePause: paused => [Boolean(paused), () => {}] }, '@/components/language-provider': lang, '@/lib/workflow-templates': catalog, '@/lib/ui-messages': messages });
+  return renderToStaticMarkup(React.createElement(WorkflowMarketplace, { setupComplete: true, agentAvailable: false, aiUsagePaused }));
 }
-function renderWorkflow(credits, status = 'installed', canUsePaidTools = false) {
+function renderWorkflow(credits, status = 'installed', canUsePaidTools = false, aiUsagePaused = false) {
   const install = { itemId: '2d-game-dev-tutorial', status, chargedTokens: 10000, priceTokens: 10000, allocation: { allocatedTokens: 10000, usedTokens: 10000 - credits, availableTokens: credits, quotaExempt: false } };
   const states = [[install], null, null, false, canUsePaidTools, null, null];
   const react = { ...React, useState: () => [states.shift(), () => {}], useEffect: () => {}, useMemo: fn => fn() };
-  const { MyWorkflows } = compile('components/my-workflows.tsx', { react, '@/components/language-provider': lang, '@/lib/workflow-templates': catalog });
-  return renderToStaticMarkup(React.createElement(MyWorkflows, { setupComplete: true, agentAvailable: false }));
+  const { MyWorkflows } = compile('components/my-workflows.tsx', { react, '@/components/use-ai-usage-pause': { useAiUsagePause: paused => [Boolean(paused), () => {}] }, '@/components/language-provider': lang, '@/lib/workflow-templates': catalog });
+  return renderToStaticMarkup(React.createElement(MyWorkflows, { setupComplete: true, agentAvailable: false, aiUsagePaused }));
 }
 
 test('catalog identifies independent apps and agent-dependent tasks', () => {
@@ -56,16 +56,30 @@ test('an active paid tool can launch with its own allocation and no general cred
   assert.match(renderWorkflow(10000, 'disabled'), /<button class="btn-primary" disabled="" type="button">/);
 });
 
-test('paid installs enforce credit balance without an agent', async () => {
+test('paused users cannot purchase or launch tools even with credits or admin exemption', () => {
+  for (const isAdmin of [false, true]) {
+    const html = renderMarketplace(100000, true, isAdmin);
+    assert.match(html, /Workflow tools and marketplace purchases are paused/);
+    assert.match(html, /<button class="btn-primary" disabled="" type="button">AI usage paused/);
+    assert.doesNotMatch(html, /<button class="btn-primary" type="button">/);
+  }
+  const html = renderWorkflow(10000, 'installed', true, true);
+  assert.match(html, /Resume AI usage in Settings/);
+  assert.match(html, /<button class="btn-primary" disabled="" type="button">/);
+  assert.match(html, /Unsubscribe/);
+  assert.doesNotMatch(html, /<button class="btn-primary" type="button">/);
+});
+
+test('marketplace transactions enforce credits and pause purchases and renewals without an agent', async () => {
   const db = new PGlite();
   try {
     await db.exec(`create role anon; create role authenticated; create role service_role; create schema auth;
       create table auth.users (id uuid primary key);
       create function auth.uid() returns uuid language sql stable as $$ select null::uuid $$;
       create function public.set_updated_at() returns trigger language plpgsql as $$ begin new.updated_at = now(); return new; end $$;
-      create table public.profiles (id uuid primary key, admin_disabled boolean default false, admin_deleted_at timestamptz, llm_token_quota bigint not null default 0, llm_token_used bigint not null default 0, openclaw_instance text);
+      create table public.profiles (id uuid primary key, admin_disabled boolean default false, admin_deleted_at timestamptz, llm_token_quota bigint not null default 0, llm_token_used bigint not null default 0, openclaw_instance text, openclaw_tokens_paused boolean not null default false);
       create table public.credit_ledger (id uuid primary key default gen_random_uuid(), user_id uuid, delta_tokens bigint, balance_after bigint, reason text, metadata jsonb);`);
-    for (const file of ['0019_marketplace_tool_allocations.sql', '0020_marketplace_tool_unsubscribe.sql']) await db.exec(fs.readFileSync(path.resolve(__dirname, '../supabase/migrations', file), 'utf8'));
+    for (const file of ['0019_marketplace_tool_allocations.sql', '0020_marketplace_tool_unsubscribe.sql', '0047_marketplace_ai_usage_pause.sql']) await db.exec(fs.readFileSync(path.resolve(__dirname, '../supabase/migrations', file), 'utf8'));
     const user = '00000000-0000-0000-0000-000000000001';
     await db.query('insert into auth.users values ($1)', [user]);
     await db.query('insert into profiles (id,llm_token_quota) values ($1,9999)', [user]);
@@ -77,14 +91,48 @@ test('paid installs enforce credit balance without an agent', async () => {
     assert.equal(result.status, 'installed');
     assert.equal(Number(result.available_tokens), 0);
     assert.equal(Number(result.allocated_tokens), 10000);
+
+    // Direct RPCs cannot bypass pause for paid, free or admin-exempt purchases.
+    await db.query('update profiles set openclaw_tokens_paused=true,llm_token_quota=50000 where id=$1', [user]);
+    for (const [price, admin] of [[10000, false], [0, true], [10000, true]]) {
+      await assert.rejects(db.query("select * from public.install_marketplace_tool($1,'other-tool','agent-app','Other Tool',$2,null,$3,'{}'::jsonb)", [user, price, admin]), /ai_usage_paused/);
+    }
+    assert.equal(Number((await db.query('select count(*) as n from marketplace_installs')).rows[0].n), 1);
+    assert.equal(Number((await db.query('select llm_token_quota from profiles')).rows[0].llm_token_quota), 50000);
+
+    // Both scheduled and read-triggered renewals use this function and must leave balances intact.
+    await db.query("update marketplace_installs set next_charge_at=now()-interval '90 days'");
+    const snapshot = async () => (await db.query('select (select row_to_json(p) from profiles p) as profile, (select row_to_json(i) from marketplace_installs i) as install, (select row_to_json(a) from workflow_tool_allocations a) as allocation, (select count(*) from credit_ledger) as ledger')).rows[0];
+    const before = await snapshot();
+    for (const admin of [false, true]) {
+      assert.equal((await db.query('select * from sync_marketplace_tool_subscriptions($1,$2)', [user, admin])).rows.length, 0);
+      assert.deepEqual(await snapshot(), before);
+    }
+    assert.equal((await db.query('select * from due_marketplace_tool_subscription_users(1)')).rows.length, 0);
+    await db.query('update profiles set openclaw_tokens_paused=false where id=$1', [user]);
+    const renewed = (await db.query('select * from sync_marketplace_tool_subscriptions($1,false)', [user])).rows;
+    assert.equal(renewed.length, 1);
+    assert.equal(Number(renewed[0].charged_tokens), 10000, 'resume charges one period, without back-charges');
+    assert.equal(Number(renewed[0].llm_token_quota), 40000);
+    assert.equal((await db.query('select * from sync_marketplace_tool_subscriptions($1,false)', [user])).rows.length, 0, 'retries do not double charge');
+
+    await db.query('update profiles set openclaw_tokens_paused=true where id=$1', [user]);
+    const otherUser = '00000000-0000-0000-0000-000000000002';
+    await db.query('insert into auth.users values ($1)', [otherUser]);
+    await db.query('insert into profiles (id,llm_token_quota) values ($1,10000)', [otherUser]);
+    await db.query("select * from install_marketplace_tool($1,'2d-game-dev-tutorial','agent-app','2D Game Development Tutorial',10000,null,false,'{}'::jsonb)", [otherUser]);
+    await db.query("update marketplace_installs set next_charge_at=now()-case when user_id=$1 then interval '90 days' else interval '1 day' end", [user]);
+    assert.deepEqual((await db.query('select * from due_marketplace_tool_subscription_users(1)')).rows, [{ user_id: otherUser }], 'older paused subscriptions cannot starve active renewals');
+    assert.equal((await db.query("select * from unsubscribe_marketplace_tool($1,'2d-game-dev-tutorial')", [user])).rows[0].status, 'uninstalled', 'unsubscribe remains available while paused');
   } finally { await db.close(); }
 });
 
 test('standalone paid app launch works with no cloud agent or general balance', async () => {
   let status = 'installed';
+  let paused = false;
   const config = compile('lib/workflow-launch.ts', { 'server-only': {} });
   const admin = { from: table => ({ select() { return this; }, eq() { return this; }, neq() { return this; }, async maybeSingle() {
-    if (table === 'profiles') return { data: { email: 'user@example.test', admin_disabled: false, admin_deleted_at: null, openclaw_instance: null, llm_token_quota: 0, llm_token_used: 0 }, error: null };
+    if (table === 'profiles') return { data: { email: 'user@example.test', admin_disabled: false, admin_deleted_at: null, openclaw_instance: null, llm_token_quota: 0, llm_token_used: 0, openclaw_tokens_paused: paused }, error: null };
     if (table === 'marketplace_installs') return { data: { id: 'install-1', item_id: '2d-game-dev-tutorial', item_type: 'agent-app', status }, error: null };
     throw Error(`unexpected table ${table}`);
   } }) };
@@ -108,6 +156,13 @@ test('standalone paid app launch works with no cloud agent or general balance', 
     const claims = JSON.parse(Buffer.from(signedUrl.searchParams.get('launch_token').split('.')[1], 'base64url'));
     assert.equal(claims.user_id, 'user-1');
     assert.equal(claims.tool_id, '2d-game-dev-tutorial');
+    paused = true;
+    const blocked = await route.POST(request());
+    assert.equal(blocked.status, 423);
+    assert.equal(blocked.body.code, 'ai_usage_paused');
+    assert.equal(blocked.body.launchUrl, undefined);
+    paused = false;
+    assert.equal((await route.POST(request())).status, 200);
     status = 'disabled';
     assert.equal((await route.POST(request())).status, 423);
   } finally {

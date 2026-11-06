@@ -12,6 +12,8 @@ const hostname = process.env.HOSTNAME || "0.0.0.0";
 const port = Number.parseInt(process.env.PORT || "3000", 10);
 
 process.chdir(dir);
+// The Node server overwrites this internal header; public callers cannot choose their peer address.
+process.env.AICUBER_CUSTOM_SERVER = "1";
 
 function standaloneConfig() {
   if (dev) {
@@ -45,6 +47,7 @@ const handle = app.getRequestHandler();
 
 app.prepare().then(() => {
   const server = http.createServer((request, response) => {
+    request.headers["x-aicuber-peer-ip"] = request.socket.remoteAddress || "";
     handle(request, response);
   });
 

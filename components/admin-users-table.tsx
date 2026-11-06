@@ -298,10 +298,11 @@ export function AdminUsersTable({ adminAvailableTokens, adminUserId, users }: Ad
                 <span>{_uiLanguage === "zh" ? "已恢复：" : "Resumed: "}{formatDateTime(user.openclawTokensResumedAt, _uiLanguage === "zh")}</span>
                 {user.openclawTokensPaused ? (
                   <span>
-                    {_uiLanguage === "zh" ? "原因：" : "Reason: "}{user.openclawTokensPauseReason ?? (_uiLanguage === "zh" ? "已暂停" : "paused")}
+                    {_uiLanguage === "zh" ? "原因：" : "Reason: "}{user.openclawTokensPauseReason === "user_pause" ? (_uiLanguage === "zh" ? "用户主动暂停" : "Paused by user") : user.openclawTokensPauseReason ?? (_uiLanguage === "zh" ? "已暂停" : "paused")}
                     {user.openclawTokensPauseActorEmail ? ` by ${user.openclawTokensPauseActorEmail}` : ""}
                   </span>
                 ) : null}
+                <a href={`/admin/ai-pauses?user=${encodeURIComponent(user.id)}`}><Localized en="View pause history" zh="查看暂停历史" /></a>
                 <span>{_uiLanguage === "zh" ? `${user.projectCount} 个项目` : `${user.projectCount} projects`}</span>
               </div>
 

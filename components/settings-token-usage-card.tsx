@@ -5,6 +5,7 @@ import { Localized, LocalizedMessage, useLanguage } from "@/components/language-
 
 import { useState } from "react";
 import { Coins, Pause, Play, RefreshCw } from "lucide-react";
+import { ConfirmDialog } from "@/components/confirm-dialog";
 
 type BalanceState = {
   quota: number;
@@ -84,6 +85,7 @@ export function SettingsTokenUsageCard({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
+  const [pauseDialogOpen, setPauseDialogOpen] = useState(false);
   const granted = normalizeTokenValue(tokenQuota);
   const used = normalizeTokenValue(tokenUsed);
   const remaining = Math.max(0, granted - used);
@@ -91,13 +93,14 @@ export function SettingsTokenUsageCard({
   const statusCopy = tokensPaused ? (zh ? "AI 已暂停" : "AI paused") : isAdmin ? (zh ? "免配额" : "Quota exempt") : (zh ? `已使用 ${usagePercent}%` : `${usagePercent}% used`);
 
   async function setPaused(nextPaused: boolean) {
+    if (busy) return;
     setBusy(true);
     setError(null);
     setMessage(null);
 
     try {
       const response = await fetch("/api/settings/token-usage-pause", {
-        body: JSON.stringify({ paused: nextPaused }),
+        body: JSON.stringify({ paused: nextPaused, ...(nextPaused ? { confirmation: "PAUSE" } : {}) }),
         headers: {
           "Content-Type": "application/json"
         },
@@ -122,6 +125,7 @@ export function SettingsTokenUsageCard({
           : undefined
       );
       setMessage(nextPaused ? "AI Agent usage paused." : "AI Agent usage resumed.");
+      setPauseDialogOpen(false);
     } catch (pauseError) {
       setError(pauseError instanceof Error ? pauseError.message : "AI Agent usage setting could not be updated.");
     } finally {
@@ -187,11 +191,19 @@ export function SettingsTokenUsageCard({
         </div>
       </dl>
 
+      <p><Localized en="Pausing AI usage also pauses workflow tools, marketplace purchases, and automatic tool renewals. Resume AI usage here to use them again." zh="暂停 AI 用量也会暂停工作流工具、应用市场购买和工具自动续费。在此恢复 AI 用量后即可继续使用。" /></p>
+
       <div className="settings-token-usage-card__actions">
         <button
           className={tokensPaused ? "btn-primary" : "btn-ghost"}
           disabled={busy}
-          onClick={() => setPaused(!tokensPaused)}
+          onClick={() => {
+            if (tokensPaused) void setPaused(false);
+            else {
+              setError(null);
+              setPauseDialogOpen(true);
+            }
+          }}
           type="button"
         >
           {busy ? (
@@ -204,6 +216,22 @@ export function SettingsTokenUsageCard({
           {busy ? <Localized en={"Updating..."} zh={"正在更新..."} /> : tokensPaused ? <Localized en={"Resume AI usage"} zh={"恢复 AI 用量"} /> : <Localized en={"Pause AI usage"} zh={"暂停 AI 用量"} />}
         </button>
       </div>
+      <ConfirmDialog
+        busy={busy}
+        busyLabel={zh ? "正在暂停..." : "Pausing..."}
+        closeLabel={zh ? "关闭暂停 AI 用量对话框" : "Close pause AI usage dialog"}
+        confirmIcon={<Pause size={17} strokeWidth={1.8} />}
+        confirmLabel={zh ? "暂停 AI 用量" : "Pause AI usage"}
+        confirmWord="PAUSE"
+        description={<p><Localized en="This pauses AI chat, workflow tools, marketplace purchases, and automatic tool renewals. Your remaining credits and tool allocations are preserved. You can resume in Settings." zh="这将暂停 AI 对话、工作流工具、应用市场购买和工具自动续费。您的剩余积分和工具配额会保留，您可以在设置中恢复。" /></p>}
+        error={error}
+        eyebrow={zh ? "AI 用量" : "AI usage"}
+        onCancel={() => setPauseDialogOpen(false)}
+        onConfirm={() => void setPaused(true)}
+        open={pauseDialogOpen}
+        title={zh ? "暂停 AI 用量？" : "Pause AI usage?"}
+        warning={<Localized en="Your pause and resume times are recorded and visible to administrators." zh="您的暂停和恢复时间会被记录，管理员可以查看。" />}
+      />
 
       {error ? <p className="form-error" role="alert"><LocalizedMessage text={error} /></p> : null}
       {message ? <p className="form-success" role="status"><LocalizedMessage text={message} /></p> : null}

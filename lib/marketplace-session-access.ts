@@ -3,7 +3,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { workflowLaunchConfigByToolId } from "@/lib/workflow-launch";
 function denied(error: string, status = 403) { return { active: false as const, error, status }; }
 function revokedAtSeconds(value: string | null) { const time = value ? Date.parse(value) : NaN; return Number.isFinite(time) ? Math.floor(time/1000) : null; }
-type ProfileRow = { admin_deleted_at: string | null; admin_disabled: boolean | null; marketplace_launch_revoked_at: string | null };
+type ProfileRow = { admin_deleted_at: string | null; admin_disabled: boolean | null; marketplace_launch_revoked_at: string | null; openclaw_tokens_paused: boolean | null };
 type InstallRow = { id: string; item_id: string; status: string };
 export async function checkMarketplaceLaunchAccess({userId,installId,toolId,issuedAt}: {userId:string;installId:string;toolId:string;issuedAt:number}) {
   const launchConfig = workflowLaunchConfigByToolId(toolId);
@@ -15,7 +15,7 @@ export async function checkMarketplaceLaunchAccess({userId,installId,toolId,issu
   const adminSupabase = createAdminClient();
   const { data: profileRow, error: profileError } = await adminSupabase
     .from("profiles")
-    .select("admin_deleted_at,admin_disabled,marketplace_launch_revoked_at")
+    .select("admin_deleted_at,admin_disabled,marketplace_launch_revoked_at,openclaw_tokens_paused")
     .eq("id", userId)
     .maybeSingle();
 
@@ -31,6 +31,10 @@ export async function checkMarketplaceLaunchAccess({userId,installId,toolId,issu
 
   if (profile.admin_disabled || profile.admin_deleted_at) {
     return denied("Account access is disabled.");
+  }
+
+  if (profile.openclaw_tokens_paused) {
+    return denied("AI usage is paused. Resume AI usage in Settings to continue.", 423);
   }
 
   const revokedSeconds = revokedAtSeconds(profile.marketplace_launch_revoked_at);

@@ -35,7 +35,7 @@ function unauthorized(message = "Invalid marketplace launch verification secret.
 }
 
 function inactive(message: string, status = 403) {
-  return NextResponse.json({ active: false, error: message }, { status });
+  return NextResponse.json({ active: false, error: message }, { status, headers: { "Cache-Control": "no-store" } });
 }
 
 export async function POST(request: Request) {

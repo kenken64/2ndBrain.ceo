@@ -86,7 +86,7 @@ export async function GET() {
   const adminSupabase = createAdminClient();
   const { data: profile, error: profileError } = await adminSupabase
     .from("profiles")
-    .select("admin_disabled,admin_deleted_at,email,llm_token_quota,llm_token_used,openclaw_instance")
+    .select("admin_disabled,admin_deleted_at,email,llm_token_quota,llm_token_used,openclaw_instance,openclaw_tokens_paused")
     .eq("id", auth.userId)
     .maybeSingle();
 
@@ -103,7 +103,9 @@ export async function GET() {
   }
 
   const isAdmin = await isAdminUser(auth.email || profile.email, auth.userId);
-  const { data: syncRows, error: syncError } = await adminSupabase
+  const { data: syncRows, error: syncError } = profile.openclaw_tokens_paused
+    ? { data: [], error: null }
+    : await adminSupabase
     .rpc("sync_marketplace_tool_subscriptions", {
       p_is_admin: isAdmin,
       p_user_id: auth.userId
@@ -137,7 +139,7 @@ export async function GET() {
 
   const { data: currentProfile, error: currentProfileError } = await adminSupabase
     .from("profiles")
-    .select("email,llm_token_quota,llm_token_used")
+    .select("email,llm_token_quota,llm_token_used,openclaw_tokens_paused")
     .eq("id", auth.userId)
     .maybeSingle();
 
@@ -205,6 +207,7 @@ export async function GET() {
 
   return NextResponse.json(
     {
+      aiUsagePaused: Boolean(balanceProfile.openclaw_tokens_paused),
       balance: {
         availableTokens: Math.max(0, llmTokenQuota - llmTokenUsed),
         llmTokenQuota,

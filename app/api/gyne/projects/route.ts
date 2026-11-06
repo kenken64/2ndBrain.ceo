@@ -15,7 +15,7 @@ type ProjectRow = {
  * launch session and forwards the user_id here with the shared bridge secret.
  */
 export async function GET(request: Request) {
-  const auth = authorizeGyneBridge(request);
+  const auth = await authorizeGyneBridge(request);
 
   if (!auth.ok) {
     return auth.response;

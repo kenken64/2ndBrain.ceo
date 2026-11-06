@@ -37,6 +37,7 @@ test('recovery saves the existing presentation for its owner without an AI reque
 test('a user with no remaining AI credits can save a recovered presentation', async () => {
   const { NextRequest } = require('next/server');
   const proxy = compile('proxy.ts', {
+    '@/lib/request-rate-limit': { rateLimitRequest: async () => null },
     '@/lib/env': { getSupabaseEnv: () => ({ supabaseUrl: 'https://example.test' }) },
     '@/lib/url': { appUrl: (url, request) => new URL(url, request.url) },
     '@/lib/supabase/proxy': { updateSession: async (_request, options) => options.onAuthenticated({ email: null, userId: 'user-1', response: new Response('allowed'), supabase: { from: () => ({ select: () => ({ eq: () => ({ maybeSingle: async () => ({ data: { llm_token_quota: 10, llm_token_used: 10 } }) }) }) }) } }) }

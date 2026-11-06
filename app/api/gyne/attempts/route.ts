@@ -26,7 +26,7 @@ function asStringArray(value: unknown) {
  * Lists the durable attempt history for one kanban card, oldest attempt first.
  */
 export async function GET(request: Request) {
-  const auth = authorizeGyneBridge(request);
+  const auth = await authorizeGyneBridge(request);
 
   if (!auth.ok) {
     return auth.response;
@@ -62,7 +62,7 @@ export async function GET(request: Request) {
  * fields recorded earlier.
  */
 export async function POST(request: Request) {
-  const auth = authorizeGyneBridge(request);
+  const auth = await authorizeGyneBridge(request);
 
   if (!auth.ok) {
     return auth.response;

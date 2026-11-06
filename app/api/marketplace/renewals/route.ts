@@ -15,6 +15,7 @@ type ProfileRow = {
   email: string | null;
   id: string;
   openclaw_instance: string | null;
+  openclaw_tokens_paused: boolean | null;
 };
 
 type SyncMarketplaceToolRow = {
@@ -78,14 +79,10 @@ export async function POST(request: Request) {
   }
 
   const adminSupabase = createAdminClient();
-  const now = new Date().toISOString();
+  // Filter paused owners before applying the batch limit so their due tools
+  // cannot fill every batch and starve active users' renewals.
   const { data: dueInstalls, error: dueError } = await adminSupabase
-    .from("marketplace_installs")
-    .select("user_id")
-    .in("status", ["installed", "disabled"])
-    .lte("next_charge_at", now)
-    .order("next_charge_at", { ascending: true })
-    .limit(getBatchLimit());
+    .rpc("due_marketplace_tool_subscription_users", { p_limit: getBatchLimit() });
 
   if (dueError) {
     return NextResponse.json({ error: dueError.message }, { status: 500 });
@@ -111,7 +108,7 @@ export async function POST(request: Request) {
 
   const { data: profiles, error: profilesError } = await adminSupabase
     .from("profiles")
-    .select("id,email,openclaw_instance")
+    .select("id,email,openclaw_instance,openclaw_tokens_paused")
     .in("id", userIds);
 
   if (profilesError) {
@@ -126,6 +123,7 @@ export async function POST(request: Request) {
 
   for (const userId of userIds) {
     const profile = profileByUserId.get(userId);
+    if (profile?.openclaw_tokens_paused) continue;
     const isAdmin = await isAdminUser(profile?.email, userId);
     const { data: syncRows, error: syncError } = await adminSupabase.rpc("sync_marketplace_tool_subscriptions", {
       p_is_admin: isAdmin,

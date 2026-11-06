@@ -252,11 +252,18 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
               }
               initialTab={requestedTab}
               users={
+                <div className="workflow-marketplace-stack">
+                <article className="settings-action-card">
+                  <h2><Localized en="AI pause history" zh="AI 暂停历史" /></h2>
+                  <p><Localized en="See which users paused AI usage and the date and time of each pause or resume." zh="查看哪些用户暂停了 AI 用量，以及每次暂停或恢复的日期和时间。" /></p>
+                  <a className="btn-ghost" href="/admin/ai-pauses"><Localized en="View pause history" zh="查看暂停历史" /></a>
+                </article>
                 <AdminUsersTable
                   adminAvailableTokens={adminAvailableTokens}
                   adminUserId={access.userId}
                   users={users}
                 />
+                </div>
               }
             />
           </section>

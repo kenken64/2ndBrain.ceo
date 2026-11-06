@@ -52,7 +52,7 @@ test('marketplace offers installation with no credits or agent setup', () => {
   const states = [{ isAdmin: false, balance: { availableTokens: 0 }, installs: [] }, null, null, false, null, 1, 12, 'two wheel'];
   const fakeReact = { ...React, useState: () => [states.shift(), () => {}], useEffect: () => {}, useMemo: callback => callback() };
   const lang = { useLanguage: () => ({ language: 'en' }), Localized: ({ en }) => en, LocalizedMessage: ({ text }) => text };
-  const { WorkflowMarketplace } = compile('components/workflow-marketplace.tsx', { react: fakeReact, '@/components/language-provider': lang, '@/lib/workflow-templates': catalog, '@/lib/ui-messages': messages });
+  const { WorkflowMarketplace } = compile('components/workflow-marketplace.tsx', { react: fakeReact, '@/components/use-ai-usage-pause': { useAiUsagePause: paused => [Boolean(paused), () => {}] }, '@/components/language-provider': lang, '@/lib/workflow-templates': catalog, '@/lib/ui-messages': messages });
   const html = renderToStaticMarkup(React.createElement(WorkflowMarketplace, { setupComplete: false }));
   assert.match(html, /Free · External guide/);
   assert.match(html, /<button class="btn-primary" type="button">/);
@@ -64,7 +64,7 @@ test('installed guide opens the supplied site in My Workflows', () => {
   const states = [[installed], null, null, false, false, null, null];
   const fakeReact = { ...React, useState: () => [states.shift(), () => {}], useEffect: () => {}, useMemo: callback => callback() };
   const lang = { useLanguage: () => ({ language: 'en' }), Localized: ({ en }) => en, LocalizedMessage: ({ text }) => text };
-  const { MyWorkflows } = compile('components/my-workflows.tsx', { react: fakeReact, '@/components/language-provider': lang, '@/lib/workflow-templates': catalog });
+  const { MyWorkflows } = compile('components/my-workflows.tsx', { react: fakeReact, '@/components/use-ai-usage-pause': { useAiUsagePause: paused => [Boolean(paused), () => {}] }, '@/components/language-provider': lang, '@/lib/workflow-templates': catalog });
   const html = renderToStaticMarkup(React.createElement(MyWorkflows, { setupComplete: false }));
   assert.match(html, /Open guide/);
   assert.ok(html.includes(`href="${guide.externalUrl}"`));

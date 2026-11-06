@@ -71,6 +71,10 @@ function installErrorResponse(error: { message?: string }, requiredTokens: numbe
     return NextResponse.json({ error: "Account access is disabled." }, { status: 403 });
   }
 
+  if (message.includes("ai_usage_paused")) {
+    return NextResponse.json({ code: "ai_usage_paused", error: "AI usage is paused. Resume AI usage in Settings to continue." }, { status: 423 });
+  }
+
   if (message.includes("insufficient_ai_credits")) {
     return NextResponse.json(
       { error: `You need ${formatTokens(requiredTokens)} available AI credits to install this workflow tool.` },
@@ -103,12 +107,24 @@ export async function POST(request: Request) {
   const adminSupabase = createAdminClient();
   const { data: profile, error: profileError } = await adminSupabase
     .from("profiles")
-    .select("email,openclaw_instance")
+    .select("admin_disabled,admin_deleted_at,email,openclaw_instance,openclaw_tokens_paused")
     .eq("id", auth.userId)
     .maybeSingle();
 
   if (profileError) {
     return NextResponse.json({ error: profileError.message }, { status: 500 });
+  }
+
+  if (!profile) {
+    return NextResponse.json({ error: "Profile was not found." }, { status: 404 });
+  }
+
+  if (profile.admin_disabled || profile.admin_deleted_at) {
+    return NextResponse.json({ error: "Account access is disabled." }, { status: 403 });
+  }
+
+  if (profile.openclaw_tokens_paused) {
+    return NextResponse.json({ code: "ai_usage_paused", error: "AI usage is paused. Resume AI usage in Settings to continue." }, { status: 423 });
   }
 
   const email = auth.email || profile?.email || null;
