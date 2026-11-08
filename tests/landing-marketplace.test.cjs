@@ -36,7 +36,7 @@ const { MarketplaceShowcase } = compile("components/landing/marketplace-showcase
 
 test("public marketplace shows the shared catalog, prices and repository links", () => {
   const html = renderToStaticMarkup(React.createElement(MarketplaceShowcase));
-  assert.equal(catalog.MARKETPLACE_ITEMS.length, 8);
+  assert.equal(catalog.MARKETPLACE_ITEMS.length, 9);
   for (const item of catalog.MARKETPLACE_ITEMS) {
     assert.ok(html.includes(item.title.replaceAll("&", "&amp;")));
     assert.ok(html.includes(item.description));

@@ -24,6 +24,19 @@ export const WORKFLOW_STORAGE_KEY = "2ndbrain.workflowTemplates";
 export const WORKFLOW_TEMPLATES: WorkflowTemplate[] = [
   {
     category: "Education",
+    description: "Program a micro:bit Bluetooth gamepad with blocks, build firmware, and download your saved HEX file.",
+    id: "microbit-gamepad",
+    requiresCloudAgent: false,
+    itemType: "agent-app",
+    launchLabel: "Launch",
+    priceTokens: 0,
+    repoUrl: "https://github.com/kenken64/elecfreak-microbit-gamepad",
+    sourceLabel: "GitHub",
+    steps: ["Edit gamepad blocks", "Build micro:bit firmware", "Download your saved HEX"],
+    title: "micro:bit Gamepad Blocks"
+  },
+  {
+    category: "Education",
     description: "Explore the N20 two-wheel robot PCB, components, 3D assembly and prototype build guidance.",
     externalUrl: "https://n20-robot-pcb-explorer.wiry-eagle-9459.chatgpt.site/",
     id: "two-wheel-robot-guide",

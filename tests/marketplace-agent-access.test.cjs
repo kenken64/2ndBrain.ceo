@@ -7,6 +7,7 @@ const ts = require('typescript');
 const React = require('react');
 const { renderToStaticMarkup } = require('react-dom/server');
 const { PGlite } = require('@electric-sql/pglite');
+const { createHmac } = require('node:crypto');
 
 function compile(file, mocks = {}) {
   const filename = path.resolve(__dirname, '..', file);
@@ -127,13 +128,16 @@ test('marketplace transactions enforce credits and pause purchases and renewals 
   } finally { await db.close(); }
 });
 
-test('standalone paid app launch works with no cloud agent or general balance', async () => {
+for (const [itemId, urlEnv, secretEnv] of [
+  ['2d-game-dev-tutorial', 'GAME_DEV_TUTORIAL_URL', 'GAME_DEV_TUTORIAL_SESSION_SECRET'],
+  ['microbit-gamepad', 'MICROBIT_GAMEPAD_URL', 'MICROBIT_GAMEPAD_SESSION_SECRET'],
+]) test(`${itemId} launch works with no cloud agent or general balance`, async () => {
   let status = 'installed';
   let paused = false;
   const config = compile('lib/workflow-launch.ts', { 'server-only': {} });
   const admin = { from: table => ({ select() { return this; }, eq() { return this; }, neq() { return this; }, async maybeSingle() {
     if (table === 'profiles') return { data: { email: 'user@example.test', admin_disabled: false, admin_deleted_at: null, openclaw_instance: null, llm_token_quota: 0, llm_token_used: 0, openclaw_tokens_paused: paused }, error: null };
-    if (table === 'marketplace_installs') return { data: { id: 'install-1', item_id: '2d-game-dev-tutorial', item_type: 'agent-app', status }, error: null };
+    if (table === 'marketplace_installs') return { data: { id: 'install-1', item_id: itemId, item_type: 'agent-app', status }, error: null };
     throw Error(`unexpected table ${table}`);
   } }) };
   const route = compile('app/api/marketplace/launch/route.ts', {
@@ -144,18 +148,23 @@ test('standalone paid app launch works with no cloud agent or general balance', 
     '@/lib/supabase/server': { createClient: async () => ({ auth: { getClaims: async () => ({ data: { claims: { sub: 'user-1', email: 'user@example.test' } } }) } }) },
     '@/lib/workflow-launch': config, '@/lib/workflow-templates': catalog
   });
-  const previousUrl = process.env.GAME_DEV_TUTORIAL_URL, previousSecret = process.env.GAME_DEV_TUTORIAL_SESSION_SECRET;
+  const previousUrl = process.env[urlEnv], previousSecret = process.env[secretEnv];
   try {
-    process.env.GAME_DEV_TUTORIAL_URL = 'https://game.example.test/launch';
-    process.env.GAME_DEV_TUTORIAL_SESSION_SECRET = 'x'.repeat(40);
-    const request = () => ({ json: async () => ({ itemId: '2d-game-dev-tutorial' }) });
+    process.env[urlEnv] = 'https://game.example.test/api/2ndbrain/launch';
+    process.env[secretEnv] = 'x'.repeat(40);
+    const request = () => ({ json: async () => ({ itemId }) });
     const response = await route.POST(request());
     assert.equal(response.status, 200);
     const signedUrl = new URL(response.body.launchUrl);
     assert.equal(signedUrl.origin, 'https://game.example.test');
-    const claims = JSON.parse(Buffer.from(signedUrl.searchParams.get('launch_token').split('.')[1], 'base64url'));
+    assert.equal(signedUrl.pathname, '/api/2ndbrain/launch');
+    const [header, payload, signature] = signedUrl.searchParams.get('launch_token').split('.');
+    assert.equal(signature, createHmac('sha256', process.env[secretEnv]).update(`${header}.${payload}`).digest('base64url'));
+    const claims = JSON.parse(Buffer.from(payload, 'base64url'));
     assert.equal(claims.user_id, 'user-1');
-    assert.equal(claims.tool_id, '2d-game-dev-tutorial');
+    assert.equal(claims.tool_id, itemId);
+    assert.equal(claims.iss, '2ndBrain.ceo');
+    assert.equal(claims.install_id, 'install-1');
     paused = true;
     const blocked = await route.POST(request());
     assert.equal(blocked.status, 423);
@@ -166,7 +175,7 @@ test('standalone paid app launch works with no cloud agent or general balance', 
     status = 'disabled';
     assert.equal((await route.POST(request())).status, 423);
   } finally {
-    if (previousUrl === undefined) delete process.env.GAME_DEV_TUTORIAL_URL; else process.env.GAME_DEV_TUTORIAL_URL = previousUrl;
-    if (previousSecret === undefined) delete process.env.GAME_DEV_TUTORIAL_SESSION_SECRET; else process.env.GAME_DEV_TUTORIAL_SESSION_SECRET = previousSecret;
+    if (previousUrl === undefined) delete process.env[urlEnv]; else process.env[urlEnv] = previousUrl;
+    if (previousSecret === undefined) delete process.env[secretEnv]; else process.env[secretEnv] = previousSecret;
   }
 });

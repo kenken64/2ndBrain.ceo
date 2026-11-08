@@ -12,6 +12,12 @@ export type WorkflowLaunchConfig = {
 };
 
 const WORKFLOW_LAUNCH_CONFIGS: Record<string, WorkflowLaunchConfig> = {
+  "microbit-gamepad": {
+    appUrlEnv: "MICROBIT_GAMEPAD_URL",
+    itemId: "microbit-gamepad",
+    secretEnv: "MICROBIT_GAMEPAD_SESSION_SECRET",
+    toolId: "microbit-gamepad"
+  },
   "2d-game-dev-tutorial": {
     appUrlEnv: "GAME_DEV_TUTORIAL_URL",
     itemId: "2d-game-dev-tutorial",
