@@ -9,10 +9,15 @@ export type ChatSummary = { id: string; title: string; model: ChatModelId; updat
 export type ChatConversation = ChatSummary & { messages: HistoryMessage[]; revision: number; createdAt: number };
 export type HistoryPage = { chats: ChatSummary[]; hasMore: boolean };
 export type ChatSearchResult = ChatSummary & { messageCount: number; snippet: string | null };
-export type ChatSearchPage = { chats: ChatSearchResult[]; page: number; pageCount: number; total: number };
+export type ChatSearchPage = { chats: ChatSearchResult[]; page: number; pageCount: number; total: number; totalChats: number };
 
 const DATABASE_PATH = "opfs://ai-cuber-chat-v1.duckdb";
 const DATABASE_LOCK = "ai-cuber-chat-database-v1";
+// Chats added after a custom sort appear first; editing a sorted chat keeps its position.
+const CHAT_ORDER = `ORDER BY (
+  SELECT position FROM conversation_order
+  WHERE conversation_order.user_id = conversations.user_id AND conversation_order.chat_id = conversations.id
+) ASC NULLS FIRST, updated_at DESC, created_at DESC, id ASC`;
 
 export class ChatHistoryConflict extends Error {
   constructor() { super("This chat changed in another tab. Reopen it to see the latest messages."); }
@@ -45,6 +50,10 @@ async function withDatabase<T>(action: (connection: AsyncDuckDBConnection) => Pr
         id VARCHAR PRIMARY KEY, user_id VARCHAR NOT NULL, title VARCHAR NOT NULL,
         model VARCHAR NOT NULL, messages_json VARCHAR NOT NULL, revision INTEGER NOT NULL,
         created_at DOUBLE NOT NULL, updated_at DOUBLE NOT NULL
+      )`);
+      await connection.query(`CREATE TABLE IF NOT EXISTS conversation_order (
+        user_id VARCHAR NOT NULL, chat_id VARCHAR NOT NULL, position INTEGER NOT NULL,
+        PRIMARY KEY (user_id, chat_id)
       )`);
       const result = await action(connection);
       if (write) await connection.query("CHECKPOINT");
@@ -84,7 +93,7 @@ function parseRecord(row: Record<string, unknown>): ChatConversation {
 
 export async function listChats(userId: string, limit: number): Promise<HistoryPage> {
   return withDatabase(async (connection) => {
-    const result = await runPrepared(connection, "SELECT id, title, model, updated_at FROM conversations WHERE user_id = ? ORDER BY updated_at DESC, created_at DESC LIMIT ?", [userId, Math.max(1, limit + 1)]);
+    const result = await runPrepared(connection, `SELECT id, title, model, updated_at FROM conversations WHERE user_id = ? ${CHAT_ORDER} LIMIT ?`, [userId, Math.max(1, limit + 1)]);
     const rows = result.toArray().map((row) => row.toJSON() as Record<string, unknown>);
     return { chats: rows.slice(0, limit).map((row) => ({ id: String(row.id), title: String(row.title), model: isChatModel(row.model) ? row.model : CHAT_MODELS[0].id, updatedAt: Number(row.updated_at) })), hasMore: rows.length > limit };
   });
@@ -103,7 +112,7 @@ function matchSnippet(content: string, needle: string) {
 }
 
 /**
- * Pages through a user's chats, newest first, optionally filtered by a
+ * Pages through a user's saved order (newest first until reordered), filtered by a
  * case-insensitive match on the title or any message. SQL narrows candidates
  * with LIKE over the stored JSON; parsed messages then confirm each match so
  * JSON keys such as "role" or "content" never count as hits.
@@ -112,21 +121,21 @@ export async function searchChats(userId: string, query: string, page: number, p
   const needle = query.trim().toLowerCase();
   return withDatabase(async (connection) => {
     const columns = "SELECT id, title, model, messages_json, updated_at FROM conversations";
-    const order = "ORDER BY updated_at DESC, created_at DESC";
+    const counted = await runPrepared(connection, "SELECT count(*) AS total FROM conversations WHERE user_id = ?", [userId]);
+    const totalChats = Number(counted.toArray()[0]?.toJSON().total ?? 0);
     let rows: Record<string, unknown>[];
     let total: number;
     let pageCount: number;
     let current: number;
     if (!needle) {
-      const counted = await runPrepared(connection, "SELECT count(*) AS total FROM conversations WHERE user_id = ?", [userId]);
-      total = Number(counted.toArray()[0]?.toJSON().total ?? 0);
+      total = totalChats;
       pageCount = Math.max(1, Math.ceil(total / pageSize));
       current = Math.min(Math.max(1, page), pageCount);
-      const result = await runPrepared(connection, `${columns} WHERE user_id = ? ${order} LIMIT ? OFFSET ?`, [userId, pageSize, (current - 1) * pageSize]);
+      const result = await runPrepared(connection, `${columns} WHERE user_id = ? ${CHAT_ORDER} LIMIT ? OFFSET ?`, [userId, pageSize, (current - 1) * pageSize]);
       rows = result.toArray().map((row) => row.toJSON() as Record<string, unknown>);
     } else {
       const result = await runPrepared(connection,
-        `${columns} WHERE user_id = ? AND (lower(title) LIKE ? ESCAPE '\\' OR lower(messages_json) LIKE ? ESCAPE '\\') ${order}`,
+        `${columns} WHERE user_id = ? AND (lower(title) LIKE ? ESCAPE '\\' OR lower(messages_json) LIKE ? ESCAPE '\\') ${CHAT_ORDER}`,
         [userId, likePattern(needle), likePattern(JSON.stringify(needle).slice(1, -1))]);
       const matches = result.toArray().map((row) => row.toJSON() as Record<string, unknown>).filter((row) => {
         if (String(row.title).toLowerCase().includes(needle)) return true;
@@ -146,8 +155,61 @@ export async function searchChats(userId: string, query: string, page: number, p
         updatedAt: Number(row.updated_at), messageCount: messages.length, snippet
       };
     });
-    return { chats, page: current, pageCount, total };
+    return { chats, page: current, pageCount, total, totalChats };
   });
+}
+
+/** Move relative to another chat in the complete order, including when viewing search results or a page. */
+export async function moveChat(userId: string, id: string, targetId: string, placement: "before" | "after"): Promise<void> {
+  if (id === targetId) return;
+  await withDatabase(async (connection) => {
+    await connection.query("BEGIN TRANSACTION");
+    try {
+      const result = await runPrepared(connection, `SELECT id FROM conversations WHERE user_id = ? ${CHAT_ORDER}`, [userId]);
+      const ids = result.toArray().map((row) => String(row.toJSON().id));
+      if (!ids.includes(id) || !ids.includes(targetId)) throw new ChatHistoryConflict();
+      ids.splice(ids.indexOf(id), 1);
+      ids.splice(ids.indexOf(targetId) + (placement === "after" ? 1 : 0), 0, id);
+      await runPrepared(connection, "DELETE FROM conversation_order WHERE user_id = ?", [userId]);
+      // Batch parameters to keep large histories from creating oversized statements.
+      for (let offset = 0; offset < ids.length; offset += 250) {
+        const batch = ids.slice(offset, offset + 250);
+        await runPrepared(connection,
+          `INSERT INTO conversation_order (user_id, chat_id, position) VALUES ${batch.map(() => "(?, ?, ?)").join(", ")}`,
+          batch.flatMap((chatId, index) => [userId, chatId, offset + index]));
+      }
+      await connection.query("COMMIT");
+    } catch (error) {
+      await connection.query("ROLLBACK").catch(() => undefined);
+      throw error;
+    }
+  }, true);
+}
+
+async function removeChats(userId: string, id?: string): Promise<void> {
+  await withDatabase(async (connection) => {
+    await connection.query("BEGIN TRANSACTION");
+    try {
+      const values = id === undefined ? [userId] : [userId, id];
+      await runPrepared(connection, `DELETE FROM conversation_order WHERE user_id = ?${id === undefined ? "" : " AND chat_id = ?"}`, values);
+      await runPrepared(connection, `DELETE FROM conversations WHERE user_id = ?${id === undefined ? "" : " AND id = ?"}`, values);
+      await connection.query("COMMIT");
+    } catch (error) {
+      await connection.query("ROLLBACK").catch(() => undefined);
+      throw error;
+    }
+  }, true);
+  if (id === undefined || id === `legacy:${userId}`) {
+    try { localStorage.removeItem(`aicuber.chat.v1.${userId}`); } catch { /* Browser storage may be restricted. */ }
+  }
+}
+
+export async function deleteChat(userId: string, id: string): Promise<void> {
+  await removeChats(userId, id);
+}
+
+export async function clearChats(userId: string): Promise<void> {
+  await removeChats(userId);
 }
 
 export async function getChat(userId: string, id: string): Promise<ChatConversation | null> {

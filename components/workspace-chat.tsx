@@ -21,7 +21,7 @@ import type { ChatConversation, ChatSummary, HistoryMessage, FileArtifact } from
 type HistoryApi = typeof import("@/lib/chat-history");
 type CacheState = "loading" | "ready" | "unavailable";
 type PresentationRecovery = { id: string; chatId: string; data: Blob };
-// The sidebar lists only the most recent chats; /dashboard/chat/history pages through the rest.
+// The sidebar follows the saved history order; /dashboard/chat/history pages through the rest.
 const SIDEBAR_HISTORY_LIMIT = 10;
 
 function newDraft(model: ChatModelId = CHAT_MODELS[0].id): ChatConversation {
