@@ -13,10 +13,14 @@ MICROBIT_GAMEPAD_SESSION_SECRET=<random secret of at least 32 bytes>
 
 Set the same `MICROBIT_GAMEPAD_SESSION_SECRET` on the gamepad service. Also set
 its `MARKETPLACE_LAUNCH_VERIFY_URL` to this app's
-`https://2ndbrain.ceo/api/marketplace/launch-session/verify` and share the existing
+`https://kere.ceo/api/marketplace/launch-session/verify` and share the existing
 `MARKETPLACE_LAUNCH_VERIFY_SECRET` with that service. This verifier secret must
 also have at least 32 bytes and should differ from the gamepad signing secret.
 No Supabase credentials are needed on the gamepad service.
+
+Use the actual deployed app origin for verification. `2ndBrain.ceo` is the
+app/token issuer name, not the verification hostname; this deployment is hosted
+at `https://kere.ceo`.
 
 The editor validates the signed launch token, establishes an eight-hour secure
 browser session and checks account/installation/logout status with 2ndBrain on
